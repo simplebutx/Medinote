@@ -15,6 +15,7 @@ public class MedicineInfo {
     private Long itemSeq;
 
     private String itemName;
+    private String companyName;  // 업체명
 
     @Column(columnDefinition = "TEXT")
     private String efficacy;  // 효능
@@ -40,9 +41,12 @@ public class MedicineInfo {
     @Column(name = "update_de")
     private String updateDe;  // 공공데이터 수정일자
 
+    private String imageUrl;
+
     public MedicineInfo(
             Long itemSeq,
             String itemName,
+            String companyName,
             String efficacy,
             String useMethod,
             String warningBeforeUse,
@@ -50,10 +54,12 @@ public class MedicineInfo {
             String interaction,
             String sideEffect,
             String storageMethod,
-            String updateDe
+            String updateDe,
+            String imageUrl
     ) {
         this.itemSeq = itemSeq;
         this.itemName = itemName;
+        this.companyName = companyName;
         this.efficacy = efficacy;
         this.useMethod = useMethod;
         this.warningBeforeUse = warningBeforeUse;
@@ -62,5 +68,6 @@ public class MedicineInfo {
         this.sideEffect = sideEffect;
         this.storageMethod = storageMethod;
         this.updateDe = updateDe;
+        this.imageUrl = imageUrl;
     }
 }
