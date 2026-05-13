@@ -315,6 +315,7 @@ public class MedicineInfoService {
         return new MedicineInfo(
                 itemNode.path("itemSeq").asLong(),
                 itemNode.path("itemName").asText(),
+                itemNode.path("entpName").asText(),
                 itemNode.path("efcyQesitm").asText(),
                 itemNode.path("useMethodQesitm").asText(),
                 itemNode.path("atpnWarnQesitm").asText(),
@@ -322,7 +323,8 @@ public class MedicineInfoService {
                 itemNode.path("intrcQesitm").asText(),
                 itemNode.path("seQesitm").asText(),
                 itemNode.path("depositMethodQesitm").asText(),
-                itemNode.path("updateDe").asText()
+                itemNode.path("updateDe").asText(),
+                itemNode.path("itemImage").asText()
         );
     }
 
@@ -335,8 +337,7 @@ public class MedicineInfoService {
                 itemNode.path("MTRAL_CODE").asText(),
                 itemNode.path("MTRAL_NM").asText(),
                 itemNode.path("QNT").asText(),
-                itemNode.path("INGD_UNIT_CD").asText(),
-                itemNode.path("TAMT_SEQ").asText()
+                itemNode.path("INGD_UNIT_CD").asText()
         );
     }
 

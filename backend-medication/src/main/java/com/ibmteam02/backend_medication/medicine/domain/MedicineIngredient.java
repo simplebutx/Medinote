@@ -23,7 +23,6 @@ public class MedicineIngredient {
     private String ingredientName;  // 성분 이름
     private String quantity;  // 함량
     private String unit;  // 함량 단위
-    private String totalAmountSeq;  // 총량 순번
 
     public MedicineIngredient(
             Long itemSeq,
@@ -32,8 +31,7 @@ public class MedicineIngredient {
             String ingredientCode,
             String ingredientName,
             String quantity,
-            String unit,
-            String totalAmountSeq
+            String unit
     ) {
         this.itemSeq = itemSeq;
         this.productName = productName;
@@ -42,6 +40,5 @@ public class MedicineIngredient {
         this.ingredientName = ingredientName;
         this.quantity = quantity;
         this.unit = unit;
-        this.totalAmountSeq = totalAmountSeq;
     }
 }
