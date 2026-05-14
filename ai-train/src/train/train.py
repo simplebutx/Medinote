@@ -3,37 +3,65 @@ from pathlib import Path
 from joblib import dump
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
+from data.raw.dummy_data import LABEL_DESCRIPTIONS, samples
 
-MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "question_classifier.joblib"
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+MODEL_PATH = ROOT_DIR / "models" / "question_classifier.joblib"
 
 
 def build_pipeline() -> Pipeline:
     return Pipeline(
         steps=[
             ("tfidf", TfidfVectorizer(ngram_range=(1, 2), min_df=1)),
-            ("clf", LogisticRegression(max_iter=1000)),
+            ("clf", LogisticRegression(max_iter=2000, class_weight="balanced")),
         ]
     )
 
 
 def main() -> None:
-    samples = [
-        "이 약은 하루에 몇 번 먹어야 하나요?",
-        "복용 후 어지러움이 있는데 괜찮나요?",
-        "임산부도 먹어도 되나요?",
-        "이 약 효과가 언제 나타나나요?",
-        "감기약이랑 같이 먹어도 되나요?",
-    ]
-    labels = ["dosage", "side_effect", "precaution", "efficacy", "general"]
+    questions = [item["question"] for item in samples]
+    labels = [item["label"] for item in samples]
+
+    x_train, x_test, y_train, y_test = train_test_split(
+        questions,
+        labels,
+        test_size=0.25,
+        random_state=42,
+        stratify=labels,
+    )
 
     pipeline = build_pipeline()
-    pipeline.fit(samples, labels)
+    pipeline.fit(x_train, y_train)
+
+    predictions = pipeline.predict(x_test)
+
+    print("=== label descriptions ===")
+    for label, description in LABEL_DESCRIPTIONS.items():
+        print(f"{label}: {description}")
+
+    print("\n=== evaluation ===")
+    print(classification_report(y_test, predictions, zero_division=0))
+
+    print("=== sample predictions ===")
+    sample_questions = [
+        "타이레놀 주성분이 뭐야?",
+        "하루에 몇 번 복용해?",
+        "내가 오늘 약 먹었는지 확인해줘",
+        "내 알레르기 성분이 들어 있는지 봐줘",
+        "지금 먹는 약이랑 같이 먹을 때 주의할 점 있어?",
+        "약사 상담 연결해줘",
+    ]
+    for question, prediction in zip(sample_questions, pipeline.predict(sample_questions)):
+        print(f"- {question} -> {prediction}")
 
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     dump(pipeline, MODEL_PATH)
-    print(f"saved model to {MODEL_PATH}")
+    print(f"\nsaved model to {MODEL_PATH}")
 
 
 if __name__ == "__main__":
