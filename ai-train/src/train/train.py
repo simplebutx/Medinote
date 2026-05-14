@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 from joblib import dump
@@ -7,10 +8,13 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from data.raw.dummy_data import LABEL_DESCRIPTIONS, samples
 
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
 MODEL_PATH = ROOT_DIR / "models" / "question_classifier.joblib"
 
 
