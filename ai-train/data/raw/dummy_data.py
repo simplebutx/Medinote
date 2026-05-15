@@ -32,6 +32,23 @@ samples = [
     {"question": "이거 어떤 약인지 잘 모르겟어", "label": "DRUG_INFO"},
     {"question": "약 정보 요약해줘", "label": "DRUG_INFO"},
 
+    {"question": "이 약 어떤 약인지 한줄로 알려줘", "label": "DRUG_INFO"},
+{"question": "이 약 어디에 쓰는지 설명 부탁", "label": "DRUG_INFO"},
+{"question": "이 약 주요 효과가 뭐야?", "label": "DRUG_INFO"},
+{"question": "이 약 주성분이 정확히 뭐임?", "label": "DRUG_INFO"},
+{"question": "이 약 보관할 때 조심할 점 있어?", "label": "DRUG_INFO"},
+{"question": "이 약 약효 설명해줘", "label": "DRUG_INFO"},
+{"question": "이 약 어떤 증상 완화용이야?", "label": "DRUG_INFO"},
+{"question": "이 약 성분 구성이 궁금해", "label": "DRUG_INFO"},
+{"question": "이 약 상온 보관 가능해?", "label": "DRUG_INFO"},
+{"question": "이 약 정보 자세히 말고 간단히 알려줘", "label": "DRUG_INFO"},
+{"question": "이거 효능 효과 쪽만 알려줘", "label": "DRUG_INFO"},
+{"question": "성분 정보만 먼저 볼수있어?", "label": "DRUG_INFO"},
+{"question": "약 보관은 실온인지 냉장인지 알려줘", "label": "DRUG_INFO"},
+{"question": "이 약 정체가 뭐야?", "label": "DRUG_INFO"},
+{"question": "이 약 기본 설명 한번만 해줘", "label": "DRUG_INFO"},
+
+
    # DOSAGE_INFO
 {"question": "이 약 하루에 몇 번 먹어?", "label": "DOSAGE_INFO"},
 {"question": "이 약은 언제 먹는 거야?", "label": "DOSAGE_INFO"},
@@ -165,6 +182,22 @@ samples = [
     {"question": "알레르기 유발 성분 있나", "label": "CONTRAINDICATION_CHECK"},
     {"question": "주의성분 포함됐는지 궁금해", "label": "CONTRAINDICATION_CHECK"},
 
+    {"question": "이 약 알레르기 있는 사람은 조심해야 해?", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약에 내 금기 성분 들어가있나?", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 복용하면 안 되는 성분 포함됐어?", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 알레르기 유발할만한 성분 있나?", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 위험 성분 체크 부탁", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 금기 성분이랑 겹치는지 봐줘", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 주의 성분 들어있는 편이야?", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 피해야 할 성분 있는지 확인해줘", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 내 알레르기 목록이랑 비교해줘", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 조심해야하는 원료 들어감?", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이거 먹으면 안되는 성분 있는 약이야?", "label": "CONTRAINDICATION_CHECK"},
+{"question": "금기 성분 포함 여부만 알려줘", "label": "CONTRAINDICATION_CHECK"},
+{"question": "알레르기 때문에 피해야 하는 약인지 봐줘", "label": "CONTRAINDICATION_CHECK"},
+{"question": "내가 조심중인 성분이 들어있는지 궁금", "label": "CONTRAINDICATION_CHECK"},
+{"question": "위험한 성분 겹치는 거 있으면 말해줘", "label": "CONTRAINDICATION_CHECK"},
+
     # INTERACTION_CHECK
     {"question": "이 약이랑 지금 먹는 약 같이 먹어도 돼?", "label": "INTERACTION_CHECK"},
     {"question": "이 약 다른 약이랑 상호작용 있어?", "label": "INTERACTION_CHECK"},
@@ -197,6 +230,22 @@ samples = [
     {"question": "약 추가하면 겹치는 성분 생겨?", "label": "INTERACTION_CHECK"},
     {"question": "병용해도 되는 조합인지 봐줘", "label": "INTERACTION_CHECK"},
     {"question": "같이 먹기 좀 애매한 약 있는지 확인", "label": "INTERACTION_CHECK"},
+
+    {"question": "이 약 다른 약이랑 같이 먹으면 괜찮아?", "label": "INTERACTION_CHECK"},
+{"question": "이 약 병용하면 위험한 약 있어?", "label": "INTERACTION_CHECK"},
+{"question": "이 약이랑 현재 복용약 충돌 나는지 봐줘", "label": "INTERACTION_CHECK"},
+{"question": "이 약 중복되는 성분 있는 약이랑 겹쳐?", "label": "INTERACTION_CHECK"},
+{"question": "이 약 같이 먹을 때 조심할 약 있나", "label": "INTERACTION_CHECK"},
+{"question": "이 약이랑 다른 약 조합 문제없어?", "label": "INTERACTION_CHECK"},
+{"question": "이 약 추가하면 상호작용 생길 수 있어?", "label": "INTERACTION_CHECK"},
+{"question": "이 약 현재 먹는 약들이랑 병용 가능해?", "label": "INTERACTION_CHECK"},
+{"question": "이 약이랑 같이 먹으면 안 좋은 조합 있어?", "label": "INTERACTION_CHECK"},
+{"question": "이 약 복용 중인 약 목록이랑 비교해줘", "label": "INTERACTION_CHECK"},
+{"question": "이거 다른 약이랑 성분 겹침?", "label": "INTERACTION_CHECK"},
+{"question": "상호작용 나는 약 있는지 확인좀", "label": "INTERACTION_CHECK"},
+{"question": "병용 위험성 체크해줘", "label": "INTERACTION_CHECK"},
+{"question": "같이 복용하면 충돌할 수 있나?", "label": "INTERACTION_CHECK"},
+{"question": "내가 먹는 약들이랑 조합 괜찮은지 궁금", "label": "INTERACTION_CHECK"},
 
    # GENERAL
 {"question": "그냥 상담받고 싶어", "label": "GENERAL"},
@@ -241,6 +290,11 @@ samples = [
 {"question": "도움말 페이지 같은 거 있어?", "label": "GENERAL"},
 {"question": "앱에서 할 수 있는 기능 정리해줘", "label": "GENERAL"},
 {"question": "질문 종류가 뭐뭐 있는지 궁금해", "label": "GENERAL"},
+{"question": "처음인데 어디부터 보면 돼?", "label": "GENERAL"},
+{"question": "앱 메뉴 구성이 어떻게 되는지 알려줘", "label": "GENERAL"},
+{"question": "질문 예시 같은 것도 볼 수 있어?", "label": "GENERAL"},
+{"question": "어떤 기능부터 써보면 좋은지 알려줘", "label": "GENERAL"},
+{"question": "앱 이용 안내 한번만 부탁해", "label": "GENERAL"},
 ]
 
 LABEL_DESCRIPTIONS = {
