@@ -115,6 +115,23 @@ samples = [
     {"question": "지금 안먹은 약 뭐 남아있음?", "label": "MY_MEDICATION"},
     {"question": "오늘 복용했는지 기억이 안나ㅠ", "label": "MY_MEDICATION"},
 
+    {"question": "이 약 오늘 복용했는지 확인해줘", "label": "MY_MEDICATION"},
+{"question": "이 약 오늘 먹은 걸로 기록됐어?", "label": "MY_MEDICATION"},
+{"question": "이 약 아까 먹은거 체크됐나", "label": "MY_MEDICATION"},
+{"question": "이 약 다음 복약 알림 언제야?", "label": "MY_MEDICATION"},
+{"question": "이 약 오늘 저녁 복용 남아있어?", "label": "MY_MEDICATION"},
+{"question": "이 약 지금 복용 기록 보여줄래?", "label": "MY_MEDICATION"},
+{"question": "이 약 내가 방금 먹은걸로 처리됐어?", "label": "MY_MEDICATION"},
+{"question": "이 약 오늘 스케줄에 아직 남아있음?", "label": "MY_MEDICATION"},
+{"question": "이 약 복용 완료로 체크됐는지 봐줘", "label": "MY_MEDICATION"},
+{"question": "이 약 오늘 몇 번 먹었는지 보여줘", "label": "MY_MEDICATION"},
+{"question": "오늘 복약 체크 내역 보여줘", "label": "MY_MEDICATION"},
+{"question": "지금 안 먹은 약 뭐 남았어?", "label": "MY_MEDICATION"},
+{"question": "내 복용 기록 오늘자만 볼 수 있어?", "label": "MY_MEDICATION"},
+{"question": "다음 복약 알림 시간 다시 알려줘", "label": "MY_MEDICATION"},
+{"question": "오늘 약 복용현황 한번 보여줘", "label": "MY_MEDICATION"},
+
+
     # CONTRAINDICATION_CHECK
     {"question": "이 약에 알레르기 성분 들어있어?", "label": "CONTRAINDICATION_CHECK"},
     {"question": "이 약 주의성분 포함돼 있는지 확인해줘", "label": "CONTRAINDICATION_CHECK"},
@@ -213,6 +230,17 @@ samples = [
 {"question": "문의창 같은거 있어??", "label": "GENERAL"},
 {"question": "기능 설명 한 번만 해줘", "label": "GENERAL"},
 {"question": "앱 사용 설명좀 ㅋㅋ", "label": "GENERAL"},
+
+{"question": "앱 기능 전체적으로 설명해줘", "label": "GENERAL"},
+{"question": "어떤 질문까지 가능한지 알려줘", "label": "GENERAL"},
+{"question": "이 서비스 뭐하는 건지 설명해줘", "label": "GENERAL"},
+{"question": "처음 써보는데 사용 방법 알려줘", "label": "GENERAL"},
+{"question": "메뉴가 헷갈리는데 안내해줄래?", "label": "GENERAL"},
+{"question": "문의하려면 어디로 들어가야 해?", "label": "GENERAL"},
+{"question": "상담 연결은 어떻게 하는 거야?", "label": "GENERAL"},
+{"question": "도움말 페이지 같은 거 있어?", "label": "GENERAL"},
+{"question": "앱에서 할 수 있는 기능 정리해줘", "label": "GENERAL"},
+{"question": "질문 종류가 뭐뭐 있는지 궁금해", "label": "GENERAL"},
 ]
 
 LABEL_DESCRIPTIONS = {
