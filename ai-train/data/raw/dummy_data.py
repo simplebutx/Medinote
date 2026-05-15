@@ -198,6 +198,17 @@ samples = [
 {"question": "내가 조심중인 성분이 들어있는지 궁금", "label": "CONTRAINDICATION_CHECK"},
 {"question": "위험한 성분 겹치는 거 있으면 말해줘", "label": "CONTRAINDICATION_CHECK"},
 
+{"question": "이 약 내 알레르기 성분이 들어있는지 확인해줘", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 내가 피해야 하는 성분 포함돼 있어?", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 금기 성분 때문에 먹으면 안 되는 약이야?", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 내 알러지 등록 성분이랑 겹치는지 봐줘", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 복용 금지된 성분이 포함됐는지 궁금해", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 알레르기 있는 사람이 조심해야 하는 약이야?", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 내 금기 목록이랑 비교해서 봐줘", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 위험 성분 말고 금기 성분 위주로 확인해줘", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 특정 성분 때문에 피해야 하는지 알려줘", "label": "CONTRAINDICATION_CHECK"},
+{"question": "이 약 내가 못 먹는 성분 들어있는지 체크해줘", "label": "CONTRAINDICATION_CHECK"},
+
     # INTERACTION_CHECK
     {"question": "이 약이랑 지금 먹는 약 같이 먹어도 돼?", "label": "INTERACTION_CHECK"},
     {"question": "이 약 다른 약이랑 상호작용 있어?", "label": "INTERACTION_CHECK"},
@@ -247,6 +258,16 @@ samples = [
 {"question": "같이 복용하면 충돌할 수 있나?", "label": "INTERACTION_CHECK"},
 {"question": "내가 먹는 약들이랑 조합 괜찮은지 궁금", "label": "INTERACTION_CHECK"},
 
+{"question": "이 약 지금 먹는 다른 약이랑 같이 먹어도 괜찮아?", "label": "INTERACTION_CHECK"},
+{"question": "이 약 다른 약이랑 병용하면 충돌 생겨?", "label": "INTERACTION_CHECK"},
+{"question": "이 약이랑 현재 복용 중인 약들 상호작용 확인해줘", "label": "INTERACTION_CHECK"},
+{"question": "이 약 추가하면 기존 약들이랑 중복 성분 생기나?", "label": "INTERACTION_CHECK"},
+{"question": "이 약 다른 약하고 같이 복용할 때 주의할 점 있어?", "label": "INTERACTION_CHECK"},
+{"question": "이 약이랑 내 복용약 목록 조합 괜찮은지 봐줘", "label": "INTERACTION_CHECK"},
+{"question": "이 약 병용 위험 있는 약 같이 먹고 있는지 확인해줘", "label": "INTERACTION_CHECK"},
+{"question": "이 약 다른 약과 함께 먹을 때 상극인 조합 있어?", "label": "INTERACTION_CHECK"},
+{"question": "이 약이랑 먹는 약들 성분 겹치는 거 있는지 알려줘", "label": "INTERACTION_CHECK"},
+{"question": "이 약 여러 약이랑 같이 먹어도 되는지 체크해줘", "label": "INTERACTION_CHECK"},
    # GENERAL
 {"question": "그냥 상담받고 싶어", "label": "GENERAL"},
 {"question": "앱 사용법이 궁금해", "label": "GENERAL"},
