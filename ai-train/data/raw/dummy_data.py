@@ -65,6 +65,23 @@ samples = [
 {"question": "복용 주기 좀 봐줘", "label": "DOSAGE_INFO"},
 {"question": "한 번 먹을때 양이 얼마나 돼?", "label": "DOSAGE_INFO"},
 
+{"question": "이 약 복용 스케줄 어떻게 돼?", "label": "DOSAGE_INFO"},
+{"question": "이 약 몇 시쯤 먹는게 좋아?", "label": "DOSAGE_INFO"},
+{"question": "이 약 아침 저녁 중 언제 먹어?", "label": "DOSAGE_INFO"},
+{"question": "이 약 하루치 어떻게 나눠 먹어?", "label": "DOSAGE_INFO"},
+{"question": "이 약 복용 순서 따로 있어?", "label": "DOSAGE_INFO"},
+{"question": "이 약 한 알만 먹으면 돼?", "label": "DOSAGE_INFO"},
+{"question": "이 약 다음 복용까지 얼마나 기다려?", "label": "DOSAGE_INFO"},
+{"question": "이 약 밥 먹고 바로 먹어도 되나", "label": "DOSAGE_INFO"},
+{"question": "이 약 식사랑 상관없이 먹어도 됨?", "label": "DOSAGE_INFO"},
+{"question": "이 약 복용시간대가 정해져있어?", "label": "DOSAGE_INFO"},
+{"question": "몇시에 먹어야함?", "label": "DOSAGE_INFO"},
+{"question": "몇알 먹는거야?", "label": "DOSAGE_INFO"},
+{"question": "하루 복용 횟수 다시 알려줘", "label": "DOSAGE_INFO"},
+{"question": "복용 간격 텀이 짧아도 돼?", "label": "DOSAGE_INFO"},
+{"question": "먹는 시간 규칙 있음??", "label": "DOSAGE_INFO"},
+
+
     # MY_MEDICATION
     {"question": "이 약 오늘 먹었는지 확인해줘", "label": "MY_MEDICATION"},
     {"question": "이 약 복용 기록 보여줘", "label": "MY_MEDICATION"},
