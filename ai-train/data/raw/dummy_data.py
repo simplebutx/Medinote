@@ -128,32 +128,6 @@ samples = [
     {"question": "현재 먹는 약이랑 겹치는 성분 있어?", "label": "INTERACTION_CHECK"},
     {"question": "병용하면 문제 없는지 확인해줘", "label": "INTERACTION_CHECK"},
     {"question": "같이 복용해도 괜찮아?", "label": "INTERACTION_CHECK"},
-
-    # GENERAL
-    {"question": "그냥 상담받고 싶어", "label": "GENERAL"},
-    {"question": "앱 사용법이 궁금해", "label": "GENERAL"},
-    {"question": "이 앱으로 뭐 할 수 있어?", "label": "GENERAL"},
-    {"question": "서비스 설명 다시 해줘", "label": "GENERAL"},
-    {"question": "일반 문의도 가능해?", "label": "GENERAL"},
-    {"question": "상담 연결해줄 수 있어?", "label": "GENERAL"},
-    {"question": "기능 소개 좀 해줘", "label": "GENERAL"},
-    {"question": "메뉴 안내해줘", "label": "GENERAL"},
-    {"question": "카테고리 뭐뭐 있어?", "label": "GENERAL"},
-    {"question": "도움말 같은 거 없어?", "label": "GENERAL"},
-    {"question": "뭘 물어봐야 할지 모르겠어", "label": "GENERAL"},
-    {"question": "문의할 게 있어", "label": "GENERAL"},
-    {"question": "질문 어디로 해야 돼?", "label": "GENERAL"},
-    {"question": "사용 방법 알려줘", "label": "GENERAL"},
-    {"question": "앱 기능 전체적으로 설명해줘", "label": "GENERAL"},
-    {"question": "어떤 질문까지 가능한지 알려줘", "label": "GENERAL"},
-    {"question": "이 서비스 뭐 하는 건지 설명해줘", "label": "GENERAL"},
-    {"question": "처음 써보는데 사용 방법 알려줘", "label": "GENERAL"},
-    {"question": "메뉴가 헷갈리는데 안내해줄래?", "label": "GENERAL"},
-    {"question": "문의하려면 어디로 들어가야 해?", "label": "GENERAL"},
-    {"question": "상담 연결은 어떻게 하는 거야?", "label": "GENERAL"},
-    {"question": "도움말 페이지 같은 거 있어?", "label": "GENERAL"},
-    {"question": "앱에서 할 수 있는 기능 정리해줘", "label": "GENERAL"},
-    {"question": "질문 예시 같은 것도 볼 수 있어?", "label": "GENERAL"},
 ]
 
 LABEL_DESCRIPTIONS = {
@@ -162,5 +136,4 @@ LABEL_DESCRIPTIONS = {
     "MY_MEDICATION": "내 복약 정보: 복용 기록, 복용 일정, 복용 여부 확인",
     "CONTRAINDICATION_CHECK": "금기/알레르기 성분 확인",
     "INTERACTION_CHECK": "약물 상호작용 및 중복 성분 확인",
-    "GENERAL": "기타 일반 상담 및 서비스 사용 문의",
 }
