@@ -76,6 +76,16 @@ samples = [
     {"question": "복약 기록 보여줘", "label": "MY_MEDICATION"},
     {"question": "오늘 약 먹은 거 체크됐나?", "label": "MY_MEDICATION"},
     {"question": "오늘 복용 현황 보여줘", "label": "MY_MEDICATION"},
+    {"question": "이 약 오늘 복용 처리됐어?", "label": "MY_MEDICATION"},
+{"question": "이 약 아직 안 먹은 상태야?", "label": "MY_MEDICATION"},
+{"question": "이 약 다음 알림 몇 시야?", "label": "MY_MEDICATION"},
+{"question": "이 약 오늘 복용 기록 남았어?", "label": "MY_MEDICATION"},
+{"question": "이 약 오늘 스케줄 끝났어?", "label": "MY_MEDICATION"},
+{"question": "이 약 지금 먹어야 하는 시간이야?", "label": "MY_MEDICATION"},
+{"question": "이 약 복약 일정 다시 확인해줘", "label": "MY_MEDICATION"},
+{"question": "이 약 오늘 저녁 복용 체크됐어?", "label": "MY_MEDICATION"},
+{"question": "이 약 내가 먹은 걸로 저장됐나?", "label": "MY_MEDICATION"},
+{"question": "이 약 오늘 남은 복용 횟수 알려줘", "label": "MY_MEDICATION"},
 
     # CONTRAINDICATION_CHECK
     {"question": "이 약에 알레르기 성분 들어있어?", "label": "CONTRAINDICATION_CHECK"},
