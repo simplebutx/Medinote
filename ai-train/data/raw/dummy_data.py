@@ -24,6 +24,16 @@ samples = [
     {"question": "무슨 약인지 알려줘", "label": "DRUG_INFO"},
     {"question": "약효 설명해줘", "label": "DRUG_INFO"},
     {"question": "어떤 증상에 쓰는 약이야?", "label": "DRUG_INFO"},
+    {"question": "이 약은 어떤 역할을 하는 약이야?", "label": "DRUG_INFO"},
+{"question": "이 약의 주요 성분이 궁금해", "label": "DRUG_INFO"},
+{"question": "이 약은 무슨 증상에 쓰는지 알려줘", "label": "DRUG_INFO"},
+{"question": "이 약의 기본 효능 설명해줘", "label": "DRUG_INFO"},
+{"question": "이 약 보관할 때 주의할 점 있어?", "label": "DRUG_INFO"},
+{"question": "이 약은 어떤 종류의 약이야?", "label": "DRUG_INFO"},
+{"question": "이 약 성분 정보 자세히 알려줘", "label": "DRUG_INFO"},
+{"question": "이 약 효과를 간단히 요약해줘", "label": "DRUG_INFO"},
+{"question": "이 약은 어디에 사용하는 약이야?", "label": "DRUG_INFO"},
+{"question": "이 약은 실온에 둬도 괜찮아?", "label": "DRUG_INFO"},
 
     # DOSAGE_INFO
     {"question": "이 약 먹는 법 알려줘", "label": "DOSAGE_INFO"},
@@ -50,6 +60,16 @@ samples = [
     {"question": "하루 몇 번 먹어야 해?", "label": "DOSAGE_INFO"},
     {"question": "식전 식후 중 언제 먹어?", "label": "DOSAGE_INFO"},
     {"question": "복용량 알려줘", "label": "DOSAGE_INFO"},
+    {"question": "이 약 복용 방법 자세히 알려줘", "label": "DOSAGE_INFO"},
+{"question": "이 약은 하루에 나눠서 먹어?", "label": "DOSAGE_INFO"},
+{"question": "이 약 복용 시점이 정해져 있어?", "label": "DOSAGE_INFO"},
+{"question": "이 약은 식사 전에 먹는 편이야?", "label": "DOSAGE_INFO"},
+{"question": "이 약은 식사 후에 바로 먹어도 돼?", "label": "DOSAGE_INFO"},
+{"question": "이 약 복용 횟수 기준이 어떻게 돼?", "label": "DOSAGE_INFO"},
+{"question": "이 약은 몇 알씩 먹으면 돼?", "label": "DOSAGE_INFO"},
+{"question": "이 약 복용 텀은 얼마나 둬야 해?", "label": "DOSAGE_INFO"},
+{"question": "이 약은 오전 오후 중 언제 먹어?", "label": "DOSAGE_INFO"},
+{"question": "이 약은 복용량을 어떻게 맞춰?", "label": "DOSAGE_INFO"},
 
     # MY_MEDICATION
     {"question": "이 약 오늘 먹었는지 확인해줘", "label": "MY_MEDICATION"},
