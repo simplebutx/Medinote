@@ -1,4 +1,4 @@
-import axios from 'axios'
+﻿import axios from 'axios'
 
 const api = axios.create({
   baseURL: '/api',
@@ -12,6 +12,13 @@ export const getMedicineSyncStatus = async () => {
 
 export const syncMedicines = async () => {
   const response = await api.post('/medicines/sync')
+  return response.data
+}
+
+export const sendChatbotMessage = async (message) => {
+  const response = await axios.post('/api/api/chatbot/message', { message }, {
+    timeout: 300000,
+  })
   return response.data
 }
 

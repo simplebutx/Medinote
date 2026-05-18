@@ -1,10 +1,7 @@
-from fastapi import FastAPI
+﻿from fastapi import FastAPI
 
-app = FastAPI(title="Medicine Ai Server")
+from app.api.router import api_router
+from app.core.config import settings
 
-@app.get("/health")
-def health_check():
-    return {
-        "status": "ok",
-        "service" : "ai-server"
-    }
+app = FastAPI(title=settings.app_name)
+app.include_router(api_router)
