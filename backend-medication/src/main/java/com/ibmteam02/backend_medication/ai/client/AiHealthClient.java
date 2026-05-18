@@ -13,7 +13,7 @@ public class AiHealthClient {
 
     public AiHealthResponse checkHealth() {
         return aiRestClient.get()
-                .uri("/health")
+                .uri("api/ai/health")
                 .retrieve()  // 요청 보내고 응답을 받아올 준비
                 .body(AiHealthResponse.class);  // 응답 body를 AiHealthResponse 객체로 변환
     }
