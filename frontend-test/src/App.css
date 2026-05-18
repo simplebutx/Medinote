@@ -2,6 +2,83 @@
   white-space: pre-wrap;
 }
 
-textarea {
+.answer-text p,
+.answer-text ol,
+.answer-text ul {
+  margin: 0 0 12px;
+}
+
+.answer-text li {
+  margin-bottom: 8px;
+}
+
+.answer-text strong {
+  font-weight: 700;
+}
+
+.message-input-shell {
+  position: relative;
+  width: 480px;
+  max-width: 100%;
+}
+
+.message-input-highlight,
+.message-input {
+  width: 100%;
+  min-height: 112px;
+  padding: 10px 12px;
+  border: 1px solid #8a8a8a;
+  border-radius: 6px;
+  font: inherit;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-sizing: border-box;
+}
+
+.message-input-highlight {
+  color: #222;
+  background: #fff;
+  pointer-events: none;
+}
+
+.message-input {
+  position: absolute;
+  inset: 0;
   resize: vertical;
+  background: transparent;
+  color: transparent;
+  caret-color: #111;
+}
+
+.message-input::placeholder {
+  color: #888;
+}
+
+.mention-token {
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.suggestion-list {
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+  max-width: 480px;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.suggestion-item {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.suggestion-item:hover {
+  background: #f5f5f5;
 }
