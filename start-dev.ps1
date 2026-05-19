@@ -1,3 +1,4 @@
+
 $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -17,44 +18,44 @@ function Start-NewShell {
     )
 }
 
-Write-Host "[1/6] Redis ì‹œì‘ ì‹œë„..."
+Write-Host "[1/6] Redis ½ÃÀÛ ½Ãµµ..."
 try {
     docker start my-redis | Out-Null
-    Write-Host "Redis ì»¨í…Œì´ë„ˆë¥¼ ì‹œì‘í–ˆìŠµë‹ˆë‹¤."
+    Write-Host "Redis ÄÁÅ×ÀÌ³Ê¸¦ ½ÃÀÛÇß½À´Ï´Ù."
 } catch {
-    Write-Warning "Redisë¥¼ ìë™ìœ¼ë¡œ ì‹œì‘í•˜ì§€ ëª»í–ˆìŠµë‹ˆë‹¤. Docker Desktopì´ ì¼œì ¸ ìˆëŠ”ì§€ í™•ì¸í•˜ì„¸ìš”."
+    Write-Warning "Redis¸¦ ÀÚµ¿À¸·Î ½ÃÀÛÇÏÁö ¸øÇß½À´Ï´Ù. Docker DesktopÀÌ ÄÑÁ® ÀÖ´ÂÁö È®ÀÎÇÏ¼¼¿ä."
 }
 
-Write-Host "[2/6] backend-auth ì‹¤í–‰..."
+Write-Host "[2/6] backend-auth ½ÇÇà..."
 Start-NewShell `
     -Title "backend-auth" `
     -Workdir (Join-Path $projectRoot "backend-auth") `
     -Command ".\gradlew.bat bootRun"
 
-Write-Host "[3/6] backend-medication ì‹¤í–‰..."
+Write-Host "[3/6] backend-medication ½ÇÇà..."
 Start-NewShell `
     -Title "backend-medication" `
     -Workdir (Join-Path $projectRoot "backend-medication") `
     -Command ".\gradlew.bat bootRun"
 
-Write-Host "[4/6] backend-consultation ì‹¤í–‰..."
+Write-Host "[4/6] backend-consultation ½ÇÇà..."
 Start-NewShell `
     -Title "backend-consultation" `
     -Workdir (Join-Path $projectRoot "backend-consultation") `
     -Command ".\gradlew.bat bootRun"
 
-Write-Host "[5/6] ai-server ì‹¤í–‰..."
+Write-Host "[5/6] ai-server ½ÇÇà..."
 Start-NewShell `
     -Title "ai-server" `
     -Workdir (Join-Path $projectRoot "ai-server") `
     -Command "& '.\.venv\Scripts\python.exe' -m uvicorn app.main:app --reload"
 
-Write-Host "[6/6] frontend-test ì‹¤í–‰..."
+Write-Host "[6/6] frontend-test ½ÇÇà..."
 Start-NewShell `
     -Title "frontend-test" `
     -Workdir (Join-Path $projectRoot "frontend-test") `
     -Command "npm.cmd run dev"
 
 Write-Host ""
-Write-Host "ê°œë°œ ì„œë²„ ì‹¤í–‰ ìš”ì²­ì„ ëª¨ë‘ ë³´ëƒˆìŠµë‹ˆë‹¤."
-Write-Host "Redisê°€ ì•ˆ ì¼œì¡Œë‹¤ë©´ Docker Desktopì„ ë¨¼ì € ì‹¤í–‰í•œ ë’¤ 'docker start my-redis'ë¥¼ ë‹¤ì‹œ ì‹¤í–‰í•˜ì„¸ìš”."
+Write-Host "°³¹ß ¼­¹ö ½ÇÇà ¿äÃ»À» ¸ğµÎ º¸³Â½À´Ï´Ù."
+Write-Host "Redis°¡ ¾È ÄÑÁ³´Ù¸é Docker DesktopÀ» ¸ÕÀú ½ÇÇàÇÑ µÚ 'docker start my-redis'¸¦ ´Ù½Ã ½ÇÇàÇÏ¼¼¿ä."

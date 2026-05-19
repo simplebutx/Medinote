@@ -1,3 +1,4 @@
+
 $ErrorActionPreference = "SilentlyContinue"
 
 function Stop-ProcessByPort {
@@ -9,7 +10,7 @@ function Stop-ProcessByPort {
     $connections = Get-NetTCPConnection -LocalPort $Port -State Listen
 
     if (-not $connections) {
-        Write-Host "$Name ($Port): ì‹¤í–‰ ì¤‘ì¸ í”„ë¡œì„¸ìŠ¤ ì—†ìŒ"
+        Write-Host "$Name ($Port): ½ÇÇà ÁßÀÎ ÇÁ·Î¼¼½º ¾øÀ½"
         return
     }
 
@@ -18,32 +19,32 @@ function Stop-ProcessByPort {
     foreach ($pid in $pids) {
         try {
             Stop-Process -Id $pid -Force
-            Write-Host "$Name ($Port): PID $pid ì¢…ë£Œ"
+            Write-Host "$Name ($Port): PID $pid Á¾·á"
         } catch {
-            Write-Warning "$Name ($Port): PID $pid ì¢…ë£Œ ì‹¤íŒ¨"
+            Write-Warning "$Name ($Port): PID $pid Á¾·á ½ÇÆĞ"
         }
     }
 }
 
-Write-Host "[1/6] frontend-test ì¢…ë£Œ..."
+Write-Host "[1/6] frontend-test Á¾·á..."
 Stop-ProcessByPort -Port 5173 -Name "frontend-test"
 
-Write-Host "[2/6] ai-server ì¢…ë£Œ..."
+Write-Host "[2/6] ai-server Á¾·á..."
 Stop-ProcessByPort -Port 8000 -Name "ai-server"
 
-Write-Host "[3/6] backend-auth ì¢…ë£Œ..."
+Write-Host "[3/6] backend-auth Á¾·á..."
 Stop-ProcessByPort -Port 8080 -Name "backend-auth"
 
-Write-Host "[4/6] backend-medication ì¢…ë£Œ..."
+Write-Host "[4/6] backend-medication Á¾·á..."
 Stop-ProcessByPort -Port 8081 -Name "backend-medication"
 
-Write-Host "[5/6] backend-consultation ì¢…ë£Œ..."
+Write-Host "[5/6] backend-consultation Á¾·á..."
 Stop-ProcessByPort -Port 8082 -Name "backend-consultation"
 
-Write-Host "[6/6] Redis ì¤‘ì§€ ì‹œë„..."
+Write-Host "[6/6] Redis ÁßÁö ½Ãµµ..."
 try {
     docker stop my-redis | Out-Null
-    Write-Host "Redis ì»¨í…Œì´ë„ˆë¥¼ ì¤‘ì§€í–ˆìŠµë‹ˆë‹¤."
+    Write-Host "Redis ÄÁÅ×ÀÌ³Ê¸¦ ÁßÁöÇß½À´Ï´Ù."
 } catch {
-    Write-Warning "Redis ì»¨í…Œì´ë„ˆë¥¼ ìë™ìœ¼ë¡œ ì¤‘ì§€í•˜ì§€ ëª»í–ˆìŠµë‹ˆë‹¤."
+    Write-Warning "Redis ÄÁÅ×ÀÌ³Ê¸¦ ÀÚµ¿À¸·Î ÁßÁöÇÏÁö ¸øÇß½À´Ï´Ù."
 }
