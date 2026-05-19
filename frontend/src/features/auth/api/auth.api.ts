@@ -1,4 +1,4 @@
-import { axiosInstance } from "../../../api/axiosInstance";
+import { authInstance } from "../../../api/axiosInstance";
 
 import type {
   LoginRequest,
@@ -18,7 +18,7 @@ import type {
 export const signup = async (
   body: SignupRequest
 ): Promise<SignupResponse> => {
-  const response = await axiosInstance.post<SignupResponse>(
+  const response = await authInstance.post<SignupResponse>(
     "/api/auth/signup",
     body
   );
@@ -30,7 +30,7 @@ export const sendEmailVerificationCode = async (
   body: SendEmailVerificationCodeRequest
 ): Promise<SendEmailVerificationCodeResponse> => {
   const response =
-    await axiosInstance.post<SendEmailVerificationCodeResponse>(
+    await authInstance.post<SendEmailVerificationCodeResponse>(
       "/api/auth/email/verification-code",
       body
     );
@@ -41,7 +41,7 @@ export const sendEmailVerificationCode = async (
 export const verifyEmailCode = async (
   body: VerifyEmailCodeRequest
 ): Promise<VerifyEmailCodeResponse> => {
-  const response = await axiosInstance.post<VerifyEmailCodeResponse>(
+  const response = await authInstance.post<VerifyEmailCodeResponse>(
     "/api/auth/email/verify",
     body
   );
@@ -52,7 +52,7 @@ export const verifyEmailCode = async (
 export const login = async (
   body: LoginRequest
 ): Promise<LoginResponse> => {
-  const response = await axiosInstance.post<LoginResponse>(
+  const response = await authInstance.post<LoginResponse>(
     "/api/auth/login",
     body
   );
@@ -63,7 +63,7 @@ export const login = async (
 export const registerUserAdditionalInfo = async (
   body: UserAdditionalInfoRequest
 ): Promise<UserAdditionalInfoResponse> => {
-  const response = await axiosInstance.post<UserAdditionalInfoResponse>(
+  const response = await authInstance.post<UserAdditionalInfoResponse>(
     "/api/auth/user/profile",
     body
   );
@@ -81,7 +81,7 @@ export const registerPharmacistVerification = async (
   formData.append("licenseImage", body.licenseImage);
 
   const response =
-    await axiosInstance.post<PharmacistVerificationResponse>(
+    await authInstance.post<PharmacistVerificationResponse>(
       "/api/auth/pharmacists/verification",
       formData,
       {
