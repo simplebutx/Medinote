@@ -1,0 +1,14 @@
+server:
+  port: 8082
+
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+ai:
+  service:
+    base-url: ${AI_SERVICE_BASE_URL:http://localhost:8000}
+
+medication:
+  service:
+    base-url: ${MEDICATION_SERVICE_BASE_URL:http://localhost:8081}
