@@ -1,5 +1,8 @@
 import { useState } from "react";
+import toast from "react-hot-toast";
+
 import { Button, Input } from "../../../components/ui";
+import useUserAdditionalInfoSignup from "../hooks/useUserAdditionalInfoSignup";
 
 interface UserAdditionalInfoStepProps {
   onBack: () => void;
@@ -12,6 +15,34 @@ function UserAdditionalInfoStep({
 }: UserAdditionalInfoStepProps) {
   const [allergies, setAllergies] = useState("");
   const [diseases, setDiseases] = useState("");
+
+  const userAdditionalInfoMutation = useUserAdditionalInfoSignup();
+
+  const splitToArray = (value: string) => {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+
+  const handleSubmit = () => {
+    userAdditionalInfoMutation.mutate(
+      {
+        allergies: splitToArray(allergies),
+        diseases: splitToArray(diseases),
+      },
+      {
+        onSuccess: () => {
+          toast.success("추가 정보가 저장되었습니다.");
+          onComplete();
+        },
+        onError: () => {
+          toast.error("현재 API 연결 전입니다. 개발용으로 가입 완료 처리합니다.");
+          onComplete();
+        },
+      }
+    );
+  };
 
   return (
     <div>
@@ -49,8 +80,12 @@ function UserAdditionalInfoStep({
             이전
           </Button>
 
-          <Button type="button" onClick={onComplete}>
-            가입 완료
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={userAdditionalInfoMutation.isPending}
+          >
+            {userAdditionalInfoMutation.isPending ? "저장 중..." : "가입 완료"}
           </Button>
         </div>
       </div>

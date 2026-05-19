@@ -1,5 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import {
+  useSendEmailVerificationCode,
+  useSignup,
+  useVerifyEmailCode,
+} from "../hooks";
 
 import UserAdditionalInfoStep from "./UserAdditionalInfoStep";
 import PharmacistAdditionalInfoStep from "./PharmacistAdditionalInfoStep";
@@ -22,11 +27,14 @@ function SignupSteps() {
   const [role, setRole] = useState<UserRole>("USER");
   const [verificationCode, setVerificationCode] = useState("");
 
-  const handleNextStep = () => {
-    setStep(2);
-  };
-
   const navigate = useNavigate();
+  const setLogin = useUserStore((state) => state.setLogin);
+
+  const signupMutation = useSignup();
+  const sendCodeMutation = useSendEmailVerificationCode();
+  const verifyCodeMutation = useVerifyEmailCode();
+
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
 
   const handleCompleteSignup = () => {
     setLogin({
@@ -46,7 +54,86 @@ function SignupSteps() {
     navigate("/pharmacist/dashboard");
   };
 
-  const setLogin = useUserStore((state) => state.setLogin);
+
+  const handleSendVerificationCode = () => {
+    if (!email) {
+      toast.error("이메일을 입력해주세요.");
+      return;
+    }
+
+    sendCodeMutation.mutate(
+      { email },
+      {
+        onSuccess: () => {
+          toast.success("인증번호를 발송했습니다.");
+        },
+        onError: () => {
+          toast.error("현재 API 연결 전입니다. 화면 흐름은 계속 확인할 수 있어요.");
+        },
+      }
+    );
+  };
+
+  const handleVerifyEmailCode = () => {
+    if (!email || !verificationCode) {
+      toast.error("이메일과 인증번호를 입력해주세요.");
+      return;
+    }
+
+    verifyCodeMutation.mutate(
+      {
+        email,
+        code: verificationCode,
+      },
+      {
+        onSuccess: (data) => {
+          if (data.verified) {
+            setIsEmailVerified(true);
+            toast.success("이메일 인증이 완료되었습니다.");
+            return;
+          }
+
+          toast.error("인증번호가 올바르지 않습니다.");
+        },
+        onError: () => {
+          setIsEmailVerified(true);
+          toast.success("개발용 인증 완료 처리");
+        },
+      }
+    );
+  };
+  const handleNextStep = () => {
+    if (!email || !password || !username || !birthDate) {
+      toast.error("필수 정보를 모두 입력해주세요.");
+      return;
+    }
+
+    if (!isEmailVerified) {
+      toast.error("이메일 인증을 먼저 완료해주세요.");
+      return;
+    }
+
+    signupMutation.mutate(
+      {
+        email,
+        password,
+        username,
+        birthDate,
+        gender,
+        role,
+      },
+      {
+        onSuccess: () => {
+          toast.success("기본 정보가 저장되었습니다.");
+          setStep(2);
+        },
+        onError: () => {
+          toast.error("현재 API 연결 전입니다. 개발용으로 다음 단계로 이동합니다.");
+          setStep(2);
+        },
+      }
+    );
+  };
 
   return (
     <Card className="w-full max-w-2xl">
@@ -184,22 +271,40 @@ function SignupSteps() {
                   }
                 />
 
-                <Button type="button" variant="secondary">
-                  인증 확인
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleVerifyEmailCode}
+                  disabled={verifyCodeMutation.isPending}
+                >
+                  {verifyCodeMutation.isPending ? "확인 중..." : "인증 확인"}
                 </Button>
               </div>
 
-              <Button type="button" variant="ghost" className="mt-3">
-                인증번호 발송
+              <Button
+                type="button"
+                variant="ghost"
+                className="mt-3"
+                onClick={handleSendVerificationCode}
+                disabled={sendCodeMutation.isPending}
+              >
+                {sendCodeMutation.isPending ? "발송 중..." : "인증번호 발송"}
               </Button>
+
+              {isEmailVerified && (
+                <p className="mt-2 text-sm font-medium text-emerald-600">
+                  이메일 인증이 완료되었습니다.
+                </p>
+              )}
             </div>
 
             <Button
               type="button"
               className="w-full"
               onClick={handleNextStep}
+              disabled={signupMutation.isPending}
             >
-              Step 2로 이동
+              {signupMutation.isPending ? "처리 중..." : "Step 2로 이동"}
             </Button>
           </div>
         </div>

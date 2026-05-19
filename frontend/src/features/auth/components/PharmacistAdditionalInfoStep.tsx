@@ -1,5 +1,8 @@
-import { useState } from "react";
-import { Button, Input } from "../../../components/ui";
+import { useState } from 'react';
+import toast from 'react-hot-toast';
+
+import { Button, Input } from '../../../components/ui';
+import usePharmacistVerification from '../hooks/usePharmacistVerification';
 
 interface PharmacistAdditionalInfoStepProps {
   onBack: () => void;
@@ -10,9 +13,38 @@ function PharmacistAdditionalInfoStep({
   onBack,
   onComplete,
 }: PharmacistAdditionalInfoStepProps) {
-  const [docNumber, setDocNumber] = useState("");
-  const [licenseNumber, setLicenseNumber] = useState("");
+  const [docNumber, setDocNumber] = useState('');
+  const [licenseNumber, setLicenseNumber] = useState('');
   const [licenseImage, setLicenseImage] = useState<File | null>(null);
+
+  const pharmacistVerificationMutation = usePharmacistVerification();
+
+  const handleSubmit = () => {
+    if (!docNumber || !licenseNumber || !licenseImage) {
+      toast.error('문서번호, 면허번호, 면허증 이미지를 모두 입력해주세요.');
+      return;
+    }
+
+    pharmacistVerificationMutation.mutate(
+      {
+        docNumber,
+        licenseNumber,
+        licenseImage,
+      },
+      {
+        onSuccess: () => {
+          toast.success('약사 인증 정보가 저장되었습니다.');
+          onComplete();
+        },
+        onError: () => {
+          toast.error(
+            '현재 API 연결 전입니다. 개발용으로 가입 완료 처리합니다.',
+          );
+          onComplete();
+        },
+      },
+    );
+  };
 
   return (
     <div>
@@ -81,8 +113,14 @@ function PharmacistAdditionalInfoStep({
             이전
           </Button>
 
-          <Button type="button" onClick={onComplete}>
-            가입 완료
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={pharmacistVerificationMutation.isPending}
+          >
+            {pharmacistVerificationMutation.isPending
+              ? '저장 중...'
+              : '가입 완료'}
           </Button>
         </div>
       </div>
