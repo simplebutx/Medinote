@@ -1,8 +1,8 @@
-package com.mymedi.backend.global.auth.controller;
+package com.ibmteam02.backend_auth.global.auth.controller;
 
-import com.mymedi.backend.global.auth.jwt.JwtProvider;
-import com.mymedi.backend.global.auth.service.AuthService;
-import com.mymedi.backend.user.dto.*;
+import com.ibmteam02.backend_auth.global.auth.jwt.JwtProvider;
+import com.ibmteam02.backend_auth.global.auth.service.AuthService;
+import com.ibmteam02.backend_auth.user.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -47,7 +47,7 @@ public class AuthController {
     //약사 유저 추가 정보 입력
     @PostMapping(value = "/pharmacists/verification", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> verifyPharmacist(
-            @RequestPart("data")PharmacistVerifyRequest pharmacistVerifyRequest,
+            @RequestPart("data") PharmacistVerifyRequest pharmacistVerifyRequest,
             @RequestPart("licenseImage")MultipartFile licenseImage){
 
         authService.addPharmacistProfile(pharmacistVerifyRequest.getEmail(),pharmacistVerifyRequest,licenseImage);

@@ -1,8 +1,8 @@
-package com.mymedi.backend.user.dto;
+package com.ibmteam02.backend_auth.user.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.mymedi.backend.user.domain.Gender;
-import com.mymedi.backend.user.domain.Role;
+import com.ibmteam02.backend_auth.user.domain.Gender;
+import com.ibmteam02.backend_auth.user.domain.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

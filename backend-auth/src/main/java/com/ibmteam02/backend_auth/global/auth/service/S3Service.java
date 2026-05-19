@@ -1,4 +1,4 @@
-package com.mymedi.backend.global.auth.service;
+package com.ibmteam02.backend_auth.global.auth.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;

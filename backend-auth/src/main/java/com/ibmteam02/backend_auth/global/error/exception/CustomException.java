@@ -1,4 +1,4 @@
-package com.mymedi.backend.global.error.exception;
+package com.ibmteam02.backend_auth.global.error.exception;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

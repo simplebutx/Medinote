@@ -1,7 +1,7 @@
-package com.mymedi.backend.global.auth.controller;
+package com.ibmteam02.backend_auth.global.auth.controller;
 
-import com.mymedi.backend.global.auth.dto.EmailRequest;
-import com.mymedi.backend.global.auth.service.EmailService;
+import com.ibmteam02.backend_auth.global.auth.dto.EmailRequest;
+import com.ibmteam02.backend_auth.global.auth.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

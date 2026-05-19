@@ -1,4 +1,4 @@
-package com.mymedi.backend.user.dto;
+package com.ibmteam02.backend_auth.user.dto;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

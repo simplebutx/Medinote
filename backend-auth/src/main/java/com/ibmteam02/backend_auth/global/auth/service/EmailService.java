@@ -1,4 +1,4 @@
-package com.mymedi.backend.global.auth.service;
+package com.ibmteam02.backend_auth.global.auth.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

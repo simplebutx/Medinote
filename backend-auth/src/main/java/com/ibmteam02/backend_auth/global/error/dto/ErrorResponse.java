@@ -1,4 +1,4 @@
-package com.mymedi.backend.global.error.dto;
+package com.ibmteam02.backend_auth.global.error.dto;
 
 import lombok.*;
 

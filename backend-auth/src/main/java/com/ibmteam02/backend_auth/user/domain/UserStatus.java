@@ -1,4 +1,4 @@
-package com.mymedi.backend.user.domain;
+package com.ibmteam02.backend_auth.user.domain;
 
 public enum UserStatus {
     PENDING, // 가입 직후 (추가 정보 입력 전)

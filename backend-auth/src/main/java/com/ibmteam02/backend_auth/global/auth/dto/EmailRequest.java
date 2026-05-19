@@ -1,4 +1,4 @@
-package com.mymedi.backend.global.auth.dto;
+package com.ibmteam02.backend_auth.global.auth.dto;
 
 import lombok.*;
 
