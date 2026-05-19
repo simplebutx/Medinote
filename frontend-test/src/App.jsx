@@ -1,7 +1,15 @@
+<<<<<<< Updated upstream
 import { useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { sendChatbotMessage, suggestMedicines } from './api'
+=======
+import { useState } from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { refreshMedicines } from './api'
+>>>>>>> Stashed changes
 import './App.css'
+import Signup from './pages/Signup'
+import Login from './pages/Login'
 
 function renderHighlightedMessage(message, confirmedMentions) {
   if (!message) {
@@ -142,6 +150,7 @@ function App() {
   }
 
   return (
+<<<<<<< Updated upstream
     <div>
       <h1>Chatbot Test</h1>
       <form onSubmit={handleSubmit}>
@@ -184,6 +193,25 @@ function App() {
         </div>
       </div>
     </div>
+=======
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            {refreshing ? '저장 중...' : '공공데이터 갱신'}
+          </button>
+        }
+        />
+        <Route path="/signup" element={<Signup/>}/>
+        <Route path="/login" element={<Login/>}/>
+      </Routes>
+    </BrowserRouter>
+
+>>>>>>> Stashed changes
   )
 }
 
