@@ -16,14 +16,14 @@ export const syncMedicines = async () => {
 }
 
 export const sendChatbotMessage = async (message) => {
-  const response = await axios.post('/api/api/chatbot/message', { message }, {
+  const response = await api.post('/chatbot/message', { message }, {
     timeout: 300000,
   })
   return response.data
 }
 
 export const suggestMedicines = async (keyword) => {
-  const response = await axios.post('/api/api/medicines/suggest', null, {
+  const response = await api.post('/medicines/suggest', null, {
     params: { keyword },
     timeout: 300000,
   })
