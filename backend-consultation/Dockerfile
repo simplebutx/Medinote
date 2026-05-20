@@ -4,6 +4,7 @@ COPY gradlew gradlew
 COPY gradle gradle
 COPY build.gradle settings.gradle ./
 COPY . .
+
 RUN chmod +x gradlew
 EXPOSE 8082
 CMD ["bash", "./gradlew", "bootRun", "--no-daemon"]
