@@ -44,13 +44,6 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    //일반 유저 회원가입 2단계 추가 정보 등록
-    @Transactional
-    public void addUserProfile(String email, UserProfileRequest userProfileRequest){
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(()-> new RuntimeException("유저 없음"));
-        user.addUserProfile(userProfileRequest.getAllergies(),userProfileRequest.getDiseases());
-    }
 
     //약사 회원가입 2단계 추가 정보 등록
     @Transactional
