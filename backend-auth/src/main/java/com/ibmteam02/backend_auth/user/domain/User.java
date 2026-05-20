@@ -37,6 +37,11 @@ public class User {
     @Enumerated(EnumType.STRING)
     private UserStatus status;
 
+    //약사 추가 정보
+    private String docNumber;
+    private String licenseNumber;
+    private String licenseImage;
+
     @Builder
     public User(String email,String password, String username, LocalDate birthDate, Gender gender,Role role ){
         this.email = email;
@@ -46,22 +51,6 @@ public class User {
         this.gender = gender;
         this.role = role;
         this.status = UserStatus.PENDING;
-    }
-
-    //일반 유저 추가 정보
-    private String allergies;
-    private String diseases;
-
-    //약사 추가 정보
-    private String docNumber;
-    private String licenseNumber;
-    private String licenseImage;
-
-    //일반 유저 추가 정보 (회원가입 2단계)
-    public void addUserProfile(String allergies, String diseases){
-        this.allergies = allergies;
-        this.diseases = diseases;
-        this.status = UserStatus.ACTIVE;
     }
 
     //약사 추가 정보(회원가입 2단계)
