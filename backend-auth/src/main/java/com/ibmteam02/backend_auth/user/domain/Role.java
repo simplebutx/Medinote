@@ -1,4 +1,4 @@
-package com.mymedi.backend.user.domain;
+package com.ibmteam02.backend_auth.user.domain;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

@@ -1,4 +1,4 @@
-package com.mymedi.backend.global.config;
+package com.ibmteam02.backend_auth.global.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

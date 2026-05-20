@@ -1,6 +1,6 @@
-package com.mymedi.backend.user.repository;
+package com.ibmteam02.backend_auth.user.repository;
 
-import com.mymedi.backend.user.domain.User;
+import com.ibmteam02.backend_auth.user.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

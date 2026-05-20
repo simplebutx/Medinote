@@ -1,6 +1,6 @@
-package com.mymedi.backend.global.auth.repository;
+package com.ibmteam02.backend_auth.global.auth.repository;
 
-import com.mymedi.backend.global.auth.domain.RefreshToken;
+import com.ibmteam02.backend_auth.global.auth.domain.RefreshToken;
 import org.springframework.data.repository.CrudRepository;
 
 public interface RefreshTokenRepository extends CrudRepository<RefreshToken, String> {

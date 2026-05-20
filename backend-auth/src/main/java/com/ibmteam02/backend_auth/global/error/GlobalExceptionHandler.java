@@ -1,9 +1,9 @@
-package com.mymedi.backend.global.error;
+package com.ibmteam02.backend_auth.global.error;
 
-import com.mymedi.backend.global.error.dto.ErrorResponse;
-import com.mymedi.backend.global.error.exception.CustomException;
-import com.mymedi.backend.global.error.exception.ErrorCode;
+import com.ibmteam02.backend_auth.global.error.exception.CustomException;
+import com.ibmteam02.backend_auth.global.error.exception.ErrorCode;
 import org.springframework.http.ResponseEntity;
+import com.ibmteam02.backend_auth.global.error.dto.ErrorResponse;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 

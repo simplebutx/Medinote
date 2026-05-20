@@ -1,4 +1,4 @@
-package com.mymedi.backend.global.auth.jwt;
+package com.ibmteam02.backend_auth.global.auth.jwt;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;

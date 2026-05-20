@@ -1,7 +1,7 @@
-package com.mymedi.backend.global.config;
+package com.ibmteam02.backend_auth.global.config;
 
-import com.mymedi.backend.global.auth.jwt.JwtAuthenticationFilter;
-import com.mymedi.backend.global.auth.jwt.JwtProvider;
+import com.ibmteam02.backend_auth.global.auth.jwt.JwtAuthenticationFilter;
+import com.ibmteam02.backend_auth.global.auth.jwt.JwtProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

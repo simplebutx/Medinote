@@ -1,0 +1,168 @@
+services:
+  mysql:
+    image: mysql:8.0.44
+    container_name: mymedi-mysql
+    profiles: ["docker-db"]
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-medic}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_PASSWORD:-}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: mymedi-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend-auth:
+    build:
+      context: ./backend-auth
+    container_name: mymedi-backend-auth
+    working_dir: /app
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_HOST: ${MYSQL_HOST:-host.docker.internal}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-medic}
+      MYSQL_USERNAME: ${MYSQL_USERNAME:-}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-3600000}
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      AWS_ACCESS_KEY: ${AWS_ACCESS_KEY:-}
+      AWS_SECRET_KEY: ${AWS_SECRET_KEY:-}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
+    ports:
+      - "8080:8080"
+    command: ["sh", "-c", "perl -0pi -e 's/\\r\\n/\\n/g' gradlew && bash gradlew bootRun --no-daemon"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./backend-auth:/app
+      - gradle-auth-cache:/home/gradle/.gradle
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  backend-medication:
+    build:
+      context: ./backend-medication
+    container_name: mymedi-backend-medication
+    working_dir: /app
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_HOST: ${MYSQL_HOST:-host.docker.internal}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-medic}
+      MYSQL_USERNAME: ${MYSQL_USERNAME:-}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      AI_SERVICE_BASE_URL: http://ai-server:8000
+      PUBLIC_DATA_SERVICE_KEY: ${PUBLIC_DATA_SERVICE_KEY:-}
+      PUBLIC_DATA_BASE_URL: ${PUBLIC_DATA_BASE_URL:-https://apis.data.go.kr/1471000/DrbEasyDrugInfoService/getDrbEasyDrugList}
+      PUBLIC_DATA_INGREDIENT_BASE_URL: ${PUBLIC_DATA_INGREDIENT_BASE_URL:-https://apis.data.go.kr/1471000/DrugPrdtPrmsnInfoService07/getDrugPrdtMcpnDtlInq07}
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
+    ports:
+      - "8081:8081"
+    command: ["sh", "-c", "perl -0pi -e 's/\\r\\n/\\n/g' gradlew && bash gradlew bootRun --no-daemon"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./backend-medication:/app
+      - gradle-medication-cache:/home/gradle/.gradle
+
+  backend-consultation:
+    build:
+      context: ./backend-consultation
+    container_name: mymedi-backend-consultation
+    working_dir: /app
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_HOST: ${MYSQL_HOST:-host.docker.internal}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-medic}
+      MYSQL_USERNAME: ${MYSQL_USERNAME:-}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      AI_SERVICE_BASE_URL: http://ai-server:8000
+      MEDICATION_SERVICE_BASE_URL: http://backend-medication:8081
+      PUBLIC_DATA_SERVICE_KEY: ${PUBLIC_DATA_SERVICE_KEY:-}
+      PUBLIC_DATA_BASE_URL: ${PUBLIC_DATA_BASE_URL:-https://apis.data.go.kr/1471000/DrbEasyDrugInfoService/getDrbEasyDrugList}
+      PUBLIC_DATA_INGREDIENT_BASE_URL: ${PUBLIC_DATA_INGREDIENT_BASE_URL:-https://apis.data.go.kr/1471000/DrugPrdtPrmsnInfoService07/getDrugPrdtMcpnDtlInq07}
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
+    ports:
+      - "8082:8082"
+    command: ["sh", "-c", "perl -0pi -e 's/\\r\\n/\\n/g' gradlew && bash gradlew bootRun --no-daemon"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./backend-consultation:/app
+      - gradle-consultation-cache:/home/gradle/.gradle
+    depends_on:
+      backend-medication:
+        condition: service_started
+      ai-server:
+        condition: service_started
+
+  ai-server:
+    build:
+      context: ./ai-server
+    container_name: mymedi-ai-server
+    working_dir: /app
+    environment:
+      LLM_API_URL: ${LLM_API_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-30}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ai-server:/app
+
+  frontend-test:
+    build:
+      context: ./frontend-test
+    container_name: mymedi-frontend-test
+    working_dir: /app
+    environment:
+      VITE_CONSULTATION_PROXY_TARGET: http://backend-consultation:8082
+      VITE_MEDICATION_PROXY_TARGET: http://backend-medication:8081
+    command: ["sh", "-c", "find node_modules -mindepth 1 -maxdepth 1 -exec rm -rf {} + && npm install --include=optional && npm install --no-save @rolldown/binding-linux-arm64-gnu && npm run dev -- --host 0.0.0.0"]
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend-test:/app
+      - frontend-node-modules:/app/node_modules
+    depends_on:
+      backend-medication:
+        condition: service_started
+      backend-consultation:
+        condition: service_started
+
+volumes:
+  mysql-data:
+  redis-data:
+  gradle-auth-cache:
+  gradle-medication-cache:
+  gradle-consultation-cache:
+  frontend-node-modules:

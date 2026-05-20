@@ -1,14 +1,14 @@
-package com.mymedi.backend.global.auth.service;
+package com.ibmteam02.backend_auth.global.auth.service;
 
-import com.mymedi.backend.global.auth.domain.RefreshToken;
-import com.mymedi.backend.global.auth.jwt.JwtProvider;
-import com.mymedi.backend.global.auth.repository.RefreshTokenRepository;
-import com.mymedi.backend.global.error.exception.CustomException;
-import com.mymedi.backend.global.error.exception.ErrorCode;
-import com.mymedi.backend.user.domain.User;
-import com.mymedi.backend.user.domain.UserStatus;
-import com.mymedi.backend.user.dto.*;
-import com.mymedi.backend.user.repository.UserRepository;
+import com.ibmteam02.backend_auth.global.auth.domain.RefreshToken;
+import com.ibmteam02.backend_auth.global.auth.jwt.JwtProvider;
+import com.ibmteam02.backend_auth.global.auth.repository.RefreshTokenRepository;
+import com.ibmteam02.backend_auth.global.error.exception.CustomException;
+import com.ibmteam02.backend_auth.global.error.exception.ErrorCode;
+import com.ibmteam02.backend_auth.user.domain.User;
+import com.ibmteam02.backend_auth.user.domain.UserStatus;
+import com.ibmteam02.backend_auth.user.dto.*;
+import com.ibmteam02.backend_auth.user.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -118,7 +118,7 @@ public class AuthService {
 
         refreshTokenRepository.save(new RefreshToken(user.getEmail(), newRefreshToken, 14*24*60*60L));
 
-        return jwtProvider.createToken(user.getEmail(),user.getRole().name());
+        return new LoginResponse(newAccessToken, newRefreshToken, user.getEmail(), user.getRole().name());
     }
 
     // 로그아웃
