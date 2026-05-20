@@ -2,6 +2,7 @@ import { BrowserRouter, Link, Route, Routes } from 'react-router-dom'
 import './App.css'
 import Chatbot from './pages/Chatbot'
 import Login from './pages/Login'
+import ScheduleTest from './pages/ScheduleTest'
 import Signup from './pages/Signup'
 import Sync from './pages/Sync'
 
@@ -11,16 +12,19 @@ function Home() {
       <h1>frontend-test</h1>
       <ul>
         <li>
-          <Link to="/chatbot">챗봇</Link>
+          <Link to="/chatbot">chatbot</Link>
         </li>
         <li>
-          <Link to="/sync">공공데이터 갱신</Link>
+          <Link to="/sync">sync</Link>
         </li>
         <li>
-          <Link to="/signup">회원가입</Link>
+          <Link to="/schedule-test">schedule test</Link>
         </li>
         <li>
-          <Link to="/login">로그인</Link>
+          <Link to="/signup">signup</Link>
+        </li>
+        <li>
+          <Link to="/login">login</Link>
         </li>
       </ul>
     </div>
@@ -34,6 +38,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/chatbot" element={<Chatbot />} />
         <Route path="/sync" element={<Sync />} />
+        <Route path="/schedule-test" element={<ScheduleTest />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
       </Routes>
