@@ -34,16 +34,6 @@ public class AuthController {
         return ResponseEntity.ok("회원가입 완료");
     }
 
-    //일반 유저 추가 정보 입력
-    @PostMapping("/user/profile")
-    public ResponseEntity<String> addUserProfile(
-            @RequestBody UserProfileRequest userProfileRequest){
-
-        authService.addUserProfile(userProfileRequest.getEmail(),userProfileRequest);
-
-        return ResponseEntity.ok("일반 유저 추가 정보 등록 완료");
-    }
-
     //약사 유저 추가 정보 입력
     @PostMapping(value = "/pharmacists/verification", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> verifyPharmacist(
