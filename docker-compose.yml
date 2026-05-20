@@ -53,6 +53,7 @@ services:
       AWS_SECRET_KEY: ${AWS_SECRET_KEY:-}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
       AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
     ports:
       - "8080:8080"
     command: ["sh", "-c", "perl -0pi -e 's/\\r\\n/\\n/g' gradlew && bash gradlew bootRun --no-daemon"]
@@ -81,6 +82,7 @@ services:
       PUBLIC_DATA_SERVICE_KEY: ${PUBLIC_DATA_SERVICE_KEY:-}
       PUBLIC_DATA_BASE_URL: ${PUBLIC_DATA_BASE_URL:-https://apis.data.go.kr/1471000/DrbEasyDrugInfoService/getDrbEasyDrugList}
       PUBLIC_DATA_INGREDIENT_BASE_URL: ${PUBLIC_DATA_INGREDIENT_BASE_URL:-https://apis.data.go.kr/1471000/DrugPrdtPrmsnInfoService07/getDrugPrdtMcpnDtlInq07}
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
     ports:
       - "8081:8081"
     command: ["sh", "-c", "perl -0pi -e 's/\\r\\n/\\n/g' gradlew && bash gradlew bootRun --no-daemon"]
@@ -107,6 +109,7 @@ services:
       PUBLIC_DATA_SERVICE_KEY: ${PUBLIC_DATA_SERVICE_KEY:-}
       PUBLIC_DATA_BASE_URL: ${PUBLIC_DATA_BASE_URL:-https://apis.data.go.kr/1471000/DrbEasyDrugInfoService/getDrbEasyDrugList}
       PUBLIC_DATA_INGREDIENT_BASE_URL: ${PUBLIC_DATA_INGREDIENT_BASE_URL:-https://apis.data.go.kr/1471000/DrugPrdtPrmsnInfoService07/getDrugPrdtMcpnDtlInq07}
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
     ports:
       - "8082:8082"
     command: ["sh", "-c", "perl -0pi -e 's/\\r\\n/\\n/g' gradlew && bash gradlew bootRun --no-daemon"]
@@ -144,7 +147,7 @@ services:
     environment:
       VITE_CONSULTATION_PROXY_TARGET: http://backend-consultation:8082
       VITE_MEDICATION_PROXY_TARGET: http://backend-medication:8081
-    command: ["sh", "-c", "find node_modules -mindepth 1 -maxdepth 1 -exec rm -rf {} + && npm install --include=optional && npm install --no-save @rolldown/binding-linux-x64-gnu && npm run dev -- --host 0.0.0.0"]
+    command: ["sh", "-c", "find node_modules -mindepth 1 -maxdepth 1 -exec rm -rf {} + && npm install --include=optional && npm install --no-save @rolldown/binding-linux-arm64-gnu && npm run dev -- --host 0.0.0.0"]
     ports:
       - "5173:5173"
     volumes:
