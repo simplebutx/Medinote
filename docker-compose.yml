@@ -2,16 +2,15 @@ services:
   mysql:
     image: mysql:8.0.44
     container_name: mymedi-mysql
-    profiles: ["docker-db"]
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-medic}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-root}
     ports:
       - "3307:3306"
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_PASSWORD:-}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_PASSWORD:-root}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -39,8 +38,8 @@ services:
       MYSQL_HOST: ${MYSQL_HOST:-host.docker.internal}
       MYSQL_PORT: ${MYSQL_PORT:-3306}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-medic}
-      MYSQL_USERNAME: ${MYSQL_USERNAME:-}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      MYSQL_USERNAME: ${MYSQL_USERNAME:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET:-}
@@ -54,14 +53,11 @@ services:
       AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
       AWS_REGION: ${AWS_REGION:-ap-northeast-2}
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
-    ports:
-      - "8080:8080"
-    command: ["sh", "-c", "perl -0pi -e 's/\\r\\n/\\n/g' gradlew && bash gradlew bootRun --no-daemon"]
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    volumes:
-      - ./backend-auth:/app
-      - gradle-auth-cache:/home/gradle/.gradle
+    ports:
+      - "8080:8080"
+    command: ["sh", "-c", "chmod +x gradlew && sed -i 's/\\r$//' gradlew && ./gradlew bootRun --no-daemon"]
     depends_on:
       redis:
         condition: service_healthy
@@ -76,21 +72,21 @@ services:
       MYSQL_HOST: ${MYSQL_HOST:-host.docker.internal}
       MYSQL_PORT: ${MYSQL_PORT:-3306}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-medic}
-      MYSQL_USERNAME: ${MYSQL_USERNAME:-}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      MYSQL_USERNAME: ${MYSQL_USERNAME:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
       AI_SERVICE_BASE_URL: http://ai-server:8000
       PUBLIC_DATA_SERVICE_KEY: ${PUBLIC_DATA_SERVICE_KEY:-}
       PUBLIC_DATA_BASE_URL: ${PUBLIC_DATA_BASE_URL:-https://apis.data.go.kr/1471000/DrbEasyDrugInfoService/getDrbEasyDrugList}
       PUBLIC_DATA_INGREDIENT_BASE_URL: ${PUBLIC_DATA_INGREDIENT_BASE_URL:-https://apis.data.go.kr/1471000/DrugPrdtPrmsnInfoService07/getDrugPrdtMcpnDtlInq07}
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
-    ports:
-      - "8081:8081"
-    command: ["sh", "-c", "perl -0pi -e 's/\\r\\n/\\n/g' gradlew && bash gradlew bootRun --no-daemon"]
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    volumes:
-      - ./backend-medication:/app
-      - gradle-medication-cache:/home/gradle/.gradle
+    ports:
+      - "8081:8081"
+    command: ["sh", "-c", "chmod +x gradlew && sed -i 's/\\r$//' gradlew && ./gradlew bootRun --no-daemon"]
+    depends_on:
+      ai-server:
+        condition: service_started
 
   backend-consultation:
     build:
@@ -102,22 +98,19 @@ services:
       MYSQL_HOST: ${MYSQL_HOST:-host.docker.internal}
       MYSQL_PORT: ${MYSQL_PORT:-3306}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-medic}
-      MYSQL_USERNAME: ${MYSQL_USERNAME:-}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      MYSQL_USERNAME: ${MYSQL_USERNAME:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
       AI_SERVICE_BASE_URL: http://ai-server:8000
       MEDICATION_SERVICE_BASE_URL: http://backend-medication:8081
       PUBLIC_DATA_SERVICE_KEY: ${PUBLIC_DATA_SERVICE_KEY:-}
       PUBLIC_DATA_BASE_URL: ${PUBLIC_DATA_BASE_URL:-https://apis.data.go.kr/1471000/DrbEasyDrugInfoService/getDrbEasyDrugList}
       PUBLIC_DATA_INGREDIENT_BASE_URL: ${PUBLIC_DATA_INGREDIENT_BASE_URL:-https://apis.data.go.kr/1471000/DrugPrdtPrmsnInfoService07/getDrugPrdtMcpnDtlInq07}
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
-    ports:
-      - "8082:8082"
-    command: ["sh", "-c", "perl -0pi -e 's/\\r\\n/\\n/g' gradlew && bash gradlew bootRun --no-daemon"]
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    volumes:
-      - ./backend-consultation:/app
-      - gradle-consultation-cache:/home/gradle/.gradle
+    ports:
+      - "8082:8082"
+    command: ["sh", "-c", "chmod +x gradlew && sed -i 's/\\r$//' gradlew && ./gradlew bootRun --no-daemon"]
     depends_on:
       backend-medication:
         condition: service_started
@@ -136,8 +129,6 @@ services:
       LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-30}
     ports:
       - "8000:8000"
-    volumes:
-      - ./ai-server:/app
 
   frontend-test:
     build:
@@ -147,12 +138,9 @@ services:
     environment:
       VITE_CONSULTATION_PROXY_TARGET: http://backend-consultation:8082
       VITE_MEDICATION_PROXY_TARGET: http://backend-medication:8081
-    command: ["sh", "-c", "find node_modules -mindepth 1 -maxdepth 1 -exec rm -rf {} + && npm install --include=optional && npm install --no-save @rolldown/binding-linux-arm64-gnu && npm run dev -- --host 0.0.0.0"]
+    command: ["sh", "-c", "npm run dev -- --host 0.0.0.0"]
     ports:
       - "5173:5173"
-    volumes:
-      - ./frontend-test:/app
-      - frontend-node-modules:/app/node_modules
     depends_on:
       backend-medication:
         condition: service_started
@@ -162,7 +150,3 @@ services:
 volumes:
   mysql-data:
   redis-data:
-  gradle-auth-cache:
-  gradle-medication-cache:
-  gradle-consultation-cache:
-  frontend-node-modules:
