@@ -1,7 +1,45 @@
 import { useState } from 'react';
-import { Badge, Button, Card } from '../../components/ui';
+import { Badge, Button, Card, Input } from "../../components/ui";
 
 type MyPageTab = 'profile' | 'caution' | 'history' | 'prescription';
+
+type CautionReason =
+  | "ALLERGY"
+  | "SIDE_EFFECT"
+  | "DOCTOR_ADVICE"
+  | "PHARMACIST_ADVICE"
+  | "PERSONAL_AVOID"
+  | "OTHER";
+
+interface CautionItem {
+  id: number;
+  drugName?: string;
+  ingredientName?: string;
+  reason: CautionReason;
+  memo: string;
+}
+
+const reasonOptions: { label: string; value: CautionReason }[] = [
+  { label: "알레르기", value: "ALLERGY" },
+  { label: "부작용", value: "SIDE_EFFECT" },
+  { label: "의사 권고", value: "DOCTOR_ADVICE" },
+  { label: "약사 권고", value: "PHARMACIST_ADVICE" },
+  { label: "개인 회피", value: "PERSONAL_AVOID" },
+  { label: "기타", value: "OTHER" },
+];
+
+function getReasonLabel(reason: CautionReason) {
+  return reasonOptions.find((option) => option.value === reason)?.label ?? "기타";
+}
+
+function getReasonBadge(reason: CautionReason) {
+  if (reason === "ALLERGY") return "red";
+  if (reason === "SIDE_EFFECT") return "yellow";
+  if (reason === "DOCTOR_ADVICE" || reason === "PHARMACIST_ADVICE") {
+    return "blue";
+  }
+  return "gray";
+}
 
 const tabs: { label: string; value: MyPageTab }[] = [
   { label: '기본 정보', value: 'profile' },
@@ -10,27 +48,27 @@ const tabs: { label: string; value: MyPageTab }[] = [
   { label: '처방전', value: 'prescription' },
 ];
 
-const cautionItems = [
+const initialCautionItems: CautionItem[] = [
   {
     id: 1,
-    name: '페니실린',
-    type: '알레르기',
-    memo: '두드러기, 호흡 곤란 이력',
-    badge: 'red' as const,
+    drugName: "페니실린",
+    ingredientName: "페니실린계",
+    reason: "ALLERGY",
+    memo: "두드러기, 호흡 곤란 이력",
   },
   {
     id: 2,
-    name: '아스피린',
-    type: '부작용',
-    memo: '복용 후 심한 속쓰림',
-    badge: 'yellow' as const,
+    drugName: "아스피린",
+    ingredientName: "아스피린",
+    reason: "SIDE_EFFECT",
+    memo: "복용 후 심한 속쓰림",
   },
   {
     id: 3,
-    name: 'NSAIDs',
-    type: '회피 성분',
-    memo: '위장 장애 우려로 주의',
-    badge: 'yellow' as const,
+    drugName: "",
+    ingredientName: "NSAIDs",
+    reason: "PERSONAL_AVOID",
+    memo: "위장 장애 우려로 주의",
   },
 ];
 
@@ -59,6 +97,42 @@ const prescriptions = [
 
 function MyPage() {
   const [activeTab, setActiveTab] = useState<MyPageTab>('profile');
+  const [cautionList, setCautionList] = useState<CautionItem[]>(
+    initialCautionItems
+  );
+
+  const [isCautionFormOpen, setIsCautionFormOpen] = useState(false);
+  const [drugName, setDrugName] = useState("");
+  const [ingredientName, setIngredientName] = useState("");
+  const [reason, setReason] = useState<CautionReason>("ALLERGY");
+  const [memo, setMemo] = useState("");
+
+  const handleAddCaution = () => {
+    if (!drugName.trim() && !ingredientName.trim()) {
+      alert("약 이름 또는 성분명 중 하나는 입력해주세요.");
+      return;
+    }
+
+    const newItem: CautionItem = {
+      id: Date.now(),
+      drugName: drugName.trim(),
+      ingredientName: ingredientName.trim(),
+      reason,
+      memo: memo.trim(),
+    };
+
+    setCautionList((prev) => [newItem, ...prev]);
+
+    setDrugName("");
+    setIngredientName("");
+    setReason("ALLERGY");
+    setMemo("");
+    setIsCautionFormOpen(false);
+  };
+
+  const handleDeleteCaution = (id: number) => {
+    setCautionList((prev) => prev.filter((item) => item.id !== id));
+  };
 
   return (
     <div className="space-y-6">
@@ -89,7 +163,7 @@ function MyPage() {
             <div className="mt-4 flex flex-wrap gap-2">
               <Badge variant="blue">일반 사용자</Badge>
               <Badge variant="green">활성 계정</Badge>
-              <Badge variant="yellow">주의 성분 3건</Badge>
+              <Badge variant="yellow">주의 성분 {cautionList.length}건</Badge>
             </div>
           </div>
 
@@ -159,7 +233,7 @@ function MyPage() {
             </div>
           )}
 
-          {activeTab === 'caution' && (
+          {activeTab === "caution" && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -171,24 +245,109 @@ function MyPage() {
                   </p>
                 </div>
 
-                <Button type="button" size="sm">
-                  추가
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setIsCautionFormOpen((prev) => !prev)}
+                >
+                  {isCautionFormOpen ? "닫기" : "추가"}
                 </Button>
               </div>
 
+              {isCautionFormOpen && (
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                  <h3 className="font-bold text-slate-900">
+                    주의 성분 추가
+                  </h3>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <Input
+                      label="약 이름"
+                      placeholder="예: 아스피린"
+                      value={drugName}
+                      onChange={(event) => setDrugName(event.target.value)}
+                    />
+
+                    <Input
+                      label="성분명"
+                      placeholder="예: NSAIDs"
+                      value={ingredientName}
+                      onChange={(event) => setIngredientName(event.target.value)}
+                    />
+                  </div>
+
+                  <div className="mt-4">
+                    <p className="mb-2 text-sm font-medium text-slate-700">
+                      사유
+                    </p>
+
+                    <select
+                      value={reason}
+                      onChange={(event) =>
+                        setReason(event.target.value as CautionReason)
+                      }
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    >
+                      {reasonOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mt-4">
+                    <Input
+                      label="메모"
+                      placeholder="예: 복용 후 속쓰림이 심했음"
+                      value={memo}
+                      onChange={(event) => setMemo(event.target.value)}
+                    />
+                  </div>
+
+                  <div className="mt-4 flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="border border-slate-200"
+                      onClick={() => setIsCautionFormOpen(false)}
+                    >
+                      취소
+                    </Button>
+
+                    <Button type="button" onClick={handleAddCaution}>
+                      저장
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3">
-                {cautionItems.map((item) => (
+                {cautionList.map((item) => (
                   <div
                     key={item.id}
                     className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-4 md:flex-row md:items-center md:justify-between"
                   >
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-slate-900">{item.name}</p>
-                        <Badge variant={item.badge}>{item.type}</Badge>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-bold text-slate-900">
+                          {item.drugName || item.ingredientName}
+                        </p>
+
+                        <Badge variant={getReasonBadge(item.reason)}>
+                          {getReasonLabel(item.reason)}
+                        </Badge>
                       </div>
 
-                      <p className="mt-2 text-sm text-slate-500">{item.memo}</p>
+                      {item.drugName && item.ingredientName && (
+                        <p className="mt-1 text-sm text-slate-500">
+                          성분명: {item.ingredientName}
+                        </p>
+                      )}
+
+                      <p className="mt-2 text-sm text-slate-500">
+                        {item.memo || "등록된 메모가 없습니다."}
+                      </p>
                     </div>
 
                     <div className="flex gap-2">
@@ -200,11 +359,13 @@ function MyPage() {
                       >
                         수정
                       </Button>
+
                       <Button
                         type="button"
                         size="sm"
                         variant="ghost"
                         className="border border-slate-200"
+                        onClick={() => handleDeleteCaution(item.id)}
                       >
                         삭제
                       </Button>
