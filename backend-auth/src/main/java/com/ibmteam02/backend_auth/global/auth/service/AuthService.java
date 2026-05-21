@@ -6,8 +6,13 @@ import com.ibmteam02.backend_auth.global.auth.repository.RefreshTokenRepository;
 import com.ibmteam02.backend_auth.global.error.exception.CustomException;
 import com.ibmteam02.backend_auth.global.error.exception.ErrorCode;
 import com.ibmteam02.backend_auth.user.domain.User;
+import com.ibmteam02.backend_auth.user.domain.UserChronicDisease;
+import com.ibmteam02.backend_auth.user.domain.UserProfileHealth;
 import com.ibmteam02.backend_auth.user.domain.UserStatus;
 import com.ibmteam02.backend_auth.user.dto.*;
+import com.ibmteam02.backend_auth.user.repository.DiseaseMasterRepository;
+import com.ibmteam02.backend_auth.user.repository.UserChronicDiseaseRepository;
+import com.ibmteam02.backend_auth.user.repository.UserProfileHealthRepository;
 import com.ibmteam02.backend_auth.user.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -20,9 +25,13 @@ import org.springframework.web.multipart.MultipartFile;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final UserProfileHealthRepository userProfileHealthRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final DiseaseMasterRepository diseaseMasterRepository;
+    private final UserChronicDiseaseRepository userChronicDiseaseRepository;
+
 
     //회원가입
     public void signup(SignupRequest signupRequest) {
@@ -44,6 +53,37 @@ public class AuthService {
         userRepository.save(user);
     }
 
+    //일반 유저 건강 추가 정보 입력
+    @Transactional
+    public void addUserProfile(String email,UserProfileRequest userProfileRequest){
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(()->new RuntimeException("유저 없음"));
+
+        //건강 정보 저장 로직
+        UserProfileHealth health = UserProfileHealth.builder()
+                .user(user)
+                .isPregnant(userProfileRequest.getIsPregnant())
+                .isBreastfeeding(userProfileRequest.getIsBreastfeeding())
+                .isSmoking(userProfileRequest.getIsSmoking())
+                .isDrinking(userProfileRequest.getIsDrinking())
+                .build();
+
+        userProfileHealthRepository.save(health);
+
+        //기저질환 저장 로직
+        if(userProfileRequest.getDiseaseName() !=null && !userProfileRequest.getDiseaseName().isEmpty()){
+            diseaseMasterRepository.findByDiseaseName(userProfileRequest.getDiseaseName())
+                            .ifPresent(diseaseMaster -> {
+                                UserChronicDisease userChronicDisease = UserChronicDisease.builder()
+                                        .user(user)
+                                        .diseaseMaster(diseaseMaster)
+                                        .diseaseName(diseaseMaster.getDiseaseName())
+                                        .build();
+                                userChronicDiseaseRepository.save(userChronicDisease);
+                            });
+            user.addUserProfile();// 상태를 ACTIVE로 변경
+        }
+    }
 
     //약사 회원가입 2단계 추가 정보 등록
     @Transactional
@@ -74,9 +114,9 @@ public class AuthService {
         String refreshTokenValue = jwtProvider.createRefreshToken(user.getEmail());
 
         RefreshToken refreshToken = new RefreshToken(
-                user.getEmail(),
-                refreshTokenValue,
-                14*24*60*60L
+                user.getEmail(), //key 값
+                refreshTokenValue, // value 토큰값
+                14*24*60*60L //14일 동안 유지 후 자동 삭제
         );
 
         refreshTokenRepository.save(refreshToken);
