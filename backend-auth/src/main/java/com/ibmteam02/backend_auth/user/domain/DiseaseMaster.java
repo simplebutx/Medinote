@@ -14,7 +14,7 @@ public class DiseaseMaster {
 
     @Id
     @Column(name = "disease_code",length = 50)
-    private String diseaseCode;
+    private String diseaseCode; //공공데이터
 
     @Column(name = "disease_name",nullable = false)
     private String diseaseName;

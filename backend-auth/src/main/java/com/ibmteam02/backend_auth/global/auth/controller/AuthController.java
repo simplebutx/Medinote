@@ -2,6 +2,7 @@ package com.ibmteam02.backend_auth.global.auth.controller;
 
 import com.ibmteam02.backend_auth.global.auth.jwt.JwtProvider;
 import com.ibmteam02.backend_auth.global.auth.service.AuthService;
+import com.ibmteam02.backend_auth.user.domain.UserProfileHealth;
 import com.ibmteam02.backend_auth.user.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,13 @@ public class AuthController {
                 signupRequest.getRole());
         authService.signup(signupRequest);
         return ResponseEntity.ok("회원가입 완료");
+    }
+
+    //일반 유저 건강 정보 추가 입력
+    @PostMapping("user/profile")
+    public ResponseEntity<String> addUserProfile(@RequestBody UserProfileRequest userProfileRequest){
+        authService.addUserProfile(userProfileRequest.getEmail(),userProfileRequest);
+        return ResponseEntity.ok("일반 유저 등록 완료");
     }
 
     //약사 유저 추가 정보 입력
