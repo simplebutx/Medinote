@@ -147,6 +147,27 @@ services:
       backend-consultation:
         condition: service_started
 
+  frontend:
+    build:
+      context: ./frontend
+    container_name: mymedi-frontend
+    working_dir: /app
+    environment:
+      VITE_AUTH_API_URL: http://localhost:8080
+      VITE_MEDICATION_API_URL: http://localhost:8081
+      VITE_CONSULTATION_API_URL: http://localhost:8082
+      VITE_AI_API_URL: http://localhost:8000
+    command: ["sh", "-c", "npm run dev -- --host 0.0.0.0"]
+    ports:
+      - "5174:5173"
+    depends_on:
+      backend-auth:
+        condition: service_started
+      backend-medication:
+        condition: service_started
+      backend-consultation:
+        condition: service_started
+
 volumes:
   mysql-data:
   redis-data:
