@@ -1,6 +1,7 @@
 package com.ibmteam02.backend_medication.medicine.service;
 
 import com.ibmteam02.backend_medication.medicine.domain.MedicineInfo;
+import com.ibmteam02.backend_medication.medicine.dto.MedicineSearchResponse;
 import com.ibmteam02.backend_medication.medicine.repository.MedicineInfoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,25 @@ public class MedicineSearchService {
         return medicineInfoRepository.findTop10ByItemNameContaining(keyword).stream()
                 .map(MedicineInfo::getItemName)
                 .distinct()
+                .toList();
+    }
+
+    public List<MedicineSearchResponse> searchMedicines(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return List.of();
+        }
+
+        return medicineInfoRepository.findTop20ByItemNameContaining(keyword).stream()
+                .map(medicine -> new MedicineSearchResponse(
+                        medicine.getItemSeq(),
+                        medicine.getItemName(),
+                        medicine.getCompanyName(),
+                        medicine.getEfficacy(),
+                        medicine.getUseMethod(),
+                        medicine.getCaution(),
+                        medicine.getSideEffect(),
+                        medicine.getImageUrl()
+                ))
                 .toList();
     }
 }

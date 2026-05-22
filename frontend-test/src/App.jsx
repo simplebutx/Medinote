@@ -3,6 +3,7 @@ import { BrowserRouter, Link, Route, Routes } from 'react-router-dom'
 import './App.css'
 import Chatbot from './pages/Chatbot'
 import Login from './pages/Login'
+import MedicineSearch from './pages/MedicineSearch'
 import MyPage from './pages/MyPage'
 import ScheduleCalendarPage from './pages/schedule/ScheduleCalendarPage'
 import ScheduleCreatePage from './pages/schedule/ScheduleCreatePage'
@@ -21,6 +22,9 @@ function Home() {
         </li>
         <li>
           <Link to="/sync">sync</Link>
+        </li>
+        <li>
+          <Link to="/medicine-search">medicine search</Link>
         </li>
         <li>
           <Link to="/schedule-test">schedule test</Link>
@@ -46,6 +50,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/chatbot" element={<Chatbot />} />
         <Route path="/sync" element={<Sync />} />
+        <Route path="/medicine-search" element={<MedicineSearch />} />
         <Route path="/schedule-test" element={<ScheduleListPage />} />
         <Route path="/schedule-test/calendar" element={<ScheduleCalendarPage />} />
         <Route path="/schedule-test/new" element={<ScheduleCreatePage />} />
