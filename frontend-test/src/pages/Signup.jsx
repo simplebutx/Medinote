@@ -1,115 +1,173 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react'
+import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
 
-const Signup = () => {
-  const navigate = useNavigate();
+const HEALTH_OPTIONS = [
+  { key: 'isPregnant', label: '임산부' },
+  { key: 'isBreastfeeding', label: '모유수유 중' },
+  { key: 'isSmoking', label: '흡연' },
+  { key: 'isDrinking', label: '음주' },
+]
 
-  // 단계 관리 (1: 기본정보, 2: 추가정보)
-  const [step, setStep] = useState(1);
+const baseCardStyle = {
+  width: '100%',
+  padding: '18px 20px',
+  borderRadius: '18px',
+  border: '1px solid #d7e4ff',
+  backgroundColor: '#ffffff',
+  textAlign: 'left',
+  fontSize: '18px',
+  cursor: 'pointer',
+}
 
-  // 1단계 공통 회원가입 상태
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [birthDate, setBirthDate] = useState('');
-  const [gender, setGender] = useState('MALE');
-  const [role, setRole] = useState('USER');
+const activeCardStyle = {
+  ...baseCardStyle,
+  border: '2px solid #3b82f6',
+  backgroundColor: '#eff6ff',
+  color: '#1d4ed8',
+  fontWeight: 700,
+}
 
-  // 이메일 인증 관련 상태 관리
-  const [verificationCode, setVerificationCode] = useState('');
-  const [isCodeSent, setIsCodeSent] = useState(false);
-  const [isEmailVerified, setIsEmailVerified] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(0);
+const suggestionBoxStyle = {
+  marginTop: '8px',
+  padding: 0,
+  listStyle: 'none',
+  border: '1px solid #d7e4ff',
+  borderRadius: '14px',
+  overflow: 'hidden',
+  backgroundColor: '#ffffff',
+  boxShadow: '0 12px 24px rgba(59, 130, 246, 0.08)',
+}
 
-  // 2단계 일반유저 상태
-  const [allergies, setAllergies] = useState('');
-  const [diseases, setDiseases] = useState('');
+const suggestionButtonStyle = {
+  width: '100%',
+  padding: '12px 16px',
+  border: 'none',
+  background: '#ffffff',
+  textAlign: 'left',
+  cursor: 'pointer',
+  fontSize: '16px',
+}
 
-  // 2단계 약사 상태
-  const [docNumber, setDocNumber] = useState('');
-  const [licenseNumber, setLicenseNumber] = useState('');
-  const [licenseImage, setLicenseImage] = useState(null);
+function Signup() {
+  const navigate = useNavigate()
 
-  // 타이머 효과
+  const [step, setStep] = useState(1)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [username, setUsername] = useState('')
+  const [birthDate, setBirthDate] = useState('')
+  const [gender, setGender] = useState('MALE')
+  const [role, setRole] = useState('USER')
+
+  const [verificationCode, setVerificationCode] = useState('')
+  const [isCodeSent, setIsCodeSent] = useState(false)
+  const [isEmailVerified, setIsEmailVerified] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(0)
+
+  const [healthState, setHealthState] = useState({
+    isPregnant: false,
+    isBreastfeeding: false,
+    isSmoking: false,
+    isDrinking: false,
+  })
+  const [diseaseInput, setDiseaseInput] = useState('')
+  const [diseaseNames, setDiseaseNames] = useState([])
+  const [diseaseSuggestions, setDiseaseSuggestions] = useState([])
+  const [diseaseLoading, setDiseaseLoading] = useState(false)
+
+  const [docNumber, setDocNumber] = useState('')
+  const [licenseNumber, setLicenseNumber] = useState('')
+  const [licenseImage, setLicenseImage] = useState(null)
+
+  const diseaseDebounceRef = useRef(null)
+  const latestDiseaseKeywordRef = useRef('')
+
   useEffect(() => {
-    if (timeLeft <= 0) return;
+    if (timeLeft <= 0) return
 
     const timer = setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
-    }, 1000);
+      setTimeLeft((prev) => prev - 1)
+    }, 1000)
 
-    return () => clearInterval(timer);
-  }, [timeLeft]);
+    return () => clearInterval(timer)
+  }, [timeLeft])
 
-  // 초 단위를 '03:00' 형태로 변경해주는 텍스트 함수
+  useEffect(() => {
+    return () => {
+      if (diseaseDebounceRef.current) {
+        clearTimeout(diseaseDebounceRef.current)
+      }
+    }
+  }, [])
+
   const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  };
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
 
-  // 이메일 인증번호 발송 요청
+  const showError = (error, fallbackMessage) => {
+    const message =
+      error?.response?.data?.message ||
+      (typeof error?.response?.data === 'string' ? error.response.data : null) ||
+      fallbackMessage
+
+    alert(message)
+  }
+
   const handleSendVerificationCode = async () => {
     if (!email) {
-      alert('이메일을 입력해주세요.');
-      return;
+      alert('이메일을 입력해 주세요.')
+      return
     }
+
     try {
       const res = await axios.post('http://localhost:8080/api/auth/email/verification-code', {
-        email: email,
-        code: ""
-      });
+        email,
+        code: '',
+      })
 
-      setIsCodeSent(true);
-      setTimeLeft(180);
-      alert(res.data);
+      setIsCodeSent(true)
+      setTimeLeft(180)
+      alert(typeof res.data === 'string' ? res.data : '인증번호를 발송했습니다.')
     } catch (error) {
-      console.error('인증번호 발송 실패:', error);
-      alert('인증번호 발송에 실패했습니다. 이메일 주소를 다시 확인해주세요.');
+      console.error('인증번호 발송 실패:', error)
+      showError(error, '인증번호 발송에 실패했습니다.')
     }
-  };
+  }
 
-  // 이메일 인증번호 확인 검증 요청
   const handleVerifyCode = async () => {
     if (!verificationCode) {
-      alert('인증번호를 입력해주세요.');
-      return;
+      alert('인증번호를 입력해 주세요.')
+      return
     }
+
     try {
       const res = await axios.post('http://localhost:8080/api/auth/email/verify', {
-        email: email,
-        code: verificationCode
-      });
+        email,
+        code: verificationCode,
+      })
 
       if (res.data.verified === true) {
-        setIsEmailVerified(true);
-        setTimeLeft(0);
-        alert(res.data.message);
+        setIsEmailVerified(true)
+        setTimeLeft(0)
+        alert(res.data.message || '이메일 인증이 완료되었습니다.')
       } else {
-        alert('인증 실패: 인증번호를 다시 확인해주세요.');
+        alert('인증번호를 다시 확인해 주세요.')
       }
     } catch (error) {
-      console.error('인증번호 검증 에러 상세:', error);
-
-      if (error.response && error.response.data) {
-        const errorMsg = typeof error.response.data === 'object'
-          ? (error.response.data.message || '인증번호가 일치하지 않습니다.')
-          : error.response.data;
-        alert(errorMsg);
-      } else {
-        alert('서버와 통신 중 오류가 발생했습니다.');
-      }
+      console.error('인증번호 확인 실패:', error)
+      showError(error, '인증번호 확인에 실패했습니다.')
     }
-  };
+  }
 
-  // 1단계 완료
-  const handleStep1Submit = async (e) => {
-    e.preventDefault();
+  const handleStep1Submit = async (event) => {
+    event.preventDefault()
 
     if (!isEmailVerified) {
-      alert('이메일 인증을 완료하셔야 다음 단계로 진행할 수 있습니다.');
-      return;
+      alert('이메일 인증을 완료한 뒤 다음 단계로 진행할 수 있습니다.')
+      return
     }
 
     try {
@@ -119,83 +177,156 @@ const Signup = () => {
         username,
         birthDate,
         gender,
-        role
-      });
+        role,
+      })
 
-      localStorage.setItem('tempEmail', email);
-      setStep(2);
+      localStorage.setItem('tempEmail', email)
+      setStep(2)
     } catch (error) {
-      console.error('1단계 가입 실패:', error);
-      alert('기본 정보 입력 중 오류가 발생했습니다. 백엔드 유효성 검사를 확인해주세요.');
+      console.error('1단계 가입 실패:', error)
+      showError(error, '기본 정보 저장에 실패했습니다.')
     }
-  };
+  }
 
-  // 2단계 완료 - 일반유저
-  const handleUserStep2Submit = async (e) => {
-    e.preventDefault();
-    const tempEmail = localStorage.getItem('tempEmail');
+  const toggleHealthOption = (key) => {
+    setHealthState((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }))
+  }
+
+  const addDisease = (rawName) => {
+    const trimmed = rawName.trim().replace(/^@/, '')
+    if (!trimmed) return
+
+    setDiseaseNames((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]))
+    setDiseaseInput('')
+    setDiseaseSuggestions([])
+    setDiseaseLoading(false)
+    latestDiseaseKeywordRef.current = ''
+  }
+
+  const handleDiseaseSuggest = async (keyword) => {
+    try {
+      const response = await axios.get('http://localhost:8080/api/auth/diseases/suggest', {
+        params: { keyword },
+      })
+
+      if (latestDiseaseKeywordRef.current !== keyword) {
+        return
+      }
+
+      setDiseaseSuggestions(response.data.filter((name) => !diseaseNames.includes(name)))
+    } catch (error) {
+      if (latestDiseaseKeywordRef.current === keyword) {
+        setDiseaseSuggestions([])
+      }
+    } finally {
+      if (latestDiseaseKeywordRef.current === keyword) {
+        setDiseaseLoading(false)
+      }
+    }
+  }
+
+  const handleDiseaseChange = (event) => {
+    const value = event.target.value
+    setDiseaseInput(value)
+
+    if (diseaseDebounceRef.current) {
+      clearTimeout(diseaseDebounceRef.current)
+    }
+
+    const trimmed = value.trim().replace(/^@/, '')
+    latestDiseaseKeywordRef.current = trimmed
+
+    if (!trimmed) {
+      setDiseaseSuggestions([])
+      setDiseaseLoading(false)
+      return
+    }
+
+    setDiseaseLoading(true)
+    diseaseDebounceRef.current = setTimeout(() => {
+      void handleDiseaseSuggest(trimmed)
+    }, 220)
+  }
+
+  const handleDiseaseKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ',' || event.key === 'Tab') {
+      event.preventDefault()
+      addDisease(diseaseInput)
+    }
+  }
+
+  const removeDisease = (target) => {
+    setDiseaseNames((prev) => prev.filter((disease) => disease !== target))
+  }
+
+  const handleUserStep2Submit = async (event) => {
+    event.preventDefault()
+    const tempEmail = localStorage.getItem('tempEmail')
+
+    if (!tempEmail) {
+      alert('1단계 회원가입 정보가 없습니다. 처음부터 다시 진행해 주세요.')
+      return
+    }
 
     try {
       await axios.post('http://localhost:8080/api/auth/user/profile', {
-        allergies,
-        diseases,
-        email: tempEmail
-      });
+        email: tempEmail,
+        ...healthState,
+        diseaseNames,
+      })
 
-      alert('회원가입이 최종 완료되었습니다. 로그인을 해주세요.');
-      localStorage.removeItem('tempEmail');
-      navigate('/login');
+      alert('회원가입이 완료되었습니다. 로그인해 주세요.')
+      localStorage.removeItem('tempEmail')
+      navigate('/login')
     } catch (error) {
-      console.error('2단계 등록 실패:', error);
-      alert('추가 정보 입력 중 오류가 발생했습니다.');
+      console.error('2단계 등록 실패:', error)
+      showError(error, '추가 정보 입력 중 오류가 발생했습니다.')
     }
-  };
+  }
 
-  // 2단계 완료 - 약사유저
-  const handlePharmacistStep2Submit = async (e) => {
-    e.preventDefault();
-    const tempEmail = localStorage.getItem('tempEmail');
+  const handlePharmacistStep2Submit = async (event) => {
+    event.preventDefault()
+    const tempEmail = localStorage.getItem('tempEmail')
 
-    const formData = new FormData();
-    const requestData = { docNumber, licenseNumber, email: tempEmail };
+    const formData = new FormData()
+    const requestData = { docNumber, licenseNumber, email: tempEmail }
 
-    formData.append('data', new Blob([JSON.stringify(requestData)], { type: 'application/json' }));
-    formData.append('licenseImage', licenseImage);
+    formData.append('data', new Blob([JSON.stringify(requestData)], { type: 'application/json' }))
+    formData.append('licenseImage', licenseImage)
 
     try {
       await axios.post('http://localhost:8080/api/auth/pharmacists/verification', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
 
-      alert('약사 면허 인증 및 회원가입이 최종 완료되었습니다.');
-      localStorage.removeItem('tempEmail');
-      navigate('/login');
+      alert('약사 면허 인증 요청이 완료되었습니다.')
+      localStorage.removeItem('tempEmail')
+      navigate('/login')
     } catch (error) {
-      console.error('약사 인증 실패:', error);
-      alert('면허 인증 요청 중 오류가 발생했습니다.');
+      console.error('약사 인증 실패:', error)
+      showError(error, '면허 인증 요청 중 오류가 발생했습니다.')
     }
-  };
+  }
 
   if (step === 1) {
     return (
-      <div style={{ padding: '20px', maxWidth: '400px' }}>
+      <div style={{ padding: '20px', maxWidth: '480px' }}>
         <h2>회원가입 1단계: 기본 정보 입력</h2>
         <form onSubmit={handleStep1Submit}>
-
           <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
             <input
               type="email"
               placeholder="이메일"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(event) => setEmail(event.target.value)}
               readOnly={isEmailVerified}
               required
+              style={{ flex: 1 }}
             />
-            <button
-              type="button"
-              onClick={handleSendVerificationCode}
-              disabled={isEmailVerified}
-            >
+            <button type="button" onClick={handleSendVerificationCode} disabled={isEmailVerified}>
               {isCodeSent ? '인증번호 재발송' : '인증번호 발송'}
             </button>
           </div>
@@ -206,15 +337,12 @@ const Signup = () => {
                 type="text"
                 placeholder="인증번호 6자리"
                 value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value)}
+                onChange={(event) => setVerificationCode(event.target.value)}
                 disabled={isEmailVerified}
                 required
+                style={{ flex: 1 }}
               />
-              <button
-                type="button"
-                onClick={handleVerifyCode}
-                disabled={isEmailVerified}
-              >
+              <button type="button" onClick={handleVerifyCode} disabled={isEmailVerified}>
                 {isEmailVerified ? '인증 완료' : '인증 확인'}
               </button>
               {timeLeft > 0 && (
@@ -222,36 +350,84 @@ const Signup = () => {
                   {formatTime(timeLeft)}
                 </span>
               )}
-              {timeLeft === 0 && !isEmailVerified && (
-                <span style={{ color: 'red', alignSelf: 'center' }}>시간 만료</span>
-              )}
             </div>
           )}
 
-          <input type="password" placeholder="비밀번호" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', marginBottom: '15px' }} required /><br />
-          <input type="text" placeholder="이름" value={username} onChange={(e) => setUsername(e.target.value)} style={{ width: '100%', marginBottom: '15px' }} required /><br />
+          <input
+            type="password"
+            placeholder="비밀번호"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            style={{ width: '100%', marginBottom: '15px' }}
+            required
+          />
+          <input
+            type="text"
+            placeholder="이름"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            style={{ width: '100%', marginBottom: '15px' }}
+            required
+          />
 
           <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>생년월일</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>
+              생년월일
+            </label>
             <input
               type="date"
               value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
+              onChange={(event) => setBirthDate(event.target.value)}
               style={{ width: '100%', padding: '5px' }}
               required
             />
           </div>
 
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>성별</label>
-            <button type="button" onClick={() => setGender('MALE')} style={{ marginRight: '10px', padding: '5px 15px', fontWeight: gender === 'MALE' ? 'bold' : 'normal', border: gender === 'MALE' ? '2px solid black' : '1px solid #ccc' }}>남성</button>
-            <button type="button" onClick={() => setGender('FEMALE')} style={{ padding: '5px 15px', fontWeight: gender === 'FEMALE' ? 'bold' : 'normal', border: gender === 'FEMALE' ? '2px solid black' : '1px solid #ccc' }}>여성</button>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>
+              성별
+            </label>
+            <button
+              type="button"
+              onClick={() => setGender('MALE')}
+              style={{
+                marginRight: '10px',
+                padding: '5px 15px',
+                fontWeight: gender === 'MALE' ? 'bold' : 'normal',
+                border: gender === 'MALE' ? '2px solid black' : '1px solid #ccc',
+              }}
+            >
+              남성
+            </button>
+            <button
+              type="button"
+              onClick={() => setGender('FEMALE')}
+              style={{
+                padding: '5px 15px',
+                fontWeight: gender === 'FEMALE' ? 'bold' : 'normal',
+                border: gender === 'FEMALE' ? '2px solid black' : '1px solid #ccc',
+              }}
+            >
+              여성
+            </button>
           </div>
 
           <div style={{ marginBottom: '20px' }}>
             <label style={{ fontWeight: 'bold', fontSize: '14px' }}>역할 선택: </label>
-            <button type="button" onClick={() => setRole('USER')} style={{ marginRight: '10px', padding: '5px 10px', fontWeight: role === 'USER' ? 'bold' : 'normal' }}>일반 유저</button>
-            <button type="button" onClick={() => setRole('PHARMACIST')} style={{ padding: '5px 10px', fontWeight: role === 'PHARMACIST' ? 'bold' : 'normal' }}>약사 유저</button>
+            <button
+              type="button"
+              onClick={() => setRole('USER')}
+              style={{ marginRight: '10px', padding: '5px 10px', fontWeight: role === 'USER' ? 'bold' : 'normal' }}
+            >
+              일반 유저
+            </button>
+            <button
+              type="button"
+              onClick={() => setRole('PHARMACIST')}
+              style={{ padding: '5px 10px', fontWeight: role === 'PHARMACIST' ? 'bold' : 'normal' }}
+            >
+              약사 유저
+            </button>
           </div>
 
           <button
@@ -263,27 +439,139 @@ const Signup = () => {
               padding: '10px 20px',
               border: 'none',
               borderRadius: '4px',
-              width: '100%'
+              width: '100%',
             }}
           >
-            {isEmailVerified ? '다음 단계로 (추가 정보 입력)' : '이메일 인증을 완료해주세요'}
+            {isEmailVerified ? '다음 단계로 (추가 정보 입력)' : '이메일 인증을 완료해 주세요'}
           </button>
         </form>
       </div>
-    );
+    )
   }
 
   if (step === 2 && role === 'USER') {
     return (
-      <div style={{ padding: '20px' }}>
-        <h2>회원가입 2단계: 일반 유저 추가 정보</h2>
+      <div style={{ padding: '20px', maxWidth: '660px' }}>
+        <h2>회원가입 2단계: 건강 정보 입력</h2>
+        <p style={{ color: '#64748b', marginBottom: '20px' }}>
+          정확도를 높이기 위해 건강 정보를 입력합니다.
+        </p>
+
         <form onSubmit={handleUserStep2Submit}>
-          <input type="text" placeholder="알러지" value={allergies} onChange={(e) => setAllergies(e.target.value)} /><br /><br />
-          <input type="text" placeholder="기저질환" value={diseases} onChange={(e) => setDiseases(e.target.value)} /><br /><br />
-          <button type="submit">회원가입 최종 완료</button>
+          <div style={{ marginBottom: '16px', fontWeight: 'bold', fontSize: '24px' }}>건강 상태</div>
+          <div style={{ display: 'grid', gap: '14px', marginBottom: '28px' }}>
+            {HEALTH_OPTIONS.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => toggleHealthOption(option.key)}
+                style={healthState[option.key] ? activeCardStyle : baseCardStyle}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ marginBottom: '12px', fontWeight: 'bold', fontSize: '24px' }}>기저질환</div>
+          <input
+            type="text"
+            placeholder="@고혈압 처럼 입력하면 질환을 검색할 수 있습니다."
+            value={diseaseInput}
+            onChange={handleDiseaseChange}
+            onKeyDown={handleDiseaseKeyDown}
+            style={{
+              width: '100%',
+              padding: '16px 18px',
+              borderRadius: '18px',
+              border: '1px solid #d7e4ff',
+              marginBottom: '12px',
+              boxSizing: 'border-box',
+            }}
+          />
+          {diseaseSuggestions.length > 0 && (
+            <ul style={{ ...suggestionBoxStyle, marginBottom: '12px' }}>
+              {diseaseSuggestions.map((disease) => (
+                <li key={disease}>
+                  <button
+                    type="button"
+                    style={suggestionButtonStyle}
+                    onClick={() => addDisease(disease)}
+                  >
+                    {disease}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div style={{ color: '#64748b', marginBottom: '12px' }}>
+            {diseaseInput.trim()
+              ? diseaseLoading
+                ? '질병 자동완성을 불러오는 중입니다...'
+                : '원하는 질병을 클릭하거나 Enter로 추가할 수 있습니다.'
+              : '입력하면 질병 자동완성이 표시됩니다.'}
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '18px' }}>
+            {diseaseNames.map((disease) => (
+              <button
+                key={disease}
+                type="button"
+                onClick={() => removeDisease(disease)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '999px',
+                  border: '1px solid #bfdbfe',
+                  backgroundColor: '#eff6ff',
+                  color: '#1d4ed8',
+                  cursor: 'pointer',
+                }}
+              >
+                #{disease} ×
+              </button>
+            ))}
+          </div>
+
+          <div
+            style={{
+              padding: '18px',
+              borderRadius: '18px',
+              backgroundColor: '#eff6ff',
+              color: '#1d4ed8',
+              lineHeight: 1.7,
+              marginBottom: '24px',
+            }}
+          >
+            입력한 건강 정보는 복약 일정, 약 검색, AI 챗봇, 약사 상담에서 참고 정보로 활용됩니다.
+            알레르기/주의 성분은 가입 후 마이페이지에서 별도로 등록하고 관리합니다.
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              style={{ background: 'none', border: 'none', fontSize: '28px', cursor: 'pointer' }}
+            >
+              이전
+            </button>
+            <button
+              type="submit"
+              style={{
+                backgroundColor: '#2563eb',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '18px',
+                padding: '14px 28px',
+                fontSize: '24px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              가입 완료
+            </button>
+          </div>
         </form>
       </div>
-    );
+    )
   }
 
   if (step === 2 && role === 'PHARMACIST') {
@@ -291,14 +579,39 @@ const Signup = () => {
       <div style={{ padding: '20px' }}>
         <h2>회원가입 2단계: 약사 면허 인증</h2>
         <form onSubmit={handlePharmacistStep2Submit}>
-          <input type="text" placeholder="문서 번호" value={docNumber} onChange={(e) => setDocNumber(e.target.value)} required /><br /><br />
-          <input type="text" placeholder="면허 번호" value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} required /><br /><br />
-          <input type="file" accept="image/*" onChange={(e) => setLicenseImage(e.target.files[0])} required /><br /><br />
+          <input
+            type="text"
+            placeholder="문서 번호"
+            value={docNumber}
+            onChange={(event) => setDocNumber(event.target.value)}
+            required
+          />
+          <br />
+          <br />
+          <input
+            type="text"
+            placeholder="면허 번호"
+            value={licenseNumber}
+            onChange={(event) => setLicenseNumber(event.target.value)}
+            required
+          />
+          <br />
+          <br />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(event) => setLicenseImage(event.target.files?.[0] ?? null)}
+            required
+          />
+          <br />
+          <br />
           <button type="submit">면허 인증 및 가입 완료</button>
         </form>
       </div>
-    );
+    )
   }
-};
 
-export default Signup;
+  return null
+}
+
+export default Signup

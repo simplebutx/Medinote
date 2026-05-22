@@ -2,16 +2,26 @@ package com.ibmteam02.backend_auth.global.auth.controller;
 
 import com.ibmteam02.backend_auth.global.auth.jwt.JwtProvider;
 import com.ibmteam02.backend_auth.global.auth.service.AuthService;
-import com.ibmteam02.backend_auth.user.domain.UserProfileHealth;
-import com.ibmteam02.backend_auth.user.dto.*;
+import com.ibmteam02.backend_auth.user.dto.LoginRequest;
+import com.ibmteam02.backend_auth.user.dto.LoginResponse;
+import com.ibmteam02.backend_auth.user.dto.PharmacistVerifyRequest;
+import com.ibmteam02.backend_auth.user.dto.SignupRequest;
+import com.ibmteam02.backend_auth.user.dto.UserProfileRequest;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.util.Map;
 
 @Slf4j
 @RestController
@@ -22,18 +32,49 @@ public class AuthController {
     private final AuthService authService;
     private final JwtProvider jwtProvider;
 
-    //공통 회원가입
-    @PostMapping(value = "/signup", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<String> signup(
-            @RequestPart("data") SignupRequest signupRequest,
-            @RequestPart(value = "licenseImage", required = false)MultipartFile licenseImage){
-        authService.signup(signupRequest, licenseImage);
+    // 공통 회원가입 1단계
+    @PostMapping("/signup")
+    public ResponseEntity<String> signup(@RequestBody SignupRequest signupRequest) {
+        log.info("signup request: email={}, username={}, birthDate={}, gender={}, role={}",
+                signupRequest.getEmail(),
+                signupRequest.getUsername(),
+                signupRequest.getBirthDate(),
+                signupRequest.getGender(),
+                signupRequest.getRole());
+        authService.signup(signupRequest);
         return ResponseEntity.ok("회원가입 완료");
     }
 
-    //로그인
+    // 일반 유저 추가 정보 입력
+    @PostMapping("/user/profile")
+    public ResponseEntity<String> addUserProfile(@RequestBody UserProfileRequest userProfileRequest) {
+        authService.addUserProfile(userProfileRequest.getEmail(), userProfileRequest);
+        return ResponseEntity.ok("일반 유저 등록 완료");
+    }
+
+    // 기저질환 자동완성
+    @GetMapping("/diseases/suggest")
+    public ResponseEntity<List<String>> suggestDiseases(@RequestParam String keyword) {
+        return ResponseEntity.ok(authService.suggestDiseaseNames(keyword));
+    }
+
+    // 약사 추가 정보 입력
+    @PostMapping(value = "/pharmacists/verification", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> verifyPharmacist(
+            @RequestPart("data") PharmacistVerifyRequest pharmacistVerifyRequest,
+            @RequestPart("licenseImage") MultipartFile licenseImage
+    ) {
+        authService.addPharmacistProfile(
+                pharmacistVerifyRequest.getEmail(),
+                pharmacistVerifyRequest,
+                licenseImage
+        );
+        return ResponseEntity.ok("약사 면허 인증 요청 완료");
+    }
+
+    // 로그인
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest){
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
         LoginResponse loginResponse = authService.login(loginRequest);
         return ResponseEntity.ok(loginResponse);
     }
@@ -45,10 +86,11 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    // 로그아웃 - JWT에서 이메일 추출
+    // 로그아웃
     @PostMapping("/logout")
     public ResponseEntity<Map<String, String>> logout(
-            @RequestHeader("Authorization") String bearerToken) {
+            @RequestHeader("Authorization") String bearerToken
+    ) {
         String token = bearerToken.replace("Bearer ", "");
         String email = jwtProvider.getEmailFromToken(token);
         authService.logout(email);
