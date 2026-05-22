@@ -77,6 +77,33 @@ export const suggestMedicines = async (keyword) => {
   return response.data
 }
 
+export const suggestCautions = async (keyword) => {
+  const response = await api.post('/me/cautions/suggest', null, {
+    params: { keyword },
+    timeout: 300000,
+  })
+  return response.data
+}
+
+export const createCaution = async (payload) => {
+  const response = await api.post('/me/cautions', payload)
+  return response.data
+}
+
+export const getCautions = async () => {
+  const response = await api.get('/me/cautions')
+  return response.data
+}
+
+export const updateCaution = async (id, payload) => {
+  const response = await api.patch(`/me/cautions/${id}`, payload)
+  return response.data
+}
+
+export const deleteCaution = async (id) => {
+  await api.delete(`/me/cautions/${id}`)
+}
+
 export const searchMedicines = async (keyword) => {
   const response = await api.get('/medicines/search', {
     params: { keyword },

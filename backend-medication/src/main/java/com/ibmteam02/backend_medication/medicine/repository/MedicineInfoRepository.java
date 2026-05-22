@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 public interface MedicineInfoRepository extends JpaRepository<MedicineInfo, Long> {
 
     Optional<MedicineInfo> findTopByOrderByUpdateDeDesc();
+    Optional<MedicineInfo> findTopByItemName(String itemName);
     List<MedicineInfo> findByItemNameIn(List<String> itemNames);
     List<MedicineInfo> findTop10ByItemNameContaining(String keyword); // WHERE item_name LIKE %keyword%
     List<MedicineInfo> findTop20ByItemNameContaining(String keyword);

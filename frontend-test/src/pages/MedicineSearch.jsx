@@ -106,10 +106,10 @@ function MedicineSearch() {
         <div className="medicine-search-header">
           <div>
             <p className="medicine-search-eyebrow">medicine search</p>
-            <h1>약 이름으로 검색하고 이미지까지 바로 확인하세요.</h1>
+            <h1>약이나 성분을 한 번에 찾는 검색 페이지</h1>
             <p className="medicine-search-subtitle">
-              자동완성은 백엔드의 기존 suggest API를 그대로 사용하고, 검색 결과는 이미지와 효능,
-              복용법, 주의사항까지 함께 보여줍니다.
+              자동완성은 기존 suggest API를 그대로 사용하고, 검색 결과는 이미지와 효능, 복용법,
+              주의사항까지 함께 보여줍니다.
             </p>
           </div>
 
@@ -118,36 +118,48 @@ function MedicineSearch() {
           </Link>
         </div>
 
-        <form className="medicine-search-form" onSubmit={handleSubmit}>
-          <div className="medicine-search-input-group">
-            <input
-              className="medicine-search-input"
-              type="text"
-              value={keyword}
-              onChange={handleKeywordChange}
-              placeholder="예: 타이레놀, 게보린"
-            />
-            <button className="medicine-search-submit" type="submit" disabled={loading}>
-              {loading ? '검색 중...' : '검색'}
-            </button>
-          </div>
+        <section className="medicine-search-hero-card">
+          <form className="medicine-search-form" onSubmit={handleSubmit}>
+            <label className="medicine-search-label" htmlFor="medicine-search-input">
+              약 이름 또는 성분명
+            </label>
+            <div className="medicine-search-input-group">
+              <input
+                id="medicine-search-input"
+                className="medicine-search-input"
+                type="text"
+                value={keyword}
+                onChange={handleKeywordChange}
+                placeholder="예: 타이레놀, 아세트아미노펜"
+              />
+              <button className="medicine-search-submit" type="submit" disabled={loading}>
+                {loading ? '검색 중...' : '검색'}
+              </button>
+            </div>
 
-          {suggestions.length > 0 && (
-            <ul className="medicine-search-suggestion-list">
-              {suggestions.map((suggestion) => (
-                <li key={suggestion}>
-                  <button
-                    className="medicine-search-suggestion-item"
-                    type="button"
-                    onClick={() => handleSuggestionClick(suggestion)}
-                  >
-                    {suggestion}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </form>
+            {suggestions.length > 0 && (
+              <ul className="medicine-search-suggestion-list">
+                {suggestions.map((suggestion) => (
+                  <li key={suggestion}>
+                    <button
+                      className="medicine-search-suggestion-item"
+                      type="button"
+                      onClick={() => handleSuggestionClick(suggestion)}
+                    >
+                      {suggestion}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </form>
+
+          <div className="medicine-search-preview">
+            <div className="medicine-search-preview-badge">preview</div>
+            <strong>{keyword.trim() ? `"${keyword}" 검색 준비 완료` : '검색어를 입력해보세요'}</strong>
+            <p>검색 결과 카드에는 이미지, 약 이름, 회사명, 효능, 복용법, 주의사항이 함께 표시됩니다.</p>
+          </div>
+        </section>
 
         {message && <div className="medicine-search-message">{message}</div>}
 
