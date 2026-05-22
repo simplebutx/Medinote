@@ -2,17 +2,15 @@ package com.ibmteam02.backend_auth.global.auth.controller;
 
 import com.ibmteam02.backend_auth.global.auth.jwt.JwtProvider;
 import com.ibmteam02.backend_auth.global.auth.service.AuthService;
-import com.ibmteam02.backend_auth.user.dto.LoginRequest;
-import com.ibmteam02.backend_auth.user.dto.LoginResponse;
-import com.ibmteam02.backend_auth.user.dto.PharmacistVerifyRequest;
-import com.ibmteam02.backend_auth.user.dto.SignupRequest;
-import com.ibmteam02.backend_auth.user.dto.UserProfileRequest;
+import com.ibmteam02.backend_auth.user.dto.*;
+
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -96,4 +94,15 @@ public class AuthController {
         authService.logout(email);
         return ResponseEntity.ok(Map.of("message", "로그아웃 되었습니다"));
     }
+
+    //마이페이지 정보 조회
+    @GetMapping("/me")
+    public ResponseEntity<UserProfileResponse> getMyProfile(
+            @AuthenticationPrincipal String email){
+        return ResponseEntity.ok(authService.getMyProfile(email));
+    }
+
+
+
+
 }

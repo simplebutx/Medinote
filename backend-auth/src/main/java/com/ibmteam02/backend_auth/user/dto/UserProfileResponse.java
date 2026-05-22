@@ -8,7 +8,7 @@ import lombok.Getter;
 import org.springframework.util.StringUtils;
 import software.amazon.awssdk.services.s3.endpoints.internal.Value;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 @Getter
@@ -17,7 +17,7 @@ import java.util.List;
 public class UserProfileResponse {
     private String email;
     private String username;
-    private LocalDateTime birthDate;
+    private LocalDate birthDate;
     private Gender gender;
     private Role role;
 

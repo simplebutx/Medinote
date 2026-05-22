@@ -10,11 +10,7 @@ import com.ibmteam02.backend_auth.user.domain.User;
 import com.ibmteam02.backend_auth.user.domain.UserChronicDisease;
 import com.ibmteam02.backend_auth.user.domain.UserProfileHealth;
 import com.ibmteam02.backend_auth.user.domain.UserStatus;
-import com.ibmteam02.backend_auth.user.dto.LoginRequest;
-import com.ibmteam02.backend_auth.user.dto.LoginResponse;
-import com.ibmteam02.backend_auth.user.dto.PharmacistVerifyRequest;
-import com.ibmteam02.backend_auth.user.dto.SignupRequest;
-import com.ibmteam02.backend_auth.user.dto.UserProfileRequest;
+import com.ibmteam02.backend_auth.user.dto.*;
 import com.ibmteam02.backend_auth.user.repository.DiseaseMasterRepository;
 import com.ibmteam02.backend_auth.user.repository.UserChronicDiseaseRepository;
 import com.ibmteam02.backend_auth.user.repository.UserProfileHealthRepository;
@@ -180,4 +176,35 @@ public class AuthService {
     public void logout(String email) {
         refreshTokenRepository.deleteById(email);
     }
+
+    //마이페이지 정보 조회
+    @Transactional
+    public UserProfileResponse getMyProfile(String email){
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(()-> new CustomException(ErrorCode.USER_NOT_FOUND));
+        UserProfileHealth userProfileHealth = userProfileHealthRepository.findByUser(user).orElse(null);
+
+        List<String> diseases = userChronicDiseaseRepository.findByUser(user).stream()
+                .map(UserChronicDisease::getDiseaseName)
+                .toList();
+
+        return UserProfileResponse.builder()
+                .email(user.getEmail())
+                .username(user.getEmail())
+                .birthDate(user.getBirthDate())
+                .gender(user.getGender())
+                .role(user.getRole())
+                //일반 유저 건강,질병 정보
+                .isPregnant(userProfileHealth != null ? userProfileHealth.getIsPregnant() : false)
+                .isBreastfeeding(userProfileHealth != null ? userProfileHealth.getIsBreastfeeding() : false)
+                .isSmoking(userProfileHealth != null ? userProfileHealth.getIsSmoking() : false)
+                .isDrinking(userProfileHealth != null ? userProfileHealth.getIsDrinking() : false)
+                .chronicDiseases(diseases)
+                //약사 정보
+                .docNumber(user.getDocNumber())
+                .licenseNumber(user.getLicenseNumber())
+                .licenseImage(user.getLicenseImage())
+                .build();
+    }
+
 }

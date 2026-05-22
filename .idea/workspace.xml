@@ -5,11 +5,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="58140271-9310-4544-8bb9-db2ceea0c939" name="변경" comment="">
-      <change beforePath="$PROJECT_DIR$/backend-consultation/gradlew" beforeDir="false" afterPath="$PROJECT_DIR$/backend-consultation/gradlew" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-medication/gradlew" beforeDir="false" afterPath="$PROJECT_DIR$/backend-medication/gradlew" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend-test/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/frontend-test/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/start-dev.sh" beforeDir="false" afterPath="$PROJECT_DIR$/start-dev.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/stop-dev.sh" beforeDir="false" afterPath="$PROJECT_DIR$/stop-dev.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules/backend-medication.main.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules/backend-medication.main.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/auth/controller/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/auth/controller/AuthController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/auth/service/AuthService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/auth/service/AuthService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/dto/UserProfileResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/dto/UserProfileResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/repository/UserChronicDiseaseRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/repository/UserChronicDiseaseRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/repository/UserProfileHealthRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/repository/UserProfileHealthRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-medication/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/backend-medication/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend-test/src/pages/MyPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend-test/src/pages/MyPage.jsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -87,6 +91,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "feature/auth0523",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "/Users/hayunju/Desktop/portfolio/medication/ibmteam02",
     "project.structure.last.edited": "모듈",
