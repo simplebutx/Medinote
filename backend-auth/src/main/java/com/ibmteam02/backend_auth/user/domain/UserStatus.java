@@ -1,6 +1,6 @@
 package com.ibmteam02.backend_auth.user.domain;
 
 public enum UserStatus {
-    PENDING, // 가입 직후 (추가 정보 입력 전)
-    ACTIVE // 추가 정보 입력 및 인증 완료 상태
+    WAITING_APPROVAL, // 약사 승인 전 상태
+    ACTIVE // 일반 유저 회원가입 상태, 약사 승인 후 상태
 }

@@ -23,33 +23,12 @@ public class AuthController {
     private final JwtProvider jwtProvider;
 
     //공통 회원가입
-    @PostMapping("/signup")
-    public ResponseEntity<String> signup(@RequestBody SignupRequest signupRequest){
-        log.info("signup request: email={}, username={}, birthDate={}, gender={}, role={}",
-                signupRequest.getEmail(),
-                signupRequest.getUsername(),
-                signupRequest.getBirthDate(),
-                signupRequest.getGender(),
-                signupRequest.getRole());
-        authService.signup(signupRequest);
+    @PostMapping(value = "/signup", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> signup(
+            @RequestPart("data") SignupRequest signupRequest,
+            @RequestPart(value = "licenseImage", required = false)MultipartFile licenseImage){
+        authService.signup(signupRequest, licenseImage);
         return ResponseEntity.ok("회원가입 완료");
-    }
-
-    //일반 유저 건강 정보 추가 입력
-    @PostMapping("user/profile")
-    public ResponseEntity<String> addUserProfile(@RequestBody UserProfileRequest userProfileRequest){
-        authService.addUserProfile(userProfileRequest.getEmail(),userProfileRequest);
-        return ResponseEntity.ok("일반 유저 등록 완료");
-    }
-
-    //약사 유저 추가 정보 입력
-    @PostMapping(value = "/pharmacists/verification", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<String> verifyPharmacist(
-            @RequestPart("data") PharmacistVerifyRequest pharmacistVerifyRequest,
-            @RequestPart("licenseImage")MultipartFile licenseImage){
-
-        authService.addPharmacistProfile(pharmacistVerifyRequest.getEmail(),pharmacistVerifyRequest,licenseImage);
-        return ResponseEntity.ok("약사 면허 인증 신청 완료");
     }
 
     //로그인

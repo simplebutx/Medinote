@@ -35,7 +35,8 @@ public class User {
     private Role role; //USER, PHARMACIST, ADMIN
 
     @Enumerated(EnumType.STRING)
-    private UserStatus status;
+    @Column(length = 50)
+    private UserStatus status; // WAITING_APPROVAL, ACTIVE
 
     //약사 추가 정보
     private String docNumber;
@@ -50,19 +51,20 @@ public class User {
         this.birthDate = birthDate;
         this.gender = gender;
         this.role = role;
-        this.status = UserStatus.PENDING;
+        this.status = UserStatus.WAITING_APPROVAL;
     }
 
-    //약사 추가 정보(회원가입 2단계)
+    //일반 유저 ACTIVE 상태 변경
+    public void activate() {
+        this.status = UserStatus.ACTIVE;
+    }
+
+    //약사 추가 정보 업데이
     public void addPharmacistProfile(String docNumber, String licenseNumber, String licenseImage){
         this.docNumber = docNumber;
         this.licenseNumber = licenseNumber;
         this.licenseImage = licenseImage;
-        this.status = UserStatus.ACTIVE;
+        this.status = UserStatus.WAITING_APPROVAL;
     }
 
-    //일반 유저 추가 정보 완료 처리(회원가입 2단계)
-    public void addUserProfile() {
-        this.status = UserStatus.ACTIVE;
-    }
 }
