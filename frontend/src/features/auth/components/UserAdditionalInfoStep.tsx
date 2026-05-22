@@ -93,7 +93,6 @@ function UserAdditionalInfoStep({
         isBreastfeeding,
         isSmoking,
         isDrinking,
-        chronicDiseases: selectedDiseases.map((disease) => disease.name),
       },
       {
         onSuccess: () => {
@@ -101,8 +100,7 @@ function UserAdditionalInfoStep({
           onComplete();
         },
         onError: () => {
-          toast.error("현재 API 연결 전입니다. 개발용으로 가입 완료 처리합니다.");
-          onComplete();
+          toast.error("추가 정보 저장에 실패했습니다.");
         },
       }
     );

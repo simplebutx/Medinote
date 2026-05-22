@@ -21,7 +21,7 @@ function PharmacistAdditionalInfoStep({
 
   const handleSubmit = () => {
     if (!docNumber || !licenseNumber || !licenseImage) {
-      toast.error('문서번호, 면허번호, 면허증 이미지를 모두 입력해주세요.');
+      toast.error("문서번호, 면허번호, 면허증 이미지를 모두 입력해주세요.");
       return;
     }
 
@@ -33,16 +33,13 @@ function PharmacistAdditionalInfoStep({
       },
       {
         onSuccess: () => {
-          toast.success('약사 인증 정보가 저장되었습니다.');
+          toast.success("약사 인증 정보가 저장되었습니다.");
           onComplete();
         },
         onError: () => {
-          toast.error(
-            '현재 API 연결 전입니다. 개발용으로 가입 완료 처리합니다.',
-          );
-          onComplete();
+          toast.error("약사 인증 정보 저장에 실패했습니다.");
         },
-      },
+      }
     );
   };
 
@@ -88,10 +85,12 @@ function PharmacistAdditionalInfoStep({
             <input
               type="file"
               accept="image/*"
-              className="hidden"
               onChange={(event) => {
-                const file = event.target.files?.[0] ?? null;
-                setLicenseImage(file);
+                const file = event.target.files?.[0];
+
+                if (file) {
+                  setLicenseImage(file);
+                }
               }}
             />
           </label>
