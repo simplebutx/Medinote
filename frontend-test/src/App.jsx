@@ -2,6 +2,7 @@ import { BrowserRouter, Link, Route, Routes } from 'react-router-dom'
 
 import './App.css'
 import Chatbot from './pages/Chatbot'
+import CautionRegister from './pages/CautionRegister'
 import Login from './pages/Login'
 import MedicineSearch from './pages/MedicineSearch'
 import MyPage from './pages/MyPage'
@@ -26,6 +27,9 @@ function Home() {
         </li>
         <li>
           <Link to="/medicine-search">medicine search</Link>
+        </li>
+        <li>
+          <Link to="/caution-register">caution register</Link>
         </li>
         <li>
           <Link to="/schedule-test">schedule test</Link>
@@ -54,6 +58,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/chatbot" element={<Chatbot />} />
         <Route path="/sync" element={<Sync />} />
+        <Route path="/caution-register" element={<CautionRegister />} />
         <Route path="/medicine-search" element={<MedicineSearch />} />
         <Route path="/schedule-test" element={<ScheduleListPage />} />
         <Route path="/schedule-test/calendar" element={<ScheduleCalendarPage />} />
