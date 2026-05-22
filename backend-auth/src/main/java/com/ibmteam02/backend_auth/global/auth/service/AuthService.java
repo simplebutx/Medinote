@@ -14,6 +14,7 @@ import com.ibmteam02.backend_auth.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -140,5 +141,11 @@ public class AuthService {
     // 로그아웃
     public void logout(String email) {
         refreshTokenRepository.deleteById(email);
+    }
+
+    //마이페이지 내 정보 조회
+    @Transactional(readOnly = true)
+    public UserProfileResponse getUserProfile(String email){
+
     }
 }
