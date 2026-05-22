@@ -8,7 +8,6 @@ import {
   initializeMedicationScheduleWindow,
   updateMedicationSchedule,
 } from '../../api'
-import { DEFAULT_USER_ID } from './constants'
 import ScheduleForm from './ScheduleForm'
 import {
   buildSchedulePayload,
@@ -88,7 +87,7 @@ function ScheduleEditPage() {
     setMessage('')
 
     try {
-      await updateMedicationSchedule(id, buildSchedulePayload(form, DEFAULT_USER_ID))
+      await updateMedicationSchedule(id, buildSchedulePayload(form))
 
       await Promise.all(existingTimes.map((time) => deleteMedicationScheduleTime(time.id)))
       await Promise.all(

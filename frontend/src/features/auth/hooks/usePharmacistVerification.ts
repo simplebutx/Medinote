@@ -1,12 +1,9 @@
 import { useMutation } from "@tanstack/react-query";
-
-import { requestPharmacistVerification } from "../api/auth.api";
-import type { PharmacistVerificationRequest } from "../types/auth.types";
+import { registerPharmacistVerification } from "../api/auth.api";
 
 function usePharmacistVerification() {
   return useMutation({
-    mutationFn: (body: PharmacistVerificationRequest) =>
-      requestPharmacistVerification(body),
+    mutationFn: registerPharmacistVerification,
   });
 }
 

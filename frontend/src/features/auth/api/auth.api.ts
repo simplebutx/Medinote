@@ -1,23 +1,23 @@
 import { authInstance } from "../../../api/axiosInstance";
+
 import type {
   LoginRequest,
   LoginResponse,
-  LogoutResponse,
-  PharmacistVerificationRequest,
-  PharmacistVerificationResponse,
-  RefreshTokenRequest,
-  RefreshTokenResponse,
-  SendEmailVerificationCodeRequest,
-  SendEmailVerificationCodeResponse,
   SignupRequest,
   SignupResponse,
-  UserAdditionalInfoRequest,
-  UserAdditionalInfoResponse,
+  SendEmailVerificationCodeRequest,
+  SendEmailVerificationCodeResponse,
   VerifyEmailCodeRequest,
   VerifyEmailCodeResponse,
+  UserAdditionalInfoRequest,
+  UserAdditionalInfoResponse,
+  PharmacistVerificationRequest,
+  PharmacistVerificationResponse,
 } from "../types/auth.types";
 
-export const signup = async (body: SignupRequest) => {
+export const signup = async (
+  body: SignupRequest
+): Promise<SignupResponse> => {
   const response = await authInstance.post<SignupResponse>(
     "/api/auth/signup",
     body
@@ -28,7 +28,7 @@ export const signup = async (body: SignupRequest) => {
 
 export const sendEmailVerificationCode = async (
   body: SendEmailVerificationCodeRequest
-) => {
+): Promise<SendEmailVerificationCodeResponse> => {
   const response =
     await authInstance.post<SendEmailVerificationCodeResponse>(
       "/api/auth/email/verification-code",
@@ -38,7 +38,9 @@ export const sendEmailVerificationCode = async (
   return response.data;
 };
 
-export const verifyEmailCode = async (body: VerifyEmailCodeRequest) => {
+export const verifyEmailCode = async (
+  body: VerifyEmailCodeRequest
+): Promise<VerifyEmailCodeResponse> => {
   const response = await authInstance.post<VerifyEmailCodeResponse>(
     "/api/auth/email/verify",
     body
@@ -47,7 +49,9 @@ export const verifyEmailCode = async (body: VerifyEmailCodeRequest) => {
   return response.data;
 };
 
-export const login = async (body: LoginRequest) => {
+export const login = async (
+  body: LoginRequest
+): Promise<LoginResponse> => {
   const response = await authInstance.post<LoginResponse>(
     "/api/auth/login",
     body
@@ -56,26 +60,9 @@ export const login = async (body: LoginRequest) => {
   return response.data;
 };
 
-export const refreshToken = async (body: RefreshTokenRequest) => {
-  const response = await authInstance.post<RefreshTokenResponse>(
-    "/api/auth/token/refresh",
-    body
-  );
-
-  return response.data;
-};
-
-export const logout = async () => {
-  const response = await authInstance.post<LogoutResponse>(
-    "/api/auth/logout"
-  );
-
-  return response.data;
-};
-
-export const signupUserAdditionalInfo = async (
+export const registerUserAdditionalInfo = async (
   body: UserAdditionalInfoRequest
-) => {
+): Promise<UserAdditionalInfoResponse> => {
   const response = await authInstance.post<UserAdditionalInfoResponse>(
     "/api/auth/user/profile",
     body
@@ -84,29 +71,24 @@ export const signupUserAdditionalInfo = async (
   return response.data;
 };
 
-export const requestPharmacistVerification = async (
+export const registerPharmacistVerification = async (
   body: PharmacistVerificationRequest
-) => {
+): Promise<PharmacistVerificationResponse> => {
   const formData = new FormData();
 
-  const request = {
-    docNumber: body.docNumber,
-    licenseNumber: body.licenseNumber,
-  };
-
-  formData.append(
-    "request",
-    new Blob([JSON.stringify(request)], {
-      type: "application/json",
-    })
-  );
-
-  formData.append("image", body.licenseImage);
+  formData.append("docNumber", body.docNumber);
+  formData.append("licenseNumber", body.licenseNumber);
+  formData.append("licenseImage", body.licenseImage);
 
   const response =
     await authInstance.post<PharmacistVerificationResponse>(
       "/api/auth/pharmacists/verification",
-      formData
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
     );
 
   return response.data;

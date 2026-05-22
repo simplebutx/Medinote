@@ -8,7 +8,6 @@ import {
   getMedicationSchedules,
   getMedicationScheduleTimes,
 } from '../../api'
-import { DEFAULT_USER_ID } from './constants'
 import { formatScheduleCardLabel } from './scheduleFormUtils'
 import ScheduleTabs from './ScheduleTabs'
 
@@ -23,7 +22,7 @@ function ScheduleListPage() {
     setLoading(true)
 
     try {
-      const data = await getMedicationSchedules(DEFAULT_USER_ID)
+      const data = await getMedicationSchedules()
       setSchedules(data)
     } catch (error) {
       setMessage(error.response?.data?.message || error.message || 'Failed to load schedules.')
@@ -77,7 +76,7 @@ function ScheduleListPage() {
               Create schedule
             </Link>
           </strong>
-          <strong>USER #{DEFAULT_USER_ID}</strong>
+          <strong>Signed-in user</strong>
         </div>
       </section>
 

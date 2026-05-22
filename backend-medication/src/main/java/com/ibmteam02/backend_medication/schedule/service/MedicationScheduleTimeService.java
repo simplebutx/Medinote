@@ -1,5 +1,7 @@
 package com.ibmteam02.backend_medication.schedule.service;
 
+import com.ibmteam02.backend_medication.global.exception.ForbiddenException;
+import com.ibmteam02.backend_medication.global.exception.ResourceNotFoundException;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationSchedule;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationScheduleTime;
 import com.ibmteam02.backend_medication.schedule.dto.MedicationScheduleTimeRequest;
@@ -8,10 +10,8 @@ import com.ibmteam02.backend_medication.schedule.repository.MedicationScheduleRe
 import com.ibmteam02.backend_medication.schedule.repository.MedicationScheduleTimeRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -22,9 +22,16 @@ public class MedicationScheduleTimeService {
     private final MedicationScheduleRepository medicationScheduleRepository;
 
     // 복약 일정에 속한 복용 시간을 새로 생성
-    public MedicationScheduleTimeResponse create(MedicationScheduleTimeRequest request) {
+    public MedicationScheduleTimeResponse create(Long userId, MedicationScheduleTimeRequest request) {
+        MedicationSchedule schedule = medicationScheduleRepository.findById(request.medicationScheduleId())
+                .orElseThrow(() -> new ResourceNotFoundException("Medication schedule not found"));
+
+        if (!schedule.getUserId().equals(userId)) {
+            throw new ForbiddenException("You can only access your own schedule.");
+        }
+
         MedicationScheduleTime scheduleTime = MedicationScheduleTime.builder()
-                .medicationSchedule(findSchedule(request.medicationScheduleId()))
+                .medicationSchedule(schedule)
                 .timing(request.timing())
                 .takeTime(request.takeTime())
                 .sortOrder(request.sortOrder())
@@ -35,13 +42,27 @@ public class MedicationScheduleTimeService {
 
     // 복용 시간 단건을 조회
     @Transactional(readOnly = true)
-    public MedicationScheduleTimeResponse get(Long id) {
-        return toResponse(findById(id));
+    public MedicationScheduleTimeResponse get(Long userId, Long id) {
+        MedicationScheduleTime scheduleTime = medicationScheduleTimeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Medication schedule time not found"));
+
+        if (!scheduleTime.getMedicationSchedule().getUserId().equals(userId)) {
+            throw new ForbiddenException("You can only access your own schedule.");
+        }
+
+        return toResponse(scheduleTime);
     }
 
     // 복약 일정 기준으로 복용 시간 목록을 조회
     @Transactional(readOnly = true)
-    public List<MedicationScheduleTimeResponse> getByScheduleId(Long medicationScheduleId) {
+    public List<MedicationScheduleTimeResponse> getByScheduleId(Long userId, Long medicationScheduleId) {
+        MedicationSchedule schedule = medicationScheduleRepository.findById(medicationScheduleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Medication schedule not found"));
+
+        if (!schedule.getUserId().equals(userId)) {
+            throw new ForbiddenException("You can only access your own schedule.");
+        }
+
         return medicationScheduleTimeRepository.findByMedicationScheduleIdOrderBySortOrderAsc(medicationScheduleId)
                 .stream()
                 .map(this::toResponse)
@@ -49,10 +70,23 @@ public class MedicationScheduleTimeService {
     }
 
     // 기존 복용 시간을 수정
-    public MedicationScheduleTimeResponse update(Long id, MedicationScheduleTimeRequest request) {
-        MedicationScheduleTime scheduleTime = findById(id);
+    public MedicationScheduleTimeResponse update(Long userId, Long id, MedicationScheduleTimeRequest request) {
+        MedicationScheduleTime scheduleTime = medicationScheduleTimeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Medication schedule time not found"));
+
+        if (!scheduleTime.getMedicationSchedule().getUserId().equals(userId)) {
+            throw new ForbiddenException("You can only access your own schedule.");
+        }
+
+        MedicationSchedule schedule = medicationScheduleRepository.findById(request.medicationScheduleId())
+                .orElseThrow(() -> new ResourceNotFoundException("Medication schedule not found"));
+
+        if (!schedule.getUserId().equals(userId)) {
+            throw new ForbiddenException("You can only access your own schedule.");
+        }
+
         scheduleTime.update(
-                findSchedule(request.medicationScheduleId()),
+                schedule,
                 request.timing(),
                 request.takeTime(),
                 request.sortOrder()
@@ -61,20 +95,15 @@ public class MedicationScheduleTimeService {
     }
 
     // 복용 시간을 삭제
-    public void delete(Long id) {
-        medicationScheduleTimeRepository.delete(findById(id));
-    }
+    public void delete(Long userId, Long id) {
+        MedicationScheduleTime scheduleTime = medicationScheduleTimeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Medication schedule time not found"));
 
-    // ID로 복약 일정을 찾고 없으면 예외
-    private MedicationSchedule findSchedule(Long id) {
-        return medicationScheduleRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Medication schedule not found"));
-    }
+        if (!scheduleTime.getMedicationSchedule().getUserId().equals(userId)) {
+            throw new ForbiddenException("You can only access your own schedule.");
+        }
 
-    // ID로 복용 시간을 찾고 없으면 예외
-    private MedicationScheduleTime findById(Long id) {
-        return medicationScheduleTimeRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Medication schedule time not found"));
+        medicationScheduleTimeRepository.delete(scheduleTime);
     }
 
     // 엔티티를 응답 DTO로 변환

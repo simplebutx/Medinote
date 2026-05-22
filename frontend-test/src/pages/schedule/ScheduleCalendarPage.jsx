@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getMedicationScheduleTimes, getMedicationSchedules } from '../../api'
-import { DEFAULT_USER_ID } from './constants'
 import { formatScheduleCardLabel } from './scheduleFormUtils'
 import ScheduleTabs from './ScheduleTabs'
 import {
@@ -30,7 +29,7 @@ function ScheduleCalendarPage() {
       setLoading(true)
 
       try {
-        const data = await getMedicationSchedules(DEFAULT_USER_ID)
+        const data = await getMedicationSchedules()
         const timeEntries = await Promise.all(
           data.map(async (schedule) => [
             schedule.id,
@@ -92,7 +91,7 @@ function ScheduleCalendarPage() {
         <div className="schedule-status-card">
           <span className="schedule-status-label">Calendar mode</span>
           <strong>{currentMonth.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</strong>
-          <strong>USER #{DEFAULT_USER_ID}</strong>
+          <strong>Signed-in user</strong>
         </div>
       </section>
 
