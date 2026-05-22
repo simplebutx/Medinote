@@ -41,14 +41,11 @@ function getDisplayName(caution) {
 }
 
 function CautionRegister() {
-  const [medicineKeyword, setMedicineKeyword] = useState('')
-  const [ingredientKeyword, setIngredientKeyword] = useState('')
-  const [selectedMedicine, setSelectedMedicine] = useState(null)
-  const [selectedIngredient, setSelectedIngredient] = useState(null)
-  const [medicineSuggestions, setMedicineSuggestions] = useState([])
-  const [ingredientSuggestions, setIngredientSuggestions] = useState([])
-  const [medicineLoading, setMedicineLoading] = useState(false)
-  const [ingredientLoading, setIngredientLoading] = useState(false)
+  const [keyword, setKeyword] = useState('')
+  const [selectedType, setSelectedType] = useState('MEDICINE')
+  const [selectedSuggestion, setSelectedSuggestion] = useState(null)
+  const [suggestions, setSuggestions] = useState([])
+  const [suggestLoading, setSuggestLoading] = useState(false)
   const [cautions, setCautions] = useState([])
   const [listLoading, setListLoading] = useState(true)
   const [submitLoading, setSubmitLoading] = useState(false)
@@ -56,20 +53,16 @@ function CautionRegister() {
   const [form, setForm] = useState(emptyForm())
   const [editingId, setEditingId] = useState(null)
 
-  const medicineDebounceRef = useRef(null)
-  const ingredientDebounceRef = useRef(null)
-  const latestMedicineKeywordRef = useRef('')
-  const latestIngredientKeywordRef = useRef('')
+  const debounceRef = useRef(null)
+  const latestKeywordRef = useRef('')
+  const latestTypeRef = useRef('MEDICINE')
 
   useEffect(() => {
     void fetchCautions()
 
     return () => {
-      if (medicineDebounceRef.current) {
-        clearTimeout(medicineDebounceRef.current)
-      }
-      if (ingredientDebounceRef.current) {
-        clearTimeout(ingredientDebounceRef.current)
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
       }
     }
   }, [])
@@ -81,106 +74,90 @@ function CautionRegister() {
       const items = await getCautions()
       setCautions(items)
     } catch (error) {
-      setMessage(error.response?.data?.message || '주의 약/성분 목록을 불러오지 못했습니다.')
+      setMessage(error.response?.data?.message || '주의 약·성분 목록을 불러오지 못했습니다.')
     } finally {
       setListLoading(false)
     }
   }
 
-  const runSuggest = async (keyword, type, setters) => {
-    const { setSuggestions, setLoading, latestKeywordRef } = setters
-
+  const runSuggest = async (nextKeyword, nextType) => {
     try {
-      const items = await suggestCautions(keyword)
+      const items = await suggestCautions(nextKeyword, nextType)
 
-      if (latestKeywordRef.current !== keyword) {
+      if (latestKeywordRef.current !== nextKeyword || latestTypeRef.current !== nextType) {
         return
       }
 
-      setSuggestions(items.filter((item) => item.type === type))
-    } catch (error) {
-      if (latestKeywordRef.current === keyword) {
+      setSuggestions(items)
+    } catch {
+      if (latestKeywordRef.current === nextKeyword && latestTypeRef.current === nextType) {
         setSuggestions([])
       }
     } finally {
-      if (latestKeywordRef.current === keyword) {
-        setLoading(false)
+      if (latestKeywordRef.current === nextKeyword && latestTypeRef.current === nextType) {
+        setSuggestLoading(false)
       }
     }
   }
 
-  const handleMedicineChange = (event) => {
+  const handleKeywordChange = (event) => {
     const value = event.target.value
-    setMedicineKeyword(value)
-    setSelectedMedicine(null)
+    setKeyword(value)
+    setSelectedSuggestion(null)
     setMessage('')
 
-    if (medicineDebounceRef.current) {
-      clearTimeout(medicineDebounceRef.current)
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
     }
 
     const trimmed = value.trim()
-    latestMedicineKeywordRef.current = trimmed
+    latestKeywordRef.current = trimmed
+    latestTypeRef.current = selectedType
 
     if (!trimmed) {
-      setMedicineSuggestions([])
-      setMedicineLoading(false)
+      setSuggestions([])
+      setSuggestLoading(false)
       return
     }
 
-    setMedicineLoading(true)
-    medicineDebounceRef.current = setTimeout(() => {
-      void runSuggest(trimmed, 'MEDICINE', {
-        setSuggestions: setMedicineSuggestions,
-        setLoading: setMedicineLoading,
-        latestKeywordRef: latestMedicineKeywordRef,
-      })
+    setSuggestLoading(true)
+    debounceRef.current = setTimeout(() => {
+      void runSuggest(trimmed, selectedType)
     }, 220)
   }
 
-  const handleIngredientChange = (event) => {
-    const value = event.target.value
-    setIngredientKeyword(value)
-    setSelectedIngredient(null)
+  const handleTypeChange = (nextType) => {
+    setSelectedType(nextType)
+    setSelectedSuggestion(null)
+    setSuggestions([])
     setMessage('')
 
-    if (ingredientDebounceRef.current) {
-      clearTimeout(ingredientDebounceRef.current)
+    const trimmed = keyword.trim()
+    latestKeywordRef.current = trimmed
+    latestTypeRef.current = nextType
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
     }
 
-    const trimmed = value.trim()
-    latestIngredientKeywordRef.current = trimmed
-
     if (!trimmed) {
-      setIngredientSuggestions([])
-      setIngredientLoading(false)
+      setSuggestLoading(false)
       return
     }
 
-    setIngredientLoading(true)
-    ingredientDebounceRef.current = setTimeout(() => {
-      void runSuggest(trimmed, 'INGREDIENT', {
-        setSuggestions: setIngredientSuggestions,
-        setLoading: setIngredientLoading,
-        latestKeywordRef: latestIngredientKeywordRef,
-      })
-    }, 220)
+    setSuggestLoading(true)
+    debounceRef.current = setTimeout(() => {
+      void runSuggest(trimmed, nextType)
+    }, 120)
   }
 
-  const handleMedicineClick = (suggestion) => {
-    setMedicineKeyword(suggestion.name)
-    setSelectedMedicine(suggestion)
-    setMedicineSuggestions([])
-    setMedicineLoading(false)
-    latestMedicineKeywordRef.current = suggestion.name
-  }
-
-  const handleIngredientClick = (suggestion) => {
-    setIngredientKeyword(suggestion.name)
-    setSelectedIngredient(suggestion)
-    setIngredientSuggestions([])
-    setIngredientLoading(false)
-    latestIngredientKeywordRef.current = suggestion.name
+  const handleSuggestionClick = (suggestion) => {
+    setKeyword(suggestion.name)
+    setSelectedSuggestion(suggestion)
+    setSuggestions([])
+    setSuggestLoading(false)
+    latestKeywordRef.current = suggestion.name
+    latestTypeRef.current = suggestion.type
   }
 
   const handleFormChange = (field) => (event) => {
@@ -188,28 +165,25 @@ function CautionRegister() {
   }
 
   const resetForm = () => {
-    setMedicineKeyword('')
-    setIngredientKeyword('')
-    setSelectedMedicine(null)
-    setSelectedIngredient(null)
-    setMedicineSuggestions([])
-    setIngredientSuggestions([])
-    setMedicineLoading(false)
-    setIngredientLoading(false)
+    setKeyword('')
+    setSelectedType('MEDICINE')
+    setSelectedSuggestion(null)
+    setSuggestions([])
+    setSuggestLoading(false)
     setForm(emptyForm())
     setEditingId(null)
   }
 
   const buildPayload = () => {
-    if (!selectedMedicine && !selectedIngredient) {
+    if (!selectedSuggestion) {
       return null
     }
 
     return {
       itemSeq: null,
-      itemName: selectedMedicine?.name ?? null,
+      itemName: selectedSuggestion.type === 'MEDICINE' ? selectedSuggestion.name : null,
       ingredientCode: null,
-      ingredientName: selectedIngredient?.name ?? null,
+      ingredientName: selectedSuggestion.type === 'INGREDIENT' ? selectedSuggestion.name : null,
       reason: form.reason,
       memo: form.memo.trim() || null,
     }
@@ -221,7 +195,7 @@ function CautionRegister() {
     const payload = buildPayload()
 
     if (!payload) {
-      setMessage('주의 약 또는 주의 성분 중 하나 이상 자동완성에서 선택해 주세요.')
+      setMessage('자동완성 목록에서 주의 약 또는 주의 성분을 먼저 선택해 주세요.')
       return
     }
 
@@ -231,10 +205,10 @@ function CautionRegister() {
     try {
       if (editingId) {
         await updateCaution(editingId, payload)
-        setMessage('주의 약/성분 정보를 수정했습니다.')
+        setMessage('주의 약·성분 정보를 수정했습니다.')
       } else {
         await createCaution(payload)
-        setMessage('주의 약/성분을 등록했습니다.')
+        setMessage('주의 약·성분을 등록했습니다.')
       }
 
       resetForm()
@@ -247,15 +221,14 @@ function CautionRegister() {
   }
 
   const handleEdit = (caution) => {
+    const nextType = caution.itemName ? 'MEDICINE' : 'INGREDIENT'
+    const nextName = caution.itemName || caution.ingredientName || ''
+
     setEditingId(caution.id)
-    setMedicineKeyword(caution.itemName || '')
-    setIngredientKeyword(caution.ingredientName || '')
-    setSelectedMedicine(caution.itemName ? { name: caution.itemName, type: 'MEDICINE' } : null)
-    setSelectedIngredient(
-      caution.ingredientName ? { name: caution.ingredientName, type: 'INGREDIENT' } : null,
-    )
-    setMedicineSuggestions([])
-    setIngredientSuggestions([])
+    setKeyword(nextName)
+    setSelectedType(nextType)
+    setSelectedSuggestion(nextName ? { name: nextName, type: nextType } : null)
+    setSuggestions([])
     setForm({
       reason: caution.reason || 'ALLERGY',
       memo: caution.memo || '',
@@ -271,12 +244,14 @@ function CautionRegister() {
       if (editingId === id) {
         resetForm()
       }
-      setMessage('주의 약/성분을 삭제했습니다.')
+      setMessage('주의 약·성분을 삭제했습니다.')
       await fetchCautions()
     } catch (error) {
       setMessage(error.response?.data?.message || '삭제 중 오류가 발생했습니다.')
     }
   }
+
+  const currentTypeLabel = selectedType === 'MEDICINE' ? '약' : '성분'
 
   return (
     <div className="caution-page">
@@ -286,8 +261,8 @@ function CautionRegister() {
             <p className="caution-eyebrow">my caution register</p>
             <h1>내 주의성분·알러지 등록하기</h1>
             <p className="caution-subtitle">
-              검색창을 주의 약과 주의 성분으로 나눠서 관리합니다. 각 검색창은 자기 타입 자동완성만
-              보여주고, 선택한 값만 저장됩니다.
+              검색창은 하나만 두고, 옆에서 약 또는 성분을 선택해 등록합니다. 자동완성도 선택한 타입에
+              맞는 항목만 보여줍니다.
             </p>
           </div>
 
@@ -298,82 +273,75 @@ function CautionRegister() {
 
         <section className="caution-hero-card">
           <form className="caution-search-form" onSubmit={handleSubmit}>
-            <div className="caution-dual-search-grid">
-              <div className="caution-search-block">
-                <label className="caution-search-label" htmlFor="caution-medicine-input">
-                  주의 약 검색
-                </label>
-                <input
-                  id="caution-medicine-input"
-                  className="caution-search-input"
-                  type="text"
-                  value={medicineKeyword}
-                  onChange={handleMedicineChange}
-                  placeholder="예: 타이레놀"
-                  autoComplete="off"
-                />
-                <div className="caution-search-status">
-                  {medicineKeyword.trim()
-                    ? (medicineLoading
-                        ? '약 자동완성 불러오는 중...'
-                        : '아래 약 자동완성에서 선택해 주세요.')
-                    : '주의 약으로 등록할 약 이름을 검색하세요.'}
-                </div>
-                {medicineSuggestions.length > 0 && (
-                  <ul className="caution-suggestion-list">
-                    {medicineSuggestions.map((suggestion) => (
-                      <li key={`${suggestion.type}-${suggestion.name}`}>
-                        <button
-                          className="caution-suggestion-item"
-                          type="button"
-                          onClick={() => handleMedicineClick(suggestion)}
-                        >
-                          <span className="caution-type-badge caution-type-badge-medicine">약</span>
-                          <span>{suggestion.name}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+            <div className="caution-type-toggle" role="radiogroup" aria-label="등록 타입 선택">
+              <button
+                type="button"
+                className={`caution-type-toggle-button ${
+                  selectedType === 'MEDICINE' ? 'caution-type-toggle-button-active' : ''
+                }`}
+                onClick={() => handleTypeChange('MEDICINE')}
+              >
+                약
+              </button>
+              <button
+                type="button"
+                className={`caution-type-toggle-button ${
+                  selectedType === 'INGREDIENT' ? 'caution-type-toggle-button-active' : ''
+                }`}
+                onClick={() => handleTypeChange('INGREDIENT')}
+              >
+                성분
+              </button>
+            </div>
 
-              <div className="caution-search-block">
-                <label className="caution-search-label" htmlFor="caution-ingredient-input">
-                  주의 성분 검색
-                </label>
-                <input
-                  id="caution-ingredient-input"
-                  className="caution-search-input"
-                  type="text"
-                  value={ingredientKeyword}
-                  onChange={handleIngredientChange}
-                  placeholder="예: 침강탄산칼슘"
-                  autoComplete="off"
-                />
-                <div className="caution-search-status">
-                  {ingredientKeyword.trim()
-                    ? (ingredientLoading
-                        ? '성분 자동완성 불러오는 중...'
-                        : '아래 성분 자동완성에서 선택해 주세요.')
-                    : '주의 성분으로 등록할 성분명을 검색하세요.'}
-                </div>
-                {ingredientSuggestions.length > 0 && (
-                  <ul className="caution-suggestion-list">
-                    {ingredientSuggestions.map((suggestion) => (
-                      <li key={`${suggestion.type}-${suggestion.name}`}>
-                        <button
-                          className="caution-suggestion-item"
-                          type="button"
-                          onClick={() => handleIngredientClick(suggestion)}
-                        >
-                          <span className="caution-type-badge caution-type-badge-ingredient">성분</span>
-                          <span>{suggestion.name}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+            <div className="caution-search-block">
+              <label className="caution-search-label" htmlFor="caution-search-input">
+                {currentTypeLabel} 검색
+              </label>
+              <input
+                id="caution-search-input"
+                className="caution-search-input"
+                type="text"
+                value={keyword}
+                onChange={handleKeywordChange}
+                placeholder={
+                  selectedType === 'MEDICINE'
+                    ? '예: 타이레놀'
+                    : '예: 침강탄산칼슘'
+                }
+                autoComplete="off"
+              />
+              <div className="caution-search-status">
+                {keyword.trim()
+                  ? (suggestLoading
+                      ? `${currentTypeLabel} 자동완성을 불러오는 중...`
+                      : `아래 ${currentTypeLabel} 자동완성에서 선택해 주세요.`)
+                  : `${currentTypeLabel}으로 등록할 이름을 검색해 보세요.`}
               </div>
+              {suggestions.length > 0 && (
+                <ul className="caution-suggestion-list">
+                  {suggestions.map((suggestion) => (
+                    <li key={`${suggestion.type}-${suggestion.name}`}>
+                      <button
+                        className="caution-suggestion-item"
+                        type="button"
+                        onClick={() => handleSuggestionClick(suggestion)}
+                      >
+                        <span
+                          className={`caution-type-badge ${
+                            suggestion.type === 'MEDICINE'
+                              ? 'caution-type-badge-medicine'
+                              : 'caution-type-badge-ingredient'
+                          }`}
+                        >
+                          {suggestion.type === 'MEDICINE' ? '약' : '성분'}
+                        </span>
+                        <span>{suggestion.name}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div className="caution-form-grid">
@@ -391,11 +359,14 @@ function CautionRegister() {
               <div className="caution-current-type-card">
                 <span>선택 상태</span>
                 <strong>
-                  {selectedMedicine || selectedIngredient
-                    ? `${selectedMedicine ? '약 선택됨' : '약 미선택'} / ${selectedIngredient ? '성분 선택됨' : '성분 미선택'}`
-                    : '아직 선택 안 됨'}
+                  {selectedSuggestion
+                    ? `${selectedSuggestion.type === 'MEDICINE' ? '약' : '성분'} 선택됨`
+                    : `${currentTypeLabel} 미선택`}
                 </strong>
-                <p>약만 저장해도 되고, 성분만 저장해도 되고, 둘 다 같이 저장해도 됩니다.</p>
+                <p>
+                  현재 선택된 타입은 {currentTypeLabel}입니다. 자동완성 목록에서 하나를 선택하면 해당
+                  타입으로 저장됩니다.
+                </p>
               </div>
 
               <label className="caution-col-span-2">
@@ -422,13 +393,13 @@ function CautionRegister() {
           <div className="caution-preview-card">
             <div className="caution-preview-badge">preview</div>
             <strong>
-              {selectedMedicine || selectedIngredient
-                ? `약 ${selectedMedicine ? '선택' : '미선택'} / 성분 ${selectedIngredient ? '선택' : '미선택'}`
-                : '등록할 약 또는 성분을 선택해 주세요'}
+              {selectedSuggestion
+                ? `${selectedSuggestion.type === 'MEDICINE' ? '약' : '성분'} 선택 완료`
+                : `${currentTypeLabel} 선택 대기 중`}
             </strong>
             <p>
-              이제는 통합 검색창이 아니라 두 개의 검색창으로 나눠서, 팀이 합의한 방식대로 약/성분을
-              분리해서 등록할 수 있습니다.
+              검색창은 하나만 유지하고, 타입 선택 버튼으로 약과 성분을 나눕니다. 자동완성과 저장
+              결과도 현재 선택한 타입을 기준으로 동작합니다.
             </p>
             {message && <div className="caution-inline-message">{message}</div>}
           </div>
@@ -445,7 +416,7 @@ function CautionRegister() {
           {listLoading ? (
             <div className="caution-empty-state">목록을 불러오는 중입니다...</div>
           ) : cautions.length === 0 ? (
-            <div className="caution-empty-state">아직 등록된 주의 약/성분이 없습니다.</div>
+            <div className="caution-empty-state">아직 등록된 주의 약·성분이 없습니다.</div>
           ) : (
             <div className="caution-list-grid">
               {cautions.map((caution) => (
@@ -473,7 +444,7 @@ function CautionRegister() {
                       ? '약 이름 기준으로 저장된 항목입니다.'
                       : caution.ingredientName
                         ? '성분명 기준으로 저장된 항목입니다.'
-                        : '약/성분 정보가 비어 있는 항목입니다.'}
+                        : '약·성분 정보가 비어 있는 항목입니다.'}
                   </p>
 
                   <p className="caution-list-card-memo">{caution.memo || '메모 없음'}</p>

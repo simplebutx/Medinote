@@ -331,16 +331,38 @@
   gap: 12px;
 }
 
-.caution-dual-search-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
 .caution-search-block {
   display: grid;
   gap: 10px;
   align-content: start;
+}
+
+.caution-type-toggle {
+  display: inline-flex;
+  width: fit-content;
+  gap: 10px;
+  padding: 6px;
+  border-radius: 999px;
+  background: #f6e6db;
+  border: 1px solid #e5cbbc;
+}
+
+.caution-type-toggle-button {
+  min-width: 88px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #7a4f3c;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.caution-type-toggle-button-active {
+  background: #b45432;
+  color: #fffaf6;
+  box-shadow: 0 10px 18px rgba(78, 43, 28, 0.12);
 }
 
 .caution-search-label {
@@ -1374,7 +1396,6 @@
   .medicine-search-grid,
   .medicine-search-wireframe,
   .medicine-card-meta,
-  .caution-dual-search-grid,
   .caution-wireframe-grid,
   .caution-form-grid,
   .caution-list-grid {
