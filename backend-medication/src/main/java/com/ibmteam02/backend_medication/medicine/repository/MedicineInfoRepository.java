@@ -12,6 +12,7 @@ public interface MedicineInfoRepository extends JpaRepository<MedicineInfo, Long
     Optional<MedicineInfo> findTopByOrderByUpdateDeDesc();
     List<MedicineInfo> findByItemNameIn(List<String> itemNames);
     List<MedicineInfo> findTop10ByItemNameContaining(String keyword); // WHERE item_name LIKE %keyword%
+    List<MedicineInfo> findTop20ByItemNameContaining(String keyword);
 
     @Query("select m.itemName from MedicineInfo m")
     List<String> findAllItemNames();

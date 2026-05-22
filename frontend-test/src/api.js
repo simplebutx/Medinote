@@ -77,6 +77,14 @@ export const suggestMedicines = async (keyword) => {
   return response.data
 }
 
+export const searchMedicines = async (keyword) => {
+  const response = await api.get('/medicines/search', {
+    params: { keyword },
+    timeout: 300000,
+  })
+  return response.data
+}
+
 export const createMedicationSchedule = async (payload) => {
   const response = await api.post('/medication-schedules', payload)
   return response.data
