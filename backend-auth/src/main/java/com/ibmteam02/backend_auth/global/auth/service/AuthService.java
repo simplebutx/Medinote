@@ -143,9 +143,5 @@ public class AuthService {
         refreshTokenRepository.deleteById(email);
     }
 
-    //마이페이지 내 정보 조회
-    @Transactional(readOnly = true)
-    public UserProfileResponse getUserProfile(String email){
 
-    }
 }
