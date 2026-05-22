@@ -8,6 +8,9 @@ import lombok.NoArgsConstructor;
 public class UserProfileRequest {
     //일반 사용자 회원가입 2단계 추가 정보
     private String email;
-    private String allergies; //알러지
-    private String diseases; //질병
+    private Boolean isPregnant; // 임산부 여부
+    private Boolean isBreastfeeding; // 모유 수유 여부
+    private Boolean isSmoking; // 흡연 여부
+    private Boolean isDrinking; // 음주 여부
+    private String diseaseName; // 사용자 질병명
 }

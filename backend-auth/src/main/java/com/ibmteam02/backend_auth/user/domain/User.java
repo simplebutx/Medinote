@@ -60,4 +60,9 @@ public class User {
         this.licenseImage = licenseImage;
         this.status = UserStatus.ACTIVE;
     }
+
+    //일반 유저 추가 정보 완료 처리(회원가입 2단계)
+    public void addUserProfile() {
+        this.status = UserStatus.ACTIVE;
+    }
 }

@@ -42,9 +42,9 @@ public class UserChronicDisease {
     private LocalDateTime updatedAt;
 
     @Builder
-    public UserChronicDisease(User user,DiseaseMaster diseaseMaster){
+    public UserChronicDisease(User user,DiseaseMaster diseaseMaster,String diseaseName) {
         this.user = user;
         this.diseaseMaster = diseaseMaster;
+        this.diseaseName = diseaseName;
     }
-
 }

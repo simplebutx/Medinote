@@ -23,8 +23,11 @@ const Signup = () => {
   const [timeLeft, setTimeLeft] = useState(0);
 
   // 2단계 일반유저용 상태
-  const [allergies, setAllergies] = useState('');
-  const [diseases, setDiseases] = useState('');
+  const [isPregnant, setIsPregnant] = useState(false);
+  const [isBreastfeeding, setIsBreastfeeding] = useState(false);
+  const [isSmoking, setIsSmoking] = useState(false);
+  const [isDrinking, setIsDrinking] = useState(false);
+  const [diseaseName, setDiseaseName] = useState('');
 
   // 2단계 약사용 상태
   const [docNumber, setDocNumber] = useState('');
@@ -139,8 +142,11 @@ const Signup = () => {
 
     try {
       await axios.post('http://localhost:8080/api/auth/user/profile', {
-        allergies,
-        diseases,
+        isPregnant,
+        isBreastfeeding,
+        isSmoking,
+        isDrinking,
+        diseaseName,
         email: tempEmail
       });
 
@@ -285,12 +291,64 @@ const Signup = () => {
   // [화면 2] 2단계: 일반 유저 전용 추가 정보창
   if (step === 2 && role === 'USER') {
     return (
-      <div style={{ padding: '20px' }}>
+      <div style={{ padding: '20px', maxWidth: '400px' }}>
         <h2>회원가입 2단계: 일반 유저 추가 정보</h2>
         <form onSubmit={handleUserStep2Submit}>
-          <input type="text" placeholder="알러지" value={allergies} onChange={(e) => setAllergies(e.target.value)} /><br /><br />
-          <input type="text" placeholder="기저질환" value={diseases} onChange={(e) => setDiseases(e.target.value)} /><br /><br />
-          <button type="submit">회원가입 최종 완료</button>
+          
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>임신 중이신가요?</label>
+            <label style={{ marginRight: '10px' }}>
+              <input type="radio" name="pregnant" checked={isPregnant === true} onChange={() => setIsPregnant(true)} /> 예
+            </label>
+            <label>
+              <input type="radio" name="pregnant" checked={isPregnant === false} onChange={() => setIsPregnant(false)} /> 아니오
+            </label>
+          </div>
+
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>수유 중이신가요?</label>
+            <label style={{ marginRight: '10px' }}>
+              <input type="radio" name="breastfeeding" checked={isBreastfeeding === true} onChange={() => setIsBreastfeeding(true)} /> 예
+            </label>
+            <label>
+              <input type="radio" name="breastfeeding" checked={isBreastfeeding === false} onChange={() => setIsBreastfeeding(false)} /> 아니오
+            </label>
+          </div>
+
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>흡연 중이신가요?</label>
+            <label style={{ marginRight: '10px' }}>
+              <input type="radio" name="smoking" checked={isSmoking === true} onChange={() => setIsSmoking(true)} /> 예
+            </label>
+            <label>
+              <input type="radio" name="smoking" checked={isSmoking === false} onChange={() => setIsSmoking(false)} /> 아니오
+            </label>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>음주를 하시나요?</label>
+            <label style={{ marginRight: '10px' }}>
+              <input type="radio" name="drinking" checked={isDrinking === true} onChange={() => setIsDrinking(true)} /> 예
+            </label>
+            <label>
+              <input type="radio" name="drinking" checked={isDrinking === false} onChange={() => setIsDrinking(false)} /> 아니오
+            </label>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>기저질환 (있는 경우 입력)</label>
+            <input 
+              type="text" 
+              placeholder="예: 고혈압, 당뇨" 
+              value={diseaseName} 
+              onChange={(e) => setDiseaseName(e.target.value)}
+              style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+            />
+          </div>
+
+          <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+            회원가입 최종 완료
+          </button>
         </form>
       </div>
     );
