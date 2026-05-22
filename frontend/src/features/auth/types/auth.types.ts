@@ -46,8 +46,11 @@ export interface LoginResponse {
 }
 
 export interface UserAdditionalInfoRequest {
-  allergies: string[];
-  diseases: string[];
+  isPregnant: boolean;
+  isBreastfeeding: boolean;
+  isSmoking: boolean;
+  isDrinking: boolean;
+  chronicDiseases: string[];
 }
 
 export interface UserAdditionalInfoResponse {
