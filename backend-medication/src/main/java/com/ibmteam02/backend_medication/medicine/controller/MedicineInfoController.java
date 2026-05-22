@@ -1,5 +1,6 @@
 package com.ibmteam02.backend_medication.medicine.controller;
 
+import com.ibmteam02.backend_medication.medicine.dto.MedicineSearchResponse;
 import com.ibmteam02.backend_medication.medicine.service.MedicineInfoService;
 import com.ibmteam02.backend_medication.medicine.service.MedicineSearchService;
 import lombok.RequiredArgsConstructor;
@@ -33,5 +34,11 @@ public class MedicineInfoController {
     @PostMapping("/suggest")
     public List<String> suggestMedicine(@RequestParam String keyword) {
         return medicineSearchService.suggestMedicine(keyword);
+    }
+
+    // 약 검색
+    @GetMapping("/search")
+    public List<MedicineSearchResponse> searchMedicines(@RequestParam String keyword) {
+        return medicineSearchService.searchMedicines(keyword);
     }
 }

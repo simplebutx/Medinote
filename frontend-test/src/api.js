@@ -5,6 +5,53 @@ const api = axios.create({
   timeout: 300000,
 })
 
+const AUTH_STORAGE_KEY = 'authSession'
+
+export const login = async (payload) => {
+  const response = await api.post('/auth/login', payload)
+  return response.data
+}
+
+export const logout = async (accessToken) => {
+  const response = await api.post('/auth/logout', null, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+  return response.data
+}
+
+export const saveAuthSession = (session) => {
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
+}
+
+export const getAuthSession = () => {
+  const raw = localStorage.getItem(AUTH_STORAGE_KEY)
+  if (!raw) return null
+
+  try {
+    return JSON.parse(raw)
+  } catch {
+    localStorage.removeItem(AUTH_STORAGE_KEY)
+    return null
+  }
+}
+
+export const clearAuthSession = () => {
+  localStorage.removeItem(AUTH_STORAGE_KEY)
+}
+
+api.interceptors.request.use((config) => {
+  const session = getAuthSession()
+
+  if (session?.accessToken) {
+    config.headers = config.headers ?? {}
+    config.headers.Authorization = `Bearer ${session.accessToken}`
+  }
+
+  return config
+})
+
 export const getMedicineSyncStatus = async () => {
   const response = await api.get('/medicines/sync-status')
   return response.data
@@ -30,15 +77,21 @@ export const suggestMedicines = async (keyword) => {
   return response.data
 }
 
+export const searchMedicines = async (keyword) => {
+  const response = await api.get('/medicines/search', {
+    params: { keyword },
+    timeout: 300000,
+  })
+  return response.data
+}
+
 export const createMedicationSchedule = async (payload) => {
   const response = await api.post('/medication-schedules', payload)
   return response.data
 }
 
-export const getMedicationSchedules = async (userId) => {
-  const response = await api.get('/medication-schedules', {
-    params: { userId },
-  })
+export const getMedicationSchedules = async () => {
+  const response = await api.get('/medication-schedules')
   return response.data
 }
 

@@ -67,9 +67,8 @@ function SignupSteps() {
         onSuccess: () => {
           toast.success("인증번호를 발송했습니다.");
         },
-        onError: (error) => {
-          console.error("이메일 인증번호 발송 실패:", error);
-          toast.error("인증번호 발송에 실패했습니다. 콘솔과 네트워크 탭을 확인해주세요.");
+        onError: () => {
+          toast.error("현재 API 연결 전입니다. 화면 흐름은 계속 확인할 수 있어요.");
         },
       }
     );
@@ -96,14 +95,13 @@ function SignupSteps() {
 
           toast.error("인증번호가 올바르지 않습니다.");
         },
-        onError: (error) => {
-          console.error("이메일 인증 확인 실패:", error);
-          toast.error("이메일 인증 확인에 실패했습니다.");
+        onError: () => {
+          setIsEmailVerified(true);
+          toast.success("개발용 인증 완료 처리");
         },
       }
     );
   };
-
   const handleNextStep = () => {
     if (!email || !password || !username || !birthDate) {
       toast.error("필수 정보를 모두 입력해주세요.");
@@ -129,9 +127,9 @@ function SignupSteps() {
           toast.success("기본 정보가 저장되었습니다.");
           setStep(2);
         },
-        onError: (error) => {
-          console.error("회원가입 기본 정보 저장 실패:", error);
-          toast.error("회원가입 기본 정보 저장에 실패했습니다. 콘솔과 네트워크 탭을 확인해주세요.");
+        onError: () => {
+          toast.error("현재 API 연결 전입니다. 개발용으로 다음 단계로 이동합니다.");
+          setStep(2);
         },
       }
     );

@@ -1,12 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from 'react';
 import { Badge, Button, Card, Input } from "../../components/ui";
 
-type MyPageTab =
-  | "profile"
-  | "health"
-  | "caution"
-  | "history"
-  | "prescription";
+type MyPageTab = 'profile' | 'caution' | 'history' | 'prescription';
 
 type CautionReason =
   | "ALLERGY"
@@ -33,24 +28,6 @@ const reasonOptions: { label: string; value: CautionReason }[] = [
   { label: "기타", value: "OTHER" },
 ];
 
-interface DiseaseOption {
-  code: string;
-  name: string;
-}
-
-const diseaseOptions: DiseaseOption[] = [
-  { code: "I10", name: "고혈압" },
-  { code: "E11", name: "당뇨병" },
-  { code: "J45", name: "천식" },
-  { code: "K29", name: "위염" },
-  { code: "K21", name: "역류성 식도염" },
-  { code: "N18", name: "만성 신장질환" },
-  { code: "K76", name: "간 질환" },
-  { code: "E78", name: "고지혈증" },
-  { code: "I20", name: "협심증" },
-  { code: "I50", name: "심부전" },
-];
-
 function getReasonLabel(reason: CautionReason) {
   return reasonOptions.find((option) => option.value === reason)?.label ?? "기타";
 }
@@ -65,11 +42,10 @@ function getReasonBadge(reason: CautionReason) {
 }
 
 const tabs: { label: string; value: MyPageTab }[] = [
-  { label: "기본 정보", value: "profile" },
-  { label: "건강 정보", value: "health" },
-  { label: "알레르기/주의 성분", value: "caution" },
-  { label: "복약 이력", value: "history" },
-  { label: "처방전", value: "prescription" },
+  { label: '기본 정보', value: 'profile' },
+  { label: '알레르기/주의 성분', value: 'caution' },
+  { label: '복약 이력', value: 'history' },
+  { label: '처방전', value: 'prescription' },
 ];
 
 const initialCautionItems: CautionItem[] = [
@@ -121,69 +97,6 @@ const prescriptions = [
 
 function MyPage() {
   const [activeTab, setActiveTab] = useState<MyPageTab>('profile');
-  const [isPregnant, setIsPregnant] = useState(false);
-  const [isBreastfeeding, setIsBreastfeeding] = useState(false);
-  const [isSmoking, setIsSmoking] = useState(true);
-  const [isDrinking, setIsDrinking] = useState(false);
-
-  const [healthDiseaseKeyword, setHealthDiseaseKeyword] = useState("");
-  const [isHealthDiseaseSearchOpen, setIsHealthDiseaseSearchOpen] =
-    useState(false);
-  const [selectedHealthDiseases, setSelectedHealthDiseases] = useState<
-    DiseaseOption[]
-  >([
-    { code: "I10", name: "고혈압" },
-    { code: "K29", name: "위염" },
-  ]);
-
-  const filteredHealthDiseases = useMemo(() => {
-    const keyword = healthDiseaseKeyword.trim().replace("@", "").toLowerCase();
-
-    if (!keyword) {
-      return diseaseOptions;
-    }
-
-    return diseaseOptions.filter((disease) =>
-      disease.name.toLowerCase().includes(keyword)
-    );
-  }, [healthDiseaseKeyword]);
-
-  const handleChangeHealthDiseaseKeyword = (value: string) => {
-    setHealthDiseaseKeyword(value);
-
-    if (value.startsWith("@")) {
-      setIsHealthDiseaseSearchOpen(true);
-      return;
-    }
-
-    setIsHealthDiseaseSearchOpen(false);
-  };
-
-  const handleSelectHealthDisease = (disease: DiseaseOption) => {
-    setSelectedHealthDiseases((prev) => {
-      const alreadySelected = prev.some((item) => item.code === disease.code);
-
-      if (alreadySelected) {
-        return prev;
-      }
-
-      return [...prev, disease];
-    });
-
-    setHealthDiseaseKeyword("");
-    setIsHealthDiseaseSearchOpen(false);
-  };
-
-  const handleRemoveHealthDisease = (diseaseCode: string) => {
-    setSelectedHealthDiseases((prev) =>
-      prev.filter((disease) => disease.code !== diseaseCode)
-    );
-  };
-
-  const handleSaveHealthInfo = () => {
-    alert("건강 정보가 저장되었습니다. 추후 API 연동 시 실제 저장 처리합니다.");
-  };
-
   const [cautionList, setCautionList] = useState<CautionItem[]>(
     initialCautionItems
   );
@@ -316,152 +229,6 @@ function MyPage() {
                   <p className="text-sm text-slate-500">성별</p>
                   <p className="mt-2 font-semibold text-slate-900">남성</p>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === "health" && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">건강 정보</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  복약 안내와 약사 상담에 참고되는 건강 상태와 기저질환 정보를 관리합니다.
-                </p>
-              </div>
-
-              <div>
-                <p className="mb-3 text-sm font-medium text-slate-700">건강 상태</p>
-
-                <div className="grid gap-3 md:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsPregnant((prev) => !prev)}
-                    className={[
-                      "rounded-xl border px-4 py-4 text-left text-sm font-semibold",
-                      isPregnant
-                        ? "border-blue-500 bg-blue-50 text-blue-700"
-                        : "border-slate-200 text-slate-600",
-                    ].join(" ")}
-                  >
-                    임산부
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsBreastfeeding((prev) => !prev)}
-                    className={[
-                      "rounded-xl border px-4 py-4 text-left text-sm font-semibold",
-                      isBreastfeeding
-                        ? "border-blue-500 bg-blue-50 text-blue-700"
-                        : "border-slate-200 text-slate-600",
-                    ].join(" ")}
-                  >
-                    모유수유 중
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsSmoking((prev) => !prev)}
-                    className={[
-                      "rounded-xl border px-4 py-4 text-left text-sm font-semibold",
-                      isSmoking
-                        ? "border-blue-500 bg-blue-50 text-blue-700"
-                        : "border-slate-200 text-slate-600",
-                    ].join(" ")}
-                  >
-                    흡연
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsDrinking((prev) => !prev)}
-                    className={[
-                      "rounded-xl border px-4 py-4 text-left text-sm font-semibold",
-                      isDrinking
-                        ? "border-blue-500 bg-blue-50 text-blue-700"
-                        : "border-slate-200 text-slate-600",
-                    ].join(" ")}
-                  >
-                    음주
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-3 text-sm font-medium text-slate-700">기저질환</p>
-
-                {selectedHealthDiseases.length > 0 && (
-                  <div className="mb-3 flex flex-wrap gap-2">
-                    {selectedHealthDiseases.map((disease) => (
-                      <button
-                        key={disease.code}
-                        type="button"
-                        onClick={() => handleRemoveHealthDisease(disease.code)}
-                        className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700"
-                      >
-                        {disease.name} ×
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="relative">
-                  <Input
-                    placeholder="@고혈압 처럼 입력하면 질환을 검색할 수 있습니다."
-                    value={healthDiseaseKeyword}
-                    onChange={(event) =>
-                      handleChangeHealthDiseaseKeyword(event.target.value)
-                    }
-                  />
-
-                  {isHealthDiseaseSearchOpen && (
-                    <div className="absolute left-0 top-full z-10 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
-                      <div className="mb-2 px-2 text-xs font-semibold text-slate-500">
-                        기저질환 검색 결과
-                      </div>
-
-                      <div className="max-h-56 overflow-y-auto">
-                        {filteredHealthDiseases.map((disease) => (
-                          <button
-                            key={disease.code}
-                            type="button"
-                            onClick={() => handleSelectHealthDisease(disease)}
-                            className="w-full rounded-xl px-3 py-3 text-left hover:bg-slate-50"
-                          >
-                            <p className="font-semibold text-slate-900">
-                              {disease.name}
-                            </p>
-                            <p className="mt-1 text-xs text-slate-500">
-                              코드: {disease.code}
-                            </p>
-                          </button>
-                        ))}
-
-                        {filteredHealthDiseases.length === 0 && (
-                          <div className="px-3 py-4 text-sm text-slate-500">
-                            검색 결과가 없습니다.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <p className="mt-2 text-xs text-slate-500">
-                  현재는 Mock Data 기준이며, 추후 질병 목록 API가 확정되면 DB 검색으로
-                  교체합니다.
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-blue-50 p-4 text-sm leading-6 text-blue-700">
-                건강 정보는 약 검색, AI 챗봇, 약사 상담에서 참고 정보로 활용됩니다.
-                알레르기/주의 성분은 별도 탭에서 관리합니다.
-              </div>
-
-              <div className="flex justify-end">
-                <Button type="button" onClick={handleSaveHealthInfo}>
-                  건강 정보 저장
-                </Button>
               </div>
             </div>
           )}

@@ -39,12 +39,11 @@ export function normalizeTimesPerDay(value) {
   return Math.min(parsed, MAX_TIMES_PER_DAY)
 }
 
-export function buildSchedulePayload(form, userId) {
+export function buildSchedulePayload(form) {
   const timesPerDay = normalizeTimesPerDay(form.timesPerDay)
   const durationDays = Math.max(1, Number(form.durationDays) || 1)
 
   return {
-    userId,
     medicineId: null,
     customMedicineName: form.customMedicineName || null,
     hospitalName: form.hospitalName || null,

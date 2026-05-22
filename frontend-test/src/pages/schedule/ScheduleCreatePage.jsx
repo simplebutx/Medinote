@@ -5,7 +5,6 @@ import {
   initializeMedicationScheduleWindow,
   createMedicationScheduleTime,
 } from '../../api'
-import { DEFAULT_USER_ID } from './constants'
 import ScheduleForm from './ScheduleForm'
 import {
   buildSchedulePayload,
@@ -61,7 +60,7 @@ function ScheduleCreatePage() {
     setMessage('')
 
     try {
-      const schedule = await createMedicationSchedule(buildSchedulePayload(form, DEFAULT_USER_ID))
+      const schedule = await createMedicationSchedule(buildSchedulePayload(form))
 
       await Promise.all(
         timeSlots.map((slot, index) =>

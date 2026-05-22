@@ -8,13 +8,13 @@ const Signup = () => {
   // 단계 관리 (1: 기본정보, 2: 추가정보)
   const [step, setStep] = useState(1);
 
-  // 1단계 공통 회원가입 폼 상태
+  // 1단계 공통 회원가입 상태
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [birthDate, setBirthDate] = useState(''); // 백엔드가 LocalDate로 파싱할 타겟
-  const [gender, setGender] = useState('MALE');   // 기본값 MALE
-  const [role, setRole] = useState('USER');       // 🦾 윤주님 백엔드 Enum 상수명인 'USER'로 완벽 동기화
+  const [birthDate, setBirthDate] = useState('');
+  const [gender, setGender] = useState('MALE');
+  const [role, setRole] = useState('USER');
 
   // 이메일 인증 관련 상태 관리
   const [verificationCode, setVerificationCode] = useState('');
@@ -22,19 +22,16 @@ const Signup = () => {
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
 
-  // 2단계 일반유저용 상태
-  const [isPregnant, setIsPregnant] = useState(false);
-  const [isBreastfeeding, setIsBreastfeeding] = useState(false);
-  const [isSmoking, setIsSmoking] = useState(false);
-  const [isDrinking, setIsDrinking] = useState(false);
-  const [diseaseName, setDiseaseName] = useState('');
+  // 2단계 일반유저 상태
+  const [allergies, setAllergies] = useState('');
+  const [diseases, setDiseases] = useState('');
 
-  // 2단계 약사용 상태
+  // 2단계 약사 상태
   const [docNumber, setDocNumber] = useState('');
   const [licenseNumber, setLicenseNumber] = useState('');
   const [licenseImage, setLicenseImage] = useState(null);
 
-  // ⏱️ [타이머 효과] timeLeft 숫자가 줄어들게 만드는 훅
+  // 타이머 효과
   useEffect(() => {
     if (timeLeft <= 0) return;
 
@@ -45,14 +42,14 @@ const Signup = () => {
     return () => clearInterval(timer);
   }, [timeLeft]);
 
-  // ⏱️ 초 단위를 '03:00' 포맷으로 변경해주는 텍스트 유틸 함수
+  // 초 단위를 '03:00' 형태로 변경해주는 텍스트 함수
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  // 📩 [이메일 인증번호 발송 요청] - 순정 백엔드(String 응답) 맞춤형
+  // 이메일 인증번호 발송 요청
   const handleSendVerificationCode = async () => {
     if (!email) {
       alert('이메일을 입력해주세요.');
@@ -73,7 +70,7 @@ const Signup = () => {
     }
   };
 
-  // 🔍 [이메일 인증번호 확인 검증 요청] - 순정 백엔드(String 응답) 맞춤형
+  // 이메일 인증번호 확인 검증 요청
   const handleVerifyCode = async () => {
     if (!verificationCode) {
       alert('인증번호를 입력해주세요.');
@@ -85,7 +82,6 @@ const Signup = () => {
         code: verificationCode
       });
 
-      // ✅ 객체의 verified 필드로 비교
       if (res.data.verified === true) {
         setIsEmailVerified(true);
         setTimeLeft(0);
@@ -107,7 +103,7 @@ const Signup = () => {
     }
   };
 
-  // [1단계 완료] 기본 회원가입 버튼 클릭 시
+  // 1단계 완료
   const handleStep1Submit = async (e) => {
     e.preventDefault();
 
@@ -117,14 +113,13 @@ const Signup = () => {
     }
 
     try {
-      // 🦾 백엔드가 생성자로 안전하게 파싱할 수 있도록 순수 대문자 상수 규격 전송
       await axios.post('http://localhost:8080/api/auth/signup', {
         email,
         password,
         username,
         birthDate,
-        gender, // "MALE" 또는 "FEMALE"
-        role    // "USER" 또는 "PHARMACIST" -> 백엔드 Enum 명칭 매핑 완료
+        gender,
+        role
       });
 
       localStorage.setItem('tempEmail', email);
@@ -135,22 +130,19 @@ const Signup = () => {
     }
   };
 
-  // [2단계 완료 - 일반유저] 최종 제출
+  // 2단계 완료 - 일반유저
   const handleUserStep2Submit = async (e) => {
     e.preventDefault();
     const tempEmail = localStorage.getItem('tempEmail');
 
     try {
       await axios.post('http://localhost:8080/api/auth/user/profile', {
-        isPregnant,
-        isBreastfeeding,
-        isSmoking,
-        isDrinking,
-        diseaseName,
+        allergies,
+        diseases,
         email: tempEmail
       });
 
-      alert('회원가입이 최종 완료되었습니다! 로그인을 해주세요.');
+      alert('회원가입이 최종 완료되었습니다. 로그인을 해주세요.');
       localStorage.removeItem('tempEmail');
       navigate('/login');
     } catch (error) {
@@ -159,7 +151,7 @@ const Signup = () => {
     }
   };
 
-  // [2단계 완료 - 약사유저] 최종 제출
+  // 2단계 완료 - 약사유저
   const handlePharmacistStep2Submit = async (e) => {
     e.preventDefault();
     const tempEmail = localStorage.getItem('tempEmail');
@@ -175,7 +167,7 @@ const Signup = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      alert('약사 면허 인증 및 회원가입이 최종 완료되었습니다!');
+      alert('약사 면허 인증 및 회원가입이 최종 완료되었습니다.');
       localStorage.removeItem('tempEmail');
       navigate('/login');
     } catch (error) {
@@ -184,22 +176,19 @@ const Signup = () => {
     }
   };
 
-  // ==================== 화면 렌더링 ====================
-
   if (step === 1) {
     return (
       <div style={{ padding: '20px', maxWidth: '400px' }}>
         <h2>회원가입 1단계: 기본 정보 입력</h2>
         <form onSubmit={handleStep1Submit}>
 
-          {/* 이메일 발송 구간 */}
           <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
             <input
               type="email"
               placeholder="이메일"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              readOnly={isEmailVerified} // 🦾 리액트와 브라우저 간의 비동기 값 증발 완벽 차단
+              readOnly={isEmailVerified}
               required
             />
             <button
@@ -211,7 +200,6 @@ const Signup = () => {
             </button>
           </div>
 
-          {/* 인증번호 입력 및 타이머 */}
           {isCodeSent && (
             <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
               <input
@@ -241,9 +229,8 @@ const Signup = () => {
           )}
 
           <input type="password" placeholder="비밀번호" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', marginBottom: '15px' }} required /><br />
-          <input type="text" placeholder="닉네임" value={username} onChange={(e) => setUsername(e.target.value)} style={{ width: '100%', marginBottom: '15px' }} required /><br />
+          <input type="text" placeholder="이름" value={username} onChange={(e) => setUsername(e.target.value)} style={{ width: '100%', marginBottom: '15px' }} required /><br />
 
-          {/* 생년월일 선택 */}
           <div style={{ marginBottom: '15px' }}>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>생년월일</label>
             <input
@@ -255,14 +242,12 @@ const Signup = () => {
             />
           </div>
 
-          {/* 성별 선택 */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>성별</label>
             <button type="button" onClick={() => setGender('MALE')} style={{ marginRight: '10px', padding: '5px 15px', fontWeight: gender === 'MALE' ? 'bold' : 'normal', border: gender === 'MALE' ? '2px solid black' : '1px solid #ccc' }}>남성</button>
             <button type="button" onClick={() => setGender('FEMALE')} style={{ padding: '5px 15px', fontWeight: gender === 'FEMALE' ? 'bold' : 'normal', border: gender === 'FEMALE' ? '2px solid black' : '1px solid #ccc' }}>여성</button>
           </div>
 
-          {/* 역할 선택 - 백엔드 불변 스펙에 맞춘 상수 지정 */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ fontWeight: 'bold', fontSize: '14px' }}>역할 선택: </label>
             <button type="button" onClick={() => setRole('USER')} style={{ marginRight: '10px', padding: '5px 10px', fontWeight: role === 'USER' ? 'bold' : 'normal' }}>일반 유저</button>
@@ -288,73 +273,19 @@ const Signup = () => {
     );
   }
 
-  // [화면 2] 2단계: 일반 유저 전용 추가 정보창
   if (step === 2 && role === 'USER') {
     return (
-      <div style={{ padding: '20px', maxWidth: '400px' }}>
+      <div style={{ padding: '20px' }}>
         <h2>회원가입 2단계: 일반 유저 추가 정보</h2>
         <form onSubmit={handleUserStep2Submit}>
-          
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>임신 중이신가요?</label>
-            <label style={{ marginRight: '10px' }}>
-              <input type="radio" name="pregnant" checked={isPregnant === true} onChange={() => setIsPregnant(true)} /> 예
-            </label>
-            <label>
-              <input type="radio" name="pregnant" checked={isPregnant === false} onChange={() => setIsPregnant(false)} /> 아니오
-            </label>
-          </div>
-
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>수유 중이신가요?</label>
-            <label style={{ marginRight: '10px' }}>
-              <input type="radio" name="breastfeeding" checked={isBreastfeeding === true} onChange={() => setIsBreastfeeding(true)} /> 예
-            </label>
-            <label>
-              <input type="radio" name="breastfeeding" checked={isBreastfeeding === false} onChange={() => setIsBreastfeeding(false)} /> 아니오
-            </label>
-          </div>
-
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>흡연 중이신가요?</label>
-            <label style={{ marginRight: '10px' }}>
-              <input type="radio" name="smoking" checked={isSmoking === true} onChange={() => setIsSmoking(true)} /> 예
-            </label>
-            <label>
-              <input type="radio" name="smoking" checked={isSmoking === false} onChange={() => setIsSmoking(false)} /> 아니오
-            </label>
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>음주를 하시나요?</label>
-            <label style={{ marginRight: '10px' }}>
-              <input type="radio" name="drinking" checked={isDrinking === true} onChange={() => setIsDrinking(true)} /> 예
-            </label>
-            <label>
-              <input type="radio" name="drinking" checked={isDrinking === false} onChange={() => setIsDrinking(false)} /> 아니오
-            </label>
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>기저질환 (있는 경우 입력)</label>
-            <input 
-              type="text" 
-              placeholder="예: 고혈압, 당뇨" 
-              value={diseaseName} 
-              onChange={(e) => setDiseaseName(e.target.value)}
-              style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-            />
-          </div>
-
-          <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-            회원가입 최종 완료
-          </button>
+          <input type="text" placeholder="알러지" value={allergies} onChange={(e) => setAllergies(e.target.value)} /><br /><br />
+          <input type="text" placeholder="기저질환" value={diseases} onChange={(e) => setDiseases(e.target.value)} /><br /><br />
+          <button type="submit">회원가입 최종 완료</button>
         </form>
       </div>
     );
   }
 
-  // [화면 3] 2단계: 약사 유저 전용 추가 정보창
   if (step === 2 && role === 'PHARMACIST') {
     return (
       <div style={{ padding: '20px' }}>

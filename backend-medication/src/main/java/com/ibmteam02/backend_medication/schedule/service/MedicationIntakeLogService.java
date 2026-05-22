@@ -1,5 +1,6 @@
 package com.ibmteam02.backend_medication.schedule.service;
 
+import com.ibmteam02.backend_medication.global.exception.ResourceNotFoundException;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationIntakeLog;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationSchedule;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationScheduleTime;
@@ -10,10 +11,8 @@ import com.ibmteam02.backend_medication.schedule.repository.MedicationScheduleRe
 import com.ibmteam02.backend_medication.schedule.repository.MedicationScheduleTimeRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -73,7 +72,7 @@ public class MedicationIntakeLogService {
     // ID로 복약 일정을 찾고 없으면 예외
     private MedicationSchedule findSchedule(Long id) {
         return medicationScheduleRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Medication schedule not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Medication schedule not found"));
     }
 
     // ID로 복용 시간을 찾고 없으면 예외를 던지며 null은 그대로 허용.
@@ -82,13 +81,13 @@ public class MedicationIntakeLogService {
             return null;
         }
         return medicationScheduleTimeRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Medication schedule time not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Medication schedule time not found"));
     }
 
     // ID로 복약 기록을 찾고 없으면 예외
     private MedicationIntakeLog findById(Long id) {
         return medicationIntakeLogRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Medication intake log not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Medication intake log not found"));
     }
 
     // 엔티티를 응답 DTO로 변환
