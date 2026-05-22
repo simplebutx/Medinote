@@ -30,10 +30,11 @@ public class JwtProvider {
     }
 
     // [발급] 로그인 성공 시 accessToken 토큰 생성
-    public String createToken(String email, String role) {
+    public String createToken(Long userId, String email, String role) {
         Date now = new Date();
         return Jwts.builder()
                 .subject(email)
+                .claim("userId", userId)
                 .claim("role", role)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expirationTime))
@@ -67,6 +68,18 @@ public class JwtProvider {
     // [추출] 토큰에서 이메일(Subject) 꺼내기
     public String getEmailFromToken(String token) {
         return getClaims(token).getSubject();
+    }
+
+    // [추출] 토큰에서 id 꺼내기
+    public Long getUserIdFromToken(String token) {
+        Object userId = getClaims(token).get("userId");
+        if (userId instanceof Integer i) {
+            return i.longValue();
+        }
+        if (userId instanceof Long l) {
+            return l;
+        }
+        return Long.valueOf(String.valueOf(userId));
     }
 
     // [검증] 토큰이 유효한지 체크

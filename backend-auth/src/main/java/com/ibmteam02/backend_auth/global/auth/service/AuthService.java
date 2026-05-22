@@ -110,7 +110,7 @@ public class AuthService {
             throw new IllegalArgumentException("회원가입 2단계가 완료되지 않은 계정입니다");
         }
 
-        String accessToken = jwtProvider.createToken(user.getEmail(), user.getRole().name());
+        String accessToken = jwtProvider.createToken(user.getId(), user.getEmail(), user.getRole().name());
         String refreshTokenValue = jwtProvider.createRefreshToken(user.getEmail());
 
         RefreshToken refreshToken = new RefreshToken(
@@ -146,7 +146,7 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(()->new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        String newAccessToken = jwtProvider.createToken(user.getEmail(), user.getRole().name());
+        String newAccessToken = jwtProvider.createToken(user.getId(), user.getEmail(), user.getRole().name());
         String newRefreshToken = jwtProvider.createRefreshToken(user.getEmail());
 
         refreshTokenRepository.save(new RefreshToken(user.getEmail(), newRefreshToken, 14*24*60*60L));
