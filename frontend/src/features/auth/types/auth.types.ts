@@ -1,11 +1,14 @@
 import type { UserRole } from "../../../types/common.types";
 
+export type Gender = "MALE" | "FEMALE";
+export type UserStatus = "PENDING" | "ACTIVE";
+
 export interface SignupRequest {
   email: string;
   password: string;
   username: string;
   birthDate: string;
-  gender: "MALE" | "FEMALE";
+  gender: Gender;
   role: UserRole;
 }
 
@@ -13,7 +16,7 @@ export interface SignupResponse {
   userId: number;
   email: string;
   role: UserRole;
-  status: "PENDING" | "ACTIVE";
+  status: UserStatus;
 }
 
 export interface SendEmailVerificationCodeRequest {
@@ -21,6 +24,7 @@ export interface SendEmailVerificationCodeRequest {
 }
 
 export interface SendEmailVerificationCodeResponse {
+  message: string;
   expiresInSeconds: number;
 }
 
@@ -30,6 +34,7 @@ export interface VerifyEmailCodeRequest {
 }
 
 export interface VerifyEmailCodeResponse {
+  message: string;
   verified: boolean;
 }
 
@@ -45,14 +50,29 @@ export interface LoginResponse {
   userId: number;
 }
 
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface RefreshTokenResponse {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface LogoutResponse {
+  message: string;
+}
+
 export interface UserAdditionalInfoRequest {
-  allergies: string[];
-  diseases: string[];
+  isPregnant: boolean;
+  isBreastfeeding: boolean;
+  isSmoking: boolean;
+  isDrinking: boolean;
 }
 
 export interface UserAdditionalInfoResponse {
   userId: number;
-  status: "ACTIVE";
+  status: UserStatus;
 }
 
 export interface PharmacistVerificationRequest {
@@ -63,5 +83,5 @@ export interface PharmacistVerificationRequest {
 
 export interface PharmacistVerificationResponse {
   userId: number;
-  status: "ACTIVE";
+  status: UserStatus;
 }
