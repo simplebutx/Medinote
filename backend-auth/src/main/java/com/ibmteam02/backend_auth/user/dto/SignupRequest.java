@@ -23,4 +23,15 @@ public class SignupRequest {
     private LocalDate birthDate;
     private Gender gender; //MALE or FEMALE
     private Role role; // USER or PHARMACIST
+
+    //일반 유저 건강 정보 (선택)
+    private Boolean isPregnant; // 임산부 여부
+    private Boolean isBreastfeeding; // 모유 수유 여부
+    private Boolean isSmoking; // 흡연 여부
+    private Boolean isDrinking; // 음주 여부
+    private String diseaseName; // 사용자 질병명
+
+    //약사 추가 정보
+    private String docNumber; //약국명
+    private String licenseNumber; //면허 번호
 }

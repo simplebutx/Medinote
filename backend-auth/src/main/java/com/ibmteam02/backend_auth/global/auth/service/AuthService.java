@@ -5,19 +5,16 @@ import com.ibmteam02.backend_auth.global.auth.jwt.JwtProvider;
 import com.ibmteam02.backend_auth.global.auth.repository.RefreshTokenRepository;
 import com.ibmteam02.backend_auth.global.error.exception.CustomException;
 import com.ibmteam02.backend_auth.global.error.exception.ErrorCode;
-import com.ibmteam02.backend_auth.user.domain.User;
-import com.ibmteam02.backend_auth.user.domain.UserChronicDisease;
-import com.ibmteam02.backend_auth.user.domain.UserProfileHealth;
-import com.ibmteam02.backend_auth.user.domain.UserStatus;
+import com.ibmteam02.backend_auth.user.domain.*;
 import com.ibmteam02.backend_auth.user.dto.*;
 import com.ibmteam02.backend_auth.user.repository.DiseaseMasterRepository;
 import com.ibmteam02.backend_auth.user.repository.UserChronicDiseaseRepository;
 import com.ibmteam02.backend_auth.user.repository.UserProfileHealthRepository;
 import com.ibmteam02.backend_auth.user.repository.UserRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -34,11 +31,9 @@ public class AuthService {
 
 
     //회원가입
-    public void signup(SignupRequest signupRequest) {
-        if (userRepository.existsByEmail(signupRequest.getEmail())) {
-            throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
-        }
+    public void signup(SignupRequest signupRequest, MultipartFile licenseImage) {
 
+        //공통 회원가입 정보 저장
         String encodedPassword = passwordEncoder.encode(signupRequest.getPassword());
 
         User user = User.builder()
@@ -50,51 +45,36 @@ public class AuthService {
                 .role(signupRequest.getRole())
                 .build();
 
-        userRepository.save(user);
-    }
+        if (signupRequest.getRole() == Role.USER) {
+            user.activate(); //일반 유저는 바로 ACTIVE로 변경
+            userRepository.save(user);
 
-    //일반 유저 건강 추가 정보 입력
-    @Transactional
-    public void addUserProfile(String email,UserProfileRequest userProfileRequest){
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(()->new RuntimeException("유저 없음"));
+            //일반 유저 건강 상태 저장
+            UserProfileHealth userProfileHealth = UserProfileHealth.builder()
+                    .user(user)
+                    .isPregnant(Boolean.TRUE.equals(signupRequest.getIsPregnant()))
+                    .isBreastfeeding(Boolean.TRUE.equals(signupRequest.getIsBreastfeeding()))
+                    .isSmoking(Boolean.TRUE.equals(signupRequest.getIsSmoking()))
+                    .isDrinking(Boolean.TRUE.equals(signupRequest.getIsDrinking()))
+                    .build();
+            userProfileHealthRepository.save(userProfileHealth);
 
-        //건강 정보 저장 로직
-        UserProfileHealth health = UserProfileHealth.builder()
-                .user(user)
-                .isPregnant(userProfileRequest.getIsPregnant())
-                .isBreastfeeding(userProfileRequest.getIsBreastfeeding())
-                .isSmoking(userProfileRequest.getIsSmoking())
-                .isDrinking(userProfileRequest.getIsDrinking())
-                .build();
+            //일반 유저 기저질환 저장
+            if (StringUtils.hasText(signupRequest.getDiseaseName())) {
+                diseaseMasterRepository.findByDiseaseName(signupRequest.getDiseaseName())
+                        .ifPresent(diseaseMaster -> userChronicDiseaseRepository.save(
+                                new UserChronicDisease(user, diseaseMaster, diseaseMaster.getDiseaseName())));
+            }
+        } else if (signupRequest.getRole() == Role.PHARMACIST) {
+            String imageUrl = "s3/mymedi/licenses/" + licenseImage.getOriginalFilename();
+            user.addPharmacistProfile(
+                    signupRequest.getDocNumber(),
+                    signupRequest.getLicenseNumber(),
+                    imageUrl);
 
-        userProfileHealthRepository.save(health);
-
-        //기저질환 저장 로직
-        if(userProfileRequest.getDiseaseName() !=null && !userProfileRequest.getDiseaseName().isEmpty()){
-            diseaseMasterRepository.findByDiseaseName(userProfileRequest.getDiseaseName())
-                            .ifPresent(diseaseMaster -> {
-                                UserChronicDisease userChronicDisease = UserChronicDisease.builder()
-                                        .user(user)
-                                        .diseaseMaster(diseaseMaster)
-                                        .diseaseName(diseaseMaster.getDiseaseName())
-                                        .build();
-                                userChronicDiseaseRepository.save(userChronicDisease);
-                            });
-            user.addUserProfile();// 상태를 ACTIVE로 변경
         }
-    }
 
-    //약사 회원가입 2단계 추가 정보 등록
-    @Transactional
-    public void addPharmacistProfile(String email, PharmacistVerifyRequest pharmacistVerifyRequest, MultipartFile image){
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(()->new RuntimeException("유저 없음"));
-        String imageUrl = "s3/mymedi/licenses/" + image.getOriginalFilename();
-        user.addPharmacistProfile(
-                pharmacistVerifyRequest.getDocNumber(),
-                pharmacistVerifyRequest.getLicenseNumber(),
-                imageUrl);
+        userRepository.save(user);
     }
 
     //로그인
@@ -106,8 +86,11 @@ public class AuthService {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다");
         }
 
-        if(user.getStatus() == UserStatus.PENDING){
-            throw new IllegalArgumentException("회원가입 2단계가 완료되지 않은 계정입니다");
+        if(user.getStatus() == UserStatus.WAITING_APPROVAL){
+            if(user.getRole() == Role.PHARMACIST){
+                throw new IllegalArgumentException("관리자 승인 후 로그인 가능합니다");
+            }
+            throw new IllegalArgumentException("회원가입 완료되지 않은 계정입니다");
         }
 
         String accessToken = jwtProvider.createToken(user.getId(), user.getEmail(), user.getRole().name());

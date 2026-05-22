@@ -11,6 +11,7 @@ import ScheduleEditPage from './pages/schedule/ScheduleEditPage'
 import ScheduleListPage from './pages/schedule/ScheduleListPage'
 import Signup from './pages/Signup'
 import Sync from './pages/Sync'
+import YunjuTest from './pages/YunjuTest'
 
 function Home() {
   return (
@@ -36,6 +37,9 @@ function Home() {
           <Link to="/login">login</Link>
         </li>
         <li>
+          <Link to="/yunjutest" style={{ color: 'red', fontWeight: 'bold' }}>윤주님 API 테스트</Link>
+        </li>
+        <li>
           <Link to="/my">my page</Link>
         </li>
       </ul>
@@ -57,6 +61,7 @@ function App() {
         <Route path="/schedule-test/:id/edit" element={<ScheduleEditPage />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/yunjutest" element={<YunjuTest />} />
         <Route path="/my" element={<MyPage />} />
       </Routes>
     </BrowserRouter>
