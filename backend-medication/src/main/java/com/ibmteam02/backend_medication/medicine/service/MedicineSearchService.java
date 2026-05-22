@@ -26,12 +26,13 @@ public class MedicineSearchService {
                 .toList();
     }
 
+    // 약 자동완성
     public List<MedicineSearchResponse> searchMedicines(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             return List.of();
         }
 
-        return medicineInfoRepository.findTop20ByItemNameContaining(keyword).stream()
+        return medicineInfoRepository.findTop10ByItemNameContaining(keyword).stream()
                 .map(medicine -> new MedicineSearchResponse(
                         medicine.getItemSeq(),
                         medicine.getItemName(),

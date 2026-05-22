@@ -77,9 +77,9 @@ export const suggestMedicines = async (keyword) => {
   return response.data
 }
 
-export const suggestCautions = async (keyword) => {
+export const suggestCautions = async (keyword, type) => {
   const response = await api.post('/me/cautions/suggest', null, {
-    params: { keyword },
+    params: { keyword, type },
     timeout: 300000,
   })
   return response.data

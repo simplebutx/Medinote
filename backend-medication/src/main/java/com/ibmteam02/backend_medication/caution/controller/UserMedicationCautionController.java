@@ -28,11 +28,14 @@ public class UserMedicationCautionController {
 
     // 자동완성
     @PostMapping("/suggest")
-    public List<CautionSuggestionResponse> suggest(@RequestParam String keyword) {
-        return userMedicationCautionService.suggest(keyword);
+    public List<CautionSuggestionResponse> suggest(
+            @RequestParam String keyword,
+            @RequestParam String type
+    ) {
+        return userMedicationCautionService.suggest(keyword, type);
     }
 
-    // 내 주의 약/성분 등록
+    // 내 주의 약·성분 등록
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public UserMedicationCautionResponse create(
@@ -42,13 +45,13 @@ public class UserMedicationCautionController {
         return userMedicationCautionService.create(userId, request);
     }
 
-    // 내 주의 약/성분 목록 조회
+    // 내 주의 약·성분 목록 조회
     @GetMapping
     public List<UserMedicationCautionResponse> getList(@AuthenticationPrincipal Long userId) {
         return userMedicationCautionService.getList(userId);
     }
 
-    // 내 주의 약/성분 상세 조회
+    // 내 주의 약·성분 상세 조회
     @GetMapping("/{id}")
     public UserMedicationCautionResponse getDetail(
             @AuthenticationPrincipal Long userId,
@@ -57,7 +60,7 @@ public class UserMedicationCautionController {
         return userMedicationCautionService.getDetail(userId, id);
     }
 
-    // 내 주의 약/성분 수정
+    // 내 주의 약·성분 수정
     @PatchMapping("/{id}")
     public UserMedicationCautionResponse update(
             @AuthenticationPrincipal Long userId,
@@ -67,7 +70,7 @@ public class UserMedicationCautionController {
         return userMedicationCautionService.update(userId, id, request);
     }
 
-    // 내 주의 약/성분 삭제
+    // 내 주의 약·성분 삭제
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(
