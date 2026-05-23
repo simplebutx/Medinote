@@ -1,0 +1,103 @@
+export type UserRole = "USER" | "PHARMACIST" | "ADMIN";
+export type Gender = "MALE" | "FEMALE";
+export type CautionType = "MEDICINE" | "INGREDIENT";
+export type CautionReason =
+  | "ALLERGY"
+  | "SIDE_EFFECT"
+  | "DOCTOR_ADVICE"
+  | "PHARMACIST_ADVICE"
+  | "PERSONAL_AVOID"
+  | "OTHER";
+export type DosageUnit = "ML" | "TABLET" | "MG" | "PACKET" | "SPOON";
+export type FrequencyType = "DAILY" | "INTERVAL_HOURS" | "AS_NEEDED";
+export type MedicationTiming =
+  | "AFTER_MEAL"
+  | "BEFORE_MEAL"
+  | "WITH_MEAL"
+  | "EMPTY_STOMACH"
+  | "BEDTIME"
+  | "ANYTIME";
+
+export interface Session {
+  accessToken: string;
+  refreshToken: string;
+  email: string;
+  role: UserRole;
+}
+
+export interface AppSettings {
+  apiHost: string;
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  email: string;
+  role: UserRole;
+}
+
+export interface MedicineSearchResponse {
+  itemSeq: number;
+  itemName: string;
+  companyName: string | null;
+  efficacy: string | null;
+  useMethod: string | null;
+  caution: string | null;
+  sideEffect: string | null;
+  imageUrl: string | null;
+}
+
+export interface CautionSuggestionResponse {
+  name: string;
+  type: CautionType;
+}
+
+export interface UserMedicationCautionRequest {
+  itemSeq: number | null;
+  itemName: string | null;
+  ingredientCode: string | null;
+  ingredientName: string | null;
+  reason: CautionReason;
+  memo: string | null;
+}
+
+export interface UserMedicationCautionResponse extends UserMedicationCautionRequest {
+  id: number;
+  userId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatbotMessageResponse {
+  answer: string;
+}
+
+export interface MedicationScheduleResponse {
+  id: number;
+  userId: number;
+  medicineId: number | null;
+  customMedicineName: string | null;
+  hospitalName: string | null;
+  pharmacyName: string | null;
+  dosageAmount: number | null;
+  dosageUnit: DosageUnit | null;
+  frequencyType: FrequencyType | null;
+  timesPerDay: number | null;
+  intervalHours: number | null;
+  durationDays: number | null;
+  startDate: string | null;
+  endDate: string | null;
+  prescribedDate: string | null;
+  dispensedDate: string | null;
+  isActive: boolean | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MedicationScheduleTimeResponse {
+  id: number;
+  medicationScheduleId: number;
+  timing: MedicationTiming;
+  takeTime: string;
+  sortOrder: number;
+}
