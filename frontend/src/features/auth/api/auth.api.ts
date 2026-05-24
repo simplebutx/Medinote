@@ -90,18 +90,19 @@ export const requestPharmacistVerification = async (
   const formData = new FormData();
 
   const request = {
+    email: body.email,
     docNumber: body.docNumber,
     licenseNumber: body.licenseNumber,
   };
 
   formData.append(
-    "request",
+    "data",
     new Blob([JSON.stringify(request)], {
       type: "application/json",
     })
   );
 
-  formData.append("image", body.licenseImage);
+  formData.append("licenseImage", body.licenseImage);
 
   const response =
     await authInstance.post<PharmacistVerificationResponse>(

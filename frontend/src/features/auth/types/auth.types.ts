@@ -78,6 +78,7 @@ export interface UserAdditionalInfoResponse {
 }
 
 export interface PharmacistVerificationRequest {
+  email: string;
   docNumber: string;
   licenseNumber: string;
   licenseImage: File;

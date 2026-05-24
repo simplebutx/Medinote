@@ -5,11 +5,13 @@ import { Button, Input } from '../../../components/ui';
 import usePharmacistVerification from '../hooks/usePharmacistVerification';
 
 interface PharmacistAdditionalInfoStepProps {
+  email: string;
   onBack: () => void;
   onComplete: () => void;
 }
 
 function PharmacistAdditionalInfoStep({
+  email,
   onBack,
   onComplete,
 }: PharmacistAdditionalInfoStepProps) {
@@ -27,6 +29,7 @@ function PharmacistAdditionalInfoStep({
 
     pharmacistVerificationMutation.mutate(
       {
+        email,
         docNumber,
         licenseNumber,
         licenseImage,
@@ -36,7 +39,8 @@ function PharmacistAdditionalInfoStep({
           toast.success("약사 인증 정보가 저장되었습니다.");
           onComplete();
         },
-        onError: () => {
+        onError: (error) => {
+          console.error("약사 인증 정보 저장 실패:", error);
           toast.error("약사 인증 정보 저장에 실패했습니다.");
         },
       }
