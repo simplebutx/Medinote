@@ -5,6 +5,7 @@ import { Button, Input } from "../../../components/ui";
 import useUserAdditionalInfoSignup from "../hooks/useUserAdditionalInfoSignup";
 
 interface UserAdditionalInfoStepProps {
+  email: string;
   onBack: () => void;
   onComplete: () => void;
 }
@@ -28,6 +29,7 @@ const diseaseOptions: DiseaseOption[] = [
 ];
 
 function UserAdditionalInfoStep({
+  email,
   onBack,
   onComplete,
 }: UserAdditionalInfoStepProps) {
@@ -89,17 +91,20 @@ function UserAdditionalInfoStep({
   const handleSubmit = () => {
     userAdditionalInfoMutation.mutate(
       {
+        email,
         isPregnant,
         isBreastfeeding,
         isSmoking,
         isDrinking,
+        diseaseNames: selectedDiseases.map((disease) => disease.name),
       },
       {
         onSuccess: () => {
           toast.success("추가 정보가 저장되었습니다.");
           onComplete();
         },
-        onError: () => {
+        onError: (error) => {
+          console.error("추가 정보 저장 실패:", error);
           toast.error("추가 정보 저장에 실패했습니다.");
         },
       }

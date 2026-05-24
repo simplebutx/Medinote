@@ -64,10 +64,12 @@ export interface LogoutResponse {
 }
 
 export interface UserAdditionalInfoRequest {
+  email: string;
   isPregnant: boolean;
   isBreastfeeding: boolean;
   isSmoking: boolean;
   isDrinking: boolean;
+  diseaseNames: string[];
 }
 
 export interface UserAdditionalInfoResponse {

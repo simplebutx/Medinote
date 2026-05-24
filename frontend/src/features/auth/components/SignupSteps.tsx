@@ -314,6 +314,7 @@ function SignupSteps() {
 
       {step === 2 && role === "USER" && (
         <UserAdditionalInfoStep
+          email={email}
           onBack={() => setStep(1)}
           onComplete={handleCompleteSignup}
         />
