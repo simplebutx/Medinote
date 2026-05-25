@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Keyboard, Pressable, Text, View } from "react-native";
 
 import { api } from "../api/client";
 import { reasonOptions } from "../constants";
 import { useAppContext } from "../context/AppContext";
 import type { CautionReason, CautionType, UserMedicationCautionResponse } from "../types";
-import { Button, Field, InfoBanner, PillSelector, Screen, SectionCard } from "../ui";
+import { Button, Field, InfoBanner, PillSelector, Screen, SectionCard, SuggestionButton } from "../ui";
 
 export function CautionsScreen() {
   const { settings, session } = useAppContext();
@@ -28,13 +28,25 @@ export function CautionsScreen() {
       const response = await api.getCautions(settings, session);
       setItems(response);
     } catch (error: any) {
-      setMessage(error?.response?.data?.message || "주의 약 목록을 불러오지 못했습니다.");
+      setMessage(error?.response?.data?.message || "주의 약/성분 목록을 불러오지 못했습니다.");
     }
   };
 
   useEffect(() => {
     loadItems();
   }, []);
+
+  const clearKeywordState = () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    setKeyword("");
+    setSelectedSuggestion(null);
+    setSuggestions([]);
+    setMessage("");
+    Keyboard.dismiss();
+  };
 
   const handleKeywordChange = (value: string) => {
     setKeyword(value);
@@ -62,9 +74,7 @@ export function CautionsScreen() {
   };
 
   const resetForm = () => {
-    setKeyword("");
-    setSelectedSuggestion(null);
-    setSuggestions([]);
+    clearKeywordState();
     setReason("ALLERGY");
     setMemo("");
     setEditingId(null);
@@ -130,30 +140,55 @@ export function CautionsScreen() {
           value={selectedType}
           onChange={(value) => setSelectedType(value as CautionType)}
         />
-        <Field
-          label={selectedType === "MEDICINE" ? "약 검색" : "성분 검색"}
-          value={keyword}
-          onChangeText={handleKeywordChange}
-          placeholder={selectedType === "MEDICINE" ? "타이레놀" : "아세트아미노펜"}
-        />
+
+        <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-end" }}>
+          <View style={{ flex: 1 }}>
+            <Field
+              label={selectedType === "MEDICINE" ? "약 검색" : "성분 검색"}
+              value={keyword}
+              onChangeText={handleKeywordChange}
+              placeholder={selectedType === "MEDICINE" ? "타이레놀" : "아세트아미노펜"}
+            />
+          </View>
+          {(keyword || selectedSuggestion || suggestions.length > 0) ? (
+            <Pressable
+              onPress={clearKeywordState}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 14,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "#ffffff",
+                borderWidth: 1,
+                borderColor: "#cfe0da",
+                marginBottom: 1,
+              }}
+            >
+              <Text style={{ fontSize: 18, fontWeight: "800", color: "#35574e" }}>X</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
         {suggestions.map((suggestion) => (
-          <Button
+          <SuggestionButton
             key={`${suggestion.type}-${suggestion.name}`}
-            title={`${suggestion.type === "MEDICINE" ? "약" : "성분"} · ${suggestion.name}`}
+            title={`${suggestion.name}`}
             onPress={() => {
+              Keyboard.dismiss();
               setSelectedSuggestion(suggestion);
               setKeyword(suggestion.name);
               setSuggestions([]);
             }}
-            secondary
           />
         ))}
-        <Text style={{ color: "#547066" }}>
-          현재 선택: {selectedSuggestion ? `${selectedSuggestion.type} / ${selectedSuggestion.name}` : "없음"}
-        </Text>
+
+        <Text style={{ color: "#35574e", fontWeight: "700", fontSize: 14 }}>주의 이유</Text>
         <PillSelector options={reasonOptions} value={reason} onChange={(value) => setReason(value as CautionReason)} />
         <Field label="메모" value={memo} onChangeText={setMemo} multiline placeholder="먹으면 속쓰림, 발진 등이 있다면 기록" />
+
         {message ? <InfoBanner text={message} tone={message.includes("실패") ? "danger" : "default"} /> : null}
+
         <View style={{ flexDirection: "row", gap: 10 }}>
           <View style={{ flex: 1 }}>
             <Button title={editingId ? "수정 저장" : "새로 등록"} onPress={handleSave} loading={loading} />
