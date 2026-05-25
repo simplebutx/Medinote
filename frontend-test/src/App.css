@@ -1132,6 +1132,159 @@
   gap: 14px;
 }
 
+.today-dose-list {
+  display: grid;
+  gap: 12px;
+}
+
+.today-dose-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  border: 1px solid #c7d9ef;
+  border-radius: 18px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.today-dose-card-complete {
+  border-color: #8bc7a8;
+  background: #f7fff9;
+}
+
+.today-dose-status-rail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0;
+  background: linear-gradient(180deg, #edf5ff 0%, #f9fbff 100%);
+}
+
+.today-dose-card-complete .today-dose-status-rail {
+  background: linear-gradient(180deg, #e7f7ef 0%, #f7fffa 100%);
+}
+
+.today-dose-status-rail span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #2d6dc4;
+  color: #fff;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.today-dose-card-complete .today-dose-status-rail span {
+  background: #11724d;
+}
+
+.today-dose-body {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.today-dose-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.today-dose-header strong {
+  display: block;
+  font-size: 20px;
+  color: #1f2933;
+}
+
+.today-dose-header span {
+  color: #38506a;
+  font-weight: 700;
+}
+
+.today-dose-header small {
+  color: #6e5645;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.today-dose-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.today-dose-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #c7d9ef;
+  border-radius: 12px;
+  background: #f8fbff;
+  color: #1f2933;
+  cursor: pointer;
+}
+
+.today-dose-chip strong {
+  font-size: 16px;
+}
+
+.today-dose-chip small {
+  color: #5f6f7d;
+  font-size: 11px;
+}
+
+.today-dose-chip-complete {
+  border-color: #9fd6b5;
+  background: #ebfaf1;
+  color: #185b3b;
+}
+
+.today-dose-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #2d6dc4;
+  flex-shrink: 0;
+}
+
+.today-dose-chip-complete .today-dose-chip-dot {
+  background: #11724d;
+}
+
+.today-dose-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.today-dose-complete-button {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #11724d;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.today-dose-complete-button:disabled,
+.today-dose-chip:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.today-dose-actions span {
+  color: #6e5645;
+  font-size: 14px;
+}
+
 .schedule-calendar-toolbar {
   display: flex;
   justify-content: space-between;
@@ -1434,6 +1587,16 @@
   .schedule-summary-list,
   .schedule-meta-strip {
     grid-template-columns: 1fr;
+  }
+
+  .today-dose-card {
+    grid-template-columns: 1fr;
+  }
+
+  .today-dose-status-rail {
+    justify-content: flex-start;
+    padding: 12px 14px 0;
+    background: transparent;
   }
 
   .schedule-calendar-grid {

@@ -6,7 +6,7 @@ import {
   deleteMedicationScheduleTime,
   getMedicationIntakeLogs,
   getMedicationSchedules,
-  getMedicationScheduleTimes,
+  getMedicationScheduleTimes
 } from '../../api'
 import { formatScheduleCardLabel } from './scheduleFormUtils'
 import ScheduleTabs from './ScheduleTabs'
