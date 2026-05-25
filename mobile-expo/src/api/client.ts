@@ -5,6 +5,8 @@ import type {
   CautionSuggestionResponse,
   LoginResponse,
   MedicineSearchResponse,
+  MedicationIntakeLogRequest,
+  MedicationIntakeLogResponse,
   Session,
   UserMedicationCautionRequest,
   UserMedicationCautionResponse,
@@ -289,13 +291,26 @@ export const api = {
   },
 
   getIntakeLogs(settings: AppSettings, session: Session, medicationScheduleId: number) {
-    return request<Array<{ id: number }>>(
+    return request<MedicationIntakeLogResponse[]>(
       settings,
       "medication",
       "/api/medication-intake-logs",
       {
         session,
         params: { medicationScheduleId },
+      }
+    );
+  },
+
+  createIntakeLog(settings: AppSettings, session: Session, data: MedicationIntakeLogRequest) {
+    return request<MedicationIntakeLogResponse>(
+      settings,
+      "medication",
+      "/api/medication-intake-logs",
+      {
+        method: "POST",
+        session,
+        data,
       }
     );
   },
