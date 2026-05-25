@@ -168,6 +168,26 @@ services:
       backend-consultation:
         condition: service_started
 
+  mobile-expo:
+    build:
+      context: ./mobile-expo
+    container_name: mymedi-mobile-expo
+    working_dir: /app
+    env_file:
+      - ./mobile-expo/.env.local
+    environment:
+      CI: "1"
+    command: ["sh", "-c", "npm run start:docker"]
+    ports:
+      - "19000:19000"
+    depends_on:
+      backend-auth:
+        condition: service_started
+      backend-medication:
+        condition: service_started
+      backend-consultation:
+        condition: service_started
+
 volumes:
   mysql-data:
   redis-data:
