@@ -3,7 +3,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { api } from "../api/client";
 import { useAppContext } from "../context/AppContext";
-import { Button, Field, InfoBanner, PillSelector, Screen, SectionCard } from "../ui";
+import { Button, Field, InfoBanner, Screen, SectionCard, SuggestionButton } from "../ui";
 
 const healthOptions = [
   { key: "isPregnant", label: "임산부" },
@@ -11,6 +11,10 @@ const healthOptions = [
   { key: "isSmoking", label: "흡연" },
   { key: "isDrinking", label: "음주" },
 ] as const;
+
+function isValidDateInput(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
 
 export function SignupScreen({ navigation }: any) {
   const { settings } = useAppContext();
@@ -68,8 +72,8 @@ export function SignupScreen({ navigation }: any) {
       setIsCodeSent(true);
       setTimeLeft(180);
       setMessage("인증번호를 보냈습니다.");
-    } catch (error: any) {
-      setMessage(error?.response?.data?.message || "인증번호 발송에 실패했습니다.");
+    } catch {
+      setMessage("인증번호 발송에 실패했습니다.");
     }
   };
 
@@ -86,12 +90,22 @@ export function SignupScreen({ navigation }: any) {
       if (response.verified) {
         setTimeLeft(0);
       }
-    } catch (error: any) {
-      setMessage(error?.response?.data?.message || "인증 확인에 실패했습니다.");
+    } catch {
+      setMessage("인증 확인에 실패했습니다.");
     }
   };
 
   const handleNext = async () => {
+    if (!email.trim() || !password.trim() || !username.trim() || !birthDate.trim()) {
+      setMessage("이메일, 비밀번호, 이름, 생년월일을 모두 입력해 주세요.");
+      return;
+    }
+
+    if (!isValidDateInput(birthDate)) {
+      setMessage("생년월일은 YYYY-MM-DD 형식으로 입력해 주세요.");
+      return;
+    }
+
     if (!isEmailVerified) {
       setMessage("이메일 인증을 완료해야 다음 단계로 이동할 수 있습니다.");
       return;
@@ -110,8 +124,8 @@ export function SignupScreen({ navigation }: any) {
         role: "USER",
       });
       setStep(2);
-    } catch (error: any) {
-      setMessage(error?.response?.data?.message || "기본 정보 저장에 실패했습니다.");
+    } catch {
+      setMessage("회원가입 1단계 저장에 실패했습니다. 이미 가입된 이메일인지 확인해 주세요.");
     } finally {
       setStepOneLoading(false);
     }
@@ -167,8 +181,8 @@ export function SignupScreen({ navigation }: any) {
       });
       setMessage("회원가입이 완료되었습니다. 로그인 화면으로 돌아갑니다.");
       setTimeout(() => navigation.goBack(), 800);
-    } catch (error: any) {
-      setMessage(error?.response?.data?.message || "추가 정보 저장에 실패했습니다.");
+    } catch {
+      setMessage("추가 정보 저장에 실패했습니다.");
     } finally {
       setStepTwoLoading(false);
     }
@@ -179,10 +193,14 @@ export function SignupScreen({ navigation }: any) {
       {step === 1 ? (
         <SectionCard
           title="회원가입 1단계"
-          subtitle="현재 모바일 버전은 일반 사용자(USER) 흐름에 맞춰 구성했습니다."
+          subtitle="현재 모바일 버전은 일반 사용자(USER) 흐름에 맞춰 구성되어 있습니다."
         >
           <Field label="이메일" value={email} onChangeText={setEmail} keyboardType="email-address" />
-          <Button title={isCodeSent ? "인증번호 다시 보내기" : "인증번호 보내기"} onPress={handleSendCode} secondary />
+          <Button
+            title={isCodeSent ? "인증번호 다시 보내기" : "인증번호 보내기"}
+            onPress={handleSendCode}
+            secondary
+          />
           {isCodeSent ? (
             <>
               <Field label="인증번호" value={verificationCode} onChangeText={setVerificationCode} />
@@ -199,32 +217,34 @@ export function SignupScreen({ navigation }: any) {
           <Field label="생년월일" value={birthDate} onChangeText={setBirthDate} placeholder="YYYY-MM-DD" />
           <View style={{ gap: 8 }}>
             <Text style={{ color: "#35574e", fontWeight: "700" }}>성별</Text>
-            <PillSelector
-              options={[
-                { value: "MALE", label: "남성" },
-                { value: "FEMALE", label: "여성" },
-              ]}
-              value={gender}
-              onChange={(value) => setGender(value as "MALE" | "FEMALE")}
-            />
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="남성"
+                  onPress={() => setGender("MALE")}
+                  secondary={gender !== "MALE"}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="여성"
+                  onPress={() => setGender("FEMALE")}
+                  secondary={gender !== "FEMALE"}
+                />
+              </View>
+            </View>
           </View>
-          {message ? <InfoBanner text={message} tone={message.includes("실패") ? "danger" : "default"} /> : null}
+          {message ? (
+            <InfoBanner text={message} tone={message.includes("실패") ? "danger" : "default"} />
+          ) : null}
           <Button title="다음 단계" onPress={handleNext} loading={stepOneLoading} />
         </SectionCard>
       ) : (
         <SectionCard
           title="회원가입 2단계"
-          subtitle="건강 정보와 기저질환은 추후 복약 일정, 주의 성분, 상담 흐름에 연결됩니다."
+          subtitle="건강 정보와 기저질환은 추후 복약 일정, 주의 약/성분, 상담 흐름에 연결됩니다."
         >
           <Text style={{ color: "#35574e", fontWeight: "700", fontSize: 16 }}>건강 상태</Text>
-          <PillSelector
-            options={healthOptions.map((option) => ({
-              value: option.key,
-              label: `${healthState[option.key] ? "선택됨" : "미선택"} · ${option.label}`,
-            }))}
-            value="__multiple__"
-            onChange={() => {}}
-          />
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {healthOptions.map((option) => (
               <Pressable
@@ -258,9 +278,18 @@ export function SignupScreen({ navigation }: any) {
             placeholder="@당뇨, 고혈압처럼 입력"
           />
           {diseaseSuggestions.map((suggestion) => (
-            <Button key={suggestion} title={`추가: ${suggestion}`} onPress={() => addDisease(suggestion)} secondary />
+            <SuggestionButton
+              key={suggestion}
+              title={`추가: ${suggestion}`}
+              onPress={() => addDisease(suggestion)}
+            />
           ))}
-          {diseaseInput.trim() ? <Button title={`직접 추가: ${diseaseInput.trim()}`} onPress={() => addDisease(diseaseInput)} secondary /> : null}
+          {diseaseInput.trim() ? (
+            <SuggestionButton
+              title={`직접 추가: ${diseaseInput.trim()}`}
+              onPress={() => addDisease(diseaseInput)}
+            />
+          ) : null}
 
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {diseaseNames.map((disease) => (
@@ -281,7 +310,9 @@ export function SignupScreen({ navigation }: any) {
             ))}
           </View>
 
-          {message ? <InfoBanner text={message} tone={message.includes("실패") ? "danger" : "default"} /> : null}
+          {message ? (
+            <InfoBanner text={message} tone={message.includes("실패") ? "danger" : "default"} />
+          ) : null}
           <Button title="회원가입 완료" onPress={handleCompleteSignup} loading={stepTwoLoading} />
         </SectionCard>
       )}

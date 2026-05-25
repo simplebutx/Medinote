@@ -100,6 +100,20 @@ export function Button({
   );
 }
 
+export function SuggestionButton({
+  title,
+  onPress,
+}: {
+  title: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.suggestionButton} onPress={onPress}>
+      <Text style={styles.suggestionButtonText}>{title}</Text>
+    </Pressable>
+  );
+}
+
 export function PillSelector({
   options,
   value,
@@ -210,6 +224,16 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#b7cdc6",
   },
+  suggestionButton: {
+    minHeight: 50,
+    justifyContent: "center",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#b7cdc6",
+    alignItems: "flex-start",
+  },
   buttonDisabled: {
     opacity: 0.55,
   },
@@ -220,6 +244,13 @@ export const styles = StyleSheet.create({
   },
   buttonTextSecondary: {
     color: "#0f766e",
+  },
+  suggestionButtonText: {
+    color: "#0f766e",
+    fontWeight: "700",
+    fontSize: 16,
+    textAlign: "left",
+    width: "100%",
   },
   pillWrap: {
     flexDirection: "row",

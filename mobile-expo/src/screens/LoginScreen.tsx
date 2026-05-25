@@ -25,8 +25,8 @@ export function LoginScreen({ navigation }: NativeStackScreenProps<any>) {
       const response = await api.login(settings, email.trim(), password);
       await saveSession(response);
       setMessage("로그인되었습니다.");
-    } catch (error: any) {
-      setMessage(error?.response?.data?.message || error?.message || "로그인에 실패했습니다.");
+    } catch {
+      setMessage("로그인에 실패했습니다. 이메일과 비밀번호를 확인해 주세요.");
     } finally {
       setLoading(false);
     }
@@ -36,7 +36,7 @@ export function LoginScreen({ navigation }: NativeStackScreenProps<any>) {
     <Screen>
       <SectionCard
         title="MyMedi Mobile"
-        subtitle="지금까지 만든 사용자용 기능을 Expo 앱으로 옮긴 버전입니다. 아래 계정으로 바로 로그인하거나 회원가입을 진행할 수 있어요."
+        subtitle="지금까지 만든 사용자용 기능을 Expo 앱으로 옮긴 모바일 버전입니다. 아래 계정으로 바로 로그인하거나 회원가입을 진행할 수 있어요."
       >
         <Field
           label="이메일"
@@ -52,9 +52,11 @@ export function LoginScreen({ navigation }: NativeStackScreenProps<any>) {
           secureTextEntry
           placeholder="비밀번호"
         />
-        {message ? <InfoBanner text={message} tone={message.includes("실패") ? "danger" : "success"} /> : null}
+        {message ? (
+          <InfoBanner text={message} tone={message.includes("실패") ? "danger" : "success"} />
+        ) : null}
         <Button title="로그인" onPress={handleLogin} loading={loading} />
-        <Button title="회원가입으로 이동" onPress={() => navigation.navigate("회원가입")} secondary />
+        <Button title="회원가입으로 이동" onPress={() => navigation.navigate("Signup")} secondary />
       </SectionCard>
     </Screen>
   );
