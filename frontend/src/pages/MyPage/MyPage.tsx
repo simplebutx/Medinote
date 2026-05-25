@@ -16,12 +16,23 @@ type CautionReason =
   | "PERSONAL_AVOID"
   | "OTHER";
 
+type CautionSourceType = "MEDICINE" | "INGREDIENT";
+
 interface CautionItem {
   id: number;
-  drugName?: string;
-  ingredientName?: string;
+  sourceType: CautionSourceType;
+  targetName: string;
+  targetCode?: string;
   reason: CautionReason;
   memo: string;
+}
+
+interface CautionTargetOption {
+  id: number;
+  sourceType: CautionSourceType;
+  name: string;
+  code?: string;
+  description: string;
 }
 
 const reasonOptions: { label: string; value: CautionReason }[] = [
@@ -32,6 +43,65 @@ const reasonOptions: { label: string; value: CautionReason }[] = [
   { label: "개인 회피", value: "PERSONAL_AVOID" },
   { label: "기타", value: "OTHER" },
 ];
+
+const medicineTargetOptions: CautionTargetOption[] = [
+  {
+    id: 1,
+    sourceType: "MEDICINE",
+    name: "아스피린 100mg",
+    code: "201900123",
+    description: "해열·진통·항혈전 목적으로 사용되는 약",
+  },
+  {
+    id: 2,
+    sourceType: "MEDICINE",
+    name: "타이레놀 500mg",
+    code: "195700020",
+    description: "아세트아미노펜 성분의 해열진통제",
+  },
+  {
+    id: 3,
+    sourceType: "MEDICINE",
+    name: "페니실린",
+    code: "PENICILLIN",
+    description: "페니실린계 항생제",
+  },
+];
+
+const ingredientTargetOptions: CautionTargetOption[] = [
+  {
+    id: 101,
+    sourceType: "INGREDIENT",
+    name: "아스피린",
+    code: "ASPIRIN",
+    description: "진통·소염 계열 성분",
+  },
+  {
+    id: 102,
+    sourceType: "INGREDIENT",
+    name: "아세트아미노펜",
+    code: "ACETAMINOPHEN",
+    description: "해열·진통 성분",
+  },
+  {
+    id: 103,
+    sourceType: "INGREDIENT",
+    name: "NSAIDs",
+    code: "NSAIDS",
+    description: "비스테로이드성 소염진통제 계열",
+  },
+  {
+    id: 104,
+    sourceType: "INGREDIENT",
+    name: "페니실린계",
+    code: "PENICILLIN_GROUP",
+    description: "페니실린 계열 항생제 성분군",
+  },
+];
+
+function getCautionSourceLabel(sourceType: CautionSourceType) {
+  return sourceType === "MEDICINE" ? "약" : "성분";
+}
 
 interface DiseaseOption {
   code: string;
@@ -75,22 +145,25 @@ const tabs: { label: string; value: MyPageTab }[] = [
 const initialCautionItems: CautionItem[] = [
   {
     id: 1,
-    drugName: "페니실린",
-    ingredientName: "페니실린계",
+    sourceType: "INGREDIENT",
+    targetName: "페니실린계",
+    targetCode: "PENICILLIN_GROUP",
     reason: "ALLERGY",
     memo: "두드러기, 호흡 곤란 이력",
   },
   {
     id: 2,
-    drugName: "아스피린",
-    ingredientName: "아스피린",
+    sourceType: "MEDICINE",
+    targetName: "아스피린 100mg",
+    targetCode: "201900123",
     reason: "SIDE_EFFECT",
     memo: "복용 후 심한 속쓰림",
   },
   {
     id: 3,
-    drugName: "",
-    ingredientName: "NSAIDs",
+    sourceType: "INGREDIENT",
+    targetName: "NSAIDs",
+    targetCode: "NSAIDS",
     reason: "PERSONAL_AVOID",
     memo: "위장 장애 우려로 주의",
   },
@@ -189,31 +262,70 @@ function MyPage() {
   );
 
   const [isCautionFormOpen, setIsCautionFormOpen] = useState(false);
-  const [drugName, setDrugName] = useState("");
-  const [ingredientName, setIngredientName] = useState("");
+  const [cautionSourceType, setCautionSourceType] =
+    useState<CautionSourceType>("MEDICINE");
+
+  const [cautionKeyword, setCautionKeyword] = useState("");
+  const [isCautionSearchOpen, setIsCautionSearchOpen] = useState(false);
+  const [selectedCautionTarget, setSelectedCautionTarget] =
+    useState<CautionTargetOption | null>(null);
+
   const [reason, setReason] = useState<CautionReason>("ALLERGY");
   const [memo, setMemo] = useState("");
 
+  const currentCautionOptions =
+    cautionSourceType === "MEDICINE"
+      ? medicineTargetOptions
+      : ingredientTargetOptions;
+
+  const filteredCautionTargets = useMemo(() => {
+    const keyword = cautionKeyword.trim().toLowerCase();
+
+    if (!keyword) {
+      return currentCautionOptions;
+    }
+
+    return currentCautionOptions.filter((target) =>
+      target.name.toLowerCase().includes(keyword)
+    );
+  }, [cautionKeyword, currentCautionOptions]);
+
+  const handleChangeCautionSourceType = (sourceType: CautionSourceType) => {
+    setCautionSourceType(sourceType);
+    setCautionKeyword("");
+    setSelectedCautionTarget(null);
+    setIsCautionSearchOpen(false);
+  };
+
+  const handleSelectCautionTarget = (target: CautionTargetOption) => {
+    setSelectedCautionTarget(target);
+    setCautionKeyword(target.name);
+    setIsCautionSearchOpen(false);
+  };
+
   const handleAddCaution = () => {
-    if (!drugName.trim() && !ingredientName.trim()) {
-      alert("약 이름 또는 성분명 중 하나는 입력해주세요.");
+    if (!selectedCautionTarget) {
+      alert("등록할 약 또는 성분을 검색 결과에서 선택해주세요.");
       return;
     }
 
     const newItem: CautionItem = {
       id: Date.now(),
-      drugName: drugName.trim(),
-      ingredientName: ingredientName.trim(),
+      sourceType: selectedCautionTarget.sourceType,
+      targetName: selectedCautionTarget.name,
+      targetCode: selectedCautionTarget.code,
       reason,
       memo: memo.trim(),
     };
 
     setCautionList((prev) => [newItem, ...prev]);
 
-    setDrugName("");
-    setIngredientName("");
+    setCautionSourceType("MEDICINE");
+    setCautionKeyword("");
+    setSelectedCautionTarget(null);
     setReason("ALLERGY");
     setMemo("");
+    setIsCautionSearchOpen(false);
     setIsCautionFormOpen(false);
   };
 
@@ -493,20 +605,103 @@ function MyPage() {
                     주의 성분 추가
                   </h3>
 
-                  <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <Input
-                      label="약 이름"
-                      placeholder="예: 아스피린"
-                      value={drugName}
-                      onChange={(event) => setDrugName(event.target.value)}
-                    />
+                  <div className="mt-4">
+                    <p className="mb-2 text-sm font-medium text-slate-700">
+                      등록 기준
+                    </p>
 
-                    <Input
-                      label="성분명"
-                      placeholder="예: NSAIDs"
-                      value={ingredientName}
-                      onChange={(event) => setIngredientName(event.target.value)}
-                    />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => handleChangeCautionSourceType("MEDICINE")}
+                        className={[
+                          "rounded-xl border px-4 py-3 text-sm font-semibold",
+                          cautionSourceType === "MEDICINE"
+                            ? "border-blue-500 bg-blue-50 text-blue-700"
+                            : "border-slate-200 bg-white text-slate-600",
+                        ].join(" ")}
+                      >
+                        약으로 등록
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleChangeCautionSourceType("INGREDIENT")}
+                        className={[
+                          "rounded-xl border px-4 py-3 text-sm font-semibold",
+                          cautionSourceType === "INGREDIENT"
+                            ? "border-blue-500 bg-blue-50 text-blue-700"
+                            : "border-slate-200 bg-white text-slate-600",
+                        ].join(" ")}
+                      >
+                        성분으로 등록
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <p className="mb-2 text-sm font-medium text-slate-700">
+                      {cautionSourceType === "MEDICINE" ? "약 검색" : "성분 검색"}
+                    </p>
+
+                    <div className="relative">
+                      <Input
+                        placeholder={
+                          cautionSourceType === "MEDICINE"
+                            ? "예: 아스피린, 타이레놀"
+                            : "예: NSAIDs, 아세트아미노펜"
+                        }
+                        value={cautionKeyword}
+                        onChange={(event) => {
+                          setCautionKeyword(event.target.value);
+                          setSelectedCautionTarget(null);
+                          setIsCautionSearchOpen(true);
+                        }}
+                        onFocus={() => setIsCautionSearchOpen(true)}
+                      />
+
+                      {isCautionSearchOpen && (
+                        <div className="absolute left-0 top-full z-10 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
+                          <div className="mb-2 px-2 text-xs font-semibold text-slate-500">
+                            {getCautionSourceLabel(cautionSourceType)} 검색 결과
+                          </div>
+
+                          <div className="max-h-56 overflow-y-auto">
+                            {filteredCautionTargets.map((target) => (
+                              <button
+                                key={`${target.sourceType}-${target.id}`}
+                                type="button"
+                                onClick={() => handleSelectCautionTarget(target)}
+                                className="w-full rounded-xl px-3 py-3 text-left hover:bg-slate-50"
+                              >
+                                <p className="font-semibold text-slate-900">
+                                  {target.name}
+                                </p>
+
+                                <p className="mt-1 text-xs text-slate-500">
+                                  {target.description}
+                                </p>
+                              </button>
+                            ))}
+
+                            {filteredCautionTargets.length === 0 && (
+                              <div className="px-3 py-4 text-sm text-slate-500">
+                                검색 결과가 없습니다.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {selectedCautionTarget && (
+                      <div className="mt-3 rounded-xl bg-white p-3 text-sm text-slate-600">
+                        선택됨:{" "}
+                        <span className="font-semibold text-blue-700">
+                          {selectedCautionTarget.name}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-4">
@@ -564,7 +759,7 @@ function MyPage() {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-bold text-slate-900">
-                          {item.drugName || item.ingredientName}
+                          {item.targetName}
                         </p>
 
                         <Badge variant={getReasonBadge(item.reason)}>
@@ -572,11 +767,17 @@ function MyPage() {
                         </Badge>
                       </div>
 
-                      {item.drugName && item.ingredientName && (
-                        <p className="mt-1 text-sm text-slate-500">
-                          성분명: {item.ingredientName}
-                        </p>
-                      )}
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <Badge variant={item.sourceType === "MEDICINE" ? "blue" : "green"}>
+                          {getCautionSourceLabel(item.sourceType)}
+                        </Badge>
+
+                        {item.targetCode && (
+                          <p className="text-sm text-slate-500">
+                            코드: {item.targetCode}
+                          </p>
+                        )}
+                      </div>
 
                       <p className="mt-2 text-sm text-slate-500">
                         {item.memo || "등록된 메모가 없습니다."}
