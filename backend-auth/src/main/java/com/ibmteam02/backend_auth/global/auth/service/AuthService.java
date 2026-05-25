@@ -5,17 +5,12 @@ import com.ibmteam02.backend_auth.global.auth.jwt.JwtProvider;
 import com.ibmteam02.backend_auth.global.auth.repository.RefreshTokenRepository;
 import com.ibmteam02.backend_auth.global.error.exception.CustomException;
 import com.ibmteam02.backend_auth.global.error.exception.ErrorCode;
-import com.ibmteam02.backend_auth.user.domain.Role;
-import com.ibmteam02.backend_auth.user.domain.User;
-import com.ibmteam02.backend_auth.user.domain.UserChronicDisease;
-import com.ibmteam02.backend_auth.user.domain.UserProfileHealth;
-import com.ibmteam02.backend_auth.user.domain.UserStatus;
+import com.ibmteam02.backend_auth.user.domain.*;
 import com.ibmteam02.backend_auth.user.dto.*;
-import com.ibmteam02.backend_auth.user.repository.DiseaseMasterRepository;
-import com.ibmteam02.backend_auth.user.repository.UserChronicDiseaseRepository;
-import com.ibmteam02.backend_auth.user.repository.UserProfileHealthRepository;
-import com.ibmteam02.backend_auth.user.repository.UserRepository;
+import com.ibmteam02.backend_auth.user.repository.*;
+
 import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -34,6 +29,7 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final DiseaseMasterRepository diseaseMasterRepository;
     private final UserChronicDiseaseRepository userChronicDiseaseRepository;
+    private final PharmacistProfileRepository pharmacistProfileRepository;
 
     public List<String> suggestDiseaseNames(String keyword) {
         if (!StringUtils.hasText(keyword)) {
@@ -66,7 +62,7 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    // 일반 유저 건강 정보 추가 입력
+    // 2단계 일반 유저 건강 정보 추가 입력
     @Transactional
     public void addUserProfile(String email, UserProfileRequest userProfileRequest) {
         User user = userRepository.findByEmail(email)
@@ -98,7 +94,7 @@ public class AuthService {
                             }));
         }
 
-        user.activate();
+        user.activateGeneralUser();
         userRepository.save(user);
     }
 
@@ -109,11 +105,15 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("유저 없음"));
 
         String imageUrl = "s3/mymedi/licenses/" + image.getOriginalFilename();
-        user.addPharmacistProfile(
-                pharmacistVerifyRequest.getDocNumber(),
-                pharmacistVerifyRequest.getLicenseNumber(),
-                imageUrl
-        );
+
+        PharmacistProfile pharmacistProfile = PharmacistProfile.builder()
+                .user(user)
+                .docNumber(pharmacistVerifyRequest.getDocNumber())
+                .licenseNumber(pharmacistVerifyRequest.getLicenseNumber())
+                .licenseImage(imageUrl)
+                .build();
+        pharmacistProfileRepository.save(pharmacistProfile);
+        user.setWaitingForApproval();
     }
 
     // 로그인
@@ -123,6 +123,10 @@ public class AuthService {
 
         if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다");
+        }
+
+        if (user.getStatus() == UserStatus.PENDING) {
+            throw new IllegalArgumentException("회원가입이 완료되지 않은 회원입니다");
         }
 
         if (user.getStatus() == UserStatus.WAITING_APPROVAL) {
@@ -179,14 +183,17 @@ public class AuthService {
 
     //마이페이지 정보 조회
     @Transactional
-    public UserProfileResponse getMyProfile(String email){
+    public UserProfileResponse getMyProfile(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(()-> new CustomException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
         UserProfileHealth userProfileHealth = userProfileHealthRepository.findByUser(user).orElse(null);
 
         List<String> diseases = userChronicDiseaseRepository.findByUser(user).stream()
                 .map(UserChronicDisease::getDiseaseName)
                 .toList();
+
+        PharmacistProfile pharmacistProfile = pharmacistProfileRepository.findByUser(user).orElse(null);
 
         return UserProfileResponse.builder()
                 .email(user.getEmail())
@@ -201,10 +208,55 @@ public class AuthService {
                 .isDrinking(userProfileHealth != null ? userProfileHealth.getIsDrinking() : false)
                 .chronicDiseases(diseases)
                 //약사 정보
-                .docNumber(user.getDocNumber())
-                .licenseNumber(user.getLicenseNumber())
-                .licenseImage(user.getLicenseImage())
+                .docNumber(pharmacistProfile != null ? pharmacistProfile.getDocNumber() : null)
+                .licenseNumber(pharmacistProfile != null ? pharmacistProfile.getLicenseNumber() : null)
+                .licenseImage(pharmacistProfile != null ? pharmacistProfile.getLicenseImage() : null)
                 .build();
+    }
+
+    //마이페이지 정보 수정
+    @Transactional
+    public void updateMyProfile(String email, ProfileUpdateRequest profileUpdateRequest) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        user.updateUsername(profileUpdateRequest.getUsername());
+
+        //일반 유저 추가 정보 수정
+        if (user.getRole() == Role.USER) {
+            UserProfileHealth userProfileHealth = userProfileHealthRepository.findByUser(user)
+                    .orElseGet(() -> userProfileHealthRepository.save(UserProfileHealth.builder()
+                            .user(user)
+                            .build()));
+
+            userProfileHealth.updateHealth(
+                    userProfileHealth.getIsPregnant(),
+                    userProfileHealth.getIsBreastfeeding(),
+                    userProfileHealth.getIsSmoking(),
+                    userProfileHealth.getIsDrinking()
+            );
+
+            userChronicDiseaseRepository.deleteByUser(user);
+
+            if (profileUpdateRequest.getDiseases() != null) {
+                for (String diseaseName : profileUpdateRequest.getDiseases()) {
+                    diseaseMasterRepository.findByDiseaseName(diseaseName)
+                            .ifPresent(diseaseMaster -> {
+                                userChronicDiseaseRepository.save(new UserChronicDisease(user, diseaseMaster, diseaseMaster.getDiseaseName()));
+                            });
+                }
+            }
+        }
+
+        //약사 정보 수정
+        else if (user.getRole() == Role.PHARMACIST) {
+            pharmacistProfileRepository.findByUser(user).ifPresent(profile ->{
+                profile.updatePharmacistInfo(profileUpdateRequest.getDocNumber());
+            });
+
+        }
+
+
     }
 
 }

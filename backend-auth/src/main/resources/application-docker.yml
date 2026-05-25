@@ -49,3 +49,10 @@ spring:
 jwt:
   secret: ${JWT_SECRET:}
   expiration: ${JWT_EXPIRATION:3600000}
+
+coolsms:
+  api:
+    key: ${COOLSMS_API_KEY}
+    secret: ${COOLSMS_API_SECRET}
+  from:
+    number: ${COOLSMS_FROM_NUMBER}
