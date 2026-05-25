@@ -1,0 +1,10 @@
+
+> mobile-expo@1.0.0 start
+> expo start --host lan
+
+Starting project at C:\Users\user\OneDrive\바탕 화면\project\mobile-expo
+Starting Metro Bundler
+
+Waiting on http://localhost:8081
+3 packages may need updating. Run npx expo install --check for details.
+Logs for your project will appear below.

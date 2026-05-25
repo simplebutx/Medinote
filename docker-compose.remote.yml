@@ -1,0 +1,8 @@
+services:
+  mobile-expo:
+    environment:
+      MOBILE_EXPO_HOST: ${MOBILE_EXPO_HOST}
+      MOBILE_API_HOST: ${MOBILE_API_HOST}
+      REACT_NATIVE_PACKAGER_HOSTNAME: ${MOBILE_EXPO_HOST}
+      EXPO_PUBLIC_DEFAULT_API_HOST: ${MOBILE_API_HOST}
+    command: ["sh", "-c", "npm run start:docker:tunnel"]

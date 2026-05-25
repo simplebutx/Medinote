@@ -9,7 +9,7 @@ interface MenuItem {
 
 const userMenus: MenuItem[] = [
   { label: '복약 일정', path: '/app/schedule' },
-  { label: '처방전 업로드', path: '/app/ocr' },
+  { label: '복약 등록', path: '/app/ocr' },
   { label: '챗봇 & 상담', path: '/app/chat' },
   { label: '약 검색', path: '/app/drugs' },
   { label: 'FAQ', path: '/app/faq' },
