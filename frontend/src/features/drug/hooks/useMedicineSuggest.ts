@@ -5,6 +5,6 @@ export const useMedicineSuggest = (keyword: string) => {
   return useQuery({
     queryKey: ["medicine-suggest", keyword],
     queryFn: () => suggestMedicines(keyword),
-    enabled: keyword.trim().length > 0,
+    enabled: keyword.trim().length >= 2,
   });
 };

@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Badge, Button, Card, Input } from "../../components/ui";
 import { useMedicineSearch, useMedicineSuggest } from "../../features/drug/hooks";
 import type { MedicineSearchItem } from "../../features/drug/types/drug.types";
+import { useDebounce } from "../../hooks/useDebounce";
 
 function getMedicineId(medicine: MedicineSearchItem) {
   return medicine.itemSeq ?? medicine.item_seq ?? 0;
@@ -96,15 +97,20 @@ function DrugSearchPage() {
     null
   );
 
-  const searchKeyword = keyword.trim();
+  const debouncedKeyword = useDebounce(keyword, 300);
+  const searchKeyword = debouncedKeyword.trim();
+
+  const isSearchEnabled = searchKeyword.length >= 2;
 
   const {
     data: medicineResults = [],
     isLoading: isMedicineSearchLoading,
     isError: isMedicineSearchError,
-  } = useMedicineSearch(searchKeyword);
+  } = useMedicineSearch(isSearchEnabled ? searchKeyword : "");
 
-  const { data: suggestions = [] } = useMedicineSuggest(searchKeyword);
+  const { data: suggestions = [] } = useMedicineSuggest(
+    isSearchEnabled ? searchKeyword : ""
+  );
 
   const selectedMedicine = useMemo(() => {
     if (medicineResults.length === 0) {
@@ -198,25 +204,31 @@ function DrugSearchPage() {
           </div>
 
           <div className="mt-4 space-y-3">
-            {!searchKeyword && (
+            {keyword.trim().length === 0 && (
               <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
                 약 이름이나 성분명을 입력해주세요.
               </div>
             )}
 
-            {searchKeyword && isMedicineSearchLoading && (
+            {keyword.trim().length > 0 && keyword.trim().length < 2 && (
+              <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                두 글자 이상 입력하면 검색이 시작됩니다.
+              </div>
+            )}
+
+            {isSearchEnabled && isMedicineSearchLoading && (
               <div className="rounded-2xl bg-blue-50 p-6 text-center text-sm text-blue-700">
                 약 정보를 검색하고 있습니다.
               </div>
             )}
 
-            {searchKeyword && isMedicineSearchError && (
+            {isSearchEnabled && isMedicineSearchError && (
               <div className="rounded-2xl bg-red-50 p-6 text-center text-sm text-red-700">
                 약 검색 결과를 불러오지 못했습니다.
               </div>
             )}
 
-            {searchKeyword &&
+            {isSearchEnabled &&
               !isMedicineSearchLoading &&
               !isMedicineSearchError &&
               medicineResults.length === 0 && (
@@ -225,7 +237,7 @@ function DrugSearchPage() {
                 </div>
               )}
 
-            {searchKeyword &&
+            {isSearchEnabled &&
               !isMedicineSearchLoading &&
               !isMedicineSearchError &&
               medicineResults.map((medicine, index) => {
