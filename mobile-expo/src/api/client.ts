@@ -194,9 +194,10 @@ export const api = {
     });
   },
 
-  sendChatMessage(settings: AppSettings, message: string) {
+  sendChatMessage(settings: AppSettings, session: Session | null, message: string) {
     return request<ChatbotMessageResponse>(settings, "consultation", "/api/chatbot/message", {
       method: "POST",
+      session,
       data: { message },
     });
   },

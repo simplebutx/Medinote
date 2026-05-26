@@ -14,7 +14,7 @@ const emptyChatHint =
   "약 이름을 @로 입력하면 자동완성이 뜨고, 질문과 답변이 하나의 대화방처럼 이어집니다.";
 
 export function ChatScreen() {
-  const { settings } = useAppContext();
+  const { settings, session } = useAppContext();
   const [message, setMessage] = useState("");
   const [history, setHistory] = useState<ChatItem[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -57,7 +57,7 @@ export function ChatScreen() {
     setHistory((prev) => [...prev, { role: "user", text: userText }]);
 
     try {
-      const response = await api.sendChatMessage(settings, userText);
+      const response = await api.sendChatMessage(settings, session, userText);
       setHistory((prev) => [
         ...prev,
         { role: "assistant", text: response.answer || "답변이 비어 있습니다." },

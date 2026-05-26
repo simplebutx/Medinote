@@ -1,8 +1,8 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Keyboard, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { api } from "../api/client";
 import { dosageUnitOptions, timingOptions } from "../constants";
@@ -15,7 +15,7 @@ import type {
   MedicationTiming,
 } from "../types";
 import { formatScheduleLabel, todayDateInput } from "../utils";
-import { Button, Field, InfoBanner, PillSelector, Screen, SectionCard } from "../ui";
+import { Button, Field, InfoBanner, PillSelector, Screen, SectionCard, SuggestionButton } from "../ui";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -757,10 +757,13 @@ export function ScheduleFormScreen({ navigation, route }: any) {
   const editingId = route?.params?.scheduleId ?? null;
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selectedMedicineId, setSelectedMedicineId] = useState<number | null>(null);
+  const [medicineSuggestions, setMedicineSuggestions] = useState<string[]>([]);
   const [form, setForm] = useState(createDefaultForm());
   const [timeSlots, setTimeSlots] = useState(createTimeSlots(3));
   const [datePickerTarget, setDatePickerTarget] = useState<"prescribedDate" | "dispensedDate" | null>(null);
   const [timePickerIndex, setTimePickerIndex] = useState<number | null>(null);
+  const medicineDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -783,6 +786,14 @@ export function ScheduleFormScreen({ navigation, route }: any) {
       }))
     );
   }, [timesPerDay]);
+
+  useEffect(() => {
+    return () => {
+      if (medicineDebounceRef.current) {
+        clearTimeout(medicineDebounceRef.current);
+      }
+    };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -818,6 +829,8 @@ export function ScheduleFormScreen({ navigation, route }: any) {
             prescribedDate: item.prescribedDate || todayDateInput(),
             dispensedDate: item.dispensedDate || todayDateInput(),
           });
+          setSelectedMedicineId(item.medicineId ?? null);
+          setMedicineSuggestions([]);
           setTimeSlots(
             ordered.length
               ? ordered.map((time) => ({
@@ -837,6 +850,8 @@ export function ScheduleFormScreen({ navigation, route }: any) {
       if (!editingId) {
         setForm(createDefaultForm());
         setTimeSlots(createTimeSlots(3));
+        setSelectedMedicineId(null);
+        setMedicineSuggestions([]);
         setMessage("");
       } else {
         loadDetail();
@@ -849,7 +864,7 @@ export function ScheduleFormScreen({ navigation, route }: any) {
   );
 
   const buildPayload = () => ({
-    medicineId: null,
+    medicineId: selectedMedicineId,
     customMedicineName: form.customMedicineName || null,
     hospitalName: form.hospitalName || null,
     pharmacyName: form.pharmacyName || null,
@@ -865,6 +880,56 @@ export function ScheduleFormScreen({ navigation, route }: any) {
     dispensedDate: form.dispensedDate || null,
     isActive: null,
   });
+
+  const handleMedicineNameChange = (value: string) => {
+    setForm((prev) => ({ ...prev, customMedicineName: value }));
+    setSelectedMedicineId(null);
+
+    if (medicineDebounceRef.current) {
+      clearTimeout(medicineDebounceRef.current);
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setMedicineSuggestions([]);
+      return;
+    }
+
+    medicineDebounceRef.current = setTimeout(async () => {
+      try {
+        const suggestions = await api.suggestMedicines(settings, trimmed);
+        setMedicineSuggestions(suggestions);
+      } catch {
+        setMedicineSuggestions([]);
+      }
+    }, 220);
+  };
+
+  const handleSelectMedicineSuggestion = async (suggestion: string) => {
+    Keyboard.dismiss();
+    setForm((prev) => ({ ...prev, customMedicineName: suggestion }));
+    setMedicineSuggestions([]);
+
+    try {
+      const results = await api.searchMedicines(settings, suggestion);
+      const exactMatch =
+        results.find((item) => item.itemName === suggestion) ??
+        results.find((item) => item.itemName.replace(/\s+/g, "") === suggestion.replace(/\s+/g, "")) ??
+        results[0];
+
+      if (!exactMatch) {
+        setSelectedMedicineId(null);
+        setMessage("선택한 약의 상세 정보를 찾지 못했어요.");
+        return;
+      }
+
+      setSelectedMedicineId(exactMatch.itemSeq);
+      setMessage("자동완성으로 선택한 약 정보가 연결됐어요.");
+    } catch {
+      setSelectedMedicineId(null);
+      setMessage("선택한 약 정보를 불러오지 못했어요.");
+    }
+  };
 
   const handleSave = async () => {
     if (!session) {
@@ -905,8 +970,14 @@ export function ScheduleFormScreen({ navigation, route }: any) {
       return;
     }
 
+    if (medicineDebounceRef.current) {
+      clearTimeout(medicineDebounceRef.current);
+    }
+
     setForm(createDefaultForm());
     setTimeSlots(createTimeSlots(3));
+    setSelectedMedicineId(null);
+    setMedicineSuggestions([]);
     setMessage("");
   };
 
@@ -955,8 +1026,18 @@ export function ScheduleFormScreen({ navigation, route }: any) {
         <Field
           label="약 이름"
           value={form.customMedicineName}
-          onChangeText={(value) => setForm((prev) => ({ ...prev, customMedicineName: value }))}
+          onChangeText={handleMedicineNameChange}
         />
+        {selectedMedicineId ? (
+          <InfoBanner text={`자동완성 선택됨 · 약 ID ${selectedMedicineId}`} tone="success" />
+        ) : null}
+        {medicineSuggestions.map((suggestion) => (
+          <SuggestionButton
+            key={`schedule-medicine-${suggestion}`}
+            title={suggestion}
+            onPress={() => handleSelectMedicineSuggestion(suggestion)}
+          />
+        ))}
         <Field
           label="병원명"
           value={form.hospitalName}
