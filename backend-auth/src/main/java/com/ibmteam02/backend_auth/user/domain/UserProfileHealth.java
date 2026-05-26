@@ -49,7 +49,7 @@ public class UserProfileHealth {
         this.isDrinking = isDrinking;
     }
 
-    public void update(Boolean isPregnant, Boolean isBreastfeeding, Boolean isSmoking, Boolean isDrinking){
+    public void updateHealth(Boolean isPregnant, Boolean isBreastfeeding, Boolean isSmoking, Boolean isDrinking){
         this.isPregnant = isPregnant;
         this.isBreastfeeding = isBreastfeeding;
         this.isSmoking = isSmoking;

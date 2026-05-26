@@ -17,6 +17,7 @@ export type MedicationTiming =
   | "EMPTY_STOMACH"
   | "BEDTIME"
   | "ANYTIME";
+export type MedicationIntakeStatus = "TAKEN" | "SKIPPED" | "MISSED";
 
 export interface Session {
   accessToken: string;
@@ -100,4 +101,22 @@ export interface MedicationScheduleTimeResponse {
   timing: MedicationTiming;
   takeTime: string;
   sortOrder: number;
+}
+
+export interface MedicationIntakeLogRequest {
+  medicationScheduleId: number;
+  medicationScheduleTimeId: number;
+  status: MedicationIntakeStatus;
+  scheduledAt: string;
+  takenAt: string;
+}
+
+export interface MedicationIntakeLogResponse {
+  id: number;
+  medicationScheduleId: number;
+  medicationScheduleTimeId: number;
+  status: MedicationIntakeStatus;
+  scheduledAt: string;
+  takenAt: string;
+  createdAt: string;
 }

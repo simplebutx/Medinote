@@ -13,6 +13,7 @@ public class EmailAuthController {
 
     private final EmailService emailService;
 
+    /* 이메일 인증 기능 잠시 중단
     //이메일 인증 코드 발송
     @PostMapping("/verification-code")
     public ResponseEntity<EmailRequest.CodeResponse> sendEmail(@RequestBody EmailRequest emailRequest) {
@@ -33,5 +34,6 @@ public class EmailAuthController {
 
         return ResponseEntity.status(400).body(new EmailRequest.VerifyResponse("인증번호가 일치하지 않습니다", false));
     }
+    */
 
 }
