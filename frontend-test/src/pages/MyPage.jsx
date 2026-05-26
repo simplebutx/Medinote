@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { clearAuthSession, getAuthSession, logout } from '../api'
 
 const MyPage = () => {
   const navigate = useNavigate()
-  const session = getAuthSession()
+  const session = useMemo(() => getAuthSession(), [])
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isEditMode, setIsEditMode] = useState(false)

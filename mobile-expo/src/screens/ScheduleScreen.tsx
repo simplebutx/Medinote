@@ -357,7 +357,6 @@ function useScheduleData() {
     if (!session) {
       return;
     }
-
     setLoading(true);
     try {
       const response = await api.getSchedules(settings, session);
