@@ -5,6 +5,7 @@ import com.ibmteam02.backend_auth.global.auth.jwt.JwtProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -39,7 +40,7 @@ public class SecurityConfig {
 
         // 리액트가 돌아가는 5173 포트를 허용합니다.
         configuration.setAllowedOrigins(List.of("http://localhost:5173","http://localhost:5174"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
@@ -59,8 +60,9 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/logout").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/auth/me").authenticated()
                         .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/user/profile", "/api/auth/sms/**").permitAll()
-                        .requestMatchers("/api/auth/me").authenticated()
                         .requestMatchers(
                                 "/swagger-ui.html",
                                 "/swagger-ui/**","/swagger-resources/**",

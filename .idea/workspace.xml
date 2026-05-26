@@ -5,23 +5,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="58140271-9310-4544-8bb9-db2ceea0c939" name="변경" comment="">
-      <change beforePath="$PROJECT_DIR$/.env.docker.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.docker.example" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-auth/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/build.gradle" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-auth/gradlew" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/gradlew" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/auth/controller/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/auth/controller/AuthController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/auth/controller/EmailAuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/auth/controller/EmailAuthController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/auth/service/AuthService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/auth/service/AuthService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/auth/service/EmailService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/auth/service/EmailService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/auth/service/SmsService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/auth/service/SmsService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/config/SecurityConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/error/exception/ErrorCode.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/global/error/exception/ErrorCode.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/domain/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/domain/User.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/domain/UserProfileHealth.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/domain/UserProfileHealth.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/domain/UserStatus.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/domain/UserStatus.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/repository/DiseaseMasterRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/repository/DiseaseMasterRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/repository/UserChronicDiseaseRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/repository/UserChronicDiseaseRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/repository/UserRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/java/com/ibmteam02/backend_auth/user/repository/UserRepository.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend-auth/src/main/resources/application-docker.yml" beforeDir="false" afterPath="$PROJECT_DIR$/backend-auth/src/main/resources/application-docker.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend-test/src/pages/MyPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend-test/src/pages/MyPage.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend-test/src/pages/Signup.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend-test/src/pages/Signup.jsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -89,33 +81,34 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Gradle.backend-auth [:com.mymedi.backend.BackendApplication.main()].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.backend-auth.executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.backend-consultation.executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.backend-medication.executor&quot;: &quot;Run&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;auth0524&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/hayunju/Desktop/portfolio/medication/ibmteam02&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;모듈&quot;,
-    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
-    &quot;애플리케이션.BackendApplication.executor&quot;: &quot;Run&quot;,
-    &quot;애플리케이션.BackendMedicationApplication.executor&quot;: &quot;Run&quot;,
-    &quot;애플리케이션.com.ibmteam02.backend_auth.BackendApplication.executor&quot;: &quot;Run&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Gradle.backend-auth [:com.mymedi.backend.BackendApplication.main()].executor": "Run",
+    "Gradle.backend-auth.executor": "Run",
+    "Gradle.backend-consultation.executor": "Run",
+    "Gradle.backend-medication.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "auth0524",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/Users/hayunju/Desktop/portfolio/medication/ibmteam02",
+    "project.structure.last.edited": "모듈",
+    "project.structure.proportion": "0.15",
+    "project.structure.side.proportion": "0.2",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "애플리케이션.BackendApplication.executor": "Run",
+    "애플리케이션.BackendMedicationApplication.executor": "Run",
+    "애플리케이션.com.ibmteam02.backend_auth.BackendApplication.executor": "Run"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/backend-auth/src" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/mobile-expo" />
       <recent name="$PROJECT_DIR$/backend-auth" />
     </key>
   </component>

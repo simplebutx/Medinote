@@ -96,7 +96,7 @@ public class AuthController {
     }
 
     //마이페이지 정보 수정
-    @PatchMapping
+    @PatchMapping("/me")
     public ResponseEntity<String> updateMyProfile(
             @AuthenticationPrincipal String email,
             @RequestBody ProfileUpdateRequest profileUpdateRequest){

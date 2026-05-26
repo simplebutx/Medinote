@@ -52,7 +52,7 @@ jwt:
 
 coolsms:
   api:
-    key: ${COOLSMS_API_KEY}
-    secret: ${COOLSMS_API_SECRET}
+    key: ${COOLSMS_API_KEY:}
+    secret: ${COOLSMS_API_SECRET:}
   from:
-    number: ${COOLSMS_FROM_NUMBER}
+    number: ${COOLSMS_FROM_NUMBER:}

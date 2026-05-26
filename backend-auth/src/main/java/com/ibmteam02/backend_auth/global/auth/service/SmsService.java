@@ -20,10 +20,14 @@ public class SmsService {
     private final String fromNumber;
 
     public SmsService(
-            @Value("${coolsms.api.key}") String apiKey,
-            @Value("${coolsms.api.secret}") String apiSecret,
-            @Value("${coolsms.from.number}") String fromNumber,
+            @Value("${coolsms.api.key:}") String apiKey,
+            @Value("${coolsms.api.secret:}") String apiSecret,
+            @Value("${coolsms.from.number:}") String fromNumber,
             StringRedisTemplate redisTemplate) {
+        
+        log.info("CoolSMS API Key Load Check: {}***", (apiKey != null && apiKey.length() > 3) ? apiKey.substring(0, 3) : "EMPTY");
+        log.info("CoolSMS From Number Load Check: {}***", (fromNumber != null && fromNumber.length() > 3) ? fromNumber.substring(0, 3) : "EMPTY");
+        
         this.messageService = NurigoApp.INSTANCE.initialize(apiKey, apiSecret, "https://api.coolsms.co.kr");
         this.fromNumber = fromNumber;
         this.redisTemplate = redisTemplate;

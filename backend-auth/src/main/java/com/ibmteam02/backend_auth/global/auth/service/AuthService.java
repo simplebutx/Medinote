@@ -230,10 +230,10 @@ public class AuthService {
                             .build()));
 
             userProfileHealth.updateHealth(
-                    userProfileHealth.getIsPregnant(),
-                    userProfileHealth.getIsBreastfeeding(),
-                    userProfileHealth.getIsSmoking(),
-                    userProfileHealth.getIsDrinking()
+                    profileUpdateRequest.getIsPregnant(),
+                    profileUpdateRequest.getIsBreastfeeding(),
+                    profileUpdateRequest.getIsSmoking(),
+                    profileUpdateRequest.getIsDrinking()
             );
 
             userChronicDiseaseRepository.deleteByUser(user);

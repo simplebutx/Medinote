@@ -54,6 +54,7 @@ function Signup() {
 
   const [step, setStep] = useState(1)
   const [email, setEmail] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
   const [birthDate, setBirthDate] = useState('')
@@ -62,7 +63,7 @@ function Signup() {
 
   const [verificationCode, setVerificationCode] = useState('')
   const [isCodeSent, setIsCodeSent] = useState(false)
-  const [isEmailVerified, setIsEmailVerified] = useState(false)
+  const [isSmsVerified, setIsSmsVerified] = useState(false)
   const [timeLeft, setTimeLeft] = useState(0)
 
   const [healthState, setHealthState] = useState({
@@ -117,20 +118,19 @@ function Signup() {
   }
 
   const handleSendVerificationCode = async () => {
-    if (!email) {
-      alert('이메일을 입력해 주세요.')
+    if (!phoneNumber) {
+      alert('휴대폰 번호를 입력해 주세요.')
       return
     }
 
     try {
-      const res = await axios.post('http://localhost:8080/api/auth/email/verification-code', {
-        email,
-        code: '',
+      await axios.post('http://localhost:8080/api/auth/sms/send', {
+        phoneNumber,
       })
 
       setIsCodeSent(true)
       setTimeLeft(180)
-      alert(typeof res.data === 'string' ? res.data : '인증번호를 발송했습니다.')
+      alert('인증번호를 발송했습니다.')
     } catch (error) {
       console.error('인증번호 발송 실패:', error)
       showError(error, '인증번호 발송에 실패했습니다.')
@@ -144,15 +144,15 @@ function Signup() {
     }
 
     try {
-      const res = await axios.post('http://localhost:8080/api/auth/email/verify', {
-        email,
+      const res = await axios.post('http://localhost:8080/api/auth/sms/verify', {
+        phoneNumber,
         code: verificationCode,
       })
 
-      if (res.data.verified === true) {
-        setIsEmailVerified(true)
+      if (res.data === true) {
+        setIsSmsVerified(true)
         setTimeLeft(0)
-        alert(res.data.message || '이메일 인증이 완료되었습니다.')
+        alert('휴대폰 인증이 완료되었습니다.')
       } else {
         alert('인증번호를 다시 확인해 주세요.')
       }
@@ -165,8 +165,8 @@ function Signup() {
   const handleStep1Submit = async (event) => {
     event.preventDefault()
 
-    if (!isEmailVerified) {
-      alert('이메일 인증을 완료한 뒤 다음 단계로 진행할 수 있습니다.')
+    if (!isSmsVerified) {
+      alert('휴대폰 인증을 완료한 뒤 다음 단계로 진행할 수 있습니다.')
       return
     }
 
@@ -302,7 +302,7 @@ function Signup() {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
 
-      alert('약사 면허 인증 요청이 완료되었습니다.')
+      alert('약사 면허 인증 및 가입 요청이 완료되었습니다. 관리자 승인 후 로그인 가능합니다.')
       localStorage.removeItem('tempEmail')
       navigate('/login')
     } catch (error) {
@@ -314,19 +314,28 @@ function Signup() {
   if (step === 1) {
     return (
       <div style={{ padding: '20px', maxWidth: '480px' }}>
-        <h2>회원가입 1단계: 기본 정보 입력</h2>
+        <h2>!!!!휴대폰 인증 화면!!!! - 이게 보이면 성공</h2>
         <form onSubmit={handleStep1Submit}>
+          <input
+            type="email"
+            placeholder="이메일"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+            style={{ width: '100%', marginBottom: '15px' }}
+          />
+
           <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
             <input
-              type="email"
-              placeholder="이메일"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              readOnly={isEmailVerified}
+              type="tel"
+              placeholder="휴대폰 번호 (- 없이 입력)"
+              value={phoneNumber}
+              onChange={(event) => setPhoneNumber(event.target.value)}
+              readOnly={isSmsVerified}
               required
               style={{ flex: 1 }}
             />
-            <button type="button" onClick={handleSendVerificationCode} disabled={isEmailVerified}>
+            <button type="button" onClick={handleSendVerificationCode} disabled={isSmsVerified}>
               {isCodeSent ? '인증번호 재발송' : '인증번호 발송'}
             </button>
           </div>
@@ -338,12 +347,12 @@ function Signup() {
                 placeholder="인증번호 6자리"
                 value={verificationCode}
                 onChange={(event) => setVerificationCode(event.target.value)}
-                disabled={isEmailVerified}
+                disabled={isSmsVerified}
                 required
                 style={{ flex: 1 }}
               />
-              <button type="button" onClick={handleVerifyCode} disabled={isEmailVerified}>
-                {isEmailVerified ? '인증 완료' : '인증 확인'}
+              <button type="button" onClick={handleVerifyCode} disabled={isSmsVerified}>
+                {isSmsVerified ? '인증 완료' : '인증 확인'}
               </button>
               {timeLeft > 0 && (
                 <span style={{ color: 'red', alignSelf: 'center', fontWeight: 'bold' }}>
@@ -433,16 +442,16 @@ function Signup() {
           <button
             type="submit"
             style={{
-              backgroundColor: isEmailVerified ? '#4CAF50' : '#ccc',
+              backgroundColor: isSmsVerified ? '#4CAF50' : '#ccc',
               color: 'white',
-              cursor: isEmailVerified ? 'pointer' : 'not-allowed',
+              cursor: isSmsVerified ? 'pointer' : 'not-allowed',
               padding: '10px 20px',
               border: 'none',
               borderRadius: '4px',
               width: '100%',
             }}
           >
-            {isEmailVerified ? '다음 단계로 (추가 정보 입력)' : '이메일 인증을 완료해 주세요'}
+            {isSmsVerified ? '다음 단계로 (추가 정보 입력)' : '휴대폰 인증을 완료해 주세요'}
           </button>
         </form>
       </div>
