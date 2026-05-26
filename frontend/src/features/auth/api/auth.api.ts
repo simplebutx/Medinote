@@ -15,6 +15,10 @@ import type {
   UserAdditionalInfoResponse,
   VerifyEmailCodeRequest,
   VerifyEmailCodeResponse,
+ SendSmsVerificationCodeRequest,
+  SendSmsVerificationCodeResponse,
+  VerifySmsCodeRequest,
+  VerifySmsCodeResponse
 } from "../types/auth.types";
 
 export const signup = async (body: SignupRequest) => {
@@ -41,6 +45,26 @@ export const sendEmailVerificationCode = async (
 export const verifyEmailCode = async (body: VerifyEmailCodeRequest) => {
   const response = await authInstance.post<VerifyEmailCodeResponse>(
     "/api/auth/email/verify",
+    body
+  );
+
+  return response.data;
+};
+
+export const sendSmsVerificationCode = async (
+  body: SendSmsVerificationCodeRequest
+) => {
+  const response = await authInstance.post<SendSmsVerificationCodeResponse>(
+    "/api/auth/sms/send",
+    body
+  );
+
+  return response.data;
+};
+
+export const verifySmsCode = async (body: VerifySmsCodeRequest) => {
+  const response = await authInstance.post<VerifySmsCodeResponse>(
+    "/api/auth/sms/verify",
     body
   );
 
