@@ -1,117 +1,141 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 import { Badge, Button, Card, Input } from "../../components/ui";
+import { useMedicineSearch, useMedicineSuggest } from "../../features/drug/hooks";
+import type { MedicineSearchItem } from "../../features/drug/types/drug.types";
+import { useDebounce } from "../../hooks/useDebounce";
 
-type DrugCategory = "일반의약품" | "전문의약품";
-type AccordionKey = "efficacy" | "dosage" | "caution" | "sideEffect" | "storage";
-
-interface DrugItem {
-  id: number;
-  itemName: string;
-  category: DrugCategory;
-  ingredientNames: string[];
-  efficacy: string;
-  dosage: string;
-  caution: string;
-  sideEffect: string;
-  storage: string;
-  aiSummary: string;
-  hasCautionMatch: boolean;
-  cautionMessage?: string;
+function getMedicineId(medicine: MedicineSearchItem) {
+  return medicine.itemSeq ?? medicine.item_seq ?? 0;
 }
 
-const mockDrugs: DrugItem[] = [
-  {
-    id: 1,
-    itemName: "아스피린 100mg",
-    category: "일반의약품",
-    ingredientNames: ["아스피린"],
-    efficacy: "혈전 생성을 억제하거나 통증 및 염증 완화에 사용될 수 있습니다.",
-    dosage: "일반적으로 1회 1정 복용하며, 복용 목적에 따라 용법이 달라질 수 있습니다.",
-    caution: "위장 장애, 출혈 위험이 있는 경우 복용 전 전문가 상담이 필요합니다.",
-    sideEffect: "속쓰림, 위장 불편감, 멍, 출혈 경향 등이 나타날 수 있습니다.",
-    storage: "직사광선을 피하고 실온에서 보관합니다.",
-    aiSummary:
-      "아스피린은 통증 완화나 혈전 예방 목적으로 사용될 수 있는 약입니다. 위장 부작용이나 출혈 위험이 있을 수 있어 기존 부작용 이력이 있다면 주의가 필요합니다.",
-    hasCautionMatch: true,
-    cautionMessage: "내 주의 성분에 등록된 아스피린과 일치합니다.",
-  },
-  {
-    id: 2,
-    itemName: "타이레놀 500mg",
-    category: "일반의약품",
-    ingredientNames: ["아세트아미노펜"],
-    efficacy: "두통, 발열, 근육통 등 통증과 열을 완화하는 데 사용됩니다.",
-    dosage: "성인은 보통 1회 1~2정 복용하며, 정해진 최대 복용량을 넘기지 않아야 합니다.",
-    caution: "간 질환이 있거나 음주가 잦은 경우 복용 전 전문가 상담이 필요합니다.",
-    sideEffect: "드물게 발진, 구역감, 간 기능 이상 등이 나타날 수 있습니다.",
-    storage: "습기와 직사광선을 피해서 보관합니다.",
-    aiSummary:
-      "타이레놀은 통증과 열을 줄이는 데 자주 쓰이는 약입니다. 간에 부담이 될 수 있으므로 과다 복용을 피해야 합니다.",
-    hasCautionMatch: false,
-  },
-  {
-    id: 3,
-    itemName: "암로디핀 5mg",
-    category: "전문의약품",
-    ingredientNames: ["암로디핀베실산염"],
-    efficacy: "고혈압 및 협심증 치료에 사용됩니다.",
-    dosage: "의사의 처방에 따라 보통 하루 1회 복용합니다.",
-    caution: "어지러움이 나타날 수 있어 복용 초기에는 주의가 필요합니다.",
-    sideEffect: "발목 부종, 두통, 얼굴 홍조, 어지러움 등이 나타날 수 있습니다.",
-    storage: "실온 보관하며 어린이 손이 닿지 않는 곳에 보관합니다.",
-    aiSummary:
-      "암로디핀은 혈관을 이완시켜 혈압을 낮추는 약입니다. 꾸준히 복용하는 것이 중요하고, 임의로 중단하지 않는 것이 좋습니다.",
-    hasCautionMatch: false,
-  },
-];
+function getMedicineName(medicine: MedicineSearchItem) {
+  return medicine.itemName ?? medicine.item_name ?? "약 이름 정보 없음";
+}
 
-const accordions: { key: AccordionKey; label: string }[] = [
-  { key: "efficacy", label: "효능" },
-  { key: "dosage", label: "복용법" },
-  { key: "caution", label: "주의사항" },
-  { key: "sideEffect", label: "부작용" },
-  { key: "storage", label: "보관법" },
-];
+function getCompanyName(medicine: MedicineSearchItem) {
+  return medicine.companyName ?? medicine.company_name ?? "제조사 정보 없음";
+}
 
-function getCategoryBadgeVariant(category: DrugCategory) {
-  return category === "전문의약품" ? "blue" : "green";
+function getUseMethod(medicine: MedicineSearchItem) {
+  return medicine.useMethod ?? medicine.use_method ?? "복용법 정보가 없습니다.";
+}
+
+function getWarningBeforeUse(medicine: MedicineSearchItem) {
+  return (
+    medicine.warningBeforeUse ??
+    medicine.warning_before_use ??
+    "사용 전 경고사항 정보가 없습니다."
+  );
+}
+
+function getSideEffect(medicine: MedicineSearchItem) {
+  return medicine.sideEffect ?? medicine.side_effect ?? "부작용 정보가 없습니다.";
+}
+
+function getStorageMethod(medicine: MedicineSearchItem) {
+  return (
+    medicine.storageMethod ??
+    medicine.storage_method ??
+    "보관법 정보가 없습니다."
+  );
+}
+
+function getImageUrl(medicine: MedicineSearchItem) {
+  return medicine.imageUrl ?? medicine.image_url ?? "";
+}
+
+function getUpdateDate(medicine: MedicineSearchItem) {
+  return medicine.updateDe ?? medicine.update_de ?? "";
+}
+
+function getSafetyInfo(medicine: MedicineSearchItem) {
+  const text = [
+    getMedicineName(medicine),
+    medicine.efficacy,
+    medicine.caution,
+    medicine.interaction,
+    getSideEffect(medicine),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (
+    text.includes("아스피린") ||
+    text.includes("aspirin") ||
+    text.includes("nsaids") ||
+    text.includes("이부프로펜")
+  ) {
+    return {
+      badge: "red" as const,
+      label: "주의 필요",
+      message: "내 주의 성분 또는 위장 부작용 이력과 관련될 수 있습니다.",
+    };
+  }
+
+  return {
+    badge: "green" as const,
+    label: "일반",
+    message: "",
+  };
+}
+
+function getEasySummary(medicine: MedicineSearchItem) {
+  const name = getMedicineName(medicine);
+
+  if (medicine.efficacy) {
+    return `${name}은(는) ${medicine.efficacy} 정확한 복용법과 주의사항은 아래 상세 정보를 확인해주세요.`;
+  }
+
+  return `${name}의 상세 정보를 확인하고, 복용 중인 약이나 주의 성분이 있다면 약사 상담을 함께 이용해주세요.`;
 }
 
 function DrugSearchPage() {
-  const navigate = useNavigate();
-
   const [keyword, setKeyword] = useState("");
-  const [selectedDrugId, setSelectedDrugId] = useState(mockDrugs[0].id);
-  const [openAccordion, setOpenAccordion] = useState<AccordionKey>("efficacy");
+  const [selectedMedicineId, setSelectedMedicineId] = useState<number | null>(
+    null
+  );
 
-  const filteredDrugs = useMemo(() => {
-    const trimmedKeyword = keyword.trim().toLowerCase();
+  const debouncedKeyword = useDebounce(keyword, 300);
+  const searchKeyword = debouncedKeyword.trim();
 
-    if (!trimmedKeyword) {
-      return mockDrugs;
+  const isSearchEnabled = searchKeyword.length >= 2;
+
+  const {
+    data: medicineResults = [],
+    isLoading: isMedicineSearchLoading,
+    isError: isMedicineSearchError,
+  } = useMedicineSearch(isSearchEnabled ? searchKeyword : "");
+
+  const { data: suggestions = [] } = useMedicineSuggest(
+    isSearchEnabled ? searchKeyword : ""
+  );
+
+  const selectedMedicine = useMemo(() => {
+    if (medicineResults.length === 0) {
+      return null;
     }
 
-    return mockDrugs.filter((drug) => {
-      const itemNameMatched = drug.itemName.toLowerCase().includes(trimmedKeyword);
-      const ingredientMatched = drug.ingredientNames.some((ingredient) =>
-        ingredient.toLowerCase().includes(trimmedKeyword)
-      );
+    if (selectedMedicineId === null) {
+      return medicineResults[0];
+    }
 
-      return itemNameMatched || ingredientMatched;
-    });
-  }, [keyword]);
+    return (
+      medicineResults.find(
+        (medicine) => getMedicineId(medicine) === selectedMedicineId
+      ) ?? medicineResults[0]
+    );
+  }, [medicineResults, selectedMedicineId]);
 
-  const selectedDrug =
-    mockDrugs.find((drug) => drug.id === selectedDrugId) ?? mockDrugs[0];
+  const popularKeywords = ["타이레놀", "아스피린", "이부프로펜", "활명수"];
 
-  const handleAddSchedule = () => {
-    alert("복약 일정 등록 기능은 추후 API 연동 시 연결합니다.");
+  const handleAddSchedule = (drugName: string) => {
+    alert(`${drugName} 복약 일정 추가 기능은 추후 API 연동 시 저장 처리합니다.`);
   };
 
-  const handleGoConsult = () => {
-    navigate("/app/chat");
+  const handleAskPharmacist = (drugName: string) => {
+    alert(`${drugName} 관련 약사 상담 연결은 추후 상담 API 연동 시 처리합니다.`);
   };
 
   return (
@@ -122,163 +146,313 @@ function DrugSearchPage() {
         <h1 className="mt-2 text-3xl font-bold text-slate-900">약 검색</h1>
 
         <p className="mt-2 text-slate-500">
-          약 이름이나 성분명을 검색하고, 쉬운 설명과 주의사항을 확인합니다.
+          약 이름, 성분, 제조사로 검색하고 복용법과 주의사항을 쉽게 확인합니다.
         </p>
       </div>
 
       <Card>
         <Input
           label="약 검색"
-          placeholder="예: 아스피린, 타이레놀, 암로디핀"
+          placeholder="예: 타이레놀, 아스피린, 이부프로펜"
           value={keyword}
-          onChange={(event) => setKeyword(event.target.value)}
+          onChange={(event) => {
+            setKeyword(event.target.value);
+            setSelectedMedicineId(null);
+          }}
         />
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Badge variant="gray">약명 검색</Badge>
-          <Badge variant="gray">성분명 검색</Badge>
-          <Badge variant="yellow">주의 성분 비교</Badge>
-          <Badge variant="blue">AI 쉬운 설명</Badge>
-        </div>
+        {suggestions.length > 0 ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {suggestions.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => {
+                  setKeyword(suggestion);
+                  setSelectedMedicineId(null);
+                }}
+                className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {popularKeywords.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => {
+                  setKeyword(item);
+                  setSelectedMedicineId(null);
+                }}
+                className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700"
+              >
+                #{item}
+              </button>
+            ))}
+          </div>
+        )}
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
         <Card>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-900">검색 결과</h2>
-            <Badge variant="blue">{filteredDrugs.length}건</Badge>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-900">검색 결과</h2>
+            <Badge variant="blue">{medicineResults.length}건</Badge>
           </div>
 
-          <div className="space-y-3">
-            {filteredDrugs.map((drug) => {
-              const isSelected = selectedDrug.id === drug.id;
-
-              return (
-                <button
-                  key={drug.id}
-                  type="button"
-                  onClick={() => setSelectedDrugId(drug.id)}
-                  className={[
-                    "w-full rounded-2xl border p-4 text-left transition",
-                    isSelected
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 bg-white hover:bg-slate-50",
-                  ].join(" ")}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-bold text-slate-900">{drug.itemName}</p>
-                      <p className="mt-2 text-sm text-slate-500">
-                        {drug.ingredientNames.join(", ")}
-                      </p>
-                    </div>
-
-                    <Badge variant={getCategoryBadgeVariant(drug.category)}>
-                      {drug.category}
-                    </Badge>
-                  </div>
-
-                  {drug.hasCautionMatch && (
-                    <div className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
-                      주의 성분 매칭
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-
-            {filteredDrugs.length === 0 && (
+          <div className="mt-4 space-y-3">
+            {keyword.trim().length === 0 && (
               <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                검색 결과가 없습니다.
+                약 이름이나 성분명을 입력해주세요.
               </div>
             )}
+
+            {keyword.trim().length > 0 && keyword.trim().length < 2 && (
+              <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                두 글자 이상 입력하면 검색이 시작됩니다.
+              </div>
+            )}
+
+            {isSearchEnabled && isMedicineSearchLoading && (
+              <div className="rounded-2xl bg-blue-50 p-6 text-center text-sm text-blue-700">
+                약 정보를 검색하고 있습니다.
+              </div>
+            )}
+
+            {isSearchEnabled && isMedicineSearchError && (
+              <div className="rounded-2xl bg-red-50 p-6 text-center text-sm text-red-700">
+                약 검색 결과를 불러오지 못했습니다.
+              </div>
+            )}
+
+            {isSearchEnabled &&
+              !isMedicineSearchLoading &&
+              !isMedicineSearchError &&
+              medicineResults.length === 0 && (
+                <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                  검색 결과가 없습니다.
+                </div>
+              )}
+
+            {isSearchEnabled &&
+              !isMedicineSearchLoading &&
+              !isMedicineSearchError &&
+              medicineResults.map((medicine, index) => {
+                const medicineId = getMedicineId(medicine) || index + 1;
+                const medicineName = getMedicineName(medicine);
+                const safetyInfo = getSafetyInfo(medicine);
+                const isSelected =
+                  selectedMedicine &&
+                  getMedicineId(selectedMedicine) === getMedicineId(medicine);
+
+                return (
+                  <button
+                    key={`${medicineId}-${medicineName}`}
+                    type="button"
+                    onClick={() => setSelectedMedicineId(getMedicineId(medicine))}
+                    className={[
+                      "w-full rounded-2xl border p-4 text-left transition",
+                      isSelected
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-slate-200 bg-white hover:bg-slate-50",
+                    ].join(" ")}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-bold text-slate-900">
+                        {medicineName}
+                      </p>
+
+                      <Badge variant={safetyInfo.badge}>
+                        {safetyInfo.label}
+                      </Badge>
+                    </div>
+
+                    <p className="mt-2 text-sm text-slate-500">
+                      {getCompanyName(medicine)}
+                    </p>
+
+                    {medicine.efficacy && (
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        {medicine.efficacy}
+                      </p>
+                    )}
+
+                    {safetyInfo.message && (
+                      <div className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                        {safetyInfo.message}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
           </div>
         </Card>
 
-        <div className="space-y-6">
-          <Card>
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-2xl font-bold text-slate-900">
-                    {selectedDrug.itemName}
-                  </h2>
+        <Card>
+          {selectedMedicine ? (
+            <div className="space-y-5">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-2xl font-bold text-slate-900">
+                      {getMedicineName(selectedMedicine)}
+                    </h2>
 
-                  <Badge variant={getCategoryBadgeVariant(selectedDrug.category)}>
-                    {selectedDrug.category}
-                  </Badge>
+                    <Badge variant={getSafetyInfo(selectedMedicine).badge}>
+                      {getSafetyInfo(selectedMedicine).label}
+                    </Badge>
+                  </div>
+
+                  <p className="mt-2 text-sm text-slate-500">
+                    {getCompanyName(selectedMedicine)}
+                  </p>
+
+                  {getUpdateDate(selectedMedicine) && (
+                    <p className="mt-1 text-xs text-slate-400">
+                      공공데이터 수정일: {getUpdateDate(selectedMedicine)}
+                    </p>
+                  )}
                 </div>
 
-                <p className="mt-3 text-sm text-slate-500">
-                  성분: {selectedDrug.ingredientNames.join(", ")}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() =>
+                      handleAddSchedule(getMedicineName(selectedMedicine))
+                    }
+                  >
+                    일정 추가
+                  </Button>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="border border-slate-200"
+                    onClick={() =>
+                      handleAskPharmacist(getMedicineName(selectedMedicine))
+                    }
+                  >
+                    약사 문의
+                  </Button>
+                </div>
+              </div>
+
+              {getSafetyInfo(selectedMedicine).message && (
+                <div className="rounded-2xl bg-red-50 p-4 text-sm font-medium leading-6 text-red-700">
+                  {getSafetyInfo(selectedMedicine).message}
+                </div>
+              )}
+
+              <div className="rounded-2xl bg-blue-50 p-4">
+                <p className="text-sm font-bold text-blue-700">
+                  AI 쉬운 설명
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-blue-700">
+                  {getEasySummary(selectedMedicine)}
+                </p>
+
+                <p className="mt-2 text-xs text-blue-500">
+                  현재는 약 검색 API 응답 기반 요약이며, 추후 쉬운 설명 API와
+                  연결할 수 있습니다.
                 </p>
               </div>
 
-              <div className="flex gap-2">
-                <Button type="button" variant="ghost" className="border border-slate-200" onClick={handleGoConsult}>
-                  약사 문의
-                </Button>
+              {getImageUrl(selectedMedicine) && (
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-sm font-bold text-slate-700">약 이미지</p>
 
-                <Button type="button" onClick={handleAddSchedule}>
-                  일정 추가
-                </Button>
+                  <img
+                    src={getImageUrl(selectedMedicine)}
+                    alt={getMedicineName(selectedMedicine)}
+                    className="mt-3 max-h-48 rounded-xl object-contain"
+                  />
+                </div>
+              )}
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-sm font-bold text-slate-700">제조사</p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {getCompanyName(selectedMedicine)}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-sm font-bold text-slate-700">보관법</p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {getStorageMethod(selectedMedicine)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <details className="rounded-2xl border border-slate-200 p-4">
+                  <summary className="cursor-pointer font-bold text-slate-900">
+                    효능
+                  </summary>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {selectedMedicine.efficacy || "효능 정보가 없습니다."}
+                  </p>
+                </details>
+
+                <details className="rounded-2xl border border-slate-200 p-4">
+                  <summary className="cursor-pointer font-bold text-slate-900">
+                    복용법
+                  </summary>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {getUseMethod(selectedMedicine)}
+                  </p>
+                </details>
+
+                <details className="rounded-2xl border border-slate-200 p-4">
+                  <summary className="cursor-pointer font-bold text-slate-900">
+                    사용 전 경고
+                  </summary>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {getWarningBeforeUse(selectedMedicine)}
+                  </p>
+                </details>
+
+                <details className="rounded-2xl border border-slate-200 p-4">
+                  <summary className="cursor-pointer font-bold text-slate-900">
+                    주의사항
+                  </summary>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {selectedMedicine.caution || "주의사항 정보가 없습니다."}
+                  </p>
+                </details>
+
+                <details className="rounded-2xl border border-slate-200 p-4">
+                  <summary className="cursor-pointer font-bold text-slate-900">
+                    상호작용
+                  </summary>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {selectedMedicine.interaction || "상호작용 정보가 없습니다."}
+                  </p>
+                </details>
+
+                <details className="rounded-2xl border border-slate-200 p-4">
+                  <summary className="cursor-pointer font-bold text-slate-900">
+                    부작용
+                  </summary>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {getSideEffect(selectedMedicine)}
+                  </p>
+                </details>
               </div>
             </div>
-
-            {selectedDrug.hasCautionMatch && (
-              <div className="mt-5 rounded-2xl border border-red-100 bg-red-50 p-4">
-                <p className="font-bold text-red-700">알레르기/주의 성분 경고</p>
-                <p className="mt-2 text-sm text-red-600">
-                  {selectedDrug.cautionMessage}
-                </p>
-              </div>
-            )}
-          </Card>
-
-          <Card className="bg-blue-50">
-            <p className="text-sm font-semibold text-blue-700">AI 쉬운 설명</p>
-
-            <p className="mt-3 leading-7 text-slate-700">
-              {selectedDrug.aiSummary}
-            </p>
-          </Card>
-
-          <Card>
-            <h2 className="text-xl font-bold text-slate-900">상세 정보</h2>
-
-            <div className="mt-5 divide-y divide-slate-200 rounded-2xl border border-slate-200">
-              {accordions.map((accordion) => {
-                const isOpen = openAccordion === accordion.key;
-
-                return (
-                  <div key={accordion.key}>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOpenAccordion(isOpen ? "efficacy" : accordion.key)
-                      }
-                      className="flex w-full items-center justify-between px-5 py-4 text-left"
-                    >
-                      <span className="font-semibold text-slate-900">
-                        {accordion.label}
-                      </span>
-
-                      <span className="text-sm text-slate-500">
-                        {isOpen ? "접기" : "펼치기"}
-                      </span>
-                    </button>
-
-                    {isOpen && (
-                      <div className="px-5 pb-5 text-sm leading-7 text-slate-600">
-                        {selectedDrug[accordion.key]}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+          ) : (
+            <div className="rounded-2xl bg-slate-50 p-8 text-center text-sm text-slate-500">
+              왼쪽 검색 결과에서 약을 선택해주세요.
             </div>
-          </Card>
-        </div>
+          )}
+        </Card>
       </div>
     </div>
   );

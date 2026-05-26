@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
-  useSendEmailVerificationCode,
+  useSendSmsVerificationCode,
   useSignup,
-  useVerifyEmailCode,
+  useVerifySmsCode,
 } from "../hooks";
 
 import UserAdditionalInfoStep from "./UserAdditionalInfoStep";
@@ -25,16 +25,17 @@ function SignupSteps() {
   const [birthDate, setBirthDate] = useState("");
   const [gender, setGender] = useState<Gender>("MALE");
   const [role, setRole] = useState<UserRole>("USER");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
 
   const navigate = useNavigate();
   const setLogin = useUserStore((state) => state.setLogin);
 
   const signupMutation = useSignup();
-  const sendCodeMutation = useSendEmailVerificationCode();
-  const verifyCodeMutation = useVerifyEmailCode();
+  const sendCodeMutation = useSendSmsVerificationCode();
+  const verifyCodeMutation = useVerifySmsCode();
 
-  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
 
   const handleCompleteSignup = () => {
     setLogin({
@@ -56,49 +57,49 @@ function SignupSteps() {
 
 
   const handleSendVerificationCode = () => {
-    if (!email) {
-      toast.error("이메일을 입력해주세요.");
+    if (!phoneNumber.trim()) {
+      toast.error("휴대폰 번호를 입력해주세요.");
       return;
     }
 
     sendCodeMutation.mutate(
-      { email },
+      { phoneNumber: phoneNumber.trim() },
       {
         onSuccess: () => {
           toast.success("인증번호를 발송했습니다.");
         },
         onError: (error) => {
-          console.error("이메일 인증번호 발송 실패:", error);
+          console.error("휴대폰 인증번호 발송 실패:", error);
           toast.error("인증번호 발송에 실패했습니다. 콘솔과 네트워크 탭을 확인해주세요.");
         },
       }
     );
   };
 
-  const handleVerifyEmailCode = () => {
-    if (!email || !verificationCode) {
-      toast.error("이메일과 인증번호를 입력해주세요.");
+  const handleVerifySmsCode = () => {
+    if (!phoneNumber.trim() || !verificationCode.trim()) {
+      toast.error("휴대폰 번호와 인증번호를 입력해주세요.");
       return;
     }
 
     verifyCodeMutation.mutate(
       {
-        email,
-        code: verificationCode,
+        phoneNumber: phoneNumber.trim(),
+        code: verificationCode.trim(),
       },
       {
-        onSuccess: (data) => {
-          if (data.verified) {
-            setIsEmailVerified(true);
-            toast.success("이메일 인증이 완료되었습니다.");
+        onSuccess: (verified) => {
+          if (verified) {
+            setIsPhoneVerified(true);
+            toast.success("휴대폰 인증이 완료되었습니다.");
             return;
           }
 
           toast.error("인증번호가 올바르지 않습니다.");
         },
         onError: (error) => {
-          console.error("이메일 인증 확인 실패:", error);
-          toast.error("이메일 인증 확인에 실패했습니다.");
+          console.error("휴대폰 인증 확인 실패:", error);
+          toast.error("휴대폰 인증 확인에 실패했습니다.");
         },
       }
     );
@@ -110,8 +111,8 @@ function SignupSteps() {
       return;
     }
 
-    if (!isEmailVerified) {
-      toast.error("이메일 인증을 먼저 완료해주세요.");
+    if (!isPhoneVerified) {
+      toast.error("휴대폰 인증을 먼저 완료해주세요.");
       return;
     }
 
@@ -154,11 +155,11 @@ function SignupSteps() {
       {step === 1 && (
         <div>
           <h2 className="text-xl font-bold text-slate-900">
-            Step 1. 공통 계정 정보 + 이메일 인증
+            Step 1. 공통 계정 정보 + 휴대폰 인증
           </h2>
 
           <p className="mt-2 text-sm text-slate-500">
-            계정 정보를 입력하고 이메일 인증을 완료합니다.
+            계정 정보를 입력하고 휴대폰 인증을 완료합니다.
           </p>
 
           <div className="mt-6 space-y-4">
@@ -261,41 +262,54 @@ function SignupSteps() {
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="mb-3 text-sm font-semibold text-slate-700">
-                이메일 인증
+                휴대폰 인증
               </p>
 
+              <div className="mb-3 flex gap-2">
+                <div className="flex-1">
+                  <Input
+                    placeholder="01012345678"
+                    value={phoneNumber}
+                    onChange={(event) => {
+                      setPhoneNumber(event.target.value);
+                      setIsPhoneVerified(false);
+                    }}
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="border border-slate-200"
+                  onClick={handleSendVerificationCode}
+                  disabled={sendCodeMutation.isPending}
+                >
+                  {sendCodeMutation.isPending ? "발송 중..." : "인증번호 발송"}
+                </Button>
+              </div>
+
               <div className="flex gap-2">
-                <Input
-                  placeholder="인증번호 입력"
-                  value={verificationCode}
-                  onChange={(event) =>
-                    setVerificationCode(event.target.value)
-                  }
-                />
+                <div className="flex-1">
+                  <Input
+                    placeholder="인증번호 입력"
+                    value={verificationCode}
+                    onChange={(event) => setVerificationCode(event.target.value)}
+                  />
+                </div>
 
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={handleVerifyEmailCode}
+                  onClick={handleVerifySmsCode}
                   disabled={verifyCodeMutation.isPending}
                 >
                   {verifyCodeMutation.isPending ? "확인 중..." : "인증 확인"}
                 </Button>
               </div>
 
-              <Button
-                type="button"
-                variant="ghost"
-                className="mt-3"
-                onClick={handleSendVerificationCode}
-                disabled={sendCodeMutation.isPending}
-              >
-                {sendCodeMutation.isPending ? "발송 중..." : "인증번호 발송"}
-              </Button>
-
-              {isEmailVerified && (
+              {isPhoneVerified && (
                 <p className="mt-2 text-sm font-medium text-emerald-600">
-                  이메일 인증이 완료되었습니다.
+                  휴대폰 인증이 완료되었습니다.
                 </p>
               )}
             </div>

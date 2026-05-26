@@ -29,3 +29,7 @@ export const authInstance = createInstance(AUTH_BASE_URL);
 export const medicationInstance = createInstance(MEDICATION_BASE_URL);
 export const consultationInstance = createInstance(CONSULTATION_BASE_URL);
 export const aiInstance = createInstance(AI_BASE_URL);
+export const publicMedicationInstance = axios.create({
+  baseURL: MEDICATION_BASE_URL,
+  timeout: 5000,
+});

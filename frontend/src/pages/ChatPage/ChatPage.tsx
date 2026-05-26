@@ -1,28 +1,52 @@
-import { useMemo, useState } from 'react';
-import { Badge, Button, Card } from '../../components/ui';
+import { useMemo, useRef, useState } from 'react';
+
+import { Badge, Button, Card, Input } from '../../components/ui';
+import { useSendChatbotMessage } from "../../features/chat/hooks";
+
 
 type ChatMode = 'ai' | 'pharmacist';
-type Sender = 'USER' | 'AI' | 'PHARMACIST' | 'SYSTEM';
+type MessageSender = 'USER' | 'AI' | 'PHARMACIST' | 'SYSTEM';
 
 interface DrugOption {
   id: number;
   name: string;
   ingredient: string;
+  type: '일반의약품' | '전문의약품';
 }
 
 interface ChatMessage {
   id: number;
-  sender: Sender;
+  sender: MessageSender;
   content: string;
-  time: string;
+  createdAt: string;
   drugs?: DrugOption[];
 }
 
 const drugOptions: DrugOption[] = [
-  { id: 1, name: '아스피린 100mg', ingredient: '아스피린' },
-  { id: 2, name: '타이레놀 500mg', ingredient: '아세트아미노펜' },
-  { id: 3, name: '암로디핀 5mg', ingredient: '암로디핀베실산염' },
-  { id: 4, name: '페니실린', ingredient: '페니실린계' },
+  {
+    id: 1,
+    name: '타이레놀정 500mg',
+    ingredient: '아세트아미노펜',
+    type: '일반의약품',
+  },
+  {
+    id: 2,
+    name: '아스피린 프로텍트정 100mg',
+    ingredient: '아스피린',
+    type: '전문의약품',
+  },
+  {
+    id: 3,
+    name: '부루펜정 200mg',
+    ingredient: '이부프로펜, NSAIDs',
+    type: '일반의약품',
+  },
+  {
+    id: 4,
+    name: '활명수',
+    ingredient: '현호색, 진피, 건강',
+    type: '일반의약품',
+  },
 ];
 
 const initialAiMessages: ChatMessage[] = [
@@ -30,35 +54,29 @@ const initialAiMessages: ChatMessage[] = [
     id: 1,
     sender: 'AI',
     content:
-      '안녕하세요. 복약 관련 궁금한 점을 입력해주세요. 약 이름을 함께 선택하면 더 구체적으로 안내할 수 있어요.',
-    time: '09:30',
+      '안녕하세요. 복약 관련 궁금한 점을 물어보세요. 약 이름을 @로 검색해서 함께 보낼 수 있어요.',
+    createdAt: '09:00',
   },
 ];
 
 const initialPharmacistMessages: ChatMessage[] = [
   {
     id: 1,
-    sender: 'SYSTEM',
-    content: '약사 상담방이 생성되었습니다.',
-    time: '09:34',
-  },
-  {
-    id: 2,
     sender: 'PHARMACIST',
     content:
-      '안녕하세요. 선택하신 약과 복용 이력을 확인한 뒤 답변드리겠습니다.',
-    time: '09:35',
+      '안녕하세요. 약사 상담입니다. 복용 중인 약과 증상을 함께 알려주시면 확인해드릴게요.',
+    createdAt: '09:05',
   },
 ];
 
-function getSenderLabel(sender: Sender) {
+function getSenderLabel(sender: MessageSender) {
   if (sender === 'USER') return '나';
   if (sender === 'AI') return 'AI';
   if (sender === 'PHARMACIST') return '약사';
   return '시스템';
 }
 
-function getSenderBadgeVariant(sender: Sender) {
+function getSenderBadge(sender: MessageSender) {
   if (sender === 'USER') return 'blue';
   if (sender === 'AI') return 'green';
   if (sender === 'PHARMACIST') return 'yellow';
@@ -66,49 +84,63 @@ function getSenderBadgeVariant(sender: Sender) {
 }
 
 function ChatPage() {
+  const messageIdRef = useRef(100);
+
+  const createMessageId = () => {
+    messageIdRef.current += 1;
+    return messageIdRef.current;
+  };
+
+  const sendChatbotMessageMutation = useSendChatbotMessage();
+
   const [activeMode, setActiveMode] = useState<ChatMode>('ai');
-  const [message, setMessage] = useState('');
-  const [drugKeyword, setDrugKeyword] = useState('');
-  const [isDrugSearchOpen, setIsDrugSearchOpen] = useState(false);
-  const [selectedDrugs, setSelectedDrugs] = useState<DrugOption[]>([]);
   const [aiMessages, setAiMessages] =
     useState<ChatMessage[]>(initialAiMessages);
   const [pharmacistMessages, setPharmacistMessages] = useState<ChatMessage[]>(
     initialPharmacistMessages,
   );
 
-  const filteredDrugs = useMemo(() => {
-    const keyword = drugKeyword.trim().toLowerCase();
+  const [message, setMessage] = useState('');
+  const [selectedDrugs, setSelectedDrugs] = useState<DrugOption[]>([]);
+  const [isDrugSearchOpen, setIsDrugSearchOpen] = useState(false);
 
-    if (!keyword) {
+  const activeMessages = activeMode === 'ai' ? aiMessages : pharmacistMessages;
+
+  const drugSearchKeyword = useMemo(() => {
+    const atIndex = message.lastIndexOf('@');
+
+    if (atIndex === -1) {
+      return '';
+    }
+
+    return message.slice(atIndex + 1).trim();
+  }, [message]);
+
+  const filteredDrugs = useMemo(() => {
+    if (!isDrugSearchOpen) {
+      return [];
+    }
+
+    if (!drugSearchKeyword) {
       return drugOptions;
     }
 
     return drugOptions.filter((drug) => {
-      return (
-        drug.name.toLowerCase().includes(keyword) ||
-        drug.ingredient.toLowerCase().includes(keyword)
-      );
-    });
-  }, [drugKeyword]);
+      const searchableText = `${drug.name} ${drug.ingredient}`.toLowerCase();
 
-  const currentMessages = activeMode === 'ai' ? aiMessages : pharmacistMessages;
+      return searchableText.includes(drugSearchKeyword.toLowerCase());
+    });
+  }, [drugSearchKeyword, isDrugSearchOpen]);
 
   const handleChangeMessage = (value: string) => {
     setMessage(value);
 
-    const words = value.split(/\s/);
-    const lastWord = words[words.length - 1];
-
-    if (lastWord.startsWith('@')) {
-      const keyword = lastWord.replace('@', '');
-      setDrugKeyword(keyword);
+    if (value.includes('@')) {
       setIsDrugSearchOpen(true);
       return;
     }
 
     setIsDrugSearchOpen(false);
-    setDrugKeyword('');
   };
 
   const handleSelectDrug = (drug: DrugOption) => {
@@ -122,55 +154,81 @@ function ChatPage() {
       return [...prev, drug];
     });
 
-    setMessage((prev) => {
-      const words = prev.split(/\s/);
-      const lastWord = words[words.length - 1];
+    const atIndex = message.lastIndexOf('@');
 
-      if (lastWord.startsWith('@')) {
-        return words.slice(0, -1).join(' ').trimEnd();
-      }
+    if (atIndex >= 0) {
+      setMessage(message.slice(0, atIndex).trim());
+    }
 
-      return prev;
-    });
-
-    setDrugKeyword('');
     setIsDrugSearchOpen(false);
   };
 
-  const handleRemoveDrug = (drugId: number) => {
+  const handleRemoveSelectedDrug = (drugId: number) => {
     setSelectedDrugs((prev) => prev.filter((drug) => drug.id !== drugId));
   };
 
   const handleSendMessage = () => {
-    if (!message.trim()) {
-      alert('메시지를 입력해주세요.');
+    const trimmedMessage = message.trim();
+
+    if (!trimmedMessage && selectedDrugs.length === 0) {
       return;
     }
 
-    const newUserMessage: ChatMessage = {
-      id: Date.now(),
+    const userMessage: ChatMessage = {
+      id: createMessageId(),
       sender: 'USER',
-      content: message.trim(),
-      time: '방금',
+      content: trimmedMessage || '선택한 약에 대해 상담하고 싶어요.',
+      createdAt: '방금',
       drugs: selectedDrugs,
     };
 
-    if (activeMode === 'ai') {
-      const aiResponse: ChatMessage = {
-        id: Date.now() + 1,
-        sender: 'AI',
-        content:
-          selectedDrugs.length > 0
-            ? '선택하신 약 정보를 함께 확인했습니다. 현재는 개발용 응답이며, 추후 AI 답변 API와 연결됩니다.'
-            : '질문을 확인했습니다. 약 이름을 함께 선택하면 더 정확한 안내가 가능합니다.',
-        time: '방금',
-      };
+    if (activeMode === "ai") {
+      setAiMessages((prev) => [...prev, userMessage]);
 
-      setAiMessages((prev) => [...prev, newUserMessage, aiResponse]);
-    }
+      sendChatbotMessageMutation.mutate(
+        {
+          message: trimmedMessage || selectedDrugs.map((drug) => drug.name).join(", "),
+        },
+        {
+          onSuccess: (data) => {
+            const aiMessage: ChatMessage = {
+              id: createMessageId(),
+              sender: "AI",
+              content: data.answer,
+              createdAt: "방금",
+            };
 
-    if (activeMode === 'pharmacist') {
-      setPharmacistMessages((prev) => [...prev, newUserMessage]);
+            setAiMessages((prev) => [...prev, aiMessage]);
+          },
+          onError: (error) => {
+            console.error("챗봇 메시지 전송 실패:", error);
+
+            const errorMessage: ChatMessage = {
+              id: createMessageId(),
+              sender: "SYSTEM",
+              content:
+                "현재 챗봇 응답을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
+              createdAt: "방금",
+            };
+
+            setAiMessages((prev) => [...prev, errorMessage]);
+          },
+        }
+      );
+    } else {
+      setPharmacistMessages((prev) => [...prev, userMessage]);
+
+      window.setTimeout(() => {
+        const pharmacistMessage: ChatMessage = {
+          id: createMessageId(),
+          sender: 'PHARMACIST',
+          content:
+            '상담 내용을 확인했습니다. 현재 복용 중인 약, 증상 발생 시점, 알레르기 이력을 함께 확인하면 더 정확히 안내할 수 있습니다.',
+          createdAt: '방금',
+        };
+
+        setPharmacistMessages((prev) => [...prev, pharmacistMessage]);
+      }, 500);
     }
 
     setMessage('');
@@ -178,19 +236,50 @@ function ChatPage() {
     setIsDrugSearchOpen(false);
   };
 
+  const handleQuickQuestion = (question: string) => {
+    const quickMessage: ChatMessage = {
+      id: createMessageId(),
+      sender: 'USER',
+      content: question,
+      createdAt: '방금',
+    };
+
+    if (activeMode === 'ai') {
+      setAiMessages((prev) => [...prev, quickMessage]);
+
+      window.setTimeout(() => {
+        const aiMessage: ChatMessage = {
+          id: createMessageId(),
+          sender: 'AI',
+          content:
+            '질문을 확인했어요. 현재는 Mock 응답이며, 추후 약 정보 DB와 AI 서버를 연결해 복용법과 주의사항을 안내합니다.',
+          createdAt: '방금',
+        };
+
+        setAiMessages((prev) => [...prev, aiMessage]);
+      }, 500);
+
+      return;
+    }
+
+    setPharmacistMessages((prev) => [...prev, quickMessage]);
+  };
+
+  const handleMoveToPharmacist = () => {
+    setActiveMode('pharmacist');
+  };
+
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-semibold text-blue-600">
-          Chat & Consultation
-        </p>
+        <p className="text-sm font-semibold text-blue-600">Chat & Consult</p>
 
         <h1 className="mt-2 text-3xl font-bold text-slate-900">
-          AI 챗봇 / 약사 상담
+          챗봇 & 약사 상담
         </h1>
 
         <p className="mt-2 text-slate-500">
-          AI 챗봇으로 복약 질문을 확인하고, 필요하면 약사 상담으로 이어갈 수
+          AI 챗봇으로 복약 정보를 확인하고, 필요하면 약사 상담으로 이어갈 수
           있습니다.
         </p>
       </div>
@@ -224,109 +313,121 @@ function ChatPage() {
           </button>
         </div>
 
-        <div className="grid min-h-[620px] lg:grid-cols-[1fr_320px]">
-          <div className="flex min-h-[620px] flex-col border-r border-slate-200">
-            {activeMode === 'pharmacist' && (
-              <div className="border-b border-blue-100 bg-blue-50 p-4">
-                <p className="font-bold text-blue-700">AI 요약</p>
-                <p className="mt-2 text-sm leading-6 text-blue-700">
-                  사용자가 선택한 약과 복용 이력을 바탕으로 약사 상담을
-                  요청했습니다. 선택 약 정보와 알레르기/주의 성분 정보가 함께
-                  전달됩니다.
-                </p>
-              </div>
-            )}
+        <div className="grid min-h-[620px] gap-0 lg:grid-cols-[1fr_320px]">
+          <div className="flex flex-col border-r border-slate-100">
+            <div className="space-y-4 p-6">
+              {activeMode === 'pharmacist' && (
+                <div className="rounded-2xl bg-yellow-50 p-4 text-sm leading-6 text-yellow-700">
+                  <p className="font-bold">AI 요약</p>
+                  <p className="mt-1">
+                    사용자가 선택한 약과 질문 내용을 바탕으로 약사에게 상담
+                    요약이 전달됩니다. 실제 연동 시 복용 이력, 주의 성분,
+                    알레르기 정보도 함께 표시됩니다.
+                  </p>
+                </div>
+              )}
 
-            <div className="flex-1 space-y-4 overflow-y-auto p-5">
-              {currentMessages.map((chat) => {
-                const isMine = chat.sender === 'USER';
-
-                return (
+              {activeMessages.map((chat) => (
+                <div
+                  key={chat.id}
+                  className={[
+                    'flex',
+                    chat.sender === 'USER' ? 'justify-end' : 'justify-start',
+                  ].join(' ')}
+                >
                   <div
-                    key={chat.id}
                     className={[
-                      'flex',
-                      isMine ? 'justify-end' : 'justify-start',
+                      'max-w-[80%] rounded-2xl p-4',
+                      chat.sender === 'USER'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-100 text-slate-700',
                     ].join(' ')}
                   >
-                    <div
-                      className={[
-                        'max-w-[78%] rounded-2xl p-4',
-                        isMine
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-slate-100 text-slate-800',
-                      ].join(' ')}
-                    >
-                      <div className="mb-2 flex items-center gap-2">
-                        <Badge variant={getSenderBadgeVariant(chat.sender)}>
-                          {getSenderLabel(chat.sender)}
-                        </Badge>
-                        <span
-                          className={[
-                            'text-xs',
-                            isMine ? 'text-blue-100' : 'text-slate-500',
-                          ].join(' ')}
-                        >
-                          {chat.time}
-                        </span>
-                      </div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <Badge variant={getSenderBadge(chat.sender)}>
+                        {getSenderLabel(chat.sender)}
+                      </Badge>
 
-                      <p className="text-sm leading-6">{chat.content}</p>
-                      {chat.drugs && chat.drugs.length > 0 && (
-                        <div className="mt-3 space-y-2">
-                          {chat.drugs.map((drug) => (
-                            <div
-                              key={drug.id}
-                              className={[
-                                'rounded-xl border p-3 text-sm',
-                                isMine
-                                  ? 'border-blue-300 bg-blue-500 text-white'
-                                  : 'border-slate-200 bg-white text-slate-700',
-                              ].join(' ')}
-                            >
-                              <p className="font-bold">@{drug.name}</p>
-                              <p
-                                className={[
-                                  'mt-1 text-xs',
-                                  isMine ? 'text-blue-100' : 'text-slate-500',
-                                ].join(' ')}
-                              >
-                                성분: {drug.ingredient}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <span
+                        className={[
+                          'text-xs',
+                          chat.sender === 'USER'
+                            ? 'text-blue-100'
+                            : 'text-slate-400',
+                        ].join(' ')}
+                      >
+                        {chat.createdAt}
+                      </span>
                     </div>
+
+                    {chat.drugs && chat.drugs.length > 0 && (
+                      <div className="mb-3 space-y-2">
+                        {chat.drugs.map((drug) => (
+                          <div
+                            key={drug.id}
+                            className={[
+                              'rounded-xl p-3 text-sm',
+                              chat.sender === 'USER'
+                                ? 'bg-white/15 text-white'
+                                : 'bg-white text-slate-700',
+                            ].join(' ')}
+                          >
+                            <p className="font-bold">{drug.name}</p>
+                            <p className="mt-1 text-xs opacity-80">
+                              성분: {drug.ingredient}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <p className="text-sm leading-6">{chat.content}</p>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
 
-            <div className="border-t border-slate-200 p-4">
+            <div className="mt-auto border-t border-slate-100 p-4">
               {selectedDrugs.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2">
                   {selectedDrugs.map((drug) => (
                     <button
                       key={drug.id}
                       type="button"
-                      onClick={() => handleRemoveDrug(drug.id)}
+                      onClick={() => handleRemoveSelectedDrug(drug.id)}
                       className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700"
                     >
-                      @{drug.name} ×
+                      {drug.name} ×
                     </button>
                   ))}
                 </div>
               )}
 
               <div className="relative">
-                <textarea
-                  value={message}
-                  onChange={(event) => handleChangeMessage(event.target.value)}
-                  placeholder="메시지를 입력하세요. @를 입력하면 약을 검색할 수 있습니다."
-                  rows={3}
-                  className="w-full resize-none rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
+                <div className="flex w-full gap-2">
+                  <div className="flex-1">
+                    <Input
+                      placeholder="@로 약을 검색하거나 질문을 입력하세요."
+                      value={message}
+                      onChange={(event) =>
+                        handleChangeMessage(event.target.value)
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          handleSendMessage();
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <Button
+                    type="button"
+                    className="shrink-0"
+                    onClick={handleSendMessage}
+                  >
+                    전송
+                  </Button>
+                </div>
 
                 {isDrugSearchOpen && (
                   <div className="absolute bottom-full left-0 z-10 mb-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
@@ -342,11 +443,22 @@ function ChatPage() {
                           onClick={() => handleSelectDrug(drug)}
                           className="w-full rounded-xl px-3 py-3 text-left hover:bg-slate-50"
                         >
-                          <p className="font-semibold text-slate-900">
-                            {drug.name}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-slate-900">
+                              {drug.name}
+                            </p>
+
+                            <Badge
+                              variant={
+                                drug.type === '전문의약품' ? 'blue' : 'green'
+                              }
+                            >
+                              {drug.type}
+                            </Badge>
+                          </div>
+
                           <p className="mt-1 text-xs text-slate-500">
-                            {drug.ingredient}
+                            성분: {drug.ingredient}
                           </p>
                         </button>
                       ))}
@@ -360,43 +472,49 @@ function ChatPage() {
                   </div>
                 )}
               </div>
-
-              <div className="mt-3 flex justify-end">
-                <Button type="button" onClick={handleSendMessage}>
-                  전송
-                </Button>
-              </div>
             </div>
           </div>
 
-          <aside className="space-y-4 p-5">
-            <Card className="bg-slate-50">
-              <h2 className="text-lg font-bold text-slate-900">
-                선택된 약 정보
+          <aside className="space-y-4 bg-slate-50 p-5">
+            <Card>
+              <h2 className="text-lg font-bold text-slate-900">빠른 질문</h2>
+
+              <div className="mt-4 space-y-2">
+                {[
+                  '타이레놀 식후에 먹어야 해?',
+                  '아스피린이랑 같이 먹어도 돼?',
+                  '오늘 저녁 약 먹었는지 확인해줘',
+                  '속이 불편한데 계속 먹어도 돼?',
+                ].map((question) => (
+                  <button
+                    key={question}
+                    type="button"
+                    onClick={() => handleQuickQuestion(question)}
+                    className="w-full rounded-xl bg-white px-3 py-3 text-left text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-700"
+                  >
+                    {question}
+                  </button>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="border-yellow-100 bg-yellow-50">
+              <h2 className="text-lg font-bold text-yellow-700">
+                약사 상담 연결
               </h2>
 
-              {selectedDrugs.length === 0 ? (
-                <p className="mt-3 text-sm text-slate-500">
-                  아직 선택된 약이 없습니다. 입력창에서 @를 입력하면 약을
-                  검색하고 선택할 수 있습니다.
-                </p>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  {selectedDrugs.map((drug) => (
-                    <div
-                      key={drug.id}
-                      className="rounded-2xl bg-white p-4 shadow-sm"
-                    >
-                      <p className="font-semibold text-slate-900">
-                        {drug.name}
-                      </p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {drug.ingredient}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <p className="mt-2 text-sm leading-6 text-yellow-700">
+                복용 중단, 용량 변경, 심한 부작용 의심 등은 AI 답변만으로
+                판단하지 않고 약사 상담을 권장합니다.
+              </p>
+
+              <Button
+                type="button"
+                className="mt-4 w-full"
+                onClick={handleMoveToPharmacist}
+              >
+                약사 상담으로 이동
+              </Button>
             </Card>
 
             <Card>
@@ -405,40 +523,17 @@ function ChatPage() {
               </h2>
 
               <div className="mt-4 space-y-3 text-sm text-slate-600">
-                <div className="rounded-xl bg-red-50 p-3 text-red-700">
-                  주의 성분: 아스피린 부작용 이력
+                <div className="rounded-xl bg-white p-3">
+                  현재 복용약: 타이레놀정 500mg
                 </div>
-
-                <div className="rounded-xl bg-slate-50 p-3">
-                  최근 복용: 아스피린 100mg, 암로디핀 5mg
+                <div className="rounded-xl bg-white p-3">
+                  주의 성분: 아스피린, NSAIDs
                 </div>
-
-                <div className="rounded-xl bg-slate-50 p-3">
-                  상담 전환 시 선택 약 정보가 함께 전달됩니다.
+                <div className="rounded-xl bg-white p-3">
+                  건강 정보: 흡연, 위염
                 </div>
               </div>
             </Card>
-
-            {activeMode === 'ai' && (
-              <Card className="bg-blue-50">
-                <h2 className="text-lg font-bold text-blue-700">
-                  약사 상담 연결
-                </h2>
-
-                <p className="mt-3 text-sm leading-6 text-blue-700">
-                  AI 답변만으로 판단하기 어려운 질문은 약사 상담으로 전환할 수
-                  있습니다.
-                </p>
-
-                <Button
-                  type="button"
-                  className="mt-4 w-full"
-                  onClick={() => setActiveMode('pharmacist')}
-                >
-                  약사 상담으로 이동
-                </Button>
-              </Card>
-            )}
           </aside>
         </div>
       </Card>

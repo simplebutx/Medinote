@@ -22,6 +22,7 @@ public class MedicineInternalController {
     @PostMapping("/chatbot-context")
     public ChatbotMedicineContextResponse getChatbotContext(@RequestBody ChatbotMedicineContextRequest request) {
         String medicineContext = medicineChatbotContextService.buildChatbotContext(
+                request.userId(),
                 request.extractedNames(),
                 request.requestDetails()
         );
