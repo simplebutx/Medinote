@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 
 import { Badge, Button, Card, Input } from '../../components/ui';
+import { useSendChatbotMessage } from "../../features/chat/hooks";
+
 
 type ChatMode = 'ai' | 'pharmacist';
 type MessageSender = 'USER' | 'AI' | 'PHARMACIST' | 'SYSTEM';
@@ -88,6 +90,8 @@ function ChatPage() {
     messageIdRef.current += 1;
     return messageIdRef.current;
   };
+
+  const sendChatbotMessageMutation = useSendChatbotMessage();
 
   const [activeMode, setActiveMode] = useState<ChatMode>('ai');
   const [aiMessages, setAiMessages] =
@@ -178,23 +182,39 @@ function ChatPage() {
       drugs: selectedDrugs,
     };
 
-    if (activeMode === 'ai') {
+    if (activeMode === "ai") {
       setAiMessages((prev) => [...prev, userMessage]);
 
-      window.setTimeout(() => {
-        const drugNames = selectedDrugs.map((drug) => drug.name).join(', ');
+      sendChatbotMessageMutation.mutate(
+        {
+          message: trimmedMessage || selectedDrugs.map((drug) => drug.name).join(", "),
+        },
+        {
+          onSuccess: (data) => {
+            const aiMessage: ChatMessage = {
+              id: createMessageId(),
+              sender: "AI",
+              content: data.answer,
+              createdAt: "방금",
+            };
 
-        const aiMessage: ChatMessage = {
-          id: createMessageId(),
-          sender: 'AI',
-          content: drugNames
-            ? `${drugNames} 기준으로 확인했어요. 현재 화면은 Mock 응답이며, 추후 Medicine API와 AI 서버를 연결하면 약 정보와 사용자 주의 성분을 비교해 답변합니다.`
-            : '질문을 확인했어요. 약 이름이나 궁금한 내용을 조금 더 구체적으로 알려주시면 더 정확히 안내할 수 있어요.',
-          createdAt: '방금',
-        };
+            setAiMessages((prev) => [...prev, aiMessage]);
+          },
+          onError: (error) => {
+            console.error("챗봇 메시지 전송 실패:", error);
 
-        setAiMessages((prev) => [...prev, aiMessage]);
-      }, 500);
+            const errorMessage: ChatMessage = {
+              id: createMessageId(),
+              sender: "SYSTEM",
+              content:
+                "현재 챗봇 응답을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
+              createdAt: "방금",
+            };
+
+            setAiMessages((prev) => [...prev, errorMessage]);
+          },
+        }
+      );
     } else {
       setPharmacistMessages((prev) => [...prev, userMessage]);
 
