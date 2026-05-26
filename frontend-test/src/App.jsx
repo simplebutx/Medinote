@@ -14,6 +14,8 @@ import Signup from './pages/Signup'
 import Sync from './pages/Sync'
 import YunjuTest from './pages/YunjuTest'
 
+import Consultation from './pages/Consultation'
+
 function Home() {
   return (
     <div>
@@ -46,6 +48,9 @@ function Home() {
         <li>
           <Link to="/my">my page</Link>
         </li>
+        <li>
+          <Link to="/consultation" style={{ color: 'green', fontWeight: 'bold' }}>실시간 상담 테스트</Link>
+        </li>
       </ul>
     </div>
   )
@@ -68,6 +73,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/yunjutest" element={<YunjuTest />} />
         <Route path="/my" element={<MyPage />} />
+        <Route path="/consultation" element={<Consultation />} />
       </Routes>
     </BrowserRouter>
   )
