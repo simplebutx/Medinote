@@ -38,11 +38,6 @@ public class User {
     @Column(length = 50)
     private UserStatus status; // WAITING_APPROVAL, ACTIVE
 
-    //약사 추가 정보
-    private String docNumber;
-    private String licenseNumber;
-    private String licenseImage;
-
     @Builder
     public User(String email,String password, String username, LocalDate birthDate, Gender gender,Role role ){
         this.email = email;
@@ -51,20 +46,23 @@ public class User {
         this.birthDate = birthDate;
         this.gender = gender;
         this.role = role;
-        this.status = UserStatus.WAITING_APPROVAL;
+        this.status = UserStatus.PENDING; //1단계 공통 가입 시 PENDING
     }
 
     //일반 유저 ACTIVE 상태 변경
-    public void activate() {
+    public void activateGeneralUser() {
         this.status = UserStatus.ACTIVE;
     }
 
-    //약사 추가 정보 업데이
-    public void addPharmacistProfile(String docNumber, String licenseNumber, String licenseImage){
-        this.docNumber = docNumber;
-        this.licenseNumber = licenseNumber;
-        this.licenseImage = licenseImage;
+    //약사 2단계 완료 시 승인 대기 상태로 변경
+    public void setWaitingForApproval(){
         this.status = UserStatus.WAITING_APPROVAL;
     }
 
+    //닉네임 정보 수정
+    public void updateUsername(String username){
+        if(username != null && username.isEmpty()){
+            this.username = username;
+        }
+    }
 }
