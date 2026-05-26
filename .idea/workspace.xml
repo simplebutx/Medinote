@@ -6,24 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="58140271-9310-4544-8bb9-db2ceea0c939" name="변경" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend-test/src/pages/MyPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend-test/src/pages/MyPage.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/App.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/index.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/src/api/client.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/src/constants.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/src/context/AppContext.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/src/context/AppContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/mobile-expo/src/context/AppContext.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/src/screens/CautionsScreen.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/src/screens/ChatScreen.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/src/screens/LoginScreen.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/src/screens/MedicineSearchScreen.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/src/screens/MyPageScreen.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/src/screens/ScheduleScreen.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/src/screens/ScheduleScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/mobile-expo/src/screens/ScheduleScreen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/src/screens/SignupScreen.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/src/types.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/src/ui.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mobile-expo/src/utils.js" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

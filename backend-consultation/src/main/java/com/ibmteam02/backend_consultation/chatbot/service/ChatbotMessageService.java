@@ -39,7 +39,7 @@ public class ChatbotMessageService {
     private final RequestSlotExtractor requestSlotExtractor;
     private final RequestDetailExtractor requestDetailExtractor;
 
-    public ChatbotMessageResponse sendChat(ChatbotMessageRequest dto) {
+    public ChatbotMessageResponse sendChat(Long userId, ChatbotMessageRequest dto) {
         try {
             // 메시지 전처리와 위험 키워드 확인
             String message = dto.getMessage();
@@ -60,7 +60,7 @@ public class ChatbotMessageService {
 
             // 추출한 약 이름과 세부 요청을 기준으로 DB 조회 컨텍스트 생성
             List<String> requestDetails = requestDetailExtractor.extract(normalizedMessage, requestSlots);
-            String medicineContext = handleDbQuery(extractedNames, requestDetails);
+            String medicineContext = handleDbQuery(userId, extractedNames, requestDetails);
 
             // 원본 질문 + 추출 결과 + DB 조회 결과를 FastAPI로 전달
             AiChatBotRequest aiRequest = new AiChatBotRequest(
@@ -114,10 +114,10 @@ public class ChatbotMessageService {
     }
 
     // 세부 요청에 맞는 약 정보를 DB에서 조합해 LLM 컨텍스트 문자열로 반환
-    private String handleDbQuery(List<String> extractedNames, List<String> requestDetails) {
+    private String handleDbQuery(Long userId, List<String> extractedNames, List<String> requestDetails) {
         // consultation(8082) -> medication(8081)
         ChatbotMedicineContextResponse response = medicationClient.getChatbotContext(
-                new ChatbotMedicineContextRequest(extractedNames, requestDetails)
+                new ChatbotMedicineContextRequest(userId, extractedNames, requestDetails)
         );
 
         if (response == null || response.medicineContext() == null || response.medicineContext().isBlank()) {

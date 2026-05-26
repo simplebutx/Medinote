@@ -1,6 +1,6 @@
-package com.ibmteam02.backend_medication.global.config;
+package com.ibmteam02.backend_consultation.global.config;
 
-import com.ibmteam02.backend_medication.global.auth.JwtAuthenticationFilter;
+import com.ibmteam02.backend_consultation.global.auth.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -50,13 +50,7 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/medicines/**", "/api/ai/health", "/api/internal/**").permitAll()
-                        .requestMatchers(
-                                "/api/me/cautions/**",
-                                "/api/medication-schedules/**",
-                                "/api/medication-schedule-times/**",
-                                "/api/medication-intake-logs/**"
-                        ).authenticated()
+                        .requestMatchers("/api/chatbot/**", "/api/internal/**").permitAll()
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
