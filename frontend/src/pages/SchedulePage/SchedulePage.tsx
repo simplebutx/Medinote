@@ -1,5 +1,14 @@
 import { useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { Badge, Button, Card } from '../../components/ui';
+import {
+  useCreateMedicationIntakeLog,
+  useDeleteMedicationIntakeLog,
+  useMedicationIntakeLogsByScheduleIds,
+  useMedicationSchedules,
+  useMedicationScheduleTimesByScheduleIds,
+  useUpdateMedicationIntakeLog,
+} from '../../features/schedule/hooks';
 
 type MedicationStatus = 'PENDING' | 'TAKEN' | 'SKIPPED' | 'MISSED';
 
@@ -10,6 +19,11 @@ interface TodayMedication {
   time: string;
   timing: string;
   status: MedicationStatus;
+  source?: 'MOCK' | 'SERVER';
+  medicationScheduleId?: number;
+  medicationScheduleTimeId?: number;
+  scheduledAt?: string;
+  intakeLogId?: number;
 }
 
 const initialTodayMedications: TodayMedication[] = [
@@ -75,6 +89,23 @@ function formatDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function formatDateTimeLocal(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+}
+
+function buildScheduledAt(dateText: string, takeTime: string) {
+  const normalizedTime = takeTime.length === 5 ? `${takeTime}:00` : takeTime;
+
+  return `${dateText}T${normalizedTime}`;
+}
+
 function getMonthDays(baseDate: Date) {
   const year = baseDate.getFullYear();
   const month = baseDate.getMonth();
@@ -127,6 +158,55 @@ function SchedulePage() {
     () => new Date(today.getFullYear(), today.getMonth(), 1),
   );
 
+  const {
+    data: medicationSchedules = [],
+    isLoading: isMedicationScheduleLoading,
+    isError: isMedicationScheduleError,
+  } = useMedicationSchedules();
+
+  const medicationScheduleIds = useMemo(
+    () => medicationSchedules.map((schedule) => schedule.id),
+    [medicationSchedules],
+  );
+
+  const {
+    data: medicationIntakeLogs = [],
+    isLoading: isMedicationIntakeLogLoading,
+    isError: isMedicationIntakeLogError,
+  } = useMedicationIntakeLogsByScheduleIds(medicationScheduleIds);
+
+  const {
+    data: medicationScheduleTimes = [],
+    isLoading: isMedicationScheduleTimeLoading,
+    isError: isMedicationScheduleTimeError,
+  } = useMedicationScheduleTimesByScheduleIds(medicationScheduleIds);
+
+  const createIntakeLogMutation = useCreateMedicationIntakeLog();
+  const deleteIntakeLogMutation = useDeleteMedicationIntakeLog();
+  const updateIntakeLogMutation = useUpdateMedicationIntakeLog();
+
+  const [localIntakeLogMap, setLocalIntakeLogMap] = useState<
+    Record<
+      string,
+      {
+        status: MedicationStatus;
+        intakeLogId: number;
+      }
+    >
+  >({});
+
+  const getIntakeStatusKey = (
+    medicationScheduleId: number,
+    medicationScheduleTimeId: number,
+    dateText: string,
+  ) => {
+    return `${medicationScheduleId}-${medicationScheduleTimeId}-${dateText}`;
+  };
+
+  const activeMedicationScheduleCount = medicationSchedules.filter(
+    (schedule) => schedule.isActive,
+  ).length;
+
   const [medicationsByDate, setMedicationsByDate] = useState<
     Record<string, TodayMedication[]>
   >(() => ({
@@ -163,7 +243,85 @@ function SchedulePage() {
     })),
   }));
 
-  const selectedDateMedications = medicationsByDate[selectedDate] ?? [];
+  function getTimingLabel(timing: string) {
+    if (timing === 'AFTER_MEAL') return '식후';
+    if (timing === 'BEFORE_MEAL') return '식전';
+    if (timing === 'WITH_MEAL') return '식사 중';
+    if (timing === 'EMPTY_STOMACH') return '공복';
+    if (timing === 'BEDTIME') return '취침 전';
+    return '상관없음';
+  }
+
+  function getDosageLabel(amount?: number | null, unit?: string | null) {
+    if (!amount && !unit) return '복용량 미정';
+
+    return `${amount ?? ''}${unit ?? ''}`;
+  }
+
+  function isDateInScheduleRange(
+    selectedDateText: string,
+    startDate?: string | null,
+    endDate?: string | null,
+  ) {
+    if (!startDate || !endDate) {
+      return false;
+    }
+
+    return selectedDateText >= startDate && selectedDateText <= endDate;
+  }
+
+  const serverSelectedDateMedications = useMemo<TodayMedication[]>(() => {
+    return medicationSchedules
+      .filter(
+        (schedule) =>
+          schedule.isActive &&
+          isDateInScheduleRange(selectedDate, schedule.startDate, schedule.endDate),
+      )
+      .flatMap((schedule) => {
+        const times = medicationScheduleTimes.filter(
+          (time) => time.medicationScheduleId === schedule.id,
+        );
+
+        return times.map((time) => {
+          const statusKey = getIntakeStatusKey(schedule.id, time.id, selectedDate);
+
+          const matchedLog = medicationIntakeLogs.find(
+            (log) =>
+              log.medicationScheduleId === schedule.id &&
+              log.medicationScheduleTimeId === time.id &&
+              log.scheduledAt.startsWith(selectedDate),
+          );
+          const localLog = localIntakeLogMap[statusKey];
+
+          return {
+            id: time.id,
+            source: 'SERVER' as const,
+            medicationScheduleId: schedule.id,
+            medicationScheduleTimeId: time.id,
+            scheduledAt: buildScheduledAt(selectedDate, time.takeTime),
+            intakeLogId: localLog?.intakeLogId ?? matchedLog?.id,
+            drugName:
+              schedule.customMedicineName ||
+              `등록 약 #${schedule.medicineId ?? schedule.id}`,
+            dosage: getDosageLabel(schedule.dosageAmount, schedule.dosageUnit),
+            time: time.takeTime,
+            timing: getTimingLabel(time.timing),
+            status: localLog?.status ?? matchedLog?.status ?? 'PENDING',
+          };
+        });
+      });
+    }, [
+      medicationSchedules,
+      medicationScheduleTimes,
+      medicationIntakeLogs,
+      selectedDate,
+      localIntakeLogMap,
+    ]);
+
+  const selectedDateMedications =
+    serverSelectedDateMedications.length > 0
+      ? serverSelectedDateMedications
+      : medicationsByDate[selectedDate] ?? [];
 
   const monthDays = useMemo(
     () => getMonthDays(calendarBaseDate),
@@ -205,13 +363,154 @@ function SchedulePage() {
   };
 
   const handleChangeStatus = (
-    medicationId: number,
+    medication: TodayMedication,
     status: MedicationStatus,
   ) => {
+    if (medication.status === status) {
+      handleCancelIntakeLog(medication);
+      return;
+    }
+
+    if (
+      medication.source === 'SERVER' &&
+      medication.intakeLogId &&
+      medication.medicationScheduleId &&
+      medication.medicationScheduleTimeId &&
+      medication.scheduledAt
+    ) {
+      updateIntakeLogMutation.mutate(
+        {
+          id: medication.intakeLogId,
+          body: {
+            medicationScheduleId: medication.medicationScheduleId,
+            medicationScheduleTimeId: medication.medicationScheduleTimeId,
+            status: status === 'PENDING' ? 'MISSED' : status,
+            scheduledAt: medication.scheduledAt,
+            takenAt: status === 'TAKEN' ? formatDateTimeLocal(new Date()) : null,
+          },
+        },
+        {
+          onSuccess: (data) => {
+            const statusKey = getIntakeStatusKey(
+              medication.medicationScheduleId as number,
+              medication.medicationScheduleTimeId as number,
+              selectedDate,
+            );
+
+            setLocalIntakeLogMap((prev) => ({
+              ...prev,
+              [statusKey]: {
+                status,
+                intakeLogId: data.id,
+              },
+            }));
+
+            toast.success(
+              status === 'TAKEN'
+                ? '복용 완료로 변경되었습니다.'
+                : '건너뜀으로 변경되었습니다.',
+            );
+          },
+          onError: (error) => {
+            console.error('복용 기록 수정 실패:', error);
+            toast.error('복용 기록 수정에 실패했습니다.');
+          },
+        },
+      );
+
+      return;
+    }
+
+    if (
+      medication.source === 'SERVER' &&
+      medication.medicationScheduleId &&
+      medication.medicationScheduleTimeId &&
+      medication.scheduledAt
+    ) {
+      createIntakeLogMutation.mutate(
+        {
+          medicationScheduleId: medication.medicationScheduleId,
+          medicationScheduleTimeId: medication.medicationScheduleTimeId,
+          status: status === 'PENDING' ? 'MISSED' : status,
+          scheduledAt: medication.scheduledAt,
+          takenAt: status === 'TAKEN' ? formatDateTimeLocal(new Date()) : null,
+        },
+        {
+          onSuccess: (data) => {
+            const statusKey = getIntakeStatusKey(
+              medication.medicationScheduleId as number,
+              medication.medicationScheduleTimeId as number,
+              selectedDate,
+            );
+
+            setLocalIntakeLogMap((prev) => ({
+              ...prev,
+              [statusKey]: {
+                status,
+                intakeLogId: data.id,
+              },
+            }));
+
+            toast.success(
+              status === 'TAKEN'
+                ? '복용 완료로 기록되었습니다.'
+                : '건너뜀으로 기록되었습니다.',
+            );
+          },
+          onError: (error) => {
+            console.error('복용 기록 등록 실패:', error);
+            toast.error('복용 기록 등록에 실패했습니다.');
+          },
+        },
+      );
+
+      return;
+    }
+
     setMedicationsByDate((prev) => ({
       ...prev,
-      [selectedDate]: (prev[selectedDate] ?? []).map((medication) =>
-        medication.id === medicationId ? { ...medication, status } : medication,
+      [selectedDate]: (prev[selectedDate] ?? []).map((item) =>
+        item.id === medication.id ? { ...item, status } : item,
+      ),
+    }));
+  };
+
+  const handleCancelIntakeLog = (medication: TodayMedication) => {
+    if (
+      medication.source === 'SERVER' &&
+      medication.intakeLogId &&
+      medication.medicationScheduleId &&
+      medication.medicationScheduleTimeId
+    ) {
+      deleteIntakeLogMutation.mutate(medication.intakeLogId, {
+        onSuccess: () => {
+          const statusKey = getIntakeStatusKey(
+            medication.medicationScheduleId as number,
+            medication.medicationScheduleTimeId as number,
+            selectedDate,
+          );
+
+          setLocalIntakeLogMap((prev) => {
+            const next = { ...prev };
+            delete next[statusKey];
+            return next;
+          });
+
+          toast.success('복용 기록이 취소되었습니다.');
+        },
+        onError: (error) => {
+          console.error('복용 기록 삭제 실패:', error);
+          toast.error('복용 기록 삭제에 실패했습니다.');
+        },
+      });
+
+      return;
+    }
+
+    setMedicationsByDate((prev) => ({
+      ...prev,
+      [selectedDate]: (prev[selectedDate] ?? []).map((item) =>
+        item.id === medication.id ? { ...item, status: 'PENDING' } : item,
       ),
     }));
   };
@@ -253,13 +552,114 @@ function SchedulePage() {
         </Card>
 
         <Card>
-          <p className="text-sm text-slate-500">주의 성분 알림</p>
-          <p className="mt-3 text-3xl font-bold text-amber-600">1건</p>
+          <p className="text-sm text-slate-500">등록된 복약 일정</p>
+          <p className="mt-3 text-3xl font-bold text-amber-600">
+            {activeMedicationScheduleCount}개
+          </p>
           <p className="mt-2 text-sm text-slate-500">
-            아스피린 복용 시 위장 부작용 이력 확인
+            서버에 등록된 활성 복약 일정 기준입니다.
           </p>
         </Card>
       </div>
+
+      {isMedicationScheduleLoading && (
+        <Card>
+          <p className="text-sm text-blue-700">
+            서버에서 복약 일정을 불러오는 중입니다.
+          </p>
+        </Card>
+      )}
+
+      {isMedicationScheduleError && (
+        <Card>
+          <p className="text-sm text-red-700">
+            복약 일정을 불러오지 못했습니다. 로그인 상태와 8081 서버를 확인해주세요.
+          </p>
+        </Card>
+      )}
+
+      {isMedicationScheduleTimeLoading && (
+        <Card>
+          <p className="text-sm text-blue-700">
+            복약 시간 정보를 불러오는 중입니다.
+          </p>
+        </Card>
+      )}
+
+      {isMedicationScheduleTimeError && (
+        <Card>
+          <p className="text-sm text-red-700">
+            복약 시간 정보를 불러오지 못했습니다.
+          </p>
+        </Card>
+      )}
+
+      {isMedicationIntakeLogLoading && (
+        <Card>
+          <p className="text-sm text-blue-700">
+            복용 기록을 불러오는 중입니다.
+          </p>
+        </Card>
+      )}
+
+      {isMedicationIntakeLogError && (
+        <Card>
+          <p className="text-sm text-red-700">
+            복용 기록을 불러오지 못했습니다.
+          </p>
+        </Card>
+      )}
+
+      {!isMedicationScheduleLoading &&
+        !isMedicationScheduleError &&
+        medicationSchedules.length > 0 && (
+          <Card>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">
+                  서버 복약 일정
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  현재 로그인 사용자 기준으로 조회된 복약 일정입니다.
+                </p>
+              </div>
+
+              <Badge variant="blue">{medicationSchedules.length}건</Badge>
+            </div>
+
+            <div className="space-y-3">
+              {medicationSchedules.slice(0, 5).map((schedule) => (
+                <div
+                  key={schedule.id}
+                  className="rounded-2xl border border-slate-200 p-4"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-bold text-slate-900">
+                      {schedule.customMedicineName ||
+                        `등록 약 #${schedule.medicineId ?? '-'}`}
+                    </p>
+
+                    <Badge variant={schedule.isActive ? 'green' : 'gray'}>
+                      {schedule.isActive ? '복용 중' : '비활성'}
+                    </Badge>
+                  </div>
+
+                  <p className="mt-2 text-sm text-slate-500">
+                    {schedule.startDate || '시작일 없음'} ~{' '}
+                    {schedule.endDate || '종료일 없음'}
+                  </p>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    1회 {schedule.dosageAmount ?? '-'}
+                    {schedule.dosageUnit ?? ''} · 하루{' '}
+                    {schedule.timesPerDay ?? '-'}회 · 총{' '}
+                    {schedule.durationDays ?? '-'}일
+                  </p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
       <Card>
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -417,12 +817,22 @@ function SchedulePage() {
                   </p>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
                     size="sm"
-                    variant="primary"
-                    onClick={() => handleChangeStatus(medication.id, 'TAKEN')}
+                    variant={medication.status === 'TAKEN' ? 'primary' : 'ghost'}
+                    className={
+                      medication.status === 'TAKEN'
+                        ? 'ring-2 ring-blue-200'
+                        : 'border border-slate-200'
+                    }
+                    onClick={() => handleChangeStatus(medication, 'TAKEN')}
+                    disabled={
+                      createIntakeLogMutation.isPending ||
+                      updateIntakeLogMutation.isPending ||
+                      deleteIntakeLogMutation.isPending
+                    }
                   >
                     복용 완료
                   </Button>
@@ -431,8 +841,18 @@ function SchedulePage() {
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="border border-slate-200"
-                    onClick={() => handleChangeStatus(medication.id, 'SKIPPED')}
+                    className={[
+                      'border',
+                      medication.status === 'SKIPPED'
+                        ? 'border-yellow-300 bg-yellow-100 font-bold text-yellow-700 ring-2 ring-yellow-200'
+                        : 'border-slate-200',
+                    ].join(' ')}
+                    onClick={() => handleChangeStatus(medication, 'SKIPPED')}
+                    disabled={
+                      createIntakeLogMutation.isPending ||
+                      updateIntakeLogMutation.isPending ||
+                      deleteIntakeLogMutation.isPending
+                    }
                   >
                     건너뜀
                   </Button>
