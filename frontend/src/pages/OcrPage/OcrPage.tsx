@@ -1,5 +1,18 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { Badge, Button, Card, Input } from "../../components/ui";
+import {
+  useCreateMedicationSchedule,
+  useCreateMedicationScheduleTime,
+} from "../../features/schedule/hooks";
+import type {
+  DosageUnit as ApiDosageUnit,
+  MedicationTiming,
+} from "../../features/schedule/types/schedule.types";
+import { useMedicineSearch } from "../../features/drug/hooks";
+import type { MedicineSearchItem } from "../../features/drug/types/drug.types";
+import { useDebounce } from "../../hooks/useDebounce";
 
 type RegisterMode = "manual" | "ocr";
 type DosageUnit = "정" | "캡슐" | "포" | "ml";
@@ -18,6 +31,7 @@ interface MedicationForm {
 
 interface MedicationPreview {
   id: number;
+  medicineId?: number | null;
   medicineName: string;
   dosageAmount: string;
   dosageUnit: DosageUnit;
@@ -62,11 +76,80 @@ const mockOcrResults: MedicationPreview[] = [
   },
 ];
 
+function getMedicineId(medicine: MedicineSearchItem) {
+  return medicine.itemSeq ?? medicine.item_seq ?? null;
+}
+
+function getMedicineName(medicine: MedicineSearchItem) {
+  return medicine.itemName ?? medicine.item_name ?? "약 이름 정보 없음";
+}
+
+function getCompanyName(medicine: MedicineSearchItem) {
+  return medicine.companyName ?? medicine.company_name ?? "제조사 정보 없음";
+}
+
+function mapDosageUnit(unit: DosageUnit): ApiDosageUnit {
+  if (unit === "정") return "TABLET";
+  if (unit === "캡슐") return "CAPSULE";
+  if (unit === "포") return "PACK";
+  if (unit === "ml") return "ML";
+
+  return "OTHER";
+}
+
+function mapTiming(timing: TimingType): MedicationTiming {
+  if (timing === "식후") return "AFTER_MEAL";
+  if (timing === "식전") return "BEFORE_MEAL";
+  if (timing === "식사 중") return "WITH_MEAL";
+  if (timing === "공복") return "EMPTY_STOMACH";
+  if (timing === "취침 전") return "BEDTIME";
+
+  return "ANYTIME";
+}
+
+function getDefaultTakeTimes(timesPerDay: number) {
+  if (timesPerDay <= 1) return ["08:00:00"];
+  if (timesPerDay === 2) return ["08:00:00", "20:00:00"];
+  if (timesPerDay === 3) return ["08:00:00", "13:00:00", "20:00:00"];
+  if (timesPerDay === 4) {
+    return ["08:00:00", "12:00:00", "18:00:00", "22:00:00"];
+  }
+
+  return Array.from({ length: timesPerDay }, (_, index) => {
+    const hour = String(8 + index * 3).padStart(2, "0");
+    return `${hour}:00:00`;
+  });
+}
+
 function OcrPage() {
+  const navigate = useNavigate();
+
+  const createScheduleMutation = useCreateMedicationSchedule();
+  const createScheduleTimeMutation = useCreateMedicationScheduleTime();
+
+  const isRegistering =
+    createScheduleMutation.isPending || createScheduleTimeMutation.isPending;
   const [activeMode, setActiveMode] = useState<RegisterMode>("manual");
   const [manualForm, setManualForm] =
     useState<MedicationForm>(initialManualForm);
   const [manualItems, setManualItems] = useState<MedicationPreview[]>([]);
+
+  const [selectedManualMedicine, setSelectedManualMedicine] =
+    useState<MedicineSearchItem | null>(null);
+
+  const [isMedicineSearchOpen, setIsMedicineSearchOpen] = useState(false);
+
+  const debouncedMedicineKeyword = useDebounce(manualForm.medicineName, 300);
+
+  const {
+    data: medicineSearchResults = [],
+    isLoading: isMedicineSearchLoading,
+  } = useMedicineSearch(
+    debouncedMedicineKeyword.trim().length >= 2
+      ? debouncedMedicineKeyword.trim()
+      : "",
+  );
+
   const [ocrStep, setOcrStep] = useState<OcrStep>("idle");
   const [selectedFileName, setSelectedFileName] = useState("");
   const [ocrResults, setOcrResults] = useState<MedicationPreview[]>([]);
@@ -89,7 +172,12 @@ function OcrPage() {
 
     const newMedication: MedicationPreview = {
       id: Date.now(),
-      medicineName: manualForm.medicineName.trim(),
+      medicineId: selectedManualMedicine
+        ? getMedicineId(selectedManualMedicine)
+        : null,
+      medicineName: selectedManualMedicine
+        ? getMedicineName(selectedManualMedicine)
+        : manualForm.medicineName.trim(),
       dosageAmount: manualForm.dosageAmount,
       dosageUnit: manualForm.dosageUnit,
       timesPerDay: Number(manualForm.timesPerDay),
@@ -100,6 +188,8 @@ function OcrPage() {
 
     setManualItems((prev) => [newMedication, ...prev]);
     setManualForm(initialManualForm);
+    setSelectedManualMedicine(null);
+    setIsMedicineSearchOpen(false);
   };
 
   const handleRemoveManualMedication = (id: number) => {
@@ -120,13 +210,55 @@ function OcrPage() {
     }, 1200);
   };
 
-  const handleRegisterSchedule = (items: MedicationPreview[]) => {
+  const handleRegisterSchedule = async (items: MedicationPreview[]) => {
     if (items.length === 0) {
-      alert("등록할 복약 정보가 없습니다.");
+      toast.error("등록할 복약 정보가 없습니다.");
       return;
     }
 
-    alert("복약 일정 등록 기능은 추후 API 연동 시 실제 저장 처리합니다.");
+    try {
+      for (const item of items) {
+        const createdSchedule = await createScheduleMutation.mutateAsync({
+          medicineId: item.medicineId ?? null,
+          customMedicineName: item.medicineName,
+          hospitalName: null,
+          pharmacyName: null,
+          dosageAmount: Number(item.dosageAmount),
+          dosageUnit: mapDosageUnit(item.dosageUnit),
+          frequencyType: "DAILY",
+          timesPerDay: item.timesPerDay,
+          intervalHours: null,
+          durationDays: item.durationDays,
+          prescribedDate: item.startDate,
+          dispensedDate: item.startDate,
+        });
+
+        const takeTimes = getDefaultTakeTimes(item.timesPerDay);
+
+        await Promise.all(
+          takeTimes.map((takeTime, index) =>
+            createScheduleTimeMutation.mutateAsync({
+              medicationScheduleId: createdSchedule.id,
+              timing: mapTiming(item.timing),
+              takeTime,
+              sortOrder: index + 1,
+            }),
+          ),
+        );
+      }
+
+      toast.success("복약 일정이 등록되었습니다.");
+
+      setManualItems([]);
+      setOcrResults([]);
+      setOcrStep("idle");
+      setSelectedFileName("");
+
+      navigate("/app/schedule");
+    } catch (error) {
+      console.error("복약 일정 등록 실패:", error);
+      toast.error("복약 일정 등록에 실패했습니다.");
+    }
   };
 
   const renderMedicationCard = (
@@ -153,6 +285,12 @@ function OcrPage() {
                 {item.durationDays}일분
               </Badge>
             </div>
+
+            {item.medicineId && (
+              <p className="mt-1 text-xs text-slate-400">
+                약 DB ID: {item.medicineId}
+              </p>
+            )}
 
             <p className="mt-2 text-sm text-slate-500">
               1회 {item.dosageAmount}
@@ -242,14 +380,76 @@ function OcrPage() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Input
-                  label="약 이름"
-                  placeholder="예: 타이레놀정 500mg"
-                  value={manualForm.medicineName}
-                  onChange={(event) =>
-                    handleChangeManualForm("medicineName", event.target.value)
-                  }
-                />
+                <div className="relative">
+                  <Input
+                    label="약 이름"
+                    placeholder="예: 타이레놀정 500mg"
+                    value={manualForm.medicineName}
+                    onChange={(event) => {
+                      handleChangeManualForm("medicineName", event.target.value);
+                      setSelectedManualMedicine(null);
+                      setIsMedicineSearchOpen(true);
+                    }}
+                    onFocus={() => setIsMedicineSearchOpen(true)}
+                  />
+
+                  {manualForm.medicineName.trim().length > 0 &&
+                    manualForm.medicineName.trim().length < 2 && (
+                      <p className="mt-2 text-xs text-slate-500">
+                        두 글자 이상 입력하면 약 검색이 시작됩니다.
+                      </p>
+                    )}
+
+                  {isMedicineSearchOpen && manualForm.medicineName.trim().length >= 2 && (
+                    <div className="absolute left-0 top-full z-20 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
+                      <div className="mb-2 px-2 text-xs font-semibold text-slate-500">
+                        약 검색 결과
+                      </div>
+
+                      <div className="max-h-64 overflow-y-auto">
+                        {isMedicineSearchLoading && (
+                          <div className="px-3 py-4 text-sm text-slate-500">
+                            약 정보를 검색하고 있습니다.
+                          </div>
+                        )}
+
+                        {!isMedicineSearchLoading &&
+                          medicineSearchResults.map((medicine) => (
+                            <button
+                              key={`${getMedicineId(medicine)}-${getMedicineName(medicine)}`}
+                              type="button"
+                              onClick={() => {
+                                setSelectedManualMedicine(medicine);
+                                handleChangeManualForm("medicineName", getMedicineName(medicine));
+                                setIsMedicineSearchOpen(false);
+                              }}
+                              className="w-full rounded-xl px-3 py-3 text-left hover:bg-slate-50"
+                            >
+                              <p className="font-semibold text-slate-900">
+                                {getMedicineName(medicine)}
+                              </p>
+
+                              <p className="mt-1 text-xs text-slate-500">
+                                {getCompanyName(medicine)}
+                              </p>
+                            </button>
+                          ))}
+
+                        {!isMedicineSearchLoading && medicineSearchResults.length === 0 && (
+                          <div className="px-3 py-4 text-sm text-slate-500">
+                            검색 결과가 없습니다. 직접 입력한 이름으로 등록할 수 있습니다.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedManualMedicine && (
+                    <p className="mt-2 text-sm font-medium text-blue-600">
+                      선택됨: {getMedicineName(selectedManualMedicine)}
+                    </p>
+                  )}
+                </div>
 
                 <Input
                   label="1회 복용량"
@@ -363,16 +563,16 @@ function OcrPage() {
               </div>
 
               <div className="rounded-2xl bg-blue-50 p-4 text-sm leading-6 text-blue-700">
-                수동 입력 정보는 추후 복약 일정 API와 연결됩니다. 현재는 화면
-                흐름 확인용 Mock 데이터입니다.
+                수동 입력 정보는 복약 일정과 복약 시간으로 저장됩니다. 복용 시간은 하루 복용 횟수에 따라 기본 시간으로 자동 생성됩니다.
               </div>
 
               <div className="flex justify-end">
                 <Button
                   type="button"
                   onClick={() => handleRegisterSchedule(manualItems)}
+                  disabled={isRegistering}
                 >
-                  복약 일정 등록
+                  {isRegistering ? "등록 중..." : "복약 일정 등록"}
                 </Button>
               </div>
             </div>
@@ -469,8 +669,9 @@ function OcrPage() {
                     <Button
                       type="button"
                       onClick={() => handleRegisterSchedule(ocrResults)}
+                      disabled={isRegistering}
                     >
-                      분석 결과로 복약 일정 등록
+                      {isRegistering ? "등록 중..." : "분석 결과로 복약 일정 등록"}
                     </Button>
                   </div>
                 </div>

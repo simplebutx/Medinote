@@ -1,3 +1,4 @@
 .env.docker
 mobile-expo/.env.local
 .idea/
+schedule-test.json
