@@ -38,6 +38,21 @@ export interface VerifyEmailCodeResponse {
   verified: boolean;
 }
 
+export interface SendSmsVerificationCodeRequest {
+  phoneNumber: string;
+}
+
+export interface SendSmsVerificationCodeResponse {
+  message?: string;
+}
+
+export interface VerifySmsCodeRequest {
+  phoneNumber: string;
+  code: string;
+}
+
+export type VerifySmsCodeResponse = boolean;
+
 export interface LoginRequest {
   email: string;
   password: string;

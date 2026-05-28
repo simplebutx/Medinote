@@ -1,141 +1,134 @@
 import { useMemo, useState } from "react";
 
 import { Badge, Button, Card, Input } from "../../components/ui";
+import { useMedicineSearch, useMedicineSuggest } from "../../features/drug/hooks";
+import type { MedicineSearchItem } from "../../features/drug/types/drug.types";
+import { useDebounce } from "../../hooks/useDebounce";
 
-type DrugType = "OTC" | "PRESCRIPTION";
-type SafetyLevel = "SAFE" | "CAUTION" | "WARNING";
-
-interface DrugItem {
-  id: number;
-  name: string;
-  manufacturer: string;
-  type: DrugType;
-  ingredients: string[];
-  efficacy: string;
-  dosage: string;
-  caution: string;
-  sideEffects: string;
-  storage: string;
-  aiSummary: string;
-  safetyLevel: SafetyLevel;
-  cautionMessage?: string;
+function getMedicineId(medicine: MedicineSearchItem) {
+  return medicine.itemSeq ?? medicine.item_seq ?? 0;
 }
 
-const mockDrugs: DrugItem[] = [
-  {
-    id: 1,
-    name: "타이레놀정 500mg",
-    manufacturer: "한국얀센",
-    type: "OTC",
-    ingredients: ["아세트아미노펜"],
-    efficacy: "감기로 인한 발열 및 통증, 두통, 근육통, 생리통 완화에 사용됩니다.",
-    dosage: "성인 기준 1회 1~2정씩 필요 시 복용할 수 있습니다.",
-    caution:
-      "술을 자주 마시는 경우 간 손상 위험이 있을 수 있으므로 복용 전 전문가와 상담이 필요합니다.",
-    sideEffects: "드물게 피부 발진, 구역감, 간 기능 이상 등이 보고될 수 있습니다.",
-    storage: "실온에서 보관하고, 어린이의 손이 닿지 않는 곳에 보관합니다.",
-    aiSummary:
-      "타이레놀은 열을 내리거나 통증을 줄일 때 사용하는 약입니다. 다만 술을 자주 마시는 경우에는 간에 부담이 될 수 있어 주의가 필요합니다.",
-    safetyLevel: "SAFE",
-  },
-  {
-    id: 2,
-    name: "아스피린 프로텍트정 100mg",
-    manufacturer: "바이엘코리아",
-    type: "PRESCRIPTION",
-    ingredients: ["아스피린"],
-    efficacy: "혈전 생성을 억제하여 심혈관 질환 예방 목적으로 사용될 수 있습니다.",
-    dosage: "일반적으로 1일 1회 복용하지만, 처방에 따라 달라질 수 있습니다.",
-    caution:
-      "위장장애, 출혈 위험이 있을 수 있으므로 위장 질환이나 출혈 위험이 있는 경우 주의가 필요합니다.",
-    sideEffects: "속쓰림, 위통, 멍, 출혈 경향 등이 나타날 수 있습니다.",
-    storage: "습기를 피하고 실온에서 보관합니다.",
-    aiSummary:
-      "아스피린은 혈액이 뭉치는 것을 줄이는 데 쓰일 수 있는 약입니다. 위장 불편감이나 출혈 위험이 있는 사람은 특히 주의해야 합니다.",
-    safetyLevel: "WARNING",
-    cautionMessage: "내 주의 성분에 등록된 아스피린과 일치합니다.",
-  },
-  {
-    id: 3,
-    name: "부루펜정 200mg",
-    manufacturer: "삼일제약",
-    type: "OTC",
-    ingredients: ["이부프로펜", "NSAIDs"],
-    efficacy: "해열, 진통, 소염 작용을 통해 통증과 염증을 완화합니다.",
-    dosage: "증상에 따라 복용하며, 공복 복용은 위장장애를 유발할 수 있습니다.",
-    caution:
-      "위궤양, 신장 질환, NSAIDs 과민 이력이 있는 경우 주의가 필요합니다.",
-    sideEffects: "속쓰림, 위통, 소화불량, 어지러움 등이 나타날 수 있습니다.",
-    storage: "직사광선을 피하고 실온 보관합니다.",
-    aiSummary:
-      "부루펜은 열과 통증, 염증을 줄이는 약입니다. 위장에 부담이 될 수 있어 식후 복용이 더 안전할 수 있습니다.",
-    safetyLevel: "CAUTION",
-    cautionMessage: "내 주의 성분에 등록된 NSAIDs 계열과 관련이 있습니다.",
-  },
-  {
-    id: 4,
-    name: "활명수",
-    manufacturer: "동화약품",
-    type: "OTC",
-    ingredients: ["현호색", "진피", "건강"],
-    efficacy: "소화불량, 과식, 체함 증상 완화에 사용됩니다.",
-    dosage: "제품 설명서 또는 약사의 안내에 따라 복용합니다.",
-    caution:
-      "증상이 오래 지속되거나 심한 복통이 있는 경우에는 전문가 상담이 필요합니다.",
-    sideEffects: "개인에 따라 속불편감이나 알레르기 반응이 나타날 수 있습니다.",
-    storage: "직사광선을 피하고 실온에서 보관합니다.",
-    aiSummary:
-      "활명수는 체했거나 소화가 잘 안 될 때 사용하는 소화제입니다. 복통이 심하거나 증상이 계속되면 약사 상담이 필요합니다.",
-    safetyLevel: "SAFE",
-  },
-];
-
-function getDrugTypeLabel(type: DrugType) {
-  return type === "OTC" ? "일반의약품" : "전문의약품";
+function getMedicineName(medicine: MedicineSearchItem) {
+  return medicine.itemName ?? medicine.item_name ?? "약 이름 정보 없음";
 }
 
-function getDrugTypeBadge(type: DrugType) {
-  return type === "OTC" ? "green" : "blue";
+function getCompanyName(medicine: MedicineSearchItem) {
+  return medicine.companyName ?? medicine.company_name ?? "제조사 정보 없음";
 }
 
-function getSafetyBadge(level: SafetyLevel) {
-  if (level === "WARNING") return "red";
-  if (level === "CAUTION") return "yellow";
-  return "green";
+function getUseMethod(medicine: MedicineSearchItem) {
+  return medicine.useMethod ?? medicine.use_method ?? "복용법 정보가 없습니다.";
 }
 
-function getSafetyLabel(level: SafetyLevel) {
-  if (level === "WARNING") return "주의 필요";
-  if (level === "CAUTION") return "확인 필요";
-  return "일반";
+function getWarningBeforeUse(medicine: MedicineSearchItem) {
+  return (
+    medicine.warningBeforeUse ??
+    medicine.warning_before_use ??
+    "사용 전 경고사항 정보가 없습니다."
+  );
+}
+
+function getSideEffect(medicine: MedicineSearchItem) {
+  return medicine.sideEffect ?? medicine.side_effect ?? "부작용 정보가 없습니다.";
+}
+
+function getStorageMethod(medicine: MedicineSearchItem) {
+  return (
+    medicine.storageMethod ??
+    medicine.storage_method ??
+    "보관법 정보가 없습니다."
+  );
+}
+
+function getImageUrl(medicine: MedicineSearchItem) {
+  return medicine.imageUrl ?? medicine.image_url ?? "";
+}
+
+function getUpdateDate(medicine: MedicineSearchItem) {
+  return medicine.updateDe ?? medicine.update_de ?? "";
+}
+
+function getSafetyInfo(medicine: MedicineSearchItem) {
+  const text = [
+    getMedicineName(medicine),
+    medicine.efficacy,
+    medicine.caution,
+    medicine.interaction,
+    getSideEffect(medicine),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (
+    text.includes("아스피린") ||
+    text.includes("aspirin") ||
+    text.includes("nsaids") ||
+    text.includes("이부프로펜")
+  ) {
+    return {
+      badge: "red" as const,
+      label: "주의 필요",
+      message: "내 주의 성분 또는 위장 부작용 이력과 관련될 수 있습니다.",
+    };
+  }
+
+  return {
+    badge: "green" as const,
+    label: "일반",
+    message: "",
+  };
+}
+
+function getEasySummary(medicine: MedicineSearchItem) {
+  const name = getMedicineName(medicine);
+
+  if (medicine.efficacy) {
+    return `${name}은(는) ${medicine.efficacy} 정확한 복용법과 주의사항은 아래 상세 정보를 확인해주세요.`;
+  }
+
+  return `${name}의 상세 정보를 확인하고, 복용 중인 약이나 주의 성분이 있다면 약사 상담을 함께 이용해주세요.`;
 }
 
 function DrugSearchPage() {
   const [keyword, setKeyword] = useState("");
-  const [selectedDrugId, setSelectedDrugId] = useState<number | null>(1);
+  const [selectedMedicineId, setSelectedMedicineId] = useState<number | null>(
+    null
+  );
 
-  const filteredDrugs = useMemo(() => {
-    const trimmedKeyword = keyword.trim().toLowerCase();
+  const debouncedKeyword = useDebounce(keyword, 300);
+  const searchKeyword = debouncedKeyword.trim();
 
-    if (!trimmedKeyword) {
-      return mockDrugs;
+  const isSearchEnabled = searchKeyword.length >= 2;
+
+  const {
+    data: medicineResults = [],
+    isLoading: isMedicineSearchLoading,
+    isError: isMedicineSearchError,
+  } = useMedicineSearch(isSearchEnabled ? searchKeyword : "");
+
+  const { data: suggestions = [] } = useMedicineSuggest(
+    isSearchEnabled ? searchKeyword : ""
+  );
+
+  const selectedMedicine = useMemo(() => {
+    if (medicineResults.length === 0) {
+      return null;
     }
 
-    return mockDrugs.filter((drug) => {
-      const searchableText = [
-        drug.name,
-        drug.manufacturer,
-        ...drug.ingredients,
-        drug.efficacy,
-      ]
-        .join(" ")
-        .toLowerCase();
+    if (selectedMedicineId === null) {
+      return medicineResults[0];
+    }
 
-      return searchableText.includes(trimmedKeyword);
-    });
-  }, [keyword]);
+    return (
+      medicineResults.find(
+        (medicine) => getMedicineId(medicine) === selectedMedicineId
+      ) ?? medicineResults[0]
+    );
+  }, [medicineResults, selectedMedicineId]);
 
-  const selectedDrug = filteredDrugs.find((drug) => drug.id === selectedDrugId);
+  const popularKeywords = ["타이레놀", "아스피린", "이부프로펜", "활명수"];
 
   const handleAddSchedule = (drugName: string) => {
     alert(`${drugName} 복약 일정 추가 기능은 추후 API 연동 시 저장 처리합니다.`);
@@ -160,46 +153,106 @@ function DrugSearchPage() {
       <Card>
         <Input
           label="약 검색"
-          placeholder="예: 타이레놀, 아스피린, NSAIDs"
+          placeholder="예: 타이레놀, 아스피린, 이부프로펜"
           value={keyword}
-          onChange={(event) => setKeyword(event.target.value)}
+          onChange={(event) => {
+            setKeyword(event.target.value);
+            setSelectedMedicineId(null);
+          }}
         />
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {["타이레놀", "아스피린", "NSAIDs", "활명수"].map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => setKeyword(item)}
-              className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700"
-            >
-              #{item}
-            </button>
-          ))}
-        </div>
+        {suggestions.length > 0 ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {suggestions.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => {
+                  setKeyword(suggestion);
+                  setSelectedMedicineId(null);
+                }}
+                className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {popularKeywords.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => {
+                  setKeyword(item);
+                  setSelectedMedicineId(null);
+                }}
+                className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700"
+              >
+                #{item}
+              </button>
+            ))}
+          </div>
+        )}
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
         <Card>
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-slate-900">검색 결과</h2>
-            <Badge variant="blue">{filteredDrugs.length}건</Badge>
+            <Badge variant="blue">{medicineResults.length}건</Badge>
           </div>
 
           <div className="mt-4 space-y-3">
-            {filteredDrugs.length === 0 ? (
+            {keyword.trim().length === 0 && (
               <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                검색 결과가 없습니다.
+                약 이름이나 성분명을 입력해주세요.
               </div>
-            ) : (
-              filteredDrugs.map((drug) => {
-                const isSelected = selectedDrugId === drug.id;
+            )}
+
+            {keyword.trim().length > 0 && keyword.trim().length < 2 && (
+              <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                두 글자 이상 입력하면 검색이 시작됩니다.
+              </div>
+            )}
+
+            {isSearchEnabled && isMedicineSearchLoading && (
+              <div className="rounded-2xl bg-blue-50 p-6 text-center text-sm text-blue-700">
+                약 정보를 검색하고 있습니다.
+              </div>
+            )}
+
+            {isSearchEnabled && isMedicineSearchError && (
+              <div className="rounded-2xl bg-red-50 p-6 text-center text-sm text-red-700">
+                약 검색 결과를 불러오지 못했습니다.
+              </div>
+            )}
+
+            {isSearchEnabled &&
+              !isMedicineSearchLoading &&
+              !isMedicineSearchError &&
+              medicineResults.length === 0 && (
+                <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                  검색 결과가 없습니다.
+                </div>
+              )}
+
+            {isSearchEnabled &&
+              !isMedicineSearchLoading &&
+              !isMedicineSearchError &&
+              medicineResults.map((medicine, index) => {
+                const medicineId = getMedicineId(medicine) || index + 1;
+                const medicineName = getMedicineName(medicine);
+                const safetyInfo = getSafetyInfo(medicine);
+                const isSelected =
+                  selectedMedicine &&
+                  getMedicineId(selectedMedicine) === getMedicineId(medicine);
 
                 return (
                   <button
-                    key={drug.id}
+                    key={`${medicineId}-${medicineName}`}
                     type="button"
-                    onClick={() => setSelectedDrugId(drug.id)}
+                    onClick={() => setSelectedMedicineId(getMedicineId(medicine))}
                     className={[
                       "w-full rounded-2xl border p-4 text-left transition",
                       isSelected
@@ -208,62 +261,69 @@ function DrugSearchPage() {
                     ].join(" ")}
                   >
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-bold text-slate-900">{drug.name}</p>
+                      <p className="font-bold text-slate-900">
+                        {medicineName}
+                      </p>
 
-                      <Badge variant={getDrugTypeBadge(drug.type)}>
-                        {getDrugTypeLabel(drug.type)}
+                      <Badge variant={safetyInfo.badge}>
+                        {safetyInfo.label}
                       </Badge>
                     </div>
 
                     <p className="mt-2 text-sm text-slate-500">
-                      {drug.manufacturer}
+                      {getCompanyName(medicine)}
                     </p>
 
-                    <p className="mt-2 text-sm text-slate-600">
-                      성분: {drug.ingredients.join(", ")}
-                    </p>
+                    {medicine.efficacy && (
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        {medicine.efficacy}
+                      </p>
+                    )}
 
-                    {drug.cautionMessage && (
+                    {safetyInfo.message && (
                       <div className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
-                        {drug.cautionMessage}
+                        {safetyInfo.message}
                       </div>
                     )}
                   </button>
                 );
-              })
-            )}
+              })}
           </div>
         </Card>
 
         <Card>
-          {selectedDrug ? (
+          {selectedMedicine ? (
             <div className="space-y-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-2xl font-bold text-slate-900">
-                      {selectedDrug.name}
+                      {getMedicineName(selectedMedicine)}
                     </h2>
 
-                    <Badge variant={getDrugTypeBadge(selectedDrug.type)}>
-                      {getDrugTypeLabel(selectedDrug.type)}
-                    </Badge>
-
-                    <Badge variant={getSafetyBadge(selectedDrug.safetyLevel)}>
-                      {getSafetyLabel(selectedDrug.safetyLevel)}
+                    <Badge variant={getSafetyInfo(selectedMedicine).badge}>
+                      {getSafetyInfo(selectedMedicine).label}
                     </Badge>
                   </div>
 
                   <p className="mt-2 text-sm text-slate-500">
-                    {selectedDrug.manufacturer}
+                    {getCompanyName(selectedMedicine)}
                   </p>
+
+                  {getUpdateDate(selectedMedicine) && (
+                    <p className="mt-1 text-xs text-slate-400">
+                      공공데이터 수정일: {getUpdateDate(selectedMedicine)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
                     size="sm"
-                    onClick={() => handleAddSchedule(selectedDrug.name)}
+                    onClick={() =>
+                      handleAddSchedule(getMedicineName(selectedMedicine))
+                    }
                   >
                     일정 추가
                   </Button>
@@ -273,16 +333,18 @@ function DrugSearchPage() {
                     size="sm"
                     variant="ghost"
                     className="border border-slate-200"
-                    onClick={() => handleAskPharmacist(selectedDrug.name)}
+                    onClick={() =>
+                      handleAskPharmacist(getMedicineName(selectedMedicine))
+                    }
                   >
                     약사 문의
                   </Button>
                 </div>
               </div>
 
-              {selectedDrug.cautionMessage && (
+              {getSafetyInfo(selectedMedicine).message && (
                 <div className="rounded-2xl bg-red-50 p-4 text-sm font-medium leading-6 text-red-700">
-                  {selectedDrug.cautionMessage}
+                  {getSafetyInfo(selectedMedicine).message}
                 </div>
               )}
 
@@ -292,22 +354,39 @@ function DrugSearchPage() {
                 </p>
 
                 <p className="mt-2 text-sm leading-6 text-blue-700">
-                  {selectedDrug.aiSummary}
+                  {getEasySummary(selectedMedicine)}
+                </p>
+
+                <p className="mt-2 text-xs text-blue-500">
+                  현재는 약 검색 API 응답 기반 요약이며, 추후 쉬운 설명 API와
+                  연결할 수 있습니다.
                 </p>
               </div>
 
+              {getImageUrl(selectedMedicine) && (
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-sm font-bold text-slate-700">약 이미지</p>
+
+                  <img
+                    src={getImageUrl(selectedMedicine)}
+                    alt={getMedicineName(selectedMedicine)}
+                    className="mt-3 max-h-48 rounded-xl object-contain"
+                  />
+                </div>
+              )}
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-sm font-bold text-slate-700">성분</p>
+                  <p className="text-sm font-bold text-slate-700">제조사</p>
                   <p className="mt-2 text-sm text-slate-600">
-                    {selectedDrug.ingredients.join(", ")}
+                    {getCompanyName(selectedMedicine)}
                   </p>
                 </div>
 
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-sm font-bold text-slate-700">보관법</p>
                   <p className="mt-2 text-sm text-slate-600">
-                    {selectedDrug.storage}
+                    {getStorageMethod(selectedMedicine)}
                   </p>
                 </div>
               </div>
@@ -318,7 +397,7 @@ function DrugSearchPage() {
                     효능
                   </summary>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
-                    {selectedDrug.efficacy}
+                    {selectedMedicine.efficacy || "효능 정보가 없습니다."}
                   </p>
                 </details>
 
@@ -327,7 +406,16 @@ function DrugSearchPage() {
                     복용법
                   </summary>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
-                    {selectedDrug.dosage}
+                    {getUseMethod(selectedMedicine)}
+                  </p>
+                </details>
+
+                <details className="rounded-2xl border border-slate-200 p-4">
+                  <summary className="cursor-pointer font-bold text-slate-900">
+                    사용 전 경고
+                  </summary>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {getWarningBeforeUse(selectedMedicine)}
                   </p>
                 </details>
 
@@ -336,7 +424,16 @@ function DrugSearchPage() {
                     주의사항
                   </summary>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
-                    {selectedDrug.caution}
+                    {selectedMedicine.caution || "주의사항 정보가 없습니다."}
+                  </p>
+                </details>
+
+                <details className="rounded-2xl border border-slate-200 p-4">
+                  <summary className="cursor-pointer font-bold text-slate-900">
+                    상호작용
+                  </summary>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {selectedMedicine.interaction || "상호작용 정보가 없습니다."}
                   </p>
                 </details>
 
@@ -345,7 +442,7 @@ function DrugSearchPage() {
                     부작용
                   </summary>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
-                    {selectedDrug.sideEffects}
+                    {getSideEffect(selectedMedicine)}
                   </p>
                 </details>
               </div>
