@@ -1016,6 +1016,24 @@
   border-color: #c97730;
 }
 
+.schedule-file-input {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #473528;
+}
+
+.schedule-file-input input[type="file"] {
+  width: 100%;
+  padding: 14px;
+  border: 1px dashed #c9a47a;
+  border-radius: 16px;
+  background: #fffaf5;
+  box-sizing: border-box;
+}
+
 .schedule-col-span-2 {
   grid-column: span 2;
 }
@@ -1151,6 +1169,79 @@
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.schedule-ocr-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.25fr);
+  gap: 20px;
+}
+
+.schedule-ocr-upload-panel,
+.schedule-ocr-result-panel {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.schedule-ocr-upload-panel button {
+  width: fit-content;
+  min-height: 46px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #c97730;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.schedule-ocr-upload-panel button:disabled,
+.schedule-actions button:disabled,
+.schedule-add-medicine-button:disabled,
+.schedule-remove-medicine-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.schedule-ocr-hints {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #fff5e9;
+  border: 1px solid rgba(201, 119, 48, 0.2);
+  color: #6d4a28;
+}
+
+.schedule-ocr-hints strong {
+  font-size: 14px;
+}
+
+.schedule-ocr-preview-image,
+.schedule-ocr-preview-empty {
+  width: 100%;
+  min-height: 260px;
+  border-radius: 20px;
+  border: 1px solid rgba(186, 149, 111, 0.28);
+  background: #fffaf5;
+}
+
+.schedule-ocr-preview-image {
+  object-fit: cover;
+}
+
+.schedule-ocr-preview-empty {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #87674b;
+  text-align: center;
+}
+
+.schedule-ocr-result-card {
+  display: grid;
+  gap: 8px;
 }
 
 .schedule-summary-list {
@@ -1610,6 +1701,7 @@
     grid-template-columns: 1fr;
   }
 
+  .schedule-ocr-grid,
   .schedule-slot-list,
   .schedule-summary-list,
   .schedule-meta-strip {

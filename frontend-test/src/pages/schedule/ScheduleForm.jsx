@@ -16,6 +16,7 @@ function ScheduleForm({
   onAddMedicine,
   onRemoveMedicine,
   onSubmit,
+  topContent,
 }) {
   return (
     <div className="schedule-page">
@@ -43,6 +44,8 @@ function ScheduleForm({
       <ScheduleTabs />
 
       {message && <div className="schedule-banner">{message}</div>}
+
+      {topContent}
 
       <section className="schedule-card schedule-card-wide">
         <div className="schedule-card-header">

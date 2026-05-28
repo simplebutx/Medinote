@@ -10,6 +10,7 @@ import ScheduleCalendarPage from './pages/schedule/ScheduleCalendarPage'
 import ScheduleCreatePage from './pages/schedule/ScheduleCreatePage'
 import ScheduleEditPage from './pages/schedule/ScheduleEditPage'
 import ScheduleListPage from './pages/schedule/ScheduleListPage'
+import ScheduleOcrPage from './pages/schedule/ScheduleOcrPage'
 import Signup from './pages/Signup'
 import Sync from './pages/Sync'
 import YunjuTest from './pages/YunjuTest'
@@ -67,6 +68,7 @@ function App() {
         <Route path="/medicine-search" element={<MedicineSearch />} />
         <Route path="/schedule-test" element={<ScheduleListPage />} />
         <Route path="/schedule-test/calendar" element={<ScheduleCalendarPage />} />
+        <Route path="/schedule-test/ocr" element={<ScheduleOcrPage />} />
         <Route path="/schedule-test/new" element={<ScheduleCreatePage />} />
         <Route path="/schedule-test/:id/edit" element={<ScheduleEditPage />} />
         <Route path="/signup" element={<Signup />} />

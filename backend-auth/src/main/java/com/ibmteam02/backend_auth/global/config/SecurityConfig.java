@@ -63,7 +63,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/logout").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/auth/me").authenticated()
-                        .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/user/profile", "/api/auth/sms/**").permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/auth/signup",
+                                "/api/auth/login",
+                                "/api/auth/user/profile",
+                                "/api/auth/token/refresh",
+                                "/api/auth/pharmacists/verification"
+                        ).permitAll()
+                        .requestMatchers("/api/auth/email/**", "/api/auth/sms/**").permitAll()
                         .requestMatchers(
                                 "/swagger-ui.html",
                                 "/swagger-ui/**","/swagger-resources/**",

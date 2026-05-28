@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 
 const TAB_ITEMS = [
+  { to: '/schedule-test/ocr', label: 'OCR 업로드' },
   { to: '/schedule-test/new', label: '스케줄 등록' },
   { to: '/schedule-test', label: '내 스케줄 목록' },
   { to: '/schedule-test/calendar', label: '내 달력' },

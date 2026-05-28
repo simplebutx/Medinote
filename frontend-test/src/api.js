@@ -167,6 +167,16 @@ export const createMedicationIntakeLog = async (payload) => {
   return response.data
 }
 
+export const createPrescriptionUploadUrl = async (payload) => {
+  const response = await api.post('/prescriptions/upload-url', payload)
+  return response.data
+}
+
+export const runPrescriptionOcr = async (ocrResultId) => {
+  const response = await api.post(`/prescriptions/${ocrResultId}/ocr`)
+  return response.data
+}
+
 export const getMedicationIntakeLogs = async (medicationScheduleId) => {
   const response = await api.get('/medication-intake-logs', {
     params: { medicationScheduleId },

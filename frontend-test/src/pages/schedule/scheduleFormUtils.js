@@ -1,8 +1,31 @@
 import { MAX_TIMES_PER_DAY } from './constants'
 
+const DEFAULT_TIME_SEQUENCE = [
+  '08:00',
+  '10:00',
+  '12:00',
+  '13:00',
+  '15:00',
+  '18:00',
+  '20:00',
+  '21:00',
+  '22:00',
+  '23:00',
+  '07:00',
+  '09:00',
+]
+
+const DOSAGE_UNIT_MATCHERS = [
+  { pattern: /(ml|mL)/i, unit: 'ML' },
+  { pattern: /mg/i, unit: 'MG' },
+  { pattern: /(정|tablet|tab)/i, unit: 'TABLET' },
+  { pattern: /(포|packet|pack)/i, unit: 'PACKET' },
+  { pattern: /(스푼|숟갈|tsp|spoon)/i, unit: 'SPOON' },
+]
+
 export function createTimeSlot(index) {
   return {
-    takeTime: '',
+    takeTime: DEFAULT_TIME_SEQUENCE[index] || '',
     timing: 'AFTER_MEAL',
     sortOrder: index + 1,
   }
@@ -22,11 +45,7 @@ export function createMedicineForm() {
     dosageUnit: 'TABLET',
     timesPerDay: '3',
     durationDays: '7',
-    timeSlots: [
-      { takeTime: '08:00', timing: 'AFTER_MEAL', sortOrder: 1 },
-      { takeTime: '13:00', timing: 'AFTER_MEAL', sortOrder: 2 },
-      { takeTime: '20:00', timing: 'AFTER_MEAL', sortOrder: 3 },
-    ],
+    timeSlots: syncTimeSlots([], 3),
   }
 }
 
@@ -38,6 +57,15 @@ export function createDefaultScheduleForm() {
     dispensedDate: '',
     medicines: [createMedicineForm()],
   }
+}
+
+export function buildPrescriptionFileName() {
+  const now = new Date()
+  const pad = (value) => String(value).padStart(2, '0')
+
+  return `prescription-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(
+    now.getHours(),
+  )}${pad(now.getMinutes())}${pad(now.getSeconds())}.jpg`
 }
 
 export function normalizeTimesPerDay(value) {
@@ -58,6 +86,106 @@ export function normalizeDurationDays(value) {
   }
 
   return parsed
+}
+
+function normalizeDateString(value) {
+  const raw = String(value || '').trim()
+
+  if (!raw) {
+    return ''
+  }
+
+  const digits = raw.replace(/[^\d]/g, '')
+  if (digits.length === 8) {
+    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`
+  }
+
+  const date = new Date(raw)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  const pad = (part) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function extractFirstNumber(text, fallback) {
+  const match = String(text || '').match(/(\d+(?:\.\d+)?)/)
+  return match ? match[1] : fallback
+}
+
+function inferDosageUnit(text) {
+  const raw = String(text || '')
+  const matched = DOSAGE_UNIT_MATCHERS.find((candidate) => candidate.pattern.test(raw))
+  return matched?.unit || 'TABLET'
+}
+
+function inferTimesPerDay(text) {
+  return String(normalizeTimesPerDay(extractFirstNumber(text, '3')))
+}
+
+function inferDurationDays(text) {
+  return String(normalizeDurationDays(extractFirstNumber(text, '7')))
+}
+
+function mapOcrMedicineToForm(medicine) {
+  const timesPerDay = inferTimesPerDay(medicine.frequency)
+
+  return {
+    customMedicineName: medicine.name || '',
+    dosageAmount: extractFirstNumber(medicine.dosage, '1'),
+    dosageUnit: inferDosageUnit(medicine.dosage),
+    timesPerDay,
+    durationDays: inferDurationDays(medicine.days),
+    timeSlots: syncTimeSlots([], Number(timesPerDay)),
+  }
+}
+
+export function buildOcrScheduleDraft(resultJson) {
+  if (!resultJson) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(resultJson)
+    const medicines = Array.isArray(parsed.medicines)
+      ? parsed.medicines
+          .map((medicine) => ({
+            name: String(medicine?.name || '').trim(),
+            dosage: String(medicine?.dosage || '').trim(),
+            frequency: String(medicine?.frequency || '').trim(),
+            days: String(medicine?.days || '').trim(),
+          }))
+          .filter((medicine) => medicine.name)
+      : []
+
+    if (!medicines.length) {
+      return null
+    }
+
+    return {
+      hospitalName: String(parsed.hospitalName || '').trim(),
+      pharmacyName: String(parsed.pharmacyName || '').trim(),
+      prescribedDate: normalizeDateString(parsed.prescribedDate),
+      dispensedDate: normalizeDateString(parsed.dispensedDate),
+      medicines,
+    }
+  } catch {
+    return null
+  }
+}
+
+export function applyOcrDraftToForm(previousForm, draft) {
+  const medicines = (draft?.medicines || []).map(mapOcrMedicineToForm)
+
+  return {
+    ...previousForm,
+    hospitalName: draft?.hospitalName || '',
+    pharmacyName: draft?.pharmacyName || '',
+    prescribedDate: draft?.prescribedDate || '',
+    dispensedDate: draft?.dispensedDate || '',
+    medicines: medicines.length ? medicines : [createMedicineForm()],
+  }
 }
 
 export function buildSchedulePayload(form) {
@@ -111,10 +239,7 @@ export function buildTimePayload(slot, scheduleMedicineId, index) {
 export function mapScheduleToForm(schedule, times) {
   const groupedTimes = groupTimesByMedicineId(times)
   const medicines = (schedule.medicines || []).map((medicine) => {
-    const timeSlots = mapTimesToSlots(
-      groupedTimes[medicine.id] || [],
-      medicine.timesPerDay || 1,
-    )
+    const timeSlots = mapTimesToSlots(groupedTimes[medicine.id] || [], medicine.timesPerDay || 1)
 
     return {
       id: medicine.id,
@@ -166,6 +291,6 @@ export function formatScheduleCardLabel(schedule) {
   const medicineCount = schedule.medicines?.length || 0
   const medicineName = schedule.customMedicineName || `Medicine #${schedule.medicineId || '-'}`
   const amount = schedule.dosageAmount ? `${schedule.dosageAmount}${schedule.dosageUnit || ''}` : '-'
-  const countLabel = medicineCount > 1 ? ` 외 ${medicineCount - 1}개` : ''
-  return `${medicineName}${countLabel} 쨌 ${schedule.timesPerDay || 0} times/day 쨌 ${amount}`
+  const countLabel = medicineCount > 1 ? ` +${medicineCount - 1}` : ''
+  return `${medicineName}${countLabel} - ${schedule.timesPerDay || 0} times/day - ${amount}`
 }
