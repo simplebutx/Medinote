@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { Badge, Button, Card, Input } from "../../components/ui";
 import { useMedicineSearch, useMedicineSuggest } from "../../features/drug/hooks";
 import type { MedicineSearchItem } from "../../features/drug/types/drug.types";
 import { useDebounce } from "../../hooks/useDebounce";
+
 
 function getMedicineId(medicine: MedicineSearchItem) {
   return medicine.itemSeq ?? medicine.item_seq ?? 0;
@@ -31,14 +33,6 @@ function getWarningBeforeUse(medicine: MedicineSearchItem) {
 
 function getSideEffect(medicine: MedicineSearchItem) {
   return medicine.sideEffect ?? medicine.side_effect ?? "부작용 정보가 없습니다.";
-}
-
-function getStorageMethod(medicine: MedicineSearchItem) {
-  return (
-    medicine.storageMethod ??
-    medicine.storage_method ??
-    "보관법 정보가 없습니다."
-  );
 }
 
 function getImageUrl(medicine: MedicineSearchItem) {
@@ -92,7 +86,20 @@ function getEasySummary(medicine: MedicineSearchItem) {
 }
 
 function DrugSearchPage() {
-  const [keyword, setKeyword] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const keyword = searchParams.get("keyword") ?? "";
+
+  const handleChangeKeyword = (value: string) => {
+    const nextKeyword = value.trimStart();
+
+    if (nextKeyword) {
+      setSearchParams({ keyword: nextKeyword }, { replace: true });
+      return;
+    }
+
+    setSearchParams({}, { replace: true });
+  };
+  
   const [selectedMedicineId, setSelectedMedicineId] = useState<number | null>(
     null
   );
@@ -156,7 +163,7 @@ function DrugSearchPage() {
           placeholder="예: 타이레놀, 아스피린, 이부프로펜"
           value={keyword}
           onChange={(event) => {
-            setKeyword(event.target.value);
+            handleChangeKeyword(event.target.value);
             setSelectedMedicineId(null);
           }}
         />
@@ -168,7 +175,7 @@ function DrugSearchPage() {
                 key={suggestion}
                 type="button"
                 onClick={() => {
-                  setKeyword(suggestion);
+                  handleChangeKeyword(suggestion);
                   setSelectedMedicineId(null);
                 }}
                 className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700 hover:bg-blue-100"
@@ -184,7 +191,7 @@ function DrugSearchPage() {
                 key={item}
                 type="button"
                 onClick={() => {
-                  setKeyword(item);
+                  handleChangeKeyword(item);
                   setSelectedMedicineId(null);
                 }}
                 className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700"
@@ -349,17 +356,8 @@ function DrugSearchPage() {
               )}
 
               <div className="rounded-2xl bg-blue-50 p-4">
-                <p className="text-sm font-bold text-blue-700">
-                  AI 쉬운 설명
-                </p>
-
-                <p className="mt-2 text-sm leading-6 text-blue-700">
+                <p className="text-sm leading-6 text-blue-700">
                   {getEasySummary(selectedMedicine)}
-                </p>
-
-                <p className="mt-2 text-xs text-blue-500">
-                  현재는 약 검색 API 응답 기반 요약이며, 추후 쉬운 설명 API와
-                  연결할 수 있습니다.
                 </p>
               </div>
 
@@ -374,22 +372,6 @@ function DrugSearchPage() {
                   />
                 </div>
               )}
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-sm font-bold text-slate-700">제조사</p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    {getCompanyName(selectedMedicine)}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-sm font-bold text-slate-700">보관법</p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    {getStorageMethod(selectedMedicine)}
-                  </p>
-                </div>
-              </div>
 
               <div className="space-y-3">
                 <details className="rounded-2xl border border-slate-200 p-4">
