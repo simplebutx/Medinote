@@ -1056,6 +1056,33 @@
   margin-top: 28px;
 }
 
+.schedule-medicine-toolbar {
+  display: flex;
+  justify-content: flex-start;
+  margin: 0 0 18px;
+}
+
+.schedule-add-medicine-button,
+.schedule-remove-medicine-button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.schedule-add-medicine-button {
+  background: #c97730;
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(102, 57, 16, 0.18);
+}
+
+.schedule-remove-medicine-button {
+  background: #ead9c5;
+  color: #5b4026;
+}
+
 .schedule-meta-strip {
   margin-top: 18px;
   padding: 16px;

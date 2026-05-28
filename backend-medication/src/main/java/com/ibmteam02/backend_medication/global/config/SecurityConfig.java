@@ -53,6 +53,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/medicines/**", "/api/ai/health", "/api/internal/**").permitAll()
                         .requestMatchers(
                                 "/api/me/cautions/**",
+                                "/api/prescriptions/**",
                                 "/api/medication-schedules/**",
                                 "/api/medication-schedule-times/**",
                                 "/api/medication-intake-logs/**"

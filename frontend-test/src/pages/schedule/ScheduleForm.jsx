@@ -7,12 +7,14 @@ function ScheduleForm({
   description,
   submitLabel,
   form,
-  timeSlots,
   calculatedWindow,
   message,
   loading,
-  onFormChange,
-  onTimeSlotChange,
+  onSharedFieldChange,
+  onMedicineFieldChange,
+  onMedicineTimeSlotChange,
+  onAddMedicine,
+  onRemoveMedicine,
   onSubmit,
 }) {
   return (
@@ -49,22 +51,12 @@ function ScheduleForm({
         </div>
 
         <div className="schedule-form-grid">
-          <label className="schedule-col-span-2">
-            Medicine name
-            <input
-              name="customMedicineName"
-              value={form.customMedicineName}
-              onChange={onFormChange}
-              placeholder="Tylenol, digestive aid, vitamin C..."
-            />
-          </label>
-
           <label>
             Prescribing hospital
             <input
               name="hospitalName"
               value={form.hospitalName}
-              onChange={onFormChange}
+              onChange={onSharedFieldChange}
               placeholder="Seoul Internal Medicine"
             />
           </label>
@@ -74,65 +66,19 @@ function ScheduleForm({
             <input
               name="pharmacyName"
               value={form.pharmacyName}
-              onChange={onFormChange}
+              onChange={onSharedFieldChange}
               placeholder="Green Pharmacy"
             />
           </label>
 
           <label>
-            Dosage amount
-            <input
-              name="dosageAmount"
-              type="number"
-              min="0"
-              step="0.5"
-              value={form.dosageAmount}
-              onChange={onFormChange}
-            />
-          </label>
-
-          <label>
-            Unit
-            <select name="dosageUnit" value={form.dosageUnit} onChange={onFormChange}>
-              {DOSAGE_UNIT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Times per day
-            <input
-              name="timesPerDay"
-              type="number"
-              min="1"
-              max={MAX_TIMES_PER_DAY}
-              value={form.timesPerDay}
-              onChange={onFormChange}
-            />
-          </label>
-
-          <label>
-            Total days
-            <input
-              name="durationDays"
-              type="number"
-              min="1"
-              value={form.durationDays}
-              onChange={onFormChange}
-            />
-          </label>
-
-          <label>
             Prescribed date
-            <input type="date" name="prescribedDate" value={form.prescribedDate} onChange={onFormChange} />
+            <input type="date" name="prescribedDate" value={form.prescribedDate} onChange={onSharedFieldChange} />
           </label>
 
           <label>
             Dispensed date
-            <input type="date" name="dispensedDate" value={form.dispensedDate} onChange={onFormChange} />
+            <input type="date" name="dispensedDate" value={form.dispensedDate} onChange={onSharedFieldChange} />
           </label>
         </div>
 
@@ -149,35 +95,137 @@ function ScheduleForm({
 
         <div className="schedule-time-block">
           <div className="schedule-card-header">
-            <h2>Dose times</h2>
-            <p>The server uses the current registration time and the slots below to decide the first active dose.</p>
+            <h2>Medicines</h2>
+            <p>Add as many medicines as needed. Each medicine keeps its own dose count, days, and time slots.</p>
+          </div>
+
+          <div className="schedule-medicine-toolbar">
+            <button
+              type="button"
+              className="schedule-add-medicine-button"
+              onClick={onAddMedicine}
+              disabled={loading}
+            >
+              + 약 추가
+            </button>
           </div>
 
           <div className="schedule-slot-list">
-            {timeSlots.map((slot, index) => (
-              <div className="schedule-slot-card" key={`slot-${index + 1}`}>
-                <div className="schedule-slot-title">Dose {index + 1}</div>
-                <label>
-                  Time
-                  <input
-                    type="time"
-                    value={slot.takeTime}
-                    onChange={(event) => onTimeSlotChange(index, 'takeTime', event.target.value)}
-                  />
-                </label>
-                <label>
-                  Timing
-                  <select
-                    value={slot.timing}
-                    onChange={(event) => onTimeSlotChange(index, 'timing', event.target.value)}
-                  >
-                    {TIMING_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+            {form.medicines.map((medicine, medicineIndex) => (
+              <div className="schedule-slot-card" key={`medicine-${medicine.id || medicineIndex + 1}`}>
+                <div className="schedule-card-header">
+                  <h2>Medicine {medicineIndex + 1}</h2>
+                  {form.medicines.length > 1 ? (
+                    <button
+                      type="button"
+                      className="schedule-remove-medicine-button"
+                      onClick={() => onRemoveMedicine(medicineIndex)}
+                      disabled={loading}
+                    >
+                      약 삭제
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="schedule-form-grid">
+                  <label className="schedule-col-span-2">
+                    Medicine name
+                    <input
+                      name="customMedicineName"
+                      value={medicine.customMedicineName}
+                      onChange={(event) => onMedicineFieldChange(medicineIndex, event)}
+                      placeholder="Tylenol, digestive aid, vitamin C..."
+                    />
+                  </label>
+
+                  <label>
+                    Dosage amount
+                    <input
+                      name="dosageAmount"
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={medicine.dosageAmount}
+                      onChange={(event) => onMedicineFieldChange(medicineIndex, event)}
+                    />
+                  </label>
+
+                  <label>
+                    Unit
+                    <select
+                      name="dosageUnit"
+                      value={medicine.dosageUnit}
+                      onChange={(event) => onMedicineFieldChange(medicineIndex, event)}
+                    >
+                      {DOSAGE_UNIT_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label>
+                    Times per day
+                    <input
+                      name="timesPerDay"
+                      type="number"
+                      min="1"
+                      max={MAX_TIMES_PER_DAY}
+                      value={medicine.timesPerDay}
+                      onChange={(event) => onMedicineFieldChange(medicineIndex, event)}
+                    />
+                  </label>
+
+                  <label>
+                    Total days
+                    <input
+                      name="durationDays"
+                      type="number"
+                      min="1"
+                      value={medicine.durationDays}
+                      onChange={(event) => onMedicineFieldChange(medicineIndex, event)}
+                    />
+                  </label>
+                </div>
+
+                <div className="schedule-card-header">
+                  <h2>Dose times</h2>
+                  <p>The server uses the current registration time and the slots below to decide the first active dose.</p>
+                </div>
+
+                <div className="schedule-slot-list">
+                  {medicine.timeSlots.map((slot, slotIndex) => (
+                    <div className="schedule-slot-card" key={`slot-${medicineIndex + 1}-${slotIndex + 1}`}>
+                      <div className="schedule-slot-title">Dose {slotIndex + 1}</div>
+                      <label>
+                        Time
+                        <input
+                          type="time"
+                          value={slot.takeTime}
+                          onChange={(event) =>
+                            onMedicineTimeSlotChange(medicineIndex, slotIndex, 'takeTime', event.target.value)
+                          }
+                        />
+                      </label>
+                      <label>
+                        Timing
+                        <select
+                          value={slot.timing}
+                          onChange={(event) =>
+                            onMedicineTimeSlotChange(medicineIndex, slotIndex, 'timing', event.target.value)
+                          }
+                        >
+                          {TIMING_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>

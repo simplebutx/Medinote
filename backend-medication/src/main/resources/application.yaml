@@ -3,3 +3,13 @@ server:
 spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
+
+aws:
+  s3:
+    region: ${AWS_S3_REGION:${AWS_REGION:ap-northeast-2}}
+    bucket: ${AWS_S3_BUCKET:}
+    access-key: ${AWS_ACCESS_KEY_ID:${AWS_ACCESS_KEY:}}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:${AWS_SECRET_KEY:}}
+    endpoint: ${AWS_S3_ENDPOINT:}
+    key-prefix: ${AWS_S3_PRESCRIPTION_PREFIX:prescriptions}
+    presign-expiration-seconds: ${AWS_PRESIGN_EXPIRATION_SECONDS:300}

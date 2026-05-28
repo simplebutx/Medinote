@@ -5,6 +5,7 @@ import com.ibmteam02.backend_medication.schedule.domain.FrequencyType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record MedicationScheduleResponse(
         Long id,
@@ -25,6 +26,7 @@ public record MedicationScheduleResponse(
         LocalDate dispensedDate,
         Boolean isActive,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        List<MedicationScheduleMedicineResponse> medicines
 ) {
 }

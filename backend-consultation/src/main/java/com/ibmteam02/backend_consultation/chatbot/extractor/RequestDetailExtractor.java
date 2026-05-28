@@ -30,7 +30,7 @@ public class RequestDetailExtractor {
 
     private static final Map<String, List<String>> SAFETY_CONTRAINDICATION_DETAILS = Map.of(
             "CONTRAINDICATION_MATCH", List.of(
-                    "알레르기", "금기", "피해야", "먹으면안되는성분", "위험성분", "주의성분", "복용금지"
+                    "알레르기", "금기", "피해야", "먹으면안되는성분", "위험성분", "주의성분", "복용금지",  "건강상태", "몸상태"
             )
     );
 

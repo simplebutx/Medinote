@@ -6,6 +6,7 @@ import java.time.LocalTime;
 public record MedicationScheduleTimeResponse(
         Long id,
         Long medicationScheduleId,
+        Long medicationScheduleMedicineId,
         MedicationTiming timing,
         LocalTime takeTime,
         Integer sortOrder

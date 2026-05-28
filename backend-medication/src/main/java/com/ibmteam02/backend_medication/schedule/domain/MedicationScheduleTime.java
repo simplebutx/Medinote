@@ -28,8 +28,8 @@ public class MedicationScheduleTime {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "medication_schedule_id", nullable = false)
-    private MedicationSchedule medicationSchedule;
+    @JoinColumn(name = "medication_schedule_medicine_id", nullable = false)
+    private MedicationScheduleMedicine medicationScheduleMedicine;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "timing", nullable = false)
@@ -43,24 +43,24 @@ public class MedicationScheduleTime {
 
     @Builder
     public MedicationScheduleTime(
-            MedicationSchedule medicationSchedule,
+            MedicationScheduleMedicine medicationScheduleMedicine,
             MedicationTiming timing,
             LocalTime takeTime,
             Integer sortOrder
     ) {
-        this.medicationSchedule = medicationSchedule;
+        this.medicationScheduleMedicine = medicationScheduleMedicine;
         this.timing = timing;
         this.takeTime = takeTime;
         this.sortOrder = sortOrder;
     }
 
     public void update(
-            MedicationSchedule medicationSchedule,
+            MedicationScheduleMedicine medicationScheduleMedicine,
             MedicationTiming timing,
             LocalTime takeTime,
             Integer sortOrder
     ) {
-        this.medicationSchedule = medicationSchedule;
+        this.medicationScheduleMedicine = medicationScheduleMedicine;
         this.timing = timing;
         this.takeTime = takeTime;
         this.sortOrder = sortOrder;

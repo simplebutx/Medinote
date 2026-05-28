@@ -28,6 +28,8 @@ export interface Session {
 
 export interface AppSettings {
   apiHost: string;
+  apiBaseUrl?: string;
+  presignedUploadUrlEndpoint: string;
 }
 
 export interface LoginResponse {
@@ -93,11 +95,31 @@ export interface MedicationScheduleResponse {
   isActive: boolean | null;
   createdAt: string;
   updatedAt: string;
+  medicines?: MedicationScheduleMedicineResponse[];
+}
+
+export interface MedicationScheduleMedicineResponse {
+  id: number;
+  medicationScheduleId: number;
+  medicineId: number | null;
+  customMedicineName: string | null;
+  dosageAmount: number | null;
+  dosageUnit: DosageUnit | null;
+  frequencyType: FrequencyType | null;
+  timesPerDay: number | null;
+  intervalHours: number | null;
+  durationDays: number | null;
+  startDate: string | null;
+  endDate: string | null;
+  isActive: boolean | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface MedicationScheduleTimeResponse {
   id: number;
   medicationScheduleId: number;
+  medicationScheduleMedicineId: number;
   timing: MedicationTiming;
   takeTime: string;
   sortOrder: number;
@@ -119,4 +141,44 @@ export interface MedicationIntakeLogResponse {
   scheduledAt: string;
   takenAt: string;
   createdAt: string;
+}
+
+export interface PrescriptionUploadUrlRequest {
+  fileName: string;
+  contentType: string;
+  category: "PRESCRIPTION";
+}
+
+export interface PrescriptionUploadUrlResponse {
+  ocrResultId: number;
+  uploadUrl: string;
+  key: string;
+  fileUrl?: string | null;
+  headers?: Record<string, string> | null;
+}
+
+export interface PrescriptionOcrResponse {
+  ocrResultId: number;
+  imageKey: string;
+  rawText: string;
+  resultJson: string;
+  ocrEngine: string;
+  preprocessedImageDataUrl?: string | null;
+  status: string;
+  errorMessage: string | null;
+}
+
+export interface OcrMedicineDraft {
+  name: string;
+  dosage: string;
+  frequency: string;
+  days: string;
+}
+
+export interface OcrScheduleDraft {
+  hospitalName: string;
+  pharmacyName: string;
+  dispensedDate: string;
+  prescribedDate: string;
+  medicines: OcrMedicineDraft[];
 }
