@@ -5,5 +5,7 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface MedicationScheduleTimeRepository extends JpaRepository<MedicationScheduleTime, Long> {
-    List<MedicationScheduleTime> findByMedicationScheduleIdOrderBySortOrderAsc(Long medicationScheduleId);
+    List<MedicationScheduleTime> findByMedicationScheduleMedicineIdOrderBySortOrderAsc(Long medicationScheduleMedicineId);
+
+    List<MedicationScheduleTime> findByMedicationScheduleMedicine_MedicationSchedule_IdOrderBySortOrderAsc(Long medicationScheduleId);
 }

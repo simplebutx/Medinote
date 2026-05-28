@@ -10,6 +10,8 @@ import { useAppContext } from "../context/AppContext";
 import type {
   MedicationIntakeLogRequest,
   MedicationIntakeLogResponse,
+  OcrMedicineDraft,
+  OcrScheduleDraft,
   MedicationScheduleResponse,
   MedicationScheduleTimeResponse,
   MedicationTiming,
@@ -59,6 +61,43 @@ function createDefaultForm() {
     prescribedDate: todayDateInput(),
     dispensedDate: todayDateInput(),
   };
+}
+
+function createDefaultTakeTimes(count: number) {
+  const presets = ["08:00", "13:00", "20:00", "22:00"];
+  return Array.from({ length: Math.max(count, 1) }, (_, index) => presets[index] || "09:00");
+}
+
+function createOcrDraftForm(draft?: OcrScheduleDraft | null) {
+  return {
+    hospitalName: draft?.hospitalName || "",
+    pharmacyName: draft?.pharmacyName || "",
+    dispensedDate: draft?.dispensedDate || todayDateInput(),
+    prescribedDate: draft?.prescribedDate || "",
+    medicines: (draft?.medicines || []).map((medicine) => ({
+      name: medicine.name || "",
+      dosage: medicine.dosage || "",
+      frequency: medicine.frequency || "",
+      days: medicine.days || "",
+    })),
+  };
+}
+
+function inferDosageUnit(medicine: OcrMedicineDraft) {
+  const source = `${medicine.name} ${medicine.dosage}`.toLowerCase();
+  if (source.includes("ml")) {
+    return "ML" as const;
+  }
+  if (source.includes("mg")) {
+    return "MG" as const;
+  }
+  if (source.includes("포")) {
+    return "PACKET" as const;
+  }
+  if (source.includes("스푼")) {
+    return "SPOON" as const;
+  }
+  return "TABLET" as const;
 }
 
 function formatIsoDate(date: Date) {
@@ -752,7 +791,7 @@ export function ScheduleCalendarScreen({ navigation }: any) {
   );
 }
 
-export function ScheduleFormScreen({ navigation, route }: any) {
+function LegacyScheduleFormScreen({ navigation, route }: any) {
   const { settings, session } = useAppContext();
   const editingId = route?.params?.scheduleId ?? null;
   const [message, setMessage] = useState("");
@@ -879,6 +918,18 @@ export function ScheduleFormScreen({ navigation, route }: any) {
     prescribedDate: form.prescribedDate || null,
     dispensedDate: form.dispensedDate || null,
     isActive: null,
+    medicines: [
+      {
+        medicineId: selectedMedicineId,
+        customMedicineName: form.customMedicineName || null,
+        dosageAmount: form.dosageAmount ? Number(form.dosageAmount) : null,
+        dosageUnit: form.dosageUnit || null,
+        frequencyType: "DAILY",
+        timesPerDay,
+        intervalHours: null,
+        durationDays: Number(form.durationDays) || 1,
+      },
+    ],
   });
 
   const handleMedicineNameChange = (value: string) => {
@@ -943,13 +994,18 @@ export function ScheduleFormScreen({ navigation, route }: any) {
       const schedule = editingId
         ? await api.updateSchedule(settings, session, editingId, buildPayload())
         : await api.createSchedule(settings, session, buildPayload());
+      const scheduleMedicineId = schedule.medicines?.[0]?.id;
+
+      if (!scheduleMedicineId) {
+        throw new Error("Schedule medicine was not created.");
+      }
 
       const existingTimes = editingId ? await api.getScheduleTimes(settings, session, schedule.id) : [];
       await Promise.all(existingTimes.map((time) => api.deleteScheduleTime(settings, session, time.id)));
       await Promise.all(
         timeSlots.map((slot, index) =>
           api.createScheduleTime(settings, session, {
-            medicationScheduleId: schedule.id,
+            medicationScheduleMedicineId: scheduleMedicineId,
             timing: slot.timing,
             takeTime: slot.takeTime || "09:00",
             sortOrder: index + 1,
@@ -1176,6 +1232,261 @@ export function ScheduleFormScreen({ navigation, route }: any) {
       </Modal>
     </Screen>
   );
+}
+
+function OcrScheduleDraftFormScreen({
+  navigation,
+  route,
+}: {
+  navigation: any;
+  route: any;
+}) {
+  const { settings, session } = useAppContext();
+  const ocrDraft = (route?.params?.ocrDraft as OcrScheduleDraft | null | undefined) ?? null;
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [datePickerTarget, setDatePickerTarget] = useState<"prescribedDate" | "dispensedDate" | null>(null);
+  const [form, setForm] = useState(() => createOcrDraftForm(ocrDraft));
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => null,
+      title: "OCR 일정 확인",
+    });
+  }, [navigation]);
+
+  useEffect(() => {
+    setForm(createOcrDraftForm(ocrDraft));
+    setMessage("");
+  }, [ocrDraft]);
+
+  const handleSharedFieldChange = (
+    field: "hospitalName" | "pharmacyName" | "dispensedDate" | "prescribedDate",
+    value: string
+  ) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleMedicineChange = (
+    index: number,
+    field: "name" | "dosage" | "frequency" | "days",
+    value: string
+  ) => {
+    setForm((prev) => ({
+      ...prev,
+      medicines: prev.medicines.map((medicine, medicineIndex) =>
+        medicineIndex === index ? { ...medicine, [field]: value } : medicine
+      ),
+    }));
+  };
+
+  const closePickers = () => {
+    setDatePickerTarget(null);
+  };
+
+  const handleDateChange = (_event: any, selectedDate?: Date) => {
+    if (Platform.OS === "android") {
+      setDatePickerTarget(null);
+    }
+
+    if (!selectedDate || !datePickerTarget) {
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      [datePickerTarget]: formatIsoDate(selectedDate),
+    }));
+  };
+
+  const handleReset = () => {
+    setForm(createOcrDraftForm(ocrDraft));
+    setMessage("");
+  };
+
+  const handleSave = async () => {
+    if (!session) {
+      return;
+    }
+
+    const medicines = form.medicines
+      .map((medicine) => ({
+        name: medicine.name.trim(),
+        dosage: medicine.dosage.trim(),
+        frequency: medicine.frequency.trim(),
+        days: medicine.days.trim(),
+      }))
+      .filter((medicine) => medicine.name);
+
+    if (!medicines.length) {
+      setMessage("저장할 약 정보가 없어요.");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const schedule = await api.createSchedule(settings, session, {
+        medicineId: null,
+        customMedicineName: medicines[0]?.name || null,
+        hospitalName: form.hospitalName || null,
+        pharmacyName: form.pharmacyName || null,
+        dosageAmount: Number(medicines[0]?.dosage) || 1,
+        dosageUnit: medicines[0] ? inferDosageUnit(medicines[0]) : "TABLET",
+        frequencyType: "DAILY",
+        timesPerDay: Math.min(Math.max(Number(medicines[0]?.frequency) || 1, 1), 12),
+        intervalHours: null,
+        durationDays: Math.max(Number(medicines[0]?.days) || 1, 1),
+        startDate: null,
+        endDate: null,
+        prescribedDate: form.prescribedDate || null,
+        dispensedDate: form.dispensedDate || null,
+        isActive: null,
+        medicines: medicines.map((medicine) => ({
+          medicineId: null,
+          customMedicineName: medicine.name,
+          dosageAmount: Number(medicine.dosage) || 1,
+          dosageUnit: inferDosageUnit(medicine),
+          frequencyType: "DAILY",
+          timesPerDay: Math.min(Math.max(Number(medicine.frequency) || 1, 1), 12),
+          intervalHours: null,
+          durationDays: Math.max(Number(medicine.days) || 1, 1),
+        })),
+      });
+
+      await Promise.all(
+        (schedule.medicines || []).flatMap((scheduleMedicine) => {
+          const takeTimes = createDefaultTakeTimes(scheduleMedicine.timesPerDay || 1);
+          return takeTimes.map((takeTime, index) =>
+            api.createScheduleTime(settings, session, {
+              medicationScheduleMedicineId: scheduleMedicine.id,
+              timing: "AFTER_MEAL",
+              takeTime,
+              sortOrder: index + 1,
+            })
+          );
+        })
+      );
+
+      navigation.navigate("ScheduleCalendar");
+    } catch {
+      setMessage("OCR 일정 저장에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Screen>
+      <SectionCard
+        title="복약 일정 확인"
+        subtitle="사진에서 읽은 값을 확인한 뒤 저장하세요. 약 개수만큼 복약 일정이 한 번에 등록됩니다."
+      >
+        <Field
+          label="병원명"
+          value={form.hospitalName}
+          onChangeText={(value) => handleSharedFieldChange("hospitalName", value)}
+        />
+        <Field
+          label="약국명"
+          value={form.pharmacyName}
+          onChangeText={(value) => handleSharedFieldChange("pharmacyName", value)}
+        />
+
+        <Pressable onPress={() => setDatePickerTarget("dispensedDate")} style={mobileStyles.pickerField}>
+          <Text style={mobileStyles.pickerLabel}>조제일자</Text>
+          <Text style={mobileStyles.pickerValue}>{form.dispensedDate || "날짜 선택"}</Text>
+        </Pressable>
+        <Pressable onPress={() => setDatePickerTarget("prescribedDate")} style={mobileStyles.pickerField}>
+          <Text style={mobileStyles.pickerLabel}>처방일자</Text>
+          <Text style={mobileStyles.pickerValue}>{form.prescribedDate || "날짜 선택"}</Text>
+        </Pressable>
+
+        <Text style={mobileStyles.groupTitle}>약 목록</Text>
+        {form.medicines.map((medicine, index) => (
+          <View key={`ocr-medicine-${index + 1}`} style={mobileStyles.ocrMedicineCard}>
+            <Text style={mobileStyles.ocrMedicineTitle}>{`약 ${index + 1}`}</Text>
+            <Field
+              label="약이름"
+              value={medicine.name}
+              onChangeText={(value) => handleMedicineChange(index, "name", value)}
+            />
+            <Field
+              label="복용량"
+              value={medicine.dosage}
+              onChangeText={(value) => handleMedicineChange(index, "dosage", value)}
+              keyboardType="numeric"
+            />
+            <Field
+              label="하루 복용 횟수"
+              value={medicine.frequency}
+              onChangeText={(value) => handleMedicineChange(index, "frequency", value)}
+              keyboardType="numeric"
+            />
+            <Field
+              label="총 복용 일수"
+              value={medicine.days}
+              onChangeText={(value) => handleMedicineChange(index, "days", value)}
+              keyboardType="numeric"
+            />
+          </View>
+        ))}
+
+        {message ? <InfoBanner text={message} tone={message.includes("실패") ? "danger" : "default"} /> : null}
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <Button title="확인 후 저장" onPress={handleSave} loading={loading} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Button title="OCR 값 복원" onPress={handleReset} secondary />
+          </View>
+        </View>
+      </SectionCard>
+
+      {Platform.OS === "android" && datePickerTarget ? (
+        <DateTimePicker
+          value={dateStringToDate(form[datePickerTarget])}
+          mode="date"
+          display="calendar"
+          onChange={handleDateChange}
+        />
+      ) : null}
+
+      <Modal
+        transparent
+        visible={Platform.OS === "ios" && datePickerTarget !== null}
+        animationType="fade"
+        onRequestClose={closePickers}
+      >
+        <Pressable onPress={closePickers} style={mobileStyles.modalBackdrop}>
+          <Pressable onPress={() => {}} style={mobileStyles.modalCard}>
+            <Text style={mobileStyles.modalTitle}>날짜 선택</Text>
+            <DateTimePicker
+              value={dateStringToDate(form[datePickerTarget || "dispensedDate"])}
+              mode="date"
+              display="inline"
+              themeVariant="light"
+              accentColor="#0f766e"
+              textColor="#10332b"
+              style={mobileStyles.iosPicker}
+              onChange={handleDateChange}
+            />
+            <Button title="선택 완료" onPress={closePickers} />
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </Screen>
+  );
+}
+
+export function ScheduleFormScreen({ navigation, route }: any) {
+  const ocrDraft = route?.params?.ocrDraft ?? null;
+  if (ocrDraft && !route?.params?.scheduleId) {
+    return <OcrScheduleDraftFormScreen navigation={navigation} route={route} />;
+  }
+
+  return <LegacyScheduleFormScreen navigation={navigation} route={route} />;
 }
 
 const mobileStyles = StyleSheet.create({
@@ -1467,6 +1778,19 @@ const mobileStyles = StyleSheet.create({
     borderRadius: 18,
     padding: 12,
     gap: 10,
+  },
+  ocrMedicineCard: {
+    borderWidth: 1,
+    borderColor: "#d9e7e2",
+    borderRadius: 18,
+    padding: 14,
+    gap: 10,
+    backgroundColor: "#fbfdfc",
+  },
+  ocrMedicineTitle: {
+    color: "#10332b",
+    fontSize: 16,
+    fontWeight: "800",
   },
   slotTitle: {
     color: "#10332b",

@@ -4,6 +4,7 @@ import com.ibmteam02.backend_medication.schedule.domain.DosageUnit;
 import com.ibmteam02.backend_medication.schedule.domain.FrequencyType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 public record MedicationScheduleRequest(
         Long userId,
@@ -21,6 +22,7 @@ public record MedicationScheduleRequest(
         LocalDate endDate,
         LocalDate prescribedDate,
         LocalDate dispensedDate,
-        Boolean isActive
+        Boolean isActive,
+        List<MedicationScheduleMedicineRequest> medicines
 ) {
 }

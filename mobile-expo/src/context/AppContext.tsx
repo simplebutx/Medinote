@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-import { DEFAULT_API_HOST } from "../constants";
+import { API_BASE_URL, DEFAULT_API_HOST, PRESIGNED_UPLOAD_URL_ENDPOINT } from "../constants";
 import type { AppSettings, Session } from "../types";
 
 interface AppContextValue {
@@ -19,7 +19,11 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [hydrated, setHydrated] = useState(false);
-  const settings: AppSettings = { apiHost: DEFAULT_API_HOST };
+  const settings: AppSettings = {
+    apiHost: DEFAULT_API_HOST,
+    apiBaseUrl: API_BASE_URL || undefined,
+    presignedUploadUrlEndpoint: PRESIGNED_UPLOAD_URL_ENDPOINT,
+  };
 
   useEffect(() => {
     (async () => {

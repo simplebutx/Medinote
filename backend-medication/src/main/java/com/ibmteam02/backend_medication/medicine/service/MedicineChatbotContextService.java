@@ -1,5 +1,8 @@
 package com.ibmteam02.backend_medication.medicine.service;
 
+import com.ibmteam02.backend_medication.auth.client.AuthUserContextClient;
+import com.ibmteam02.backend_medication.auth.dto.AuthUserHealthContextRequest;
+import com.ibmteam02.backend_medication.auth.dto.AuthUserHealthContextResponse;
 import com.ibmteam02.backend_medication.caution.domain.UserMedicationCaution;
 import com.ibmteam02.backend_medication.caution.repository.UserMedicationCautionRepository;
 import com.ibmteam02.backend_medication.medicine.domain.MedicineInfo;
@@ -27,6 +30,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientException;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +42,7 @@ public class MedicineChatbotContextService {
     private final MedicationScheduleTimeRepository medicationScheduleTimeRepository;
     private final MedicationIntakeLogRepository medicationIntakeLogRepository;
     private final UserMedicationCautionRepository userMedicationCautionRepository;
+    private final AuthUserContextClient authUserContextClient;
 
     // llm에게 넘겨줄 db 조회 정보들을 빌드
     @Transactional(readOnly = true)
@@ -264,52 +269,48 @@ public class MedicineChatbotContextService {
 
         List<UserMedicationCaution> cautions = userMedicationCautionRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
         if (cautions.isEmpty()) {
-            result.append("등록된 주의 약/성분이 없습니다.\n\n");
-            return;
-        }
+            result.append("등록된 주의 약/성분이 없습니다.\n");
+        } else if (mentionedMedicineInfos == null || mentionedMedicineInfos.isEmpty()) {
+            result.append("질문한 약 이름이 없어 금기 여부를 대조하지 못했어요.\n");
+        } else {
+            List<String> matchedItems = new ArrayList<>();
 
-        if (mentionedMedicineInfos == null || mentionedMedicineInfos.isEmpty()) {
-            result.append("질문한 약 이름이 없어 금기 여부를 대조하지 못했어요.\n\n");
-            return;
-        }
+            for (MedicineInfo medicineInfo : mentionedMedicineInfos) {
+                Set<String> ingredientNames = extractIngredientNames(medicineInfo.getItemSeq());
+                Set<String> ingredientCodes = extractIngredientCodes(medicineInfo.getItemSeq());
 
-        List<String> matchedItems = new ArrayList<>();
+                for (UserMedicationCaution caution : cautions) {
+                    boolean matchedByMedicine = caution.getItemSeq() != null && caution.getItemSeq().equals(medicineInfo.getItemSeq());
+                    boolean matchedByMedicineName = caution.getItemName() != null
+                            && caution.getItemName().equalsIgnoreCase(medicineInfo.getItemName());
+                    boolean matchedByIngredientName = caution.getIngredientName() != null
+                            && ingredientNames.contains(caution.getIngredientName());
+                    boolean matchedByIngredientCode = caution.getIngredientCode() != null
+                            && ingredientCodes.contains(caution.getIngredientCode());
 
-        for (MedicineInfo medicineInfo : mentionedMedicineInfos) {
-            Set<String> ingredientNames = extractIngredientNames(medicineInfo.getItemSeq());
-            Set<String> ingredientCodes = extractIngredientCodes(medicineInfo.getItemSeq());
-
-            for (UserMedicationCaution caution : cautions) {
-                boolean matchedByMedicine = caution.getItemSeq() != null && caution.getItemSeq().equals(medicineInfo.getItemSeq());
-                boolean matchedByMedicineName = caution.getItemName() != null
-                        && caution.getItemName().equalsIgnoreCase(medicineInfo.getItemName());
-                boolean matchedByIngredientName = caution.getIngredientName() != null
-                        && ingredientNames.contains(caution.getIngredientName());
-                boolean matchedByIngredientCode = caution.getIngredientCode() != null
-                        && ingredientCodes.contains(caution.getIngredientCode());
-
-                if (matchedByMedicine || matchedByMedicineName || matchedByIngredientName || matchedByIngredientCode) {
-                    matchedItems.add(
-                            medicineInfo.getItemName()
-                                    + " ↔ 주의 항목("
-                                    + formatCautionTarget(caution)
-                                    + ", 사유: "
-                                    + caution.getReason()
-                                    + ")"
-                    );
+                    if (matchedByMedicine || matchedByMedicineName || matchedByIngredientName || matchedByIngredientCode) {
+                        matchedItems.add(
+                                medicineInfo.getItemName()
+                                        + " ↔ 주의 항목("
+                                        + formatCautionTarget(caution)
+                                        + ", 사유: "
+                                        + caution.getReason()
+                                        + ")"
+                        );
+                    }
                 }
+            }
+
+            if (matchedItems.isEmpty()) {
+                result.append("질문한 약과 직접 일치하는 주의 약/성분은 발견되지 않았어요.\n");
+            } else {
+                result.append("질문한 약과 사용자 주의 항목이 일치할 수 있어요.\n");
+                matchedItems.forEach(item -> result.append("• ").append(item).append("\n"));
             }
         }
 
-        if (matchedItems.isEmpty()) {
-            result.append("질문한 약과 직접 일치하는 주의 약/성분은 발견되지 않았어요.\n");
-        } else {
-            result.append("질문한 약과 사용자 주의 항목이 일치할 수 있어요.\n");
-            matchedItems.forEach(item -> result.append("• ").append(item).append("\n"));
-        }
-
-        // 사용자 건강 상태(user_profile_health), 질환(user_chronic_disease)은 현재 auth 서버 소유 데이터라
-        // medication 서버 단독으로는 아직 조회하지 못한다.
+        // 사용자 건강 상태(user_profile_health), 질환(user_chronic_disease)은 auth 서버 internal API로 조회
+        appendUserHealthContext(result, userId);
         result.append("\n");
     }
 
@@ -361,6 +362,51 @@ public class MedicineChatbotContextService {
         }
 
         result.append("\n");
+    }
+
+    // 사용자 건강 상태(user_profile_health), 질환(user_chronic_disease)을 auth 서버 internal API로 조회
+    private void appendUserHealthContext(StringBuilder result, Long userId) {
+        if (userId == null) {
+            result.append("개인 건강 상태와 질환 정보는 로그인 정보가 없어 확인하지 못했어요.\n");
+            return;
+        }
+
+        try {
+            AuthUserHealthContextResponse response =
+                    authUserContextClient.getHealthContext(new AuthUserHealthContextRequest(userId));
+
+            List<String> healthFlags = new ArrayList<>();
+            if (response.isPregnant()) {
+                healthFlags.add("임신 중");
+            }
+            if (response.isBreastfeeding()) {
+                healthFlags.add("수유 중");
+            }
+            if (response.isSmoking()) {
+                healthFlags.add("흡연 중");
+            }
+            if (response.isDrinking()) {
+                healthFlags.add("음주 중");
+            }
+
+            if (healthFlags.isEmpty()) {
+                result.append("개인 건강 상태 특이사항: 없음\n");
+            } else {
+                result.append("개인 건강 상태 특이사항: ")
+                        .append(String.join(", ", healthFlags))
+                        .append("\n");
+            }
+
+            if (response.chronicDiseases() == null || response.chronicDiseases().isEmpty()) {
+                result.append("기저 질환 정보: 없음\n");
+            } else {
+                result.append("기저 질환 정보: ")
+                        .append(String.join(", ", response.chronicDiseases()))
+                        .append("\n");
+            }
+        } catch (RestClientException e) {
+            result.append("개인 건강 상태와 질환 정보를 불러오지 못했어요.\n");
+        }
     }
 
     // requestDetails 안에 특정 상세 요청값이 들어있는지
@@ -435,7 +481,8 @@ public class MedicineChatbotContextService {
         for (MedicationSchedule schedule : schedules) {
             scheduleTimesMap.put(
                     schedule.getId(),
-                    medicationScheduleTimeRepository.findByMedicationScheduleIdOrderBySortOrderAsc(schedule.getId())
+                    medicationScheduleTimeRepository
+                            .findByMedicationScheduleMedicine_MedicationSchedule_IdOrderBySortOrderAsc(schedule.getId())
             );
         }
         return scheduleTimesMap;

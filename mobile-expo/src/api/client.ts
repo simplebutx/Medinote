@@ -13,6 +13,9 @@ import type {
   ChatbotMessageResponse,
   MedicationScheduleResponse,
   MedicationScheduleTimeResponse,
+  PrescriptionOcrResponse,
+  PrescriptionUploadUrlRequest,
+  PrescriptionUploadUrlResponse,
 } from "../types";
 
 type ServiceName = "auth" | "medication" | "consultation";
@@ -24,6 +27,10 @@ const servicePortMap: Record<ServiceName, number> = {
 };
 
 function baseUrl(settings: AppSettings, service: ServiceName) {
+  if (settings.apiBaseUrl) {
+    return settings.apiBaseUrl;
+  }
+
   return `http://${settings.apiHost}:${servicePortMap[service]}`;
 }
 
@@ -44,7 +51,32 @@ async function request<T>(
     method: options.method ?? "GET",
     data: options.data,
     params: options.params,
-    timeout: 30000,
+    timeout: 50000,
+    headers: options.session?.accessToken
+      ? {
+          Authorization: `Bearer ${options.session.accessToken}`,
+        }
+      : undefined,
+  });
+
+  return response.data;
+}
+
+async function requestAbsoluteUrl<T>(
+  url: string,
+  options: {
+    method?: Method;
+    data?: unknown;
+    params?: Record<string, string | number | boolean | null | undefined>;
+    session?: Session | null;
+  } = {}
+) {
+  const response = await axios.request<T>({
+    url,
+    method: options.method ?? "GET",
+    data: options.data,
+    params: options.params,
+    timeout: 50000,
     headers: options.session?.accessToken
       ? {
           Authorization: `Bearer ${options.session.accessToken}`,
@@ -59,8 +91,7 @@ export const api = {
   login(settings: AppSettings, email: string, password: string) {
     return request<LoginResponse>(settings, "auth", "/api/auth/login", {
       method: "POST",
-      data: { email, password },
-    });
+      data: { email, password },    });
   },
 
   sendVerificationCode(settings: AppSettings, email: string) {
@@ -321,5 +352,33 @@ export const api = {
       method: "DELETE",
       session,
     });
+  },
+
+  createPrescriptionUploadUrl(
+    settings: AppSettings,
+    session: Session,
+    payload: PrescriptionUploadUrlRequest
+  ) {
+    if (!settings.presignedUploadUrlEndpoint) {
+      throw new Error("EXPO_PUBLIC_PRESIGNED_UPLOAD_URL_ENDPOINT is not configured.");
+    }
+
+    return requestAbsoluteUrl<PrescriptionUploadUrlResponse>(settings.presignedUploadUrlEndpoint, {
+      method: "POST",
+      session,
+      data: payload,
+    });
+  },
+
+  runPrescriptionOcr(settings: AppSettings, session: Session, ocrResultId: number) {
+    return request<PrescriptionOcrResponse>(
+      settings,
+      "medication",
+      `/api/prescriptions/${ocrResultId}/ocr`,
+      {
+        method: "POST",
+        session,
+      }
+    );
   },
 };

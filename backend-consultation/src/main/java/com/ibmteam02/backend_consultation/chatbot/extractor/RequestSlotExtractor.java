@@ -22,7 +22,7 @@ public class RequestSlotExtractor {
             ),
             "safety_contraindication_check", List.of(
                     "알레르기", "금기", "피해야", "먹으면안되는성분",
-                    "위험성분", "주의성분", "복용금지"
+                    "위험성분", "주의성분", "복용금지", "건강상태", "몸상태"
             ),
             "safety_interaction_check", List.of(
                     "같이먹어도", "상호작용", "병용", "중복성분",

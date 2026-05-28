@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   createMedicationScheduleTime,
@@ -12,9 +12,9 @@ import ScheduleForm from './ScheduleForm'
 import {
   buildSchedulePayload,
   buildTimePayload,
+  createMedicineForm,
   createDefaultScheduleForm,
   mapScheduleToForm,
-  mapTimesToSlots,
   normalizeTimesPerDay,
   syncTimeSlots,
 } from './scheduleFormUtils'
@@ -26,11 +26,8 @@ function ScheduleEditPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [scheduleSummary, setScheduleSummary] = useState(null)
-  const [timeSlots, setTimeSlots] = useState([])
   const [existingTimes, setExistingTimes] = useState([])
   const [form, setForm] = useState(() => createDefaultScheduleForm())
-
-  const timesPerDay = useMemo(() => normalizeTimesPerDay(form.timesPerDay), [form.timesPerDay])
 
   useEffect(() => {
     const loadSchedule = async () => {
@@ -43,9 +40,8 @@ function ScheduleEditPage() {
         ])
 
         setScheduleSummary(schedule)
-        setForm(mapScheduleToForm(schedule))
+        setForm(mapScheduleToForm(schedule, times))
         setExistingTimes(times)
-        setTimeSlots(mapTimesToSlots(times, schedule.timesPerDay || 1))
       } catch (error) {
         setMessage(error.response?.data?.message || error.message || 'Failed to load schedule.')
       } finally {
@@ -56,30 +52,73 @@ function ScheduleEditPage() {
     loadSchedule()
   }, [id])
 
-  const handleFormChange = (event) => {
+  const handleSharedFieldChange = (event) => {
     const { name, value } = event.target
-
-    if (name === 'timesPerDay') {
-      const nextCount = value === '' ? '1' : String(normalizeTimesPerDay(value))
-      setForm((prev) => ({ ...prev, timesPerDay: nextCount }))
-      setTimeSlots((prev) => syncTimeSlots(prev, Number(nextCount)))
-      return
-    }
-
     setForm((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleTimeSlotChange = (index, field, value) => {
-    setTimeSlots((prev) =>
-      prev.map((slot, slotIndex) =>
-        slotIndex === index
-          ? {
-              ...slot,
-              [field]: value,
-            }
-          : slot,
-      ),
-    )
+  const handleMedicineFieldChange = (medicineIndex, event) => {
+    const { name, value } = event.target
+
+    setForm((prev) => ({
+      ...prev,
+      medicines: prev.medicines.map((medicine, index) => {
+        if (index !== medicineIndex) {
+          return medicine
+        }
+
+        if (name === 'timesPerDay') {
+          const nextCount = value === '' ? '1' : String(normalizeTimesPerDay(value))
+          return {
+            ...medicine,
+            timesPerDay: nextCount,
+            timeSlots: syncTimeSlots(medicine.timeSlots, Number(nextCount)),
+          }
+        }
+
+        return {
+          ...medicine,
+          [name]: value,
+        }
+      }),
+    }))
+  }
+
+  const handleMedicineTimeSlotChange = (medicineIndex, slotIndex, field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      medicines: prev.medicines.map((medicine, index) => {
+        if (index !== medicineIndex) {
+          return medicine
+        }
+
+        return {
+          ...medicine,
+          timeSlots: medicine.timeSlots.map((slot, currentSlotIndex) =>
+            currentSlotIndex === slotIndex
+              ? {
+                  ...slot,
+                  [field]: value,
+                }
+              : slot,
+          ),
+        }
+      }),
+    }))
+  }
+
+  const handleAddMedicine = () => {
+    setForm((prev) => ({
+      ...prev,
+      medicines: [...prev.medicines, createMedicineForm()],
+    }))
+  }
+
+  const handleRemoveMedicine = (medicineIndex) => {
+    setForm((prev) => ({
+      ...prev,
+      medicines: prev.medicines.filter((_, index) => index !== medicineIndex),
+    }))
   }
 
   const handleSubmit = async () => {
@@ -87,12 +126,19 @@ function ScheduleEditPage() {
     setMessage('')
 
     try {
-      await updateMedicationSchedule(id, buildSchedulePayload(form))
+      const updatedSchedule = await updateMedicationSchedule(id, buildSchedulePayload(form))
+      const updatedMedicines = updatedSchedule.medicines || []
+
+      if (updatedMedicines.length !== form.medicines.length) {
+        throw new Error('Not all medicines were created.')
+      }
 
       await Promise.all(existingTimes.map((time) => deleteMedicationScheduleTime(time.id)))
       await Promise.all(
-        timeSlots.map((slot, index) =>
-          createMedicationScheduleTime(buildTimePayload(slot, Number(id), index)),
+        updatedMedicines.flatMap((updatedMedicine, medicineIndex) =>
+          (form.medicines[medicineIndex]?.timeSlots || []).map((slot, slotIndex) =>
+            createMedicationScheduleTime(buildTimePayload(slot, updatedMedicine.id, slotIndex)),
+          ),
         ),
       )
 
@@ -125,12 +171,14 @@ function ScheduleEditPage() {
       description="Adjust the saved medication plan and rewrite the time slots in one place."
       submitLabel="Save changes"
       form={form}
-      timeSlots={timeSlots}
       calculatedWindow={scheduleSummary}
       message={message}
       loading={saving}
-      onFormChange={handleFormChange}
-      onTimeSlotChange={handleTimeSlotChange}
+      onSharedFieldChange={handleSharedFieldChange}
+      onMedicineFieldChange={handleMedicineFieldChange}
+      onMedicineTimeSlotChange={handleMedicineTimeSlotChange}
+      onAddMedicine={handleAddMedicine}
+      onRemoveMedicine={handleRemoveMedicine}
       onSubmit={handleSubmit}
     />
   )
