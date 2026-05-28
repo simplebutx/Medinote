@@ -62,3 +62,25 @@ export interface MedicationIntakeLog {
   takenAt?: string | null;
   createdAt?: string;
 }
+
+export interface CreateMedicationScheduleRequest {
+  medicineId?: number | null;
+  customMedicineName?: string | null;
+  hospitalName?: string | null;
+  pharmacyName?: string | null;
+  dosageAmount?: number | null;
+  dosageUnit?: DosageUnit | null;
+  frequencyType?: FrequencyType | null;
+  timesPerDay?: number | null;
+  intervalHours?: number | null;
+  durationDays?: number | null;
+  prescribedDate?: string | null;
+  dispensedDate?: string | null;
+}
+
+export interface CreateMedicationScheduleTimeRequest {
+  medicationScheduleId: number;
+  timing: MedicationTiming;
+  takeTime: string;
+  sortOrder: number;
+}

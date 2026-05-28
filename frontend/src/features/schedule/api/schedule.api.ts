@@ -1,8 +1,10 @@
 import { medicationInstance } from "../../../api/axiosInstance";
 import type {
+  CreateMedicationScheduleRequest,
   MedicationIntakeLog,
   MedicationSchedule,
   MedicationScheduleTime,
+  CreateMedicationScheduleTimeRequest,
 } from "../types/schedule.types";
 
 export const getMedicationSchedules = async () => {
@@ -94,6 +96,28 @@ export const updateMedicationIntakeLog = async (
 ) => {
   const response = await medicationInstance.put<MedicationIntakeLog>(
     `/api/medication-intake-logs/${id}`,
+    body,
+  );
+
+  return response.data;
+};
+
+export const createMedicationSchedule = async (
+  body: CreateMedicationScheduleRequest,
+) => {
+  const response = await medicationInstance.post<MedicationSchedule>(
+    "/api/medication-schedules",
+    body,
+  );
+
+  return response.data;
+};
+
+export const createMedicationScheduleTime = async (
+  body: CreateMedicationScheduleTimeRequest,
+) => {
+  const response = await medicationInstance.post<MedicationScheduleTime>(
+    "/api/medication-schedule-times",
     body,
   );
 

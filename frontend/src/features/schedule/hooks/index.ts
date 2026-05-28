@@ -5,3 +5,5 @@ export * from "./useDeleteMedicationIntakeLog";
 export * from './useMedicationScheduleTimesByScheduleIds';
 export * from './useMedicationIntakeLogsByScheduleIds';
 export * from "./useUpdateMedicationIntakeLog";
+export * from "./useCreateMedicationSchedule";
+export * from "./useCreateMedicationScheduleTime";

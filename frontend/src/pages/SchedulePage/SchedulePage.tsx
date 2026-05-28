@@ -270,12 +270,12 @@ function SchedulePage() {
     return selectedDateText >= startDate && selectedDateText <= endDate;
   }
 
-  const serverSelectedDateMedications = useMemo<TodayMedication[]>(() => {
+  const getServerMedicationsByDate = (dateText: string): TodayMedication[] => {
     return medicationSchedules
       .filter(
         (schedule) =>
           schedule.isActive &&
-          isDateInScheduleRange(selectedDate, schedule.startDate, schedule.endDate),
+          isDateInScheduleRange(dateText, schedule.startDate, schedule.endDate),
       )
       .flatMap((schedule) => {
         const times = medicationScheduleTimes.filter(
@@ -283,14 +283,15 @@ function SchedulePage() {
         );
 
         return times.map((time) => {
-          const statusKey = getIntakeStatusKey(schedule.id, time.id, selectedDate);
+          const statusKey = getIntakeStatusKey(schedule.id, time.id, dateText);
 
           const matchedLog = medicationIntakeLogs.find(
             (log) =>
               log.medicationScheduleId === schedule.id &&
               log.medicationScheduleTimeId === time.id &&
-              log.scheduledAt.startsWith(selectedDate),
+              log.scheduledAt.startsWith(dateText),
           );
+
           const localLog = localIntakeLogMap[statusKey];
 
           return {
@@ -298,7 +299,7 @@ function SchedulePage() {
             source: 'SERVER' as const,
             medicationScheduleId: schedule.id,
             medicationScheduleTimeId: time.id,
-            scheduledAt: buildScheduledAt(selectedDate, time.takeTime),
+            scheduledAt: buildScheduledAt(dateText, time.takeTime),
             intakeLogId: localLog?.intakeLogId ?? matchedLog?.id,
             drugName:
               schedule.customMedicineName ||
@@ -310,13 +311,17 @@ function SchedulePage() {
           };
         });
       });
-    }, [
-      medicationSchedules,
-      medicationScheduleTimes,
-      medicationIntakeLogs,
-      selectedDate,
-      localIntakeLogMap,
-    ]);
+  };
+
+  const serverSelectedDateMedications = useMemo<TodayMedication[]>(() => {
+    return getServerMedicationsByDate(selectedDate);
+  }, [
+    medicationSchedules,
+    medicationScheduleTimes,
+    medicationIntakeLogs,
+    selectedDate,
+    localIntakeLogMap,
+  ]);
 
   const selectedDateMedications =
     serverSelectedDateMedications.length > 0
@@ -736,7 +741,13 @@ function SchedulePage() {
               return <div key={day.key} />;
             }
 
-            const dayMedications = medicationsByDate[day.date] ?? [];
+            const serverDayMedications = getServerMedicationsByDate(day.date);
+
+            const dayMedications =
+              serverDayMedications.length > 0
+                ? serverDayMedications
+                : medicationsByDate[day.date] ?? [];
+                
             const rate =
               dayMedications.length === 0
                 ? null
