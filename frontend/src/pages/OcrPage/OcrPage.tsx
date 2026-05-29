@@ -13,6 +13,12 @@ import type {
 import { useMedicineSearch } from '../../features/drug/hooks';
 import type { MedicineSearchItem } from '../../features/drug/types/drug.types';
 import { useDebounce } from '../../hooks/useDebounce';
+import {
+  usePrescriptionUploadUrl,
+  useRunPrescriptionOcr,
+} from '../../features/ocr/hooks';
+import { uploadPrescriptionImageToStorage } from '../../features/ocr/api';
+import type { PrescriptionOcrResponse } from '../../features/ocr/types/ocr.types';
 
 type RegisterMode = 'manual' | 'ocr';
 type DosageUnit = '정' | '캡슐' | '포' | 'ml';
@@ -100,28 +106,6 @@ const initialManualForm: MedicationForm = {
   doseTimes: getDefaultDoseTimes(3),
 };
 
-const mockOcrResults: MedicationPreview[] = [
-  {
-    id: 1,
-    medicineId: null,
-    medicineName: '타이레놀정 500mg',
-    dosageAmount: '1',
-    dosageUnit: '정',
-    timesPerDay: 3,
-    doseTimes: getDefaultDoseTimes(3),
-  },
-  {
-    id: 2,
-    medicineId: null,
-    medicineName: '아스피린 100mg',
-    dosageAmount: '1',
-    dosageUnit: '정',
-    timesPerDay: 1,
-    doseTimes: getDefaultDoseTimes(1),
-    cautionMessage: '내 주의 성분에 등록된 아스피린과 일치합니다.',
-  },
-];
-
 function getMedicineId(medicine: MedicineSearchItem) {
   return medicine.itemSeq ?? medicine.item_seq ?? null;
 }
@@ -198,6 +182,16 @@ function OcrPage() {
 
   const [ocrStep, setOcrStep] = useState<OcrStep>('idle');
   const [selectedFileName, setSelectedFileName] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const uploadUrlMutation = usePrescriptionUploadUrl();
+  const runOcrMutation = useRunPrescriptionOcr();
+
+  const isOcrAnalyzing =
+    ocrStep === 'analyzing' ||
+    uploadUrlMutation.isPending ||
+    runOcrMutation.isPending;
+
   const [ocrResults, setOcrResults] = useState<MedicationPreview[]>([]);
 
   const handleChangeManualForm = (key: keyof MedicationForm, value: string) => {
@@ -307,19 +301,343 @@ function OcrPage() {
       setIsMedicineSearchOpen(false);
     }
   };
+  
+  function parseOcrResultJson(resultJson: PrescriptionOcrResponse['resultJson']) {
+    if (!resultJson) {
+      return null;
+    }
 
-  const handleAnalyzeOcr = () => {
-    if (!selectedFileName) {
-      alert('처방전 또는 약봉투 이미지를 먼저 선택해주세요.');
+    if (typeof resultJson === 'string') {
+      try {
+        return JSON.parse(resultJson) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    }
+
+    return resultJson;
+  }
+
+  function getNumberValue(value: unknown, fallback: number) {
+    const numberValue = Number(value);
+
+    if (Number.isNaN(numberValue) || numberValue <= 0) {
+      return fallback;
+    }
+
+    return numberValue;
+  }
+
+  function clampTimesPerDay(value: unknown) {
+    const numberValue = getNumberValue(value, 1);
+
+    if (numberValue <= 1) return 1;
+    if (numberValue === 2) return 2;
+    if (numberValue === 3) return 3;
+
+    return 4;
+  }
+
+  function parseDosageAmount(value: unknown) {
+    const text = String(value ?? '');
+    const matched = text.match(/\d+(\.\d+)?/);
+
+    return matched?.[0] ?? '1';
+  }
+
+  function getValueByKeys(item: Record<string, unknown>, keys: string[]) {
+    for (const key of keys) {
+      const value = item[key];
+
+      if (value !== undefined && value !== null && value !== "") {
+        return value;
+      }
+    }
+
+    return undefined;
+  }
+
+  function getTextByKeys(item: Record<string, unknown>, keys: string[]) {
+    const value = getValueByKeys(item, keys);
+
+    return typeof value === "string" ? value : "";
+  }
+
+  function getNumberByKeys(
+    item: Record<string, unknown>,
+    keys: string[],
+    fallback: number,
+  ) {
+    const value = getValueByKeys(item, keys);
+    const numberValue = Number(value);
+
+    if (Number.isNaN(numberValue) || numberValue <= 0) {
+      return fallback;
+    }
+
+    return numberValue;
+  }
+
+  function parseDosageUnit(value: unknown): DosageUnit {
+    const text = String(value ?? '');
+
+    if (text.includes('캡슐')) return '캡슐';
+    if (text.includes('포')) return '포';
+    if (text.toLowerCase().includes('ml')) return 'ml';
+
+    return '정';
+  }
+
+  function parseTiming(value: unknown): TimingType {
+    const text = String(value ?? '');
+
+    if (text.includes('식전')) return '식전';
+    if (text.includes('식사')) return '식사 중';
+    if (text.includes('공복')) return '공복';
+    if (text.includes('취침')) return '취침 전';
+    if (text.includes('상관')) return '상관없음';
+
+    return '식후';
+  }
+
+  function convertOcrResponseToMedicationPreviews(
+    response: PrescriptionOcrResponse,
+  ): MedicationPreview[] {
+    const parsed = parseOcrResultJson(response.resultJson);
+
+    // console.log("parsed OCR resultJson", parsed);
+
+    if (!parsed) {
+      return [];
+    }
+
+    const rawItems =
+      parsed.medicines ??
+      parsed.medications ??
+      parsed.schedules ??
+      parsed.items ??
+      parsed.drugs ??
+      [];
+
+    if (!Array.isArray(rawItems)) {
+      return [];
+    }
+
+    return rawItems.map((rawItem, index) => {
+      const item = rawItem as Record<string, unknown>;
+
+      const medicineName =
+        getTextByKeys(item, [
+          "matchedDrugName",
+          "matched_drug_name",
+          "drugName",
+          "drug_name",
+          "medicineName",
+          "medicine_name",
+          "itemName",
+          "item_name",
+          "productName",
+          "product_name",
+          "rawName",
+          "raw_name",
+          "name",
+        ]) || `OCR 추출 약 ${index + 1}`;
+
+      const medicineIdValue = getValueByKeys(item, [
+        "matchedDrugId",
+        "matched_drug_id",
+        "medicineId",
+        "medicine_id",
+        "itemSeq",
+        "item_seq",
+        "item_sequence",
+      ]);
+
+      const timesPerDay = clampTimesPerDay(
+        getValueByKeys(item, [
+          "timesPerDay",
+          "times_per_day",
+          "dailyCount",
+          "daily_count",
+          "doseCountPerDay",
+          "dose_count_per_day",
+          "countPerDay",
+          "count_per_day",
+          "frequencyPerDay",
+          "frequency_per_day",
+          "frequency",
+        ]),
+      );
+
+      const timing = parseTiming(
+        getValueByKeys(item, [
+          "timing",
+          "timingLabel",
+          "timing_label",
+          "doseTiming",
+          "dose_timing",
+          "mealTiming",
+          "meal_timing",
+          "when",
+        ]),
+      );
+
+      const doseTimes = getDefaultDoseTimes(timesPerDay).map((doseTime) => ({
+        ...doseTime,
+        timing,
+      }));
+
+      return {
+        id: Date.now() + index,
+        medicineId:
+          typeof medicineIdValue === "number"
+            ? medicineIdValue
+            : Number.isNaN(Number(medicineIdValue))
+              ? null
+              : Number(medicineIdValue),
+        medicineName,
+        dosageAmount: parseDosageAmount(
+          getValueByKeys(item, [
+            "dosePerTime",
+            "dose_per_time",
+            "dosageAmount",
+            "dosage_amount",
+            "doseAmount",
+            "dose_amount",
+            "singleDose",
+            "single_dose",
+            "quantity",
+            "dose",
+          ]),
+        ),
+        dosageUnit: parseDosageUnit(
+          getValueByKeys(item, [
+            "dosePerTime",
+            "dose_per_time",
+            "dosageUnit",
+            "dosage_unit",
+            "doseUnit",
+            "dose_unit",
+            "unit",
+          ]),
+        ),
+        timesPerDay,
+        doseTimes,
+      };
+    });
+  }
+  
+  function inferDurationDaysFromOcrResponse(response: PrescriptionOcrResponse) {
+    const parsed = parseOcrResultJson(response.resultJson);
+
+    if (!parsed) {
+      return null;
+    }
+
+    const rawItems =
+      parsed.medicines ??
+      parsed.medications ??
+      parsed.schedules ??
+      parsed.items ??
+      parsed.drugs ??
+      [];
+
+    if (!Array.isArray(rawItems)) {
+      return null;
+    }
+
+    const durations = rawItems
+      .map((rawItem) => {
+        const item = rawItem as Record<string, unknown>;
+
+        return getNumberByKeys(
+          item,
+          [
+            "durationDays",
+            "duration_days",
+            "days",
+            "totalDays",
+            "total_days",
+            "prescriptionDays",
+            "prescription_days",
+            "daysSupply",
+            "days_supply",
+            "period",
+          ],
+          0,
+        );
+      })
+      .filter((value) => value > 0);
+
+    if (durations.length === 0) {
+      return null;
+    }
+
+    return Math.max(...durations);
+  }
+
+  const handleAnalyzeOcr = async () => {
+    if (!selectedFile) {
+      toast.error('처방전 또는 약봉투 이미지를 먼저 선택해주세요.');
       return;
     }
 
     setOcrStep('analyzing');
 
-    window.setTimeout(() => {
-      setOcrResults(mockOcrResults);
+    try {
+      const uploadInfo = await uploadUrlMutation.mutateAsync({
+        fileName: selectedFile.name,
+        contentType: selectedFile.type || 'image/jpeg',
+        category: 'PRESCRIPTION',
+      });
+
+      await uploadPrescriptionImageToStorage({
+        uploadUrl: uploadInfo.uploadUrl,
+        file: selectedFile,
+        headers: uploadInfo.headers,
+      });
+
+      const ocrResultId = uploadInfo.ocrResultId ?? uploadInfo.id;
+
+      if (!ocrResultId) {
+        throw new Error('OCR 결과 ID를 찾지 못했습니다.');
+      }
+
+      const ocrResponse = await runOcrMutation.mutateAsync(ocrResultId);
+
+      if (ocrResponse.status === 'OCR_FAILED') {
+        toast.error(ocrResponse.errorMessage || 'OCR 분석에 실패했습니다.');
+        setOcrStep('idle');
+        return;
+      }
+
+      const convertedResults = convertOcrResponseToMedicationPreviews(ocrResponse);
+
+      const inferredDurationDays = inferDurationDaysFromOcrResponse(ocrResponse);
+
+      if (inferredDurationDays) {
+        setCommonForm((prev) => ({
+          ...prev,
+          durationDays: String(inferredDurationDays),
+        }));
+      }
+
+      if (convertedResults.length === 0) {
+        toast.error('OCR 결과에서 복약 정보를 찾지 못했습니다.');
+        setOcrResults([]);
+        setOcrStep('completed');
+        return;
+      }
+
+      setOcrResults(convertedResults);
       setOcrStep('completed');
-    }, 1200);
+
+      toast.success('OCR 분석이 완료되었습니다.');
+    } catch (error) {
+      console.error('OCR 분석 실패:', error);
+      toast.error('OCR 분석에 실패했습니다. 콘솔과 네트워크 탭을 확인해주세요.');
+      setOcrStep('idle');
+    }
   };
 
   const handleRegisterSchedule = async (items: MedicationPreview[]) => {
@@ -881,6 +1199,7 @@ function OcrPage() {
                       const file = event.target.files?.[0];
 
                       if (file) {
+                        setSelectedFile(file);
                         setSelectedFileName(file.name);
                         setOcrStep('idle');
                         setOcrResults([]);
@@ -897,8 +1216,8 @@ function OcrPage() {
               </div>
 
               <div className="flex justify-end">
-                <Button type="button" onClick={handleAnalyzeOcr}>
-                  OCR 분석 시작
+                <Button type="button" onClick={handleAnalyzeOcr} disabled={isOcrAnalyzing}>
+                  {isOcrAnalyzing ? 'OCR 분석 중...' : 'OCR 분석 시작'}
                 </Button>
               </div>
 
