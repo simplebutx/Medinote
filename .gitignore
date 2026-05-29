@@ -2,3 +2,4 @@
 mobile-expo/.env.local
 .idea/
 schedule-test.json
+.env.local

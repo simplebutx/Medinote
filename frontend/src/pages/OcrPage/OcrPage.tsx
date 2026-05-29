@@ -299,6 +299,13 @@ function OcrPage() {
 
   const handleRemoveManualMedication = (id: number) => {
     setManualItems((prev) => prev.filter((item) => item.id !== id));
+
+    if (editingManualItemId === id) {
+      setEditingManualItemId(null);
+      setManualForm(initialManualForm);
+      setSelectedManualMedicine(null);
+      setIsMedicineSearchOpen(false);
+    }
   };
 
   const handleAnalyzeOcr = () => {
@@ -777,7 +784,23 @@ function OcrPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                {editingManualItemId !== null && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="border border-slate-200"
+                    onClick={() => {
+                      setEditingManualItemId(null);
+                      setManualForm(initialManualForm);
+                      setSelectedManualMedicine(null);
+                      setIsMedicineSearchOpen(false);
+                    }}
+                  >
+                    수정 취소
+                  </Button>
+                )}
+
                 <Button type="button" onClick={handleAddManualMedication}>
                   {editingManualItemId !== null
                     ? '복약 정보 수정 완료'
@@ -901,7 +924,26 @@ function OcrPage() {
                   </div>
 
                   <div className="space-y-3">
-                    {ocrResults.map((item) => renderMedicationCard(item))}
+                    {ocrResults.map((item) =>
+                      renderMedicationCard(
+                        item,
+                        (id) => setOcrResults((prev) => prev.filter((ocrItem) => ocrItem.id !== id)),
+                        (selectedItem) => {
+                          setActiveMode('manual');
+                          setEditingManualItemId(selectedItem.id);
+                          setManualForm({
+                            medicineId: selectedItem.medicineId ?? null,
+                            medicineName: selectedItem.medicineName,
+                            dosageAmount: selectedItem.dosageAmount,
+                            dosageUnit: selectedItem.dosageUnit,
+                            timesPerDay: String(selectedItem.timesPerDay),
+                            doseTimes: selectedItem.doseTimes,
+                          });
+                          setSelectedManualMedicine(null);
+                          setIsMedicineSearchOpen(false);
+                        },
+                      )
+                    )}
                   </div>
 
                   <div className="rounded-2xl bg-yellow-50 p-4 text-sm leading-6 text-yellow-700">
