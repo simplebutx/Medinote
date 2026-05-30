@@ -2,5 +2,6 @@
 mobile-expo/.env.local
 .idea/
 schedule-test.json
-secrets/
 .env.local
+secrets/
+secrets/gcloud-adc.json

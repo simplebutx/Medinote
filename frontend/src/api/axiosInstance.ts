@@ -9,7 +9,7 @@ const AI_BASE_URL = import.meta.env.VITE_AI_API_URL || "http://localhost:8000";
 const createInstance = (baseURL: string) => {
   const instance = axios.create({
     baseURL,
-    timeout: 5000,
+    timeout: 30000,
   });
 
   instance.interceptors.request.use((config) => {
@@ -31,5 +31,5 @@ export const consultationInstance = createInstance(CONSULTATION_BASE_URL);
 export const aiInstance = createInstance(AI_BASE_URL);
 export const publicMedicationInstance = axios.create({
   baseURL: MEDICATION_BASE_URL,
-  timeout: 5000,
+  timeout: 30000,
 });
