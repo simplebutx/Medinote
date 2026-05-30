@@ -8,4 +8,6 @@ public interface MedicationScheduleTimeRepository extends JpaRepository<Medicati
     List<MedicationScheduleTime> findByMedicationScheduleMedicineIdOrderBySortOrderAsc(Long medicationScheduleMedicineId);
 
     List<MedicationScheduleTime> findByMedicationScheduleMedicine_MedicationSchedule_IdOrderBySortOrderAsc(Long medicationScheduleId);
+
+    List<MedicationScheduleTime> findByMedicationScheduleMedicineIdInOrderByTakeTimeAscSortOrderAsc(List<Long> medicationScheduleMedicineIds);
 }

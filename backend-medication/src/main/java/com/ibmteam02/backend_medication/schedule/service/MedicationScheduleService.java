@@ -2,8 +2,13 @@ package com.ibmteam02.backend_medication.schedule.service;
 
 import com.ibmteam02.backend_medication.global.exception.ForbiddenException;
 import com.ibmteam02.backend_medication.global.exception.ResourceNotFoundException;
+import com.ibmteam02.backend_medication.schedule.domain.MedicationIntakeLog;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationSchedule;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationScheduleMedicine;
+import com.ibmteam02.backend_medication.schedule.domain.MedicationScheduleTime;
+import com.ibmteam02.backend_medication.schedule.dto.DailyMedicationItemResponse;
+import com.ibmteam02.backend_medication.schedule.dto.DailyMedicationResponse;
+import com.ibmteam02.backend_medication.schedule.dto.DailyMedicationTimeGroupResponse;
 import com.ibmteam02.backend_medication.schedule.dto.MedicationScheduleMedicineRequest;
 import com.ibmteam02.backend_medication.schedule.dto.MedicationScheduleMedicineResponse;
 import com.ibmteam02.backend_medication.schedule.dto.MedicationScheduleRequest;
@@ -12,9 +17,14 @@ import com.ibmteam02.backend_medication.schedule.repository.MedicationIntakeLogR
 import com.ibmteam02.backend_medication.schedule.repository.MedicationScheduleMedicineRepository;
 import com.ibmteam02.backend_medication.schedule.repository.MedicationScheduleRepository;
 import com.ibmteam02.backend_medication.schedule.repository.MedicationScheduleTimeRepository;
+import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -61,6 +71,68 @@ public class MedicationScheduleService {
         return medicationScheduleRepository.findByUserId(userId).stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public DailyMedicationResponse getDailyMedications(Long userId, LocalDate date) {
+        List<MedicationScheduleMedicine> medicines =
+                medicationScheduleMedicineRepository.findByMedicationSchedule_UserIdOrderByIdAsc(userId).stream()
+                        .filter(medicine -> isScheduledOnDate(medicine, date))
+                        .toList();
+
+        if (medicines.isEmpty()) {
+            return new DailyMedicationResponse(date, List.of());
+        }
+
+        List<Long> scheduleMedicineIds = medicines.stream()
+                .map(MedicationScheduleMedicine::getId)
+                .toList();
+        List<Long> scheduleIds = medicines.stream()
+                .map(medicine -> medicine.getMedicationSchedule().getId())
+                .distinct()
+                .toList();
+
+        Map<Long, MedicationScheduleMedicine> medicineById = medicines.stream()
+                .collect(java.util.stream.Collectors.toMap(MedicationScheduleMedicine::getId, medicine -> medicine));
+        Map<Long, MedicationIntakeLog> intakeLogByScheduleTimeId = buildIntakeLogByScheduleTimeId(scheduleIds, date);
+        Map<LocalTime, List<DailyMedicationItemResponse>> groups = new LinkedHashMap<>();
+
+        for (MedicationScheduleTime scheduleTime :
+                medicationScheduleTimeRepository.findByMedicationScheduleMedicineIdInOrderByTakeTimeAscSortOrderAsc(scheduleMedicineIds)) {
+            MedicationScheduleMedicine medicine = medicineById.get(scheduleTime.getMedicationScheduleMedicine().getId());
+            if (medicine == null) {
+                continue;
+            }
+
+            MedicationSchedule schedule = medicine.getMedicationSchedule();
+            MedicationIntakeLog intakeLog = intakeLogByScheduleTimeId.get(scheduleTime.getId());
+
+            groups.computeIfAbsent(scheduleTime.getTakeTime(), ignored -> new ArrayList<>())
+                    .add(new DailyMedicationItemResponse(
+                            schedule.getId(),
+                            medicine.getId(),
+                            scheduleTime.getId(),
+                            intakeLog != null ? intakeLog.getId() : null,
+                            medicine.getMedicineId(),
+                            medicine.getCustomMedicineName(),
+                            medicine.getDosageAmount(),
+                            medicine.getDosageUnit(),
+                            medicine.getTimesPerDay(),
+                            scheduleTime.getTiming(),
+                            scheduleTime.getTakeTime(),
+                            intakeLog != null ? intakeLog.getStatus() : null,
+                            intakeLog != null ? intakeLog.getScheduledAt() : date.atTime(scheduleTime.getTakeTime()),
+                            intakeLog != null ? intakeLog.getTakenAt() : null,
+                            schedule.getHospitalName(),
+                            schedule.getPharmacyName()
+                    ));
+        }
+
+        List<DailyMedicationTimeGroupResponse> timeGroups = groups.entrySet().stream()
+                .map(entry -> new DailyMedicationTimeGroupResponse(entry.getKey(), entry.getValue()))
+                .toList();
+
+        return new DailyMedicationResponse(date, timeGroups);
     }
 
     // 복약 스케쥴 수정
@@ -267,5 +339,38 @@ public class MedicationScheduleService {
     private boolean isActive(LocalDate endDate) {
         LocalDate today = LocalDate.now(SCHEDULE_ZONE);
         return !endDate.isBefore(today);
+    }
+
+    private boolean isScheduledOnDate(MedicationScheduleMedicine medicine, LocalDate date) {
+        LocalDate startDate = medicine.getStartDate();
+        LocalDate endDate = medicine.getEndDate();
+
+        if (startDate == null || endDate == null) {
+            return false;
+        }
+
+        return !date.isBefore(startDate) && !date.isAfter(endDate);
+    }
+
+    private Map<Long, MedicationIntakeLog> buildIntakeLogByScheduleTimeId(List<Long> scheduleIds, LocalDate date) {
+        if (scheduleIds.isEmpty()) {
+            return Map.of();
+        }
+
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = date.plusDays(1L).atStartOfDay();
+
+        return medicationIntakeLogRepository
+                .findByMedicationScheduleIdInAndScheduledAtGreaterThanEqualAndScheduledAtLessThanOrderByScheduledAtAsc(
+                        scheduleIds,
+                        start,
+                        end
+                ).stream()
+                .filter(intakeLog -> intakeLog.getMedicationScheduleTime() != null)
+                .collect(java.util.stream.Collectors.toMap(
+                        intakeLog -> intakeLog.getMedicationScheduleTime().getId(),
+                        intakeLog -> intakeLog,
+                        (left, right) -> right
+                ));
     }
 }

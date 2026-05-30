@@ -7,5 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface MedicationScheduleMedicineRepository extends JpaRepository<MedicationScheduleMedicine, Long> {
     List<MedicationScheduleMedicine> findByMedicationScheduleIdOrderByIdAsc(Long medicationScheduleId);
 
+    List<MedicationScheduleMedicine> findByMedicationSchedule_UserIdOrderByIdAsc(Long userId);
+
     void deleteByMedicationScheduleId(Long medicationScheduleId);
 }
