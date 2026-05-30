@@ -153,7 +153,6 @@ function ScheduleOcrPage() {
       const presigned = await createPrescriptionUploadUrl({
         fileName: selectedFile.name || buildPrescriptionFileName(),
         contentType: selectedFile.type || 'image/jpeg',
-        category: 'PRESCRIPTION',
       })
 
       await uploadFileToPresignedUrl(presigned.uploadUrl, selectedFile, presigned.headers)

@@ -12,6 +12,7 @@ public class AiOcrClient {
 
     private final RestClient aiRestClient;
 
+    // 8081 -> 8000 -> 8081
     public AiOcrResponse analyzePrescription(AiOcrRequest request) {
         return aiRestClient.post()
                 .uri("api/ai/ocr/prescriptions")

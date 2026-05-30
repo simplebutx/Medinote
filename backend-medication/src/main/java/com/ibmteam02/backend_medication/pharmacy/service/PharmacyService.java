@@ -1,5 +1,6 @@
 package com.ibmteam02.backend_medication.pharmacy.service;
 
+import com.ibmteam02.backend_medication.pharmacy.dto.PharmacyDetailResponse;
 import com.ibmteam02.backend_medication.pharmacy.dto.PharmacyMapResponse;
 import com.ibmteam02.backend_medication.pharmacy.repository.PharmacyRepository;
 import java.util.List;
@@ -34,5 +35,12 @@ public class PharmacyService {
                 ).stream()
                 .map(PharmacyMapResponse::from)
                 .toList();
+    }
+
+    // 약국 상세정보 조회
+    public PharmacyDetailResponse getPharmacyDetail(String hpid) {
+        return pharmacyRepository.findByHpid(hpid)
+                .map(PharmacyDetailResponse::from)
+                .orElseThrow(() -> new IllegalArgumentException("pharmacy not found"));
     }
 }

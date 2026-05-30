@@ -6,7 +6,7 @@ public record PrescriptionUploadUrlResponse(
         Long ocrResultId,
         String uploadUrl,
         String key,
-        String fileUrl,
-        Map<String, String> headers
+        String fileUrl,   // 파일 접근할때 사용할 url
+        Map<String, String> headers   // 업로드 요청에 포함할 헤더
 ) {
 }

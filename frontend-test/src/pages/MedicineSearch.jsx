@@ -44,9 +44,9 @@ function MedicineSearch() {
     setMessage('')
 
     try {
-      const items = await searchMedicines(nextKeyword)
-      setResults(items)
-      setMessage(items.length > 0 ? '' : '검색 결과가 없습니다.')
+      const item = await searchMedicines(nextKeyword)
+      setResults(item ? [item] : [])
+      setMessage(item ? '' : '검색 결과가 없습니다.')
     } catch (error) {
       setResults([])
       setMessage(error.response?.data?.message || '약 검색 중 오류가 발생했습니다.')
@@ -157,7 +157,7 @@ function MedicineSearch() {
           <div className="medicine-search-preview">
             <div className="medicine-search-preview-badge">preview</div>
             <strong>{keyword.trim() ? `"${keyword}" 검색 준비 완료` : '검색어를 입력해보세요'}</strong>
-            <p>검색 결과 카드에는 이미지, 약 이름, 회사명, 효능, 복용법, 주의사항이 함께 표시됩니다.</p>
+            <p>검색 결과 카드는 이미지, 약 이름, 회사명, 효능, 복용법, 주의사항이 함께 표시됩니다.</p>
           </div>
         </section>
 

@@ -335,7 +335,6 @@ export function PrescriptionUploadScreen({ navigation }: any) {
       const presigned = await api.createPrescriptionUploadUrl(settings, session, {
         fileName: photo.fileName || buildPrescriptionFileName(),
         contentType: photo.mimeType || "image/jpeg",
-        category: "PRESCRIPTION",
       });
 
       await uploadImageToPresignedUrl(presigned.uploadUrl, photo, presigned.headers);

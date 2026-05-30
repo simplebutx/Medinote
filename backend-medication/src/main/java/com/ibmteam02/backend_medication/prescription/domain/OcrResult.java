@@ -46,7 +46,7 @@ public class OcrResult {
     private String errorMessage;
 
     @Column(name = "ocr_engine", length = 100)
-    private String ocrEngine;
+    private String ocrEngine;  // 디버깅용
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -73,12 +73,14 @@ public class OcrResult {
         this.ocrEngine = ocrEngine;
     }
 
+    // 상태 변경용 함수
     public void markProcessing(String ocrEngine) {
         this.status = OcrResultStatus.OCR_PROCESSING;
         this.ocrEngine = ocrEngine;
         this.errorMessage = null;
     }
 
+    // 상태 변경용 함수
     public void markSuccess(String rawText, String resultJson, String ocrEngine) {
         this.status = OcrResultStatus.OCR_DONE;
         this.rawText = rawText;
@@ -87,6 +89,7 @@ public class OcrResult {
         this.errorMessage = null;
     }
 
+    // 상태 변경용 함수
     public void markFailed(String errorMessage, String ocrEngine) {
         this.status = OcrResultStatus.OCR_FAILED;
         this.errorMessage = errorMessage;

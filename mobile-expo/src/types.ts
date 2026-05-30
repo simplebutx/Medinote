@@ -145,7 +145,6 @@ export interface MedicationIntakeLogResponse {
 export interface PrescriptionUploadUrlRequest {
   fileName: string;
   contentType: string;
-  category: "PRESCRIPTION";
 }
 
 export interface PrescriptionUploadUrlResponse {

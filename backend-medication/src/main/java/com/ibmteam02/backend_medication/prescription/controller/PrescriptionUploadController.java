@@ -34,6 +34,7 @@ public class PrescriptionUploadController {
         return prescriptionUploadService.createUploadUrl(userId, request);
     }
 
+    // 업로드된 사진에 대해 ocr 실행
     @PostMapping("/{ocrResultId}/ocr")
     public PrescriptionOcrResponse runOcr(
             @AuthenticationPrincipal Long userId,

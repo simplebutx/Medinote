@@ -3,7 +3,6 @@ package com.ibmteam02.backend_medication.prescription.service;
 import com.ibmteam02.backend_medication.prescription.config.S3StorageProperties;
 import com.ibmteam02.backend_medication.prescription.domain.OcrResult;
 import com.ibmteam02.backend_medication.prescription.domain.OcrResultStatus;
-import com.ibmteam02.backend_medication.prescription.dto.PrescriptionUploadCategory;
 import com.ibmteam02.backend_medication.prescription.dto.PrescriptionUploadUrlRequest;
 import com.ibmteam02.backend_medication.prescription.dto.PrescriptionUploadUrlResponse;
 import com.ibmteam02.backend_medication.prescription.repository.OcrResultRepository;
@@ -44,7 +43,6 @@ public class PrescriptionUploadService {
         validateUserId(userId);
         validateConfiguration();
         validateContentType(request.contentType());
-        validateCategory(request.category());
 
         String key = buildObjectKey(userId, request.fileName());
         OcrResult ocrResult = ocrResultRepository.save(
@@ -59,7 +57,6 @@ public class PrescriptionUploadService {
                 .key(key)
                 .contentType(request.contentType())
                 .build();
-
         PresignedPutObjectRequest presignedRequest = s3Presigner.presignPutObject(
                 PutObjectPresignRequest.builder()
                         .signatureDuration(Duration.ofSeconds(s3StorageProperties.presignExpirationSeconds()))
@@ -94,12 +91,6 @@ public class PrescriptionUploadService {
     private void validateContentType(String contentType) {
         if (!ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
             throw new IllegalArgumentException("Unsupported content type: " + contentType);
-        }
-    }
-
-    private void validateCategory(PrescriptionUploadCategory category) {
-        if (category != PrescriptionUploadCategory.PRESCRIPTION) {
-            throw new IllegalArgumentException("Unsupported upload category: " + category);
         }
     }
 

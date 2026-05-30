@@ -19,6 +19,7 @@ public class S3PresignerConfig {
 
     private final S3StorageProperties s3StorageProperties;
 
+    // presignedUrl 생성 객체
     @Bean
     public S3Presigner s3Presigner() {
         String region = StringUtils.hasText(s3StorageProperties.region())

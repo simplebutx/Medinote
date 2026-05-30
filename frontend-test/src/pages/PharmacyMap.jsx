@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 
-import { getPharmaciesInBounds } from '../api'
+import { getPharmaciesInBounds, getPharmacyDetail } from '../api'
 
 const KAKAO_MAP_SCRIPT_ID = 'kakao-map-sdk'
 const KAKAO_MAP_KEY = import.meta.env.VITE_KAKAO_MAP_KEY
@@ -54,6 +54,7 @@ function PharmacyMap() {
   const [status, setStatus] = useState('지도를 준비하고 있습니다.')
   const [pharmacies, setPharmacies] = useState([])
   const [selectedHpid, setSelectedHpid] = useState(null)
+  const [selectedPharmacyDetail, setSelectedPharmacyDetail] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -96,6 +97,9 @@ function PharmacyMap() {
                   ? previousHpid
                   : nextPharmacies[0].hpid
               })
+              if (nextPharmacies.length === 0) {
+                setSelectedPharmacyDetail(null)
+              }
               setStatus(`${nextPharmacies.length}개 약국을 표시하고 있습니다.`)
             })
             .catch((error) => {
@@ -115,14 +119,14 @@ function PharmacyMap() {
         })
 
         if (error.message === 'MISSING_KAKAO_MAP_KEY') {
-          setStatus('VITE_KAKAO_MAP_KEY 값을 찾지 못했습니다. frontend-test/.env.local에 키를 넣어주세요.')
+          setStatus('VITE_KAKAO_MAP_KEY 값을 찾지 못했습니다. frontend-test/.env.local 파일을 확인해주세요.')
           return
         }
 
         const message = typeof error?.message === 'string' ? error.message : ''
         if (message.startsWith('SCRIPT_LOAD_FAILED:')) {
           setStatus(
-            `카카오 SDK 스크립트를 불러오지 못했습니다. 현재 주소는 ${window.location.origin} 입니다. 카카오맵 사용 설정과 도메인 등록을 확인해주세요.`,
+            `카카오 SDK 스크립트를 불러오지 못했습니다. 현재 주소는 ${window.location.origin} 입니다. 카카오 앱 설정과 도메인 등록을 확인해주세요.`,
           )
           return
         }
@@ -161,6 +165,32 @@ function PharmacyMap() {
   const selectedPharmacy = pharmacies.find((item) => item.hpid === selectedHpid) ?? null
 
   useEffect(() => {
+    let cancelled = false
+
+    if (!selectedHpid) {
+      setSelectedPharmacyDetail(null)
+      return () => {
+        cancelled = true
+      }
+    }
+
+    getPharmacyDetail(selectedHpid)
+      .then((data) => {
+        if (cancelled) return
+        setSelectedPharmacyDetail(data)
+      })
+      .catch((error) => {
+        if (cancelled) return
+        console.error('Failed to fetch pharmacy detail', error)
+        setSelectedPharmacyDetail(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedHpid])
+
+  useEffect(() => {
     if (!mapRef.current || !window.kakao?.maps || !selectedPharmacy) return
     if (!shouldPanToSelectionRef.current) return
 
@@ -179,7 +209,7 @@ function PharmacyMap() {
             <p className="pharmacy-map-eyebrow">Pharmacy Map Test</p>
             <h1>카카오 지도 약국 페이지</h1>
             <p className="pharmacy-map-subtitle">
-              지도 범위가 바뀔 때마다 현재 화면 안의 약국만 백엔드에서 다시 불러오는 테스트 페이지입니다.
+              지도 범위가 바뀔 때마다 현재 화면 안의 약국 목록만 받아오고, 선택한 약국 상세는 따로 조회하는 테스트 페이지입니다.
             </p>
           </div>
           <Link className="pharmacy-map-home-link" to="/">
@@ -243,45 +273,47 @@ function PharmacyMap() {
 
             <div className="pharmacy-map-detail-card">
               <div className="pharmacy-map-detail-header">
-                <span>선택된 약국</span>
-                <h2>{selectedPharmacy?.name || '약국을 선택해주세요'}</h2>
+                <span>선택한 약국</span>
+                <h2>{selectedPharmacyDetail?.name || selectedPharmacy?.name || '약국을 선택해주세요'}</h2>
               </div>
 
-              {selectedPharmacy ? (
+              {selectedPharmacyDetail ? (
                 <dl className="pharmacy-map-detail-grid">
                   <div>
                     <dt>주소</dt>
-                    <dd>{selectedPharmacy.address}</dd>
+                    <dd>{selectedPharmacyDetail.address}</dd>
                   </div>
                   <div>
                     <dt>전화</dt>
-                    <dd>{selectedPharmacy.phone || '정보 없음'}</dd>
+                    <dd>{selectedPharmacyDetail.phone || '정보 없음'}</dd>
                   </div>
                   <div>
                     <dt>평일</dt>
-                    <dd>{formatBusinessHours(selectedPharmacy.mondayOpen, selectedPharmacy.mondayClose)}</dd>
+                    <dd>{formatBusinessHours(selectedPharmacyDetail.mondayOpen, selectedPharmacyDetail.mondayClose)}</dd>
                   </div>
                   <div>
                     <dt>토요일</dt>
-                    <dd>{formatBusinessHours(selectedPharmacy.saturdayOpen, selectedPharmacy.saturdayClose)}</dd>
+                    <dd>{formatBusinessHours(selectedPharmacyDetail.saturdayOpen, selectedPharmacyDetail.saturdayClose)}</dd>
                   </div>
                   <div>
                     <dt>일요일</dt>
-                    <dd>{formatBusinessHours(selectedPharmacy.sundayOpen, selectedPharmacy.sundayClose)}</dd>
+                    <dd>{formatBusinessHours(selectedPharmacyDetail.sundayOpen, selectedPharmacyDetail.sundayClose)}</dd>
                   </div>
                   <div>
                     <dt>공휴일</dt>
-                    <dd>{formatBusinessHours(selectedPharmacy.holidayOpen, selectedPharmacy.holidayClose)}</dd>
+                    <dd>{formatBusinessHours(selectedPharmacyDetail.holidayOpen, selectedPharmacyDetail.holidayClose)}</dd>
                   </div>
                   <div>
                     <dt>상세 설명</dt>
-                    <dd>{selectedPharmacy.description || '정보 없음'}</dd>
+                    <dd>{selectedPharmacyDetail.description || '정보 없음'}</dd>
                   </div>
                   <div>
                     <dt>추가 안내</dt>
-                    <dd>{selectedPharmacy.extraInfo || '정보 없음'}</dd>
+                    <dd>{selectedPharmacyDetail.extraInfo || '정보 없음'}</dd>
                   </div>
                 </dl>
+              ) : selectedPharmacy ? (
+                <div className="pharmacy-map-empty-state">약국 상세 정보를 불러오는 중입니다.</div>
               ) : (
                 <div className="pharmacy-map-empty-state">목록에서 약국을 선택하면 상세 정보를 볼 수 있습니다.</div>
               )}

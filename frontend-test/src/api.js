@@ -120,6 +120,13 @@ export const getPharmaciesInBounds = async (params) => {
   return response.data
 }
 
+export const getPharmacyDetail = async (hpid) => {
+  const response = await api.get(`/pharmacies/${hpid}`, {
+    timeout: 30000,
+  })
+  return response.data
+}
+
 export const createMedicationSchedule = async (payload) => {
   const response = await api.post('/medication-schedules', payload)
   return response.data

@@ -2,6 +2,7 @@ package com.ibmteam02.backend_medication.prescription.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+// aws 설정값 보관
 @ConfigurationProperties(prefix = "aws.s3")
 public record S3StorageProperties(
         String region,

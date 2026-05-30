@@ -21,6 +21,7 @@ public class PrescriptionOcrService {
     private final OcrResultRepository ocrResultRepository;
     private final AiOcrClient aiOcrClient;
 
+    // 업로드한 사진에 대해 ocr 실행
     @Transactional
     public PrescriptionOcrResponse runOcr(Long userId, Long ocrResultId) {
         if (userId == null) {
@@ -33,10 +34,11 @@ public class PrescriptionOcrService {
         ocrResult.markProcessing(OCR_ENGINE_NAME);
 
         try {
-            AiOcrResponse aiResponse = aiOcrClient.analyzePrescription(
+            AiOcrResponse aiResponse = aiOcrClient.analyzePrescription(   // 8081 -> 8000 -> 8081
                     new AiOcrRequest(ocrResult.getId(), userId, ocrResult.getImageKey())
             );
 
+            // 상태값 바꾸고 결과 ocrResult에 저장
             ocrResult.markSuccess(
                     aiResponse.rawText(),
                     aiResponse.resultJson(),
@@ -53,6 +55,7 @@ public class PrescriptionOcrService {
         }
     }
 
+    // preprocessedImageDataUrl 은 디거빙용 (db 저장 x)
     private PrescriptionOcrResponse toResponse(OcrResult ocrResult, String preprocessedImageDataUrl) {
         return new PrescriptionOcrResponse(
                 ocrResult.getId(),
