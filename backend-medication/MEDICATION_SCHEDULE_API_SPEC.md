@@ -20,7 +20,6 @@
   "durationDays": 3,
   "startDate": "2026-05-21",
   "endDate": "2026-05-24",
-  "prescribedDate": "2026-05-21",
   "dispensedDate": "2026-05-21",
   "isActive": true,
   "createdAt": "2026-05-21T16:49:48",
@@ -102,7 +101,6 @@
 - 상위 schedule 공통 필드
   - `hospitalName`
   - `pharmacyName`
-  - `prescribedDate`
   - `dispensedDate`
 - 약별 필드
   - `medicines[].medicineId`
@@ -120,7 +118,6 @@
 {
   "hospitalName": "나무병원",
   "pharmacyName": "꽃약국",
-  "prescribedDate": "2026-05-21",
   "dispensedDate": "2026-05-21",
   "medicines": [
     {

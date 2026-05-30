@@ -20,7 +20,6 @@ public record MedicationScheduleRequest(
         Integer durationDays,
         LocalDate startDate,
         LocalDate endDate,
-        LocalDate prescribedDate,
         LocalDate dispensedDate,
         Boolean isActive,
         List<MedicationScheduleMedicineRequest> medicines

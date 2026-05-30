@@ -58,7 +58,6 @@ function createDefaultForm() {
     dosageUnit: "TABLET",
     timesPerDay: "3",
     durationDays: "7",
-    prescribedDate: todayDateInput(),
     dispensedDate: todayDateInput(),
   };
 }
@@ -73,7 +72,6 @@ function createOcrDraftForm(draft?: OcrScheduleDraft | null) {
     hospitalName: draft?.hospitalName || "",
     pharmacyName: draft?.pharmacyName || "",
     dispensedDate: draft?.dispensedDate || todayDateInput(),
-    prescribedDate: draft?.prescribedDate || "",
     medicines: (draft?.medicines || []).map((medicine) => ({
       name: medicine.name || "",
       dosage: medicine.dosage || "",
@@ -488,7 +486,7 @@ export function MyScheduleListScreen({ navigation }: any) {
                     {(item.hospitalName || "병원 미입력") + " · " + (item.pharmacyName || "약국 미입력")}
                   </Text>
                   <Text style={mobileStyles.listItemMeta}>
-                    {"처방일 " + (item.prescribedDate || "-") + " / 조제일 " + (item.dispensedDate || "-")}
+                    {"조제일 " + (item.dispensedDate || "-")}
                   </Text>
                   <Text style={mobileStyles.listItemMeta}>
                     {(item.effectiveStartDate || "-") + " ~ " + (item.effectiveEndDate || "-")}
@@ -800,7 +798,7 @@ function LegacyScheduleFormScreen({ navigation, route }: any) {
   const [medicineSuggestions, setMedicineSuggestions] = useState<string[]>([]);
   const [form, setForm] = useState(createDefaultForm());
   const [timeSlots, setTimeSlots] = useState(createTimeSlots(3));
-  const [datePickerTarget, setDatePickerTarget] = useState<"prescribedDate" | "dispensedDate" | null>(null);
+  const [datePickerTarget, setDatePickerTarget] = useState<"dispensedDate" | null>(null);
   const [timePickerIndex, setTimePickerIndex] = useState<number | null>(null);
   const medicineDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -865,7 +863,6 @@ function LegacyScheduleFormScreen({ navigation, route }: any) {
             dosageUnit: item.dosageUnit || "TABLET",
             timesPerDay: item.timesPerDay ? String(item.timesPerDay) : "1",
             durationDays: item.durationDays ? String(item.durationDays) : "1",
-            prescribedDate: item.prescribedDate || todayDateInput(),
             dispensedDate: item.dispensedDate || todayDateInput(),
           });
           setSelectedMedicineId(item.medicineId ?? null);
@@ -915,7 +912,6 @@ function LegacyScheduleFormScreen({ navigation, route }: any) {
     durationDays: Number(form.durationDays) || 1,
     startDate: null,
     endDate: null,
-    prescribedDate: form.prescribedDate || null,
     dispensedDate: form.dispensedDate || null,
     isActive: null,
     medicines: [
@@ -1128,10 +1124,6 @@ function LegacyScheduleFormScreen({ navigation, route }: any) {
           keyboardType="numeric"
         />
 
-        <Pressable onPress={() => setDatePickerTarget("prescribedDate")} style={mobileStyles.pickerField}>
-          <Text style={mobileStyles.pickerLabel}>처방일</Text>
-          <Text style={mobileStyles.pickerValue}>{form.prescribedDate || "날짜 선택"}</Text>
-        </Pressable>
         <Pressable onPress={() => setDatePickerTarget("dispensedDate")} style={mobileStyles.pickerField}>
           <Text style={mobileStyles.pickerLabel}>조제일</Text>
           <Text style={mobileStyles.pickerValue}>{form.dispensedDate || "날짜 선택"}</Text>
@@ -1245,7 +1237,7 @@ function OcrScheduleDraftFormScreen({
   const ocrDraft = (route?.params?.ocrDraft as OcrScheduleDraft | null | undefined) ?? null;
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [datePickerTarget, setDatePickerTarget] = useState<"prescribedDate" | "dispensedDate" | null>(null);
+  const [datePickerTarget, setDatePickerTarget] = useState<"dispensedDate" | null>(null);
   const [form, setForm] = useState(() => createOcrDraftForm(ocrDraft));
 
   useLayoutEffect(() => {
@@ -1261,7 +1253,7 @@ function OcrScheduleDraftFormScreen({
   }, [ocrDraft]);
 
   const handleSharedFieldChange = (
-    field: "hospitalName" | "pharmacyName" | "dispensedDate" | "prescribedDate",
+    field: "hospitalName" | "pharmacyName" | "dispensedDate",
     value: string
   ) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -1340,7 +1332,6 @@ function OcrScheduleDraftFormScreen({
         durationDays: Math.max(Number(medicines[0]?.days) || 1, 1),
         startDate: null,
         endDate: null,
-        prescribedDate: form.prescribedDate || null,
         dispensedDate: form.dispensedDate || null,
         isActive: null,
         medicines: medicines.map((medicine) => ({
@@ -1397,10 +1388,6 @@ function OcrScheduleDraftFormScreen({
         <Pressable onPress={() => setDatePickerTarget("dispensedDate")} style={mobileStyles.pickerField}>
           <Text style={mobileStyles.pickerLabel}>조제일자</Text>
           <Text style={mobileStyles.pickerValue}>{form.dispensedDate || "날짜 선택"}</Text>
-        </Pressable>
-        <Pressable onPress={() => setDatePickerTarget("prescribedDate")} style={mobileStyles.pickerField}>
-          <Text style={mobileStyles.pickerLabel}>처방일자</Text>
-          <Text style={mobileStyles.pickerValue}>{form.prescribedDate || "날짜 선택"}</Text>
         </Pressable>
 
         <Text style={mobileStyles.groupTitle}>약 목록</Text>

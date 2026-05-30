@@ -136,7 +136,6 @@ function buildOcrScheduleDraft(resultJson: string | null | undefined): OcrSchedu
       hospitalName: String(parsed.hospitalName || "").trim(),
       pharmacyName: String(parsed.pharmacyName || "").trim(),
       dispensedDate: String(parsed.dispensedDate || "").trim(),
-      prescribedDate: String(parsed.prescribedDate || "").trim(),
       medicines,
     };
   } catch {

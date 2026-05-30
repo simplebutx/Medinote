@@ -22,7 +22,6 @@ public record MedicationScheduleResponse(
         Integer durationDays,
         LocalDate startDate,
         LocalDate endDate,
-        LocalDate prescribedDate,
         LocalDate dispensedDate,
         Boolean isActive,
         LocalDateTime createdAt,
