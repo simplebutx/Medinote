@@ -229,6 +229,7 @@ function OcrPage() {
           timesPerDay: item.timesPerDay,
           intervalHours: null,
           durationDays: item.durationDays,
+          prescribedDate: item.startDate,
           dispensedDate: item.startDate,
         });
 

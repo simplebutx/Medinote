@@ -28,6 +28,7 @@ export interface MedicationSchedule {
   durationDays?: number | null;
   startDate?: string | null;
   endDate?: string | null;
+  prescribedDate?: string | null;
   dispensedDate?: string | null;
   isActive: boolean;
   createdAt?: string;
@@ -73,6 +74,7 @@ export interface CreateMedicationScheduleRequest {
   timesPerDay?: number | null;
   intervalHours?: number | null;
   durationDays?: number | null;
+  prescribedDate?: string | null;
   dispensedDate?: string | null;
 }
 
