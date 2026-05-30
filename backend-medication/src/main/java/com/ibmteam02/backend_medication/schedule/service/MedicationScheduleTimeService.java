@@ -24,6 +24,7 @@ public class MedicationScheduleTimeService {
     private final MedicationScheduleRepository medicationScheduleRepository;
     private final MedicationScheduleMedicineRepository medicationScheduleMedicineRepository;
 
+    // 복용 시간 생성
     public MedicationScheduleTimeResponse create(Long userId, MedicationScheduleTimeRequest request) {
         MedicationScheduleMedicine scheduleMedicine = findOwnedScheduleMedicine(userId, request.medicationScheduleMedicineId());
 
@@ -37,12 +38,14 @@ public class MedicationScheduleTimeService {
         return toResponse(medicationScheduleTimeRepository.save(scheduleTime));
     }
 
+    // 복용 시간 상세
     @Transactional(readOnly = true)
     public MedicationScheduleTimeResponse get(Long userId, Long id) {
         MedicationScheduleTime scheduleTime = findOwnedScheduleTime(userId, id);
         return toResponse(scheduleTime);
     }
 
+    // 복용 시간 목록
     @Transactional(readOnly = true)
     public List<MedicationScheduleTimeResponse> getByScheduleId(Long userId, Long medicationScheduleId) {
         MedicationSchedule schedule = medicationScheduleRepository.findById(medicationScheduleId)
@@ -59,6 +62,7 @@ public class MedicationScheduleTimeService {
                 .toList();
     }
 
+    // 복용 시간 수정
     public MedicationScheduleTimeResponse update(Long userId, Long id, MedicationScheduleTimeRequest request) {
         MedicationScheduleTime scheduleTime = findOwnedScheduleTime(userId, id);
         MedicationScheduleMedicine scheduleMedicine = findOwnedScheduleMedicine(userId, request.medicationScheduleMedicineId());
@@ -72,6 +76,7 @@ public class MedicationScheduleTimeService {
         return toResponse(scheduleTime);
     }
 
+    // 삭제
     public void delete(Long userId, Long id) {
         MedicationScheduleTime scheduleTime = findOwnedScheduleTime(userId, id);
         medicationScheduleTimeRepository.delete(scheduleTime);

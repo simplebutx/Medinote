@@ -11,8 +11,10 @@ import com.ibmteam02.backend_medication.medicine.repository.MedicineInfoReposito
 import com.ibmteam02.backend_medication.medicine.repository.MedicineIngredientRepository;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationIntakeLog;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationSchedule;
+import com.ibmteam02.backend_medication.schedule.domain.MedicationScheduleMedicine;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationScheduleTime;
 import com.ibmteam02.backend_medication.schedule.repository.MedicationIntakeLogRepository;
+import com.ibmteam02.backend_medication.schedule.repository.MedicationScheduleMedicineRepository;
 import com.ibmteam02.backend_medication.schedule.repository.MedicationScheduleRepository;
 import com.ibmteam02.backend_medication.schedule.repository.MedicationScheduleTimeRepository;
 import java.time.LocalDate;
@@ -25,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +42,7 @@ public class MedicineChatbotContextService {
     private final MedicineInfoRepository medicineInfoRepository;
     private final MedicineIngredientRepository medicineIngredientRepository;
     private final MedicationScheduleRepository medicationScheduleRepository;
+    private final MedicationScheduleMedicineRepository medicationScheduleMedicineRepository;
     private final MedicationScheduleTimeRepository medicationScheduleTimeRepository;
     private final MedicationIntakeLogRepository medicationIntakeLogRepository;
     private final UserMedicationCautionRepository userMedicationCautionRepository;
@@ -187,13 +191,18 @@ public class MedicineChatbotContextService {
         }
 
         Map<Long, List<MedicationScheduleTime>> scheduleTimesMap = buildScheduleTimesMap(schedules);
+        Map<Long, List<MedicationScheduleMedicine>> scheduleMedicinesMap = buildScheduleMedicinesMap(schedules);
         Map<Long, List<MedicationIntakeLog>> intakeLogMap = buildIntakeLogMap(schedules);
 
         LocalDate today = LocalDate.now();
 
         if (requestDetails != null && requestDetails.contains("CURRENT_MEDICATION")) {
             List<MedicationSchedule> currentSchedules = schedules.stream()
-                    .filter(schedule -> isActiveToday(schedule, today))
+                    .filter(schedule -> isActiveToday(
+                            schedule,
+                            scheduleMedicinesMap.getOrDefault(schedule.getId(), List.of()),
+                            today
+                    ))
                     .toList();
 
             result.append("- 현재 복용 중인 약\n");
@@ -202,7 +211,10 @@ public class MedicineChatbotContextService {
             } else {
                 for (MedicationSchedule schedule : currentSchedules) {
                     result.append("• ")
-                            .append(formatScheduleName(schedule))
+                            .append(formatScheduleName(
+                                    schedule,
+                                    scheduleMedicinesMap.getOrDefault(schedule.getId(), List.of())
+                            ))
                             .append(" / 복용 시간: ")
                             .append(formatScheduleTimes(scheduleTimesMap.get(schedule.getId())))
                             .append("\n");
@@ -215,11 +227,14 @@ public class MedicineChatbotContextService {
             result.append("- 등록된 복약 일정\n");
             for (MedicationSchedule schedule : schedules) {
                 result.append("• ")
-                        .append(formatScheduleName(schedule))
+                        .append(formatScheduleName(
+                                schedule,
+                                scheduleMedicinesMap.getOrDefault(schedule.getId(), List.of())
+                        ))
                         .append(" / 기간: ")
-                        .append(schedule.getStartDate())
-                        .append(" ~ ")
-                        .append(schedule.getEndDate())
+                        .append(formatSchedulePeriod(
+                                scheduleMedicinesMap.getOrDefault(schedule.getId(), List.of())
+                        ))
                         .append(" / 시간: ")
                         .append(formatScheduleTimes(scheduleTimesMap.get(schedule.getId())))
                         .append("\n");
@@ -240,7 +255,13 @@ public class MedicineChatbotContextService {
             } else {
                 for (MedicationIntakeLog log : recentLogs) {
                     result.append("• ")
-                            .append(formatScheduleName(log.getMedicationSchedule()))
+                            .append(formatScheduleName(
+                                    log.getMedicationSchedule(),
+                                    scheduleMedicinesMap.getOrDefault(
+                                            log.getMedicationSchedule().getId(),
+                                            List.of()
+                                    )
+                            ))
                             .append(" / 상태: ")
                             .append(log.getStatus())
                             .append(" / 예정 시각: ")
@@ -424,25 +445,65 @@ public class MedicineChatbotContextService {
     }
 
     // 복약 일정이 오늘 기준으로 유효한 상태인지 (isActiveToday)
-    private boolean isActiveToday(MedicationSchedule schedule, LocalDate today) {
-        if (schedule.getStartDate() == null || schedule.getEndDate() == null) {
+    private boolean isActiveToday(
+            MedicationSchedule schedule,
+            List<MedicationScheduleMedicine> medicines,
+            LocalDate today
+    ) {
+        if (medicines == null || medicines.isEmpty()) {
             return Boolean.TRUE.equals(schedule.getIsActive());
         }
-        return !today.isBefore(schedule.getStartDate()) && !today.isAfter(schedule.getEndDate());
+
+        return medicines.stream().anyMatch(medicine -> {
+            if (medicine.getStartDate() == null || medicine.getEndDate() == null) {
+                return Boolean.TRUE.equals(medicine.getIsActive());
+            }
+            return !today.isBefore(medicine.getStartDate()) && !today.isAfter(medicine.getEndDate());
+        });
     }
 
     // 이 복약 일정의 이름을 뭐라고 보여줄지 정하는 함수 (약 이름 우선)
-    private String formatScheduleName(MedicationSchedule schedule) {
-        if (schedule.getCustomMedicineName() != null && !schedule.getCustomMedicineName().isBlank()) {
-            return schedule.getCustomMedicineName();
-        }
-        if (schedule.getMedicineId() != null) {
-            return "약 ID " + schedule.getMedicineId();
+    private String formatScheduleName(
+            MedicationSchedule schedule,
+            List<MedicationScheduleMedicine> medicines
+    ) {
+        if (medicines != null) {
+            for (MedicationScheduleMedicine medicine : medicines) {
+                if (medicine.getCustomMedicineName() != null && !medicine.getCustomMedicineName().isBlank()) {
+                    return medicine.getCustomMedicineName();
+                }
+                if (medicine.getMedicineId() != null) {
+                    return "약 ID " + medicine.getMedicineId();
+                }
+            }
         }
         return "이름 없는 복약 일정";
     }
 
     // 복약 시간 목록을 사람이 읽기 쉬운 문자열로 변환
+    private String formatSchedulePeriod(List<MedicationScheduleMedicine> medicines) {
+        if (medicines == null || medicines.isEmpty()) {
+            return "?쇱젙 湲곌컙 ?놁쓬";
+        }
+
+        LocalDate startDate = medicines.stream()
+                .map(MedicationScheduleMedicine::getStartDate)
+                .filter(Objects::nonNull)
+                .min(Comparator.naturalOrder())
+                .orElse(null);
+        LocalDate endDate = medicines.stream()
+                .map(MedicationScheduleMedicine::getEndDate)
+                .filter(Objects::nonNull)
+                .max(Comparator.naturalOrder())
+                .orElse(null);
+
+        if (startDate == null && endDate == null) {
+            return "?쇱젙 湲곌컙 ?놁쓬";
+        }
+
+        return String.valueOf(startDate) + " ~ " + String.valueOf(endDate);
+    }
+
     private String formatScheduleTimes(List<MedicationScheduleTime> scheduleTimes) {
         if (scheduleTimes == null || scheduleTimes.isEmpty()) {
             return "등록된 복용 시간 없음";
@@ -489,6 +550,17 @@ public class MedicineChatbotContextService {
     }
 
     // 각 복약 일정 ID별로 복약 기록 목록을 모아 Map으로
+    private Map<Long, List<MedicationScheduleMedicine>> buildScheduleMedicinesMap(List<MedicationSchedule> schedules) {
+        Map<Long, List<MedicationScheduleMedicine>> scheduleMedicinesMap = new HashMap<>();
+        for (MedicationSchedule schedule : schedules) {
+            scheduleMedicinesMap.put(
+                    schedule.getId(),
+                    medicationScheduleMedicineRepository.findByMedicationScheduleIdOrderByIdAsc(schedule.getId())
+            );
+        }
+        return scheduleMedicinesMap;
+    }
+
     private Map<Long, List<MedicationIntakeLog>> buildIntakeLogMap(List<MedicationSchedule> schedules) {
         Map<Long, List<MedicationIntakeLog>> intakeLogMap = new HashMap<>();
         for (MedicationSchedule schedule : schedules) {
@@ -554,13 +626,18 @@ public class MedicineChatbotContextService {
         }
 
         LocalDate today = LocalDate.now();
-        List<MedicationSchedule> currentSchedules = medicationScheduleRepository.findByUserId(userId).stream()
-                .filter(schedule -> isActiveToday(schedule, today))
-                .filter(schedule -> schedule.getMedicineId() != null)
-                .toList();
+        List<MedicationSchedule> schedules = medicationScheduleRepository.findByUserId(userId);
+        Map<Long, List<MedicationScheduleMedicine>> scheduleMedicinesMap = buildScheduleMedicinesMap(schedules);
 
-        Set<Long> medicineIds = currentSchedules.stream()
-                .map(MedicationSchedule::getMedicineId)
+        Set<Long> medicineIds = schedules.stream()
+                .filter(schedule -> isActiveToday(
+                        schedule,
+                        scheduleMedicinesMap.getOrDefault(schedule.getId(), List.of()),
+                        today
+                ))
+                .flatMap(schedule -> scheduleMedicinesMap.getOrDefault(schedule.getId(), List.of()).stream())
+                .map(MedicationScheduleMedicine::getMedicineId)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(HashSet::new));
 
         if (medicineIds.isEmpty()) {

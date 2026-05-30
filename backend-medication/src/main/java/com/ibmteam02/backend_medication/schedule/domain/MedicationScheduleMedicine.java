@@ -48,15 +48,8 @@ public class MedicationScheduleMedicine {
     @Column(name = "dosage_unit")
     private DosageUnit dosageUnit;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "frequency_type")
-    private FrequencyType frequencyType;
-
     @Column(name = "times_per_day")
     private Integer timesPerDay;
-
-    @Column(name = "interval_hours")
-    private Integer intervalHours;
 
     @Column(name = "duration_days", nullable = false)
     private Integer durationDays;
@@ -83,9 +76,7 @@ public class MedicationScheduleMedicine {
             String customMedicineName,
             BigDecimal dosageAmount,
             DosageUnit dosageUnit,
-            FrequencyType frequencyType,
             Integer timesPerDay,
-            Integer intervalHours,
             Integer durationDays,
             LocalDate startDate,
             LocalDate endDate,
@@ -96,9 +87,7 @@ public class MedicationScheduleMedicine {
         this.customMedicineName = customMedicineName;
         this.dosageAmount = dosageAmount;
         this.dosageUnit = dosageUnit;
-        this.frequencyType = frequencyType;
         this.timesPerDay = timesPerDay;
-        this.intervalHours = intervalHours;
         this.durationDays = durationDays;
         this.startDate = startDate;
         this.endDate = endDate;
@@ -111,9 +100,7 @@ public class MedicationScheduleMedicine {
             String customMedicineName,
             BigDecimal dosageAmount,
             DosageUnit dosageUnit,
-            FrequencyType frequencyType,
             Integer timesPerDay,
-            Integer intervalHours,
             Integer durationDays,
             LocalDate startDate,
             LocalDate endDate,
@@ -124,9 +111,7 @@ public class MedicationScheduleMedicine {
         this.customMedicineName = customMedicineName;
         this.dosageAmount = dosageAmount;
         this.dosageUnit = dosageUnit;
-        this.frequencyType = frequencyType;
         this.timesPerDay = timesPerDay;
-        this.intervalHours = intervalHours;
         this.durationDays = durationDays;
         this.startDate = startDate;
         this.endDate = endDate;

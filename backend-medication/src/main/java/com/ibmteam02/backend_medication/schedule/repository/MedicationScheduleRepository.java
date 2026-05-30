@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface MedicationScheduleRepository extends JpaRepository<MedicationSchedule, Long> {
     List<MedicationSchedule> findByUserId(Long userId);
+
+    java.util.Optional<MedicationSchedule> findByIdAndUserId(Long id, Long userId);
 }

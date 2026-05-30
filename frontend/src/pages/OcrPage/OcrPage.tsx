@@ -543,7 +543,6 @@ function OcrPage() {
       const uploadInfo = await uploadUrlMutation.mutateAsync({
         fileName: selectedFile.name,
         contentType: selectedFile.type || 'image/jpeg',
-        category: 'PRESCRIPTION',
       });
 
       await uploadPrescriptionImageToStorage({
@@ -864,18 +863,16 @@ function OcrPage() {
       const createdSchedule = await createScheduleMutation.mutateAsync({
         hospitalName: commonForm.hospitalName.trim() || null,
         pharmacyName: commonForm.pharmacyName.trim() || null,
-        prescribedDate: commonForm.startDate,
         dispensedDate: commonForm.startDate,
+        startDate: commonForm.startDate,
+        durationDays: Number(commonForm.durationDays),
         medicines: items.map((item) => ({
           medicineId: item.medicineId ?? null,
           customMedicineName: item.medicineName,
           dosageAmount: Number(item.dosageAmount),
           dosageUnit: mapDosageUnit(item.dosageUnit),
-          frequencyType: 'DAILY',
           timesPerDay: item.timesPerDay,
-          intervalHours: null,
           durationDays: Number(commonForm.durationDays),
-          startDate: commonForm.startDate,
         })),
       });
 

@@ -11,7 +11,10 @@ import {
   useUpdateMedicationIntakeLog,
 } from '../../features/schedule/hooks';
 
-import type { MedicationScheduleTime } from '../../features/schedule/types/schedule.types';
+import type {
+  MedicationSchedule,
+  MedicationScheduleTime,
+} from '../../features/schedule/types/schedule.types';
 
 type MedicationStatus = 'PENDING' | 'TAKEN' | 'SKIPPED' | 'MISSED';
 
@@ -179,6 +182,61 @@ function getCalendarDayClass(rate: number | null) {
   return 'bg-red-50 text-red-700 ring-1 ring-red-200';
 }
 
+function getScheduleMedicines(schedule?: MedicationSchedule | null) {
+  return schedule?.medicines ?? schedule?.medicationScheduleMedicines ?? [];
+}
+
+function getPrimaryMedicine(schedule?: MedicationSchedule | null) {
+  return getScheduleMedicines(schedule)[0] ?? null;
+}
+
+function getScheduleDisplayName(schedule?: MedicationSchedule | null) {
+  const primaryMedicine = getPrimaryMedicine(schedule);
+
+  return (
+    primaryMedicine?.customMedicineName ||
+    `등록 약 #${primaryMedicine?.medicineId ?? schedule?.id ?? '-'}`
+  );
+}
+
+function getScheduleRange(schedule?: MedicationSchedule | null) {
+  const medicines = getScheduleMedicines(schedule);
+
+  if (medicines.length === 0) {
+    return {
+      startDate: schedule?.startDate ?? null,
+      endDate: schedule?.endDate ?? null,
+      durationDays: schedule?.durationDays ?? null,
+    };
+  }
+
+  const startDates = medicines
+    .map((medicine) => medicine.startDate)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  const endDates = medicines
+    .map((medicine) => medicine.endDate)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  const durationDays = medicines.reduce<number | null>((maxValue, medicine) => {
+    if (medicine.durationDays == null) {
+      return maxValue;
+    }
+
+    if (maxValue == null) {
+      return medicine.durationDays;
+    }
+
+    return Math.max(maxValue, medicine.durationDays);
+  }, null);
+
+  return {
+    startDate: startDates[0] ?? schedule?.startDate ?? null,
+    endDate: endDates[endDates.length - 1] ?? schedule?.endDate ?? null,
+    durationDays,
+  };
+}
+
 function SchedulePage() {
   const navigate = useNavigate();
   const handleMoveDrugSearch = (drugName: string) => {
@@ -310,13 +368,12 @@ function SchedulePage() {
             schedule.isActive &&
             isDateInScheduleRange(
               dateText,
-              schedule.startDate,
-              schedule.endDate,
+              getScheduleRange(schedule).startDate,
+              getScheduleRange(schedule).endDate,
             ),
         )
         .flatMap((schedule) => {
-          const scheduleMedicines =
-            schedule.medicines ?? schedule.medicationScheduleMedicines ?? [];
+          const scheduleMedicines = getScheduleMedicines(schedule);
 
           if (scheduleMedicines.length === 0) {
             const times = medicationScheduleTimes.filter(
@@ -347,13 +404,8 @@ function SchedulePage() {
                 medicationScheduleTimeId: time.id,
                 scheduledAt: buildScheduledAt(dateText, time.takeTime),
                 intakeLogId: localLog?.intakeLogId ?? matchedLog?.id,
-                drugName:
-                  schedule.customMedicineName ||
-                  `등록 약 #${schedule.medicineId ?? schedule.id}`,
-                dosage: getDosageLabel(
-                  schedule.dosageAmount,
-                  schedule.dosageUnit,
-                ),
+                drugName: getScheduleDisplayName(schedule),
+                dosage: getDosageLabel(),
                 time: time.takeTime,
                 timing: getTimingLabel(time.timing),
                 status: localLog?.status ?? matchedLog?.status ?? 'PENDING',
@@ -367,8 +419,8 @@ function SchedulePage() {
                 medicine.isActive !== false &&
                 isDateInScheduleRange(
                   dateText,
-                  medicine.startDate ?? schedule.startDate,
-                  medicine.endDate ?? schedule.endDate,
+                  medicine.startDate ?? getScheduleRange(schedule).startDate,
+                  medicine.endDate ?? getScheduleRange(schedule).endDate,
                 ),
             )
             .flatMap((medicine) => {
@@ -517,12 +569,8 @@ function SchedulePage() {
 
         const drugName =
           medicine?.customMedicineName ||
-          schedule?.customMedicineName ||
-          `등록 약 #${
-            medicine?.medicineId ??
-            schedule?.medicineId ??
-            log.medicationScheduleId
-          }`;
+          getScheduleDisplayName(schedule) ||
+          `등록 약 #${medicine?.medicineId ?? log.medicationScheduleId}`;
 
         const displayDate = log.scheduledAt.startsWith(todayText)
           ? '오늘'
@@ -859,8 +907,7 @@ function SchedulePage() {
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-bold text-slate-900">
-                      {schedule.customMedicineName ||
-                        `등록 약 #${schedule.medicineId ?? '-'}`}
+                      {getScheduleDisplayName(schedule)}
                     </p>
 
                     <Badge variant={schedule.isActive ? 'green' : 'gray'}>
@@ -869,15 +916,15 @@ function SchedulePage() {
                   </div>
 
                   <p className="mt-2 text-sm text-slate-500">
-                    {schedule.startDate || '시작일 없음'} ~{' '}
-                    {schedule.endDate || '종료일 없음'}
+                    {getScheduleRange(schedule).startDate || '시작일 없음'} ~{' '}
+                    {getScheduleRange(schedule).endDate || '종료일 없음'}
                   </p>
 
                   <p className="mt-1 text-sm text-slate-500">
-                    1회 {schedule.dosageAmount ?? '-'}
-                    {schedule.dosageUnit ?? ''} · 하루{' '}
-                    {schedule.timesPerDay ?? '-'}회 · 총{' '}
-                    {schedule.durationDays ?? '-'}일
+                    1회 {getPrimaryMedicine(schedule)?.dosageAmount ?? '-'}
+                    {getPrimaryMedicine(schedule)?.dosageUnit ?? ''} · 하루{' '}
+                    {getPrimaryMedicine(schedule)?.timesPerDay ?? '-'}회 · 총{' '}
+                    {getScheduleRange(schedule).durationDays ?? '-'}일
                   </p>
                 </div>
               ))}

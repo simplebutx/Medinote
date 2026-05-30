@@ -1,7 +1,6 @@
 export interface PrescriptionUploadUrlRequest {
   fileName: string;
   contentType: string;
-  category: string;
 }
 
 export interface PrescriptionUploadUrlResponse {

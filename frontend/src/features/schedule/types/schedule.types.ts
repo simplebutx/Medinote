@@ -34,9 +34,7 @@ export interface MedicationScheduleMedicine {
   customMedicineName?: string | null;
   dosageAmount?: number | null;
   dosageUnit?: DosageUnit | null;
-  frequencyType?: FrequencyType | null;
   timesPerDay?: number | null;
-  intervalHours?: number | null;
   durationDays?: number | null;
   startDate?: string | null;
   endDate?: string | null;
@@ -80,9 +78,7 @@ export interface MedicationSchedule {
   customMedicineName?: string | null;
   dosageAmount?: number | null;
   dosageUnit?: DosageUnit | null;
-  frequencyType?: FrequencyType | null;
   timesPerDay?: number | null;
-  intervalHours?: number | null;
 }
 
 export interface MedicationScheduleTime {
@@ -123,18 +119,16 @@ export interface CreateMedicationScheduleMedicineRequest {
   customMedicineName?: string | null;
   dosageAmount?: number | null;
   dosageUnit?: DosageUnit | null;
-  frequencyType?: FrequencyType | null;
   timesPerDay?: number | null;
-  intervalHours?: number | null;
-  durationDays: number;
-  startDate: string;
+  durationDays?: number | null;
 }
 
 export interface CreateMedicationScheduleRequest {
   hospitalName?: string | null;
   pharmacyName?: string | null;
-  prescribedDate?: string | null;
   dispensedDate?: string | null;
+  startDate: string;
+  durationDays: number;
   medicines: CreateMedicationScheduleMedicineRequest[];
 }
 
