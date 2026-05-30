@@ -113,9 +113,7 @@ function Chatbot() {
     latestRequestIdRef.current += 1
 
     setMessage((prev) => prev.replace(/@([^\s@]*)$/, `@${selectedName} `))
-    setConfirmedMentions((prev) => (
-      prev.includes(selectedName) ? prev : [...prev, selectedName]
-    ))
+    setConfirmedMentions((prev) => (prev.includes(selectedName) ? prev : [...prev, selectedName]))
     clearSuggestions()
   }
 
@@ -141,50 +139,78 @@ function Chatbot() {
   }
 
   return (
-    <div>
-      <h1>Chatbot Test</h1>
+    <div className="app-page">
+      <div className="app-page-header">
+        <p className="app-page-eyebrow">Chat & Consult</p>
+        <h1 className="app-page-title">챗봇 & 상담</h1>
+        <p className="app-page-description">
+          약 이름 멘션 자동완성과 챗봇 응답 기능을 사용자 공통 레이아웃 안으로 옮겼습니다.
+        </p>
+      </div>
 
-      <form onSubmit={handleSubmit}>
-        <div className="message-input-shell">
-          <div className="message-input-highlight" aria-hidden="true">
-            {renderHighlightedMessage(message, confirmedMentions)}
+      <div className="app-two-column">
+        <section className="app-card">
+          <div className="app-card-header">
+            <h2>AI 챗봇</h2>
+            <p>@로 약 이름을 입력하면 자동완성 목록이 열립니다.</p>
           </div>
 
-          <textarea
-            className="message-input"
-            value={message}
-            onChange={handleMessageChange}
-            placeholder="질문을 입력하세요"
-            rows={4}
-          />
-        </div>
+          <form onSubmit={handleSubmit} className="app-chat-form">
+            <div className="message-input-shell">
+              <div className="message-input-highlight" aria-hidden="true">
+                {renderHighlightedMessage(message, confirmedMentions)}
+              </div>
 
-        {showSuggestions && (
-          <ul className="suggestion-list">
-            {suggestions.map((suggestion) => (
-              <li key={suggestion}>
-                <button
-                  className="suggestion-item"
-                  type="button"
-                  onClick={() => handleSuggestionClick(suggestion)}
-                >
-                  {suggestion}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+              <textarea
+                className="message-input"
+                value={message}
+                onChange={handleMessageChange}
+                placeholder="질문을 입력하세요."
+                rows={4}
+              />
+            </div>
 
-        <button type="submit" disabled={loading}>
-          {loading ? '전송 중...' : '전송'}
-        </button>
-      </form>
+            {showSuggestions && (
+              <ul className="suggestion-list">
+                {suggestions.map((suggestion) => (
+                  <li key={suggestion}>
+                    <button
+                      className="suggestion-item"
+                      type="button"
+                      onClick={() => handleSuggestionClick(suggestion)}
+                    >
+                      {suggestion}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
 
-      <div>
-        <h2>답변</h2>
-        <div className="answer-text">
-          <ReactMarkdown>{answer}</ReactMarkdown>
-        </div>
+            <button className="app-primary-button" type="submit" disabled={loading}>
+              {loading ? '전송 중...' : '전송'}
+            </button>
+          </form>
+        </section>
+
+        <aside className="app-side-stack">
+          <section className="app-card">
+            <div className="app-card-header">
+              <h2>답변</h2>
+              <p>응답은 마크다운 형식 그대로 보여줍니다.</p>
+            </div>
+
+            <div className="answer-text app-answer-panel">
+              <ReactMarkdown>{answer || '아직 답변이 없습니다.'}</ReactMarkdown>
+            </div>
+          </section>
+
+          <section className="app-card app-muted-card">
+            <div className="app-card-header">
+              <h2>현재 범위</h2>
+              <p>약사/관리자 전용 기능은 제외하고, 현재 구현된 사용자 챗봇 화면만 정리했습니다.</p>
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
   )

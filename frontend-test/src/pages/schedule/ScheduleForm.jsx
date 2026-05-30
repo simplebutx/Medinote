@@ -29,12 +29,12 @@ function ScheduleForm({
         <div className="schedule-status-card">
           <span className="schedule-status-label">Quick links</span>
           <strong>
-            <Link className="schedule-inline-link" to="/schedule-test">
+            <Link className="schedule-inline-link" to="/app/schedule">
               My schedules
             </Link>
           </strong>
           <strong>
-            <Link className="schedule-inline-link" to="/schedule-test/new">
+            <Link className="schedule-inline-link" to="/app/schedule/new">
               Create new
             </Link>
           </strong>
@@ -233,7 +233,7 @@ function ScheduleForm({
           <button type="button" onClick={onSubmit} disabled={loading}>
             {loading ? 'Saving...' : submitLabel}
           </button>
-          <Link className="schedule-secondary-link" to="/schedule-test">
+          <Link className="schedule-secondary-link" to="/app/schedule">
             Back to list
           </Link>
         </div>
