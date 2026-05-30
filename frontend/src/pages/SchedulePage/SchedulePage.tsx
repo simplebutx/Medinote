@@ -11,6 +11,7 @@ import {
   useUpdateMedicationIntakeLog,
 } from '../../features/schedule/hooks';
 
+import type { MedicationScheduleTime } from '../../features/schedule/types/schedule.types';
 
 type MedicationStatus = 'PENDING' | 'TAKEN' | 'SKIPPED' | 'MISSED';
 
@@ -23,6 +24,7 @@ interface TodayMedication {
   status: MedicationStatus;
   source?: 'MOCK' | 'SERVER';
   medicationScheduleId?: number;
+  medicationScheduleMedicineId?: number;
   medicationScheduleTimeId?: number;
   scheduledAt?: string;
   intakeLogId?: number;
@@ -306,41 +308,112 @@ function SchedulePage() {
         .filter(
           (schedule) =>
             schedule.isActive &&
-            isDateInScheduleRange(dateText, schedule.startDate, schedule.endDate),
+            isDateInScheduleRange(
+              dateText,
+              schedule.startDate,
+              schedule.endDate,
+            ),
         )
         .flatMap((schedule) => {
-          const times = medicationScheduleTimes.filter(
-            (time) => time.medicationScheduleId === schedule.id,
-          );
+          const scheduleMedicines =
+            schedule.medicines ?? schedule.medicationScheduleMedicines ?? [];
 
-          return times.map((time) => {
-            const statusKey = getIntakeStatusKey(schedule.id, time.id, dateText);
-
-            const matchedLog = medicationIntakeLogs.find(
-              (log) =>
-                log.medicationScheduleId === schedule.id &&
-                log.medicationScheduleTimeId === time.id &&
-                log.scheduledAt.startsWith(dateText),
+          if (scheduleMedicines.length === 0) {
+            const times = medicationScheduleTimes.filter(
+              (time: MedicationScheduleTime) =>
+                time.medicationScheduleId === schedule.id,
             );
 
-            const localLog = localIntakeLogMap[statusKey];
+            return times.map((time) => {
+              const statusKey = getIntakeStatusKey(
+                schedule.id,
+                time.id,
+                dateText,
+              );
 
-            return {
-              id: time.id,
-              source: 'SERVER' as const,
-              medicationScheduleId: schedule.id,
-              medicationScheduleTimeId: time.id,
-              scheduledAt: buildScheduledAt(dateText, time.takeTime),
-              intakeLogId: localLog?.intakeLogId ?? matchedLog?.id,
-              drugName:
-                schedule.customMedicineName ||
-                `등록 약 #${schedule.medicineId ?? schedule.id}`,
-              dosage: getDosageLabel(schedule.dosageAmount, schedule.dosageUnit),
-              time: time.takeTime,
-              timing: getTimingLabel(time.timing),
-              status: localLog?.status ?? matchedLog?.status ?? 'PENDING',
-            };
-          });
+              const matchedLog = medicationIntakeLogs.find(
+                (log) =>
+                  log.medicationScheduleId === schedule.id &&
+                  log.medicationScheduleTimeId === time.id &&
+                  log.scheduledAt.startsWith(dateText),
+              );
+
+              const localLog = localIntakeLogMap[statusKey];
+
+              return {
+                id: time.id,
+                source: 'SERVER' as const,
+                medicationScheduleId: schedule.id,
+                medicationScheduleTimeId: time.id,
+                scheduledAt: buildScheduledAt(dateText, time.takeTime),
+                intakeLogId: localLog?.intakeLogId ?? matchedLog?.id,
+                drugName:
+                  schedule.customMedicineName ||
+                  `등록 약 #${schedule.medicineId ?? schedule.id}`,
+                dosage: getDosageLabel(
+                  schedule.dosageAmount,
+                  schedule.dosageUnit,
+                ),
+                time: time.takeTime,
+                timing: getTimingLabel(time.timing),
+                status: localLog?.status ?? matchedLog?.status ?? 'PENDING',
+              };
+            });
+          }
+
+          return scheduleMedicines
+            .filter(
+              (medicine) =>
+                medicine.isActive !== false &&
+                isDateInScheduleRange(
+                  dateText,
+                  medicine.startDate ?? schedule.startDate,
+                  medicine.endDate ?? schedule.endDate,
+                ),
+            )
+            .flatMap((medicine) => {
+              const times = medicationScheduleTimes.filter(
+                (time: MedicationScheduleTime) =>
+                  time.medicationScheduleMedicineId === medicine.id,
+              );
+
+              return times.map((time) => {
+                const statusKey = getIntakeStatusKey(
+                  schedule.id,
+                  time.id,
+                  dateText,
+                );
+
+                const matchedLog = medicationIntakeLogs.find(
+                  (log) =>
+                    log.medicationScheduleId === schedule.id &&
+                    log.medicationScheduleTimeId === time.id &&
+                    log.scheduledAt.startsWith(dateText),
+                );
+
+                const localLog = localIntakeLogMap[statusKey];
+
+                return {
+                  id: time.id,
+                  source: 'SERVER' as const,
+                  medicationScheduleId: schedule.id,
+                  medicationScheduleMedicineId: medicine.id,
+                  medicationScheduleTimeId: time.id,
+                  scheduledAt: buildScheduledAt(dateText, time.takeTime),
+                  intakeLogId: localLog?.intakeLogId ?? matchedLog?.id,
+                  drugName:
+                    medicine.customMedicineName ||
+                    `등록 약 #${medicine.medicineId ?? medicine.id}`,
+                  dosage: getDosageLabel(
+                    medicine.dosageAmount,
+                    medicine.dosageUnit,
+                  ),
+                  time: time.takeTime,
+                  timing: getTimingLabel(time.timing),
+                  status: localLog?.status ?? matchedLog?.status ?? 'PENDING',
+                };
+              });
+            });
         });
     },
     [
@@ -355,10 +428,13 @@ function SchedulePage() {
     return getServerMedicationsByDate(selectedDate);
   }, [getServerMedicationsByDate, selectedDate]);
 
-  const selectedDateMedications =
-    serverSelectedDateMedications.length > 0
-      ? serverSelectedDateMedications
-      : medicationsByDate[selectedDate] ?? [];
+  const selectedDateMedications = useMemo<TodayMedication[]>(() => {
+    if (serverSelectedDateMedications.length > 0) {
+      return serverSelectedDateMedications;
+    }
+
+    return medicationsByDate[selectedDate] ?? [];
+  }, [serverSelectedDateMedications, medicationsByDate, selectedDate]);
 
   const selectedMedicationGroups = useMemo(() => {
     const groupMap = new Map<string, TodayMedication[]>();
@@ -427,9 +503,26 @@ function SchedulePage() {
           (item) => item.id === log.medicationScheduleId,
         );
 
+        const scheduleTime = medicationScheduleTimes.find(
+          (time: MedicationScheduleTime) =>
+            time.id === log.medicationScheduleTimeId,
+        );
+
+        const scheduleMedicines =
+          schedule?.medicines ?? schedule?.medicationScheduleMedicines ?? [];
+
+        const medicine = scheduleMedicines.find(
+          (item) => item.id === scheduleTime?.medicationScheduleMedicineId,
+        );
+
         const drugName =
+          medicine?.customMedicineName ||
           schedule?.customMedicineName ||
-          `등록 약 #${schedule?.medicineId ?? log.medicationScheduleId}`;
+          `등록 약 #${
+            medicine?.medicineId ??
+            schedule?.medicineId ??
+            log.medicationScheduleId
+          }`;
 
         const displayDate = log.scheduledAt.startsWith(todayText)
           ? '오늘'
@@ -445,7 +538,12 @@ function SchedulePage() {
           )}`,
         };
       });
-  }, [medicationIntakeLogs, medicationSchedules, todayText]);
+  }, [
+    medicationIntakeLogs,
+    medicationSchedules,
+    medicationScheduleTimes,
+    todayText,
+  ]);
 
   const monthDays = useMemo(
     () => getMonthDays(calendarBaseDate),
@@ -510,7 +608,8 @@ function SchedulePage() {
             medicationScheduleTimeId: medication.medicationScheduleTimeId,
             status: status === 'PENDING' ? 'MISSED' : status,
             scheduledAt: medication.scheduledAt,
-            takenAt: status === 'TAKEN' ? formatDateTimeLocal(new Date()) : null,
+            takenAt:
+              status === 'TAKEN' ? formatDateTimeLocal(new Date()) : null,
           },
         },
         {
@@ -697,7 +796,8 @@ function SchedulePage() {
       {isMedicationScheduleError && (
         <Card>
           <p className="text-sm text-red-700">
-            복약 일정을 불러오지 못했습니다. 로그인 상태와 8081 서버를 확인해주세요.
+            복약 일정을 불러오지 못했습니다. 로그인 상태와 8081 서버를
+            확인해주세요.
           </p>
         </Card>
       )}
@@ -865,8 +965,8 @@ function SchedulePage() {
             const dayMedications =
               serverDayMedications.length > 0
                 ? serverDayMedications
-                : medicationsByDate[day.date] ?? [];
-                
+                : (medicationsByDate[day.date] ?? []);
+
             const rate =
               dayMedications.length === 0
                 ? null
@@ -949,7 +1049,9 @@ function SchedulePage() {
                         type="button"
                         size="sm"
                         variant="primary"
-                        onClick={() => handleChangeGroupStatus(group.items, 'TAKEN')}
+                        onClick={() =>
+                          handleChangeGroupStatus(group.items, 'TAKEN')
+                        }
                         disabled={
                           createIntakeLogMutation.isPending ||
                           updateIntakeLogMutation.isPending ||
@@ -964,7 +1066,9 @@ function SchedulePage() {
                         size="sm"
                         variant="ghost"
                         className="border border-slate-200"
-                        onClick={() => handleChangeGroupStatus(group.items, 'SKIPPED')}
+                        onClick={() =>
+                          handleChangeGroupStatus(group.items, 'SKIPPED')
+                        }
                         disabled={
                           createIntakeLogMutation.isPending ||
                           updateIntakeLogMutation.isPending ||
@@ -989,7 +1093,9 @@ function SchedulePage() {
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => handleMoveDrugSearch(medication.drugName)}
+                            onClick={() =>
+                              handleMoveDrugSearch(medication.drugName)
+                            }
                             className="font-bold text-slate-900 hover:text-blue-700 hover:underline"
                           >
                             {medication.drugName}
@@ -999,7 +1105,8 @@ function SchedulePage() {
                         </div>
 
                         <p className="mt-2 text-sm text-slate-500">
-                          {medication.time} · {medication.dosage} · {medication.timing}
+                          {medication.time} · {medication.dosage} ·{' '}
+                          {medication.timing}
                         </p>
                       </div>
 
@@ -1007,13 +1114,17 @@ function SchedulePage() {
                         <Button
                           type="button"
                           size="sm"
-                          variant={medication.status === 'TAKEN' ? 'primary' : 'ghost'}
+                          variant={
+                            medication.status === 'TAKEN' ? 'primary' : 'ghost'
+                          }
                           className={
                             medication.status === 'TAKEN'
                               ? 'ring-2 ring-blue-200'
                               : 'border border-slate-200'
                           }
-                          onClick={() => handleChangeStatus(medication, 'TAKEN')}
+                          onClick={() =>
+                            handleChangeStatus(medication, 'TAKEN')
+                          }
                           disabled={
                             createIntakeLogMutation.isPending ||
                             updateIntakeLogMutation.isPending ||
@@ -1033,7 +1144,9 @@ function SchedulePage() {
                               ? 'border-yellow-300 bg-yellow-100 font-bold text-yellow-700 ring-2 ring-yellow-200'
                               : 'border-slate-200',
                           ].join(' ')}
-                          onClick={() => handleChangeStatus(medication, 'SKIPPED')}
+                          onClick={() =>
+                            handleChangeStatus(medication, 'SKIPPED')
+                          }
                           disabled={
                             createIntakeLogMutation.isPending ||
                             updateIntakeLogMutation.isPending ||
@@ -1091,7 +1204,9 @@ function SchedulePage() {
             ) : (
               recentIntakeItems.map((item) => (
                 <div key={item.id} className="rounded-xl bg-slate-50 p-4">
-                  <p className="font-semibold text-slate-900">{item.drugName}</p>
+                  <p className="font-semibold text-slate-900">
+                    {item.drugName}
+                  </p>
                   <p className="mt-1 text-sm text-slate-500">
                     {item.description}
                   </p>

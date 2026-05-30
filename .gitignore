@@ -3,3 +3,4 @@ mobile-expo/.env.local
 .idea/
 schedule-test.json
 secrets/
+.env.local
