@@ -126,7 +126,7 @@ export interface CreateMedicationScheduleMedicineRequest {
 export interface CreateMedicationScheduleRequest {
   hospitalName?: string | null;
   pharmacyName?: string | null;
-  dispensedDate?: string | null;
+  // dispensedDate?: string | null;
   startDate: string;
   durationDays: number;
   medicines: CreateMedicationScheduleMedicineRequest[];

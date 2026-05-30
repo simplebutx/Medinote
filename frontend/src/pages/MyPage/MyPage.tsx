@@ -12,6 +12,11 @@ import type {
   CautionTargetType,
 } from '../../features/user/types/caution.types';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useMedicationSchedules } from '../../features/schedule/hooks';
+import type {
+  MedicationSchedule,
+  MedicationScheduleMedicine,
+} from '../../features/schedule/types/schedule.types';
 
 type MyPageTab = 'profile' | 'health' | 'caution' | 'history' | 'prescription';
 
@@ -61,6 +66,53 @@ function getReasonBadge(reason: CautionReason) {
   return 'gray';
 }
 
+function getScheduleMedicines(
+  schedule: MedicationSchedule,
+): MedicationScheduleMedicine[] {
+  return schedule.medicines ?? schedule.medicationScheduleMedicines ?? [];
+}
+
+function getPrescriptionTitle(schedule: MedicationSchedule) {
+  if (schedule.hospitalName) {
+    return `${schedule.hospitalName} 처방`;
+  }
+
+  if (schedule.pharmacyName) {
+    return `${schedule.pharmacyName} 조제`;
+  }
+
+  return `처방전 #${schedule.id}`;
+}
+
+function getPrescriptionDate(schedule: MedicationSchedule) {
+  return (
+    schedule.prescribedDate ||
+    schedule.dispensedDate ||
+    schedule.startDate ||
+    '날짜 없음'
+  );
+}
+
+function getPrescriptionStatus(schedule: MedicationSchedule) {
+  return schedule.isActive ? '복용 중' : '종료';
+}
+
+function getMedicineDisplayName(medicine: MedicationScheduleMedicine) {
+  return (
+    medicine.customMedicineName ||
+    `등록 약 #${medicine.medicineId ?? medicine.id}`
+  );
+}
+
+function getDosageText(medicine: MedicationScheduleMedicine) {
+  const amount = medicine.dosageAmount ?? '-';
+  const unit = medicine.dosageUnit ?? '';
+
+  return `1회 ${amount}${unit} · 하루 ${medicine.timesPerDay ?? '-'}회 · ${
+    medicine.durationDays ?? '-'
+  }일`;
+}
+
 const tabs: { label: string; value: MyPageTab }[] = [
   { label: '기본 정보', value: 'profile' },
   { label: '건강 정보', value: 'health' },
@@ -75,25 +127,15 @@ const adherenceItems = [
   { drugName: '타이레놀 500mg', rate: 74 },
 ];
 
-const prescriptions = [
-  {
-    id: 1,
-    title: '내과 처방전',
-    date: '2026.05.12',
-    status: '복용 중',
-    medicines: ['아스피린 100mg', '암로디핀 5mg'],
-  },
-  {
-    id: 2,
-    title: '두통 관련 처방',
-    date: '2026.05.03',
-    status: '종료',
-    medicines: ['타이레놀 500mg'],
-  },
-];
-
 function MyPage() {
   const [activeTab, setActiveTab] = useState<MyPageTab>('profile');
+
+  const {
+    data: medicationSchedules = [],
+    isLoading: isMedicationScheduleLoading,
+    isError: isMedicationScheduleError,
+  } = useMedicationSchedules();
+
   const [isPregnant, setIsPregnant] = useState(false);
   const [isBreastfeeding, setIsBreastfeeding] = useState(false);
   const [isSmoking, setIsSmoking] = useState(true);
@@ -807,41 +849,107 @@ function MyPage() {
 
           {activeTab === 'prescription' && (
             <div className="space-y-4">
-              <h2 className="text-xl font-bold text-slate-900">처방전</h2>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">처방전</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  복약 등록과 OCR 처방전 업로드로 생성된 처방 묶음을 확인합니다.
+                </p>
+              </div>
 
-              {prescriptions.map((prescription) => (
-                <div
-                  key={prescription.id}
-                  className="rounded-2xl border border-slate-200 p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-slate-900">
-                        {prescription.title}
-                      </p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {prescription.date}
-                      </p>
-                    </div>
-
-                    <Badge
-                      variant={
-                        prescription.status === '복용 중' ? 'green' : 'gray'
-                      }
-                    >
-                      {prescription.status}
-                    </Badge>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {prescription.medicines.map((medicine) => (
-                      <Badge key={medicine} variant="blue">
-                        {medicine}
-                      </Badge>
-                    ))}
-                  </div>
+              {isMedicationScheduleLoading && (
+                <div className="rounded-2xl bg-blue-50 p-6 text-sm text-blue-700">
+                  처방전 정보를 불러오는 중입니다.
                 </div>
-              ))}
+              )}
+
+              {isMedicationScheduleError && (
+                <div className="rounded-2xl bg-red-50 p-6 text-sm text-red-700">
+                  처방전 정보를 불러오지 못했습니다. 로그인 상태와 서버를 확인해주세요.
+                </div>
+              )}
+
+              {!isMedicationScheduleLoading &&
+                !isMedicationScheduleError &&
+                medicationSchedules.length === 0 && (
+                  <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                    등록된 처방전이 없습니다.
+                  </div>
+                )}
+
+              {!isMedicationScheduleLoading &&
+                !isMedicationScheduleError &&
+                medicationSchedules.map((schedule) => {
+                  const medicines = getScheduleMedicines(schedule);
+                  const status = getPrescriptionStatus(schedule);
+
+                  return (
+                    <div
+                      key={schedule.id}
+                      className="rounded-2xl border border-slate-200 p-4"
+                    >
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-bold text-slate-900">
+                              {getPrescriptionTitle(schedule)}
+                            </p>
+
+                            <Badge variant={status === '복용 중' ? 'green' : 'gray'}>
+                              {status}
+                            </Badge>
+
+                            <Badge variant="blue">{medicines.length}개 약</Badge>
+                          </div>
+
+                          <p className="mt-2 text-sm text-slate-500">
+                            처방일: {getPrescriptionDate(schedule)}
+                          </p>
+
+                          <p className="mt-1 text-sm text-slate-500">
+                            기간: {schedule.startDate || '-'} ~ {schedule.endDate || '-'}
+                          </p>
+
+                          <p className="mt-1 text-sm text-slate-500">
+                            병원: {schedule.hospitalName || '-'} · 약국:{' '}
+                            {schedule.pharmacyName || '-'}
+                          </p>
+                        </div>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="border border-slate-200"
+                        >
+                          수정
+                        </Button>
+                      </div>
+
+                      <div className="mt-4 space-y-2">
+                        {medicines.length === 0 ? (
+                          <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
+                            등록된 약 정보가 없습니다.
+                          </div>
+                        ) : (
+                          medicines.map((medicine) => (
+                            <div
+                              key={medicine.id}
+                              className="rounded-xl bg-slate-50 p-3"
+                            >
+                              <p className="font-semibold text-slate-900">
+                                {getMedicineDisplayName(medicine)}
+                              </p>
+
+                              <p className="mt-1 text-sm text-slate-500">
+                                {getDosageText(medicine)}
+                              </p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           )}
         </div>
