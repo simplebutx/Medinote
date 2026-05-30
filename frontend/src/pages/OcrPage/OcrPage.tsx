@@ -194,6 +194,10 @@ function OcrPage() {
 
   const [ocrResults, setOcrResults] = useState<MedicationPreview[]>([]);
 
+  const [editingOcrItemId, setEditingOcrItemId] = useState<number | null>(null);
+  const [ocrEditForm, setOcrEditForm] =
+    useState<MedicationForm>(initialManualForm);
+
   const handleChangeManualForm = (key: keyof MedicationForm, value: string) => {
     setManualForm((prev) => ({
       ...prev,
@@ -526,55 +530,6 @@ function OcrPage() {
       };
     });
   }
-  
-  function inferDurationDaysFromOcrResponse(response: PrescriptionOcrResponse) {
-    const parsed = parseOcrResultJson(response.resultJson);
-
-    if (!parsed) {
-      return null;
-    }
-
-    const rawItems =
-      parsed.medicines ??
-      parsed.medications ??
-      parsed.schedules ??
-      parsed.items ??
-      parsed.drugs ??
-      [];
-
-    if (!Array.isArray(rawItems)) {
-      return null;
-    }
-
-    const durations = rawItems
-      .map((rawItem) => {
-        const item = rawItem as Record<string, unknown>;
-
-        return getNumberByKeys(
-          item,
-          [
-            "durationDays",
-            "duration_days",
-            "days",
-            "totalDays",
-            "total_days",
-            "prescriptionDays",
-            "prescription_days",
-            "daysSupply",
-            "days_supply",
-            "period",
-          ],
-          0,
-        );
-      })
-      .filter((value) => value > 0);
-
-    if (durations.length === 0) {
-      return null;
-    }
-
-    return Math.max(...durations);
-  }
 
   const handleAnalyzeOcr = async () => {
     if (!selectedFile) {
@@ -611,16 +566,169 @@ function OcrPage() {
         return;
       }
 
+      function normalizeOcrDateValue(value: unknown) {
+        const text = String(value ?? '').trim();
+
+        if (!text) {
+          return '';
+        }
+
+        const dashDateMatch = text.match(/(20\d{2})[-./년\s]+(\d{1,2})[-./월\s]+(\d{1,2})/);
+
+        if (!dashDateMatch) {
+          return '';
+        }
+
+        const [, year, month, day] = dashDateMatch;
+
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      }
+
+      function getRawTextFromOcrResponse(response: PrescriptionOcrResponse) {
+        const parsed = parseOcrResultJson(response.resultJson);
+
+        const parsedRawText =
+          parsed && typeof parsed.rawText === 'string' ? parsed.rawText : '';
+
+        return response.rawText || parsedRawText || '';
+      }
+
+      function inferHospitalNameFromRawText(rawText: string) {
+        const matched = rawText.match(/([가-힣A-Za-z0-9\s]+(?:병원|의원|클리닉))/);
+
+        return matched?.[1]?.trim() ?? '';
+      }
+
+      function inferPharmacyNameFromRawText(rawText: string) {
+        const matched = rawText.match(/([가-힣A-Za-z0-9\s]+약국)/);
+
+        return matched?.[1]?.trim() ?? '';
+      }
+
+      function inferCommonFormFromOcrResponse(
+        response: PrescriptionOcrResponse,
+        prevCommonForm: PrescriptionCommonForm,
+      ): PrescriptionCommonForm {
+        const parsed = parseOcrResultJson(response.resultJson);
+        const rawText = getRawTextFromOcrResponse(response);
+
+        if (!parsed) {
+          return prevCommonForm;
+        }
+
+        const rawItems =
+          parsed.medicines ??
+          parsed.medications ??
+          parsed.schedules ??
+          parsed.items ??
+          parsed.drugs ??
+          [];
+
+        const topLevel = parsed as Record<string, unknown>;
+
+        const hospitalName =
+          getTextByKeys(topLevel, [
+            'hospitalName',
+            'hospital_name',
+            'hospital',
+            'hospital_name_kr',
+            'medicalInstitutionName',
+            'medical_institution_name',
+            'clinicName',
+            'clinic_name',
+          ]) ||
+          inferHospitalNameFromRawText(rawText) ||
+          prevCommonForm.hospitalName;
+
+        const pharmacyName =
+          getTextByKeys(topLevel, [
+            'pharmacyName',
+            'pharmacy_name',
+            'pharmacy',
+            'pharmacy_name_kr',
+            'dispensingPharmacyName',
+            'dispensing_pharmacy_name',
+          ]) ||
+          inferPharmacyNameFromRawText(rawText) ||
+          prevCommonForm.pharmacyName;
+
+        const startDate =
+          normalizeOcrDateValue(
+            getValueByKeys(topLevel, [
+              'startDate',
+              'start_date',
+              'prescribedDate',
+              'prescribed_date',
+              'prescriptionDate',
+              'prescription_date',
+              'dispensedDate',
+              'dispensed_date',
+              'date',
+            ]),
+          ) ||
+          normalizeOcrDateValue(rawText) ||
+          prevCommonForm.startDate;
+
+        let durationDays = getNumberByKeys(
+          topLevel,
+          [
+            'durationDays',
+            'duration_days',
+            'days',
+            'totalDays',
+            'total_days',
+            'prescriptionDays',
+            'prescription_days',
+            'daysSupply',
+            'days_supply',
+          ],
+          0,
+        );
+
+        if (durationDays <= 0 && Array.isArray(rawItems)) {
+          const itemDurations = rawItems
+            .map((rawItem) => {
+              const item = rawItem as Record<string, unknown>;
+
+              return getNumberByKeys(
+                item,
+                [
+                  'durationDays',
+                  'duration_days',
+                  'days',
+                  'totalDays',
+                  'total_days',
+                  'prescriptionDays',
+                  'prescription_days',
+                  'daysSupply',
+                  'days_supply',
+                  'period',
+                ],
+                0,
+              );
+            })
+            .filter((value) => value > 0);
+
+          durationDays = itemDurations.length > 0 ? Math.max(...itemDurations) : 0;
+        }
+
+        return {
+          hospitalName,
+          pharmacyName,
+          startDate,
+          durationDays:
+            durationDays > 0 ? String(durationDays) : prevCommonForm.durationDays,
+        };
+      }
+
       const convertedResults = convertOcrResponseToMedicationPreviews(ocrResponse);
 
-      const inferredDurationDays = inferDurationDaysFromOcrResponse(ocrResponse);
+      const inferredCommonForm = inferCommonFormFromOcrResponse(
+        ocrResponse,
+        commonForm,
+      );
 
-      if (inferredDurationDays) {
-        setCommonForm((prev) => ({
-          ...prev,
-          durationDays: String(inferredDurationDays),
-        }));
-      }
+      setCommonForm(inferredCommonForm);
 
       if (convertedResults.length === 0) {
         toast.error('OCR 결과에서 복약 정보를 찾지 못했습니다.');
@@ -637,6 +745,102 @@ function OcrPage() {
       console.error('OCR 분석 실패:', error);
       toast.error('OCR 분석에 실패했습니다. 콘솔과 네트워크 탭을 확인해주세요.');
       setOcrStep('idle');
+    }
+  };
+
+  const handleStartEditOcrMedication = (item: MedicationPreview) => {
+    setEditingOcrItemId(item.id);
+
+    setOcrEditForm({
+      medicineId: item.medicineId ?? null,
+      medicineName: item.medicineName,
+      dosageAmount: item.dosageAmount,
+      dosageUnit: item.dosageUnit,
+      timesPerDay: String(item.timesPerDay),
+      doseTimes: item.doseTimes,
+    });
+  };
+
+  const handleCancelEditOcrMedication = () => {
+    setEditingOcrItemId(null);
+    setOcrEditForm(initialManualForm);
+  };
+
+  const handleChangeOcrEditForm = (
+    key: 'medicineName' | 'dosageAmount' | 'dosageUnit' | 'timesPerDay',
+    value: string,
+  ) => {
+    setOcrEditForm((prev) => ({
+      ...prev,
+      [key]: value,
+      medicineId: key === 'medicineName' ? null : prev.medicineId,
+    }));
+  };
+
+  const handleChangeOcrTimesPerDay = (value: string) => {
+    const nextTimesPerDay = Number(value);
+
+    setOcrEditForm((prev) => ({
+      ...prev,
+      timesPerDay: value,
+      doseTimes: getDefaultDoseTimes(nextTimesPerDay),
+    }));
+  };
+
+  const handleChangeOcrDoseTime = (
+    index: number,
+    key: keyof DoseTimeForm,
+    value: string,
+  ) => {
+    setOcrEditForm((prev) => ({
+      ...prev,
+      doseTimes: prev.doseTimes.map((doseTime, doseIndex) =>
+        doseIndex === index
+          ? {
+              ...doseTime,
+              [key]: value,
+            }
+          : doseTime,
+      ),
+    }));
+  };
+
+  const handleCompleteEditOcrMedication = () => {
+    if (!editingOcrItemId) {
+      return;
+    }
+
+    if (!ocrEditForm.medicineName.trim()) {
+      toast.error('약 이름을 입력해주세요.');
+      return;
+    }
+
+    setOcrResults((prev) =>
+      prev.map((item) =>
+        item.id === editingOcrItemId
+          ? {
+              ...item,
+              medicineId: ocrEditForm.medicineId ?? null,
+              medicineName: ocrEditForm.medicineName.trim(),
+              dosageAmount: ocrEditForm.dosageAmount,
+              dosageUnit: ocrEditForm.dosageUnit,
+              timesPerDay: Number(ocrEditForm.timesPerDay),
+              doseTimes: ocrEditForm.doseTimes,
+            }
+          : item,
+      ),
+    );
+
+    setEditingOcrItemId(null);
+    setOcrEditForm(initialManualForm);
+  };
+
+  const handleRemoveOcrMedication = (id: number) => {
+    setOcrResults((prev) => prev.filter((item) => item.id !== id));
+
+    if (editingOcrItemId === id) {
+      setEditingOcrItemId(null);
+      setOcrEditForm(initialManualForm);
     }
   };
 
@@ -1203,6 +1407,7 @@ function OcrPage() {
                         setSelectedFileName(file.name);
                         setOcrStep('idle');
                         setOcrResults([]);
+                        setCommonForm(initialCommonForm);
                       }
                     }}
                   />
@@ -1242,26 +1447,195 @@ function OcrPage() {
                     <Badge variant="green">{ocrResults.length}건 추출</Badge>
                   </div>
 
+                  <Card>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      OCR 공통 정보 확인
+                    </h3>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      OCR로 인식된 병원명, 약국명, 복용 시작일, 복용 기간을 확인하고 수정할 수 있습니다.
+                    </p>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                      <Input
+                        label="병원명"
+                        placeholder="예: 나무병원"
+                        value={commonForm.hospitalName}
+                        onChange={(event) =>
+                          handleChangeCommonForm('hospitalName', event.target.value)
+                        }
+                      />
+
+                      <Input
+                        label="약국명"
+                        placeholder="예: 꽃약국"
+                        value={commonForm.pharmacyName}
+                        onChange={(event) =>
+                          handleChangeCommonForm('pharmacyName', event.target.value)
+                        }
+                      />
+
+                      <Input
+                        label="복용 시작일"
+                        type="date"
+                        value={commonForm.startDate}
+                        onChange={(event) =>
+                          handleChangeCommonForm('startDate', event.target.value)
+                        }
+                      />
+
+                      <Input
+                        label="복용 기간"
+                        placeholder="예: 14"
+                        value={commonForm.durationDays}
+                        onChange={(event) =>
+                          handleChangeCommonForm('durationDays', event.target.value)
+                        }
+                      />
+                    </div>
+                  </Card>
+
+                  {editingOcrItemId !== null && (
+                    <Card className="border-blue-100 bg-blue-50">
+                      <div>
+                        <h4 className="font-bold text-slate-900">OCR 결과 수정</h4>
+                        <p className="mt-1 text-sm text-slate-500">
+                          OCR이 인식한 약 정보가 실제 처방전과 다르면 직접 수정해주세요.
+                        </p>
+                      </div>
+
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <Input
+                          label="약 이름"
+                          placeholder="예: 타이레놀정 500mg"
+                          value={ocrEditForm.medicineName}
+                          onChange={(event) =>
+                            handleChangeOcrEditForm('medicineName', event.target.value)
+                          }
+                        />
+
+                        <Input
+                          label="1회 복용량"
+                          placeholder="예: 1"
+                          value={ocrEditForm.dosageAmount}
+                          onChange={(event) =>
+                            handleChangeOcrEditForm('dosageAmount', event.target.value)
+                          }
+                        />
+
+                        <div>
+                          <p className="mb-2 text-sm font-medium text-slate-700">복용 단위</p>
+
+                          <select
+                            value={ocrEditForm.dosageUnit}
+                            onChange={(event) =>
+                              handleChangeOcrEditForm(
+                                'dosageUnit',
+                                event.target.value as DosageUnit,
+                              )
+                            }
+                            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                          >
+                            <option value="정">정</option>
+                            <option value="캡슐">캡슐</option>
+                            <option value="포">포</option>
+                            <option value="ml">ml</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <p className="mb-2 text-sm font-medium text-slate-700">
+                            하루 복용 횟수
+                          </p>
+
+                          <div className="grid grid-cols-4 gap-2">
+                            {[1, 2, 3, 4].map((count) => {
+                              const isSelected = ocrEditForm.timesPerDay === String(count);
+
+                              return (
+                                <button
+                                  key={count}
+                                  type="button"
+                                  onClick={() => handleChangeOcrTimesPerDay(String(count))}
+                                  className={[
+                                    'rounded-xl border px-4 py-3 text-sm font-semibold transition',
+                                    isSelected
+                                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                                  ].join(' ')}
+                                >
+                                  {count}회
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                        <h5 className="font-bold text-slate-900">회차별 복용 시간</h5>
+
+                        <div className="mt-4 space-y-3">
+                          {ocrEditForm.doseTimes.map((doseTime, index) => (
+                            <div
+                              key={`${doseTime.label}-${index}`}
+                              className="grid gap-3 rounded-xl bg-slate-50 p-3 md:grid-cols-[100px_1fr_1fr]"
+                            >
+                              <div className="flex items-center text-sm font-semibold text-slate-700">
+                                {index + 1}회차 · {doseTime.label}
+                              </div>
+
+                              <Input
+                                type="time"
+                                value={doseTime.takeTime}
+                                onChange={(event) =>
+                                  handleChangeOcrDoseTime(index, 'takeTime', event.target.value)
+                                }
+                              />
+
+                              <select
+                                value={doseTime.timing}
+                                onChange={(event) =>
+                                  handleChangeOcrDoseTime(index, 'timing', event.target.value)
+                                }
+                                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                              >
+                                <option value="식후">식후</option>
+                                <option value="식전">식전</option>
+                                <option value="식사 중">식사 중</option>
+                                <option value="공복">공복</option>
+                                <option value="취침 전">취침 전</option>
+                                <option value="상관없음">상관없음</option>
+                              </select>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="border border-slate-200"
+                          onClick={handleCancelEditOcrMedication}
+                        >
+                          수정 취소
+                        </Button>
+
+                        <Button type="button" onClick={handleCompleteEditOcrMedication}>
+                          OCR 결과 수정 완료
+                        </Button>
+                      </div>
+                    </Card>
+                  )}
+
                   <div className="space-y-3">
                     {ocrResults.map((item) =>
                       renderMedicationCard(
                         item,
-                        (id) => setOcrResults((prev) => prev.filter((ocrItem) => ocrItem.id !== id)),
-                        (selectedItem) => {
-                          setActiveMode('manual');
-                          setEditingManualItemId(selectedItem.id);
-                          setManualForm({
-                            medicineId: selectedItem.medicineId ?? null,
-                            medicineName: selectedItem.medicineName,
-                            dosageAmount: selectedItem.dosageAmount,
-                            dosageUnit: selectedItem.dosageUnit,
-                            timesPerDay: String(selectedItem.timesPerDay),
-                            doseTimes: selectedItem.doseTimes,
-                          });
-                          setSelectedManualMedicine(null);
-                          setIsMedicineSearchOpen(false);
-                        },
-                      )
+                        handleRemoveOcrMedication,
+                        handleStartEditOcrMedication,
+                      ),
                     )}
                   </div>
 
