@@ -69,9 +69,6 @@ public class MedicationSchedule {
     @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
 
-    @Column(name = "prescribed_date")
-    private LocalDate prescribedDate;
-
     @Column(name = "dispensed_date")
     private LocalDate dispensedDate;
 
@@ -99,7 +96,6 @@ public class MedicationSchedule {
             Integer durationDays,
             LocalDate startDate,
             LocalDate endDate,
-            LocalDate prescribedDate,
             LocalDate dispensedDate,
             Boolean isActive
     ) {
@@ -116,7 +112,6 @@ public class MedicationSchedule {
         this.durationDays = durationDays;
         this.startDate = startDate;
         this.endDate = endDate;
-        this.prescribedDate = prescribedDate;
         this.dispensedDate = dispensedDate;
         this.isActive = isActive;
     }
@@ -135,7 +130,6 @@ public class MedicationSchedule {
             Integer durationDays,
             LocalDate startDate,
             LocalDate endDate,
-            LocalDate prescribedDate,
             LocalDate dispensedDate,
             Boolean isActive
     ) {
@@ -152,7 +146,6 @@ public class MedicationSchedule {
         this.durationDays = durationDays;
         this.startDate = startDate;
         this.endDate = endDate;
-        this.prescribedDate = prescribedDate;
         this.dispensedDate = dispensedDate;
         this.isActive = isActive;
     }

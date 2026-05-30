@@ -90,7 +90,6 @@ export interface MedicationScheduleResponse {
   durationDays: number | null;
   startDate: string | null;
   endDate: string | null;
-  prescribedDate: string | null;
   dispensedDate: string | null;
   isActive: boolean | null;
   createdAt: string;
@@ -179,6 +178,5 @@ export interface OcrScheduleDraft {
   hospitalName: string;
   pharmacyName: string;
   dispensedDate: string;
-  prescribedDate: string;
   medicines: OcrMedicineDraft[];
 }

@@ -53,7 +53,6 @@ export function createDefaultScheduleForm() {
   return {
     hospitalName: '',
     pharmacyName: '',
-    prescribedDate: '',
     dispensedDate: '',
     medicines: [createMedicineForm()],
   }
@@ -166,7 +165,6 @@ export function buildOcrScheduleDraft(resultJson) {
     return {
       hospitalName: String(parsed.hospitalName || '').trim(),
       pharmacyName: String(parsed.pharmacyName || '').trim(),
-      prescribedDate: normalizeDateString(parsed.prescribedDate),
       dispensedDate: normalizeDateString(parsed.dispensedDate),
       medicines,
     }
@@ -182,7 +180,6 @@ export function applyOcrDraftToForm(previousForm, draft) {
     ...previousForm,
     hospitalName: draft?.hospitalName || '',
     pharmacyName: draft?.pharmacyName || '',
-    prescribedDate: draft?.prescribedDate || '',
     dispensedDate: draft?.dispensedDate || '',
     medicines: medicines.length ? medicines : [createMedicineForm()],
   }
@@ -220,7 +217,6 @@ export function buildSchedulePayload(form) {
     durationDays: primaryMedicine?.durationDays ?? 1,
     startDate: null,
     endDate: null,
-    prescribedDate: form.prescribedDate || null,
     dispensedDate: form.dispensedDate || null,
     isActive: null,
     medicines,
@@ -255,7 +251,6 @@ export function mapScheduleToForm(schedule, times) {
   return {
     hospitalName: schedule.hospitalName || '',
     pharmacyName: schedule.pharmacyName || '',
-    prescribedDate: schedule.prescribedDate || '',
     dispensedDate: schedule.dispensedDate || '',
     medicines: medicines.length ? medicines : [createMedicineForm()],
   }

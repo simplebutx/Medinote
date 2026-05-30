@@ -54,7 +54,6 @@ public class MedicationScheduleService {
                 .durationDays(normalizeDurationDays(request.durationDays()))
                 .startDate(today)
                 .endDate(today)
-                .prescribedDate(request.prescribedDate())
                 .dispensedDate(request.dispensedDate())
                 .isActive(Boolean.TRUE)
                 .build());
@@ -100,7 +99,6 @@ public class MedicationScheduleService {
                 normalizeDurationDays(request.durationDays()),
                 schedule.getStartDate() != null ? schedule.getStartDate() : LocalDate.now(SCHEDULE_ZONE),
                 schedule.getEndDate() != null ? schedule.getEndDate() : LocalDate.now(SCHEDULE_ZONE),
-                request.prescribedDate(),
                 request.dispensedDate(),
                 schedule.getIsActive()
         );
@@ -183,7 +181,6 @@ public class MedicationScheduleService {
                 schedule.getDurationDays(),
                 schedule.getStartDate(),
                 schedule.getEndDate(),
-                schedule.getPrescribedDate(),
                 schedule.getDispensedDate(),
                 schedule.getIsActive(),
                 schedule.getCreatedAt(),
@@ -309,7 +306,6 @@ public class MedicationScheduleService {
                 durationDays,
                 startDate,
                 endDate,
-                schedule.getPrescribedDate(),
                 schedule.getDispensedDate(),
                 active
         );

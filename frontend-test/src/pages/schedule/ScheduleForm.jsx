@@ -75,11 +75,6 @@ function ScheduleForm({
           </label>
 
           <label>
-            Prescribed date
-            <input type="date" name="prescribedDate" value={form.prescribedDate} onChange={onSharedFieldChange} />
-          </label>
-
-          <label>
             Dispensed date
             <input type="date" name="dispensedDate" value={form.dispensedDate} onChange={onSharedFieldChange} />
           </label>

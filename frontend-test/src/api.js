@@ -112,6 +112,14 @@ export const searchMedicines = async (keyword) => {
   return response.data
 }
 
+export const getPharmaciesInBounds = async (params) => {
+  const response = await api.get('/pharmacies', {
+    params,
+    timeout: 30000,
+  })
+  return response.data
+}
+
 export const createMedicationSchedule = async (payload) => {
   const response = await api.post('/medication-schedules', payload)
   return response.data

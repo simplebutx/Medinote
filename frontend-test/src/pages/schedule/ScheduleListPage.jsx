@@ -117,7 +117,7 @@ function ScheduleListPage() {
                     {schedule.startDate} - {schedule.endDate}
                   </span>
                   <span>
-                    Prescribed: {schedule.prescribedDate || '-'} · Dispensed: {schedule.dispensedDate || '-'}
+                    Dispensed: {schedule.dispensedDate || '-'}
                   </span>
                   <span>Status: {schedule.isActive ? 'Active' : 'Inactive'}</span>
                 </div>
