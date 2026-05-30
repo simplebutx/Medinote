@@ -201,7 +201,7 @@ function ScheduleOcrPage() {
 
       await initializeMedicationScheduleWindow(schedule.id)
 
-      navigate('/schedule-test', {
+      navigate('/app/schedule', {
         state: {
           message: 'Schedule created successfully.',
         },

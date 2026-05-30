@@ -145,7 +145,7 @@ function ScheduleEditPage() {
       const recalculatedSchedule = await initializeMedicationScheduleWindow(id)
       setScheduleSummary(recalculatedSchedule)
 
-      navigate('/schedule-test', {
+      navigate('/app/schedule', {
         state: {
           message: 'Schedule updated successfully.',
         },
