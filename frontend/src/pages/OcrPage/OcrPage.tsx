@@ -852,12 +852,14 @@ function OcrPage() {
         pharmacyName: commonForm.pharmacyName.trim() || null,
         startDate: commonForm.startDate,
         durationDays: Number(commonForm.durationDays),
+        dispensedDate: commonForm.startDate,
         medicines: items.map((item) => ({
           medicineId: item.medicineId ?? null,
           customMedicineName: item.medicineName,
           dosageAmount: Number(item.dosageAmount),
           dosageUnit: mapDosageUnit(item.dosageUnit),
           timesPerDay: item.timesPerDay,
+          durationDays: Number(commonForm.durationDays),
         })),
       });
       const createdMedicines =

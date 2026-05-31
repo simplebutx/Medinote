@@ -5,11 +5,25 @@ import type {
   MedicationSchedule,
   MedicationScheduleTime,
   CreateMedicationScheduleTimeRequest,
+  DailyMedicationScheduleResponse,
 } from "../types/schedule.types";
 
 export const getMedicationSchedules = async () => {
   const response = await medicationInstance.get<MedicationSchedule[]>(
     "/api/medication-schedules"
+  );
+
+  return response.data;
+};
+
+export const getDailyMedicationSchedules = async (date: string) => {
+  const response = await medicationInstance.get<DailyMedicationScheduleResponse>(
+    "/api/medication-schedules/daily",
+    {
+      params: {
+        date,
+      },
+    },
   );
 
   return response.data;
