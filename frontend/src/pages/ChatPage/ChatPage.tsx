@@ -2,6 +2,8 @@ import { useMemo, useRef, useState } from 'react';
 
 import { Badge, Button, Card, Input } from '../../components/ui';
 import { useSendChatbotMessage } from "../../features/chat/hooks";
+import { useMedicineSuggest } from '../../features/drug/hooks';
+import { useDebounce } from '../../hooks/useDebounce';
 
 
 type ChatMode = 'ai' | 'pharmacist';
@@ -21,33 +23,6 @@ interface ChatMessage {
   createdAt: string;
   drugs?: DrugOption[];
 }
-
-const drugOptions: DrugOption[] = [
-  {
-    id: 1,
-    name: '타이레놀정 500mg',
-    ingredient: '아세트아미노펜',
-    type: '일반의약품',
-  },
-  {
-    id: 2,
-    name: '아스피린 프로텍트정 100mg',
-    ingredient: '아스피린',
-    type: '전문의약품',
-  },
-  {
-    id: 3,
-    name: '부루펜정 200mg',
-    ingredient: '이부프로펜, NSAIDs',
-    type: '일반의약품',
-  },
-  {
-    id: 4,
-    name: '활명수',
-    ingredient: '현호색, 진피, 건강',
-    type: '일반의약품',
-  },
-];
 
 const initialAiMessages: ChatMessage[] = [
   {
@@ -83,6 +58,12 @@ function getSenderBadge(sender: MessageSender) {
   return 'gray';
 }
 
+function getDrugOptionId(name: string) {
+  return name.split('').reduce((hash, char) => {
+    return hash + char.charCodeAt(0);
+  }, 0);
+}
+
 function ChatPage() {
   const messageIdRef = useRef(100);
 
@@ -116,21 +97,30 @@ function ChatPage() {
     return message.slice(atIndex + 1).trim();
   }, [message]);
 
-  const filteredDrugs = useMemo(() => {
-    if (!isDrugSearchOpen) {
+  const debouncedDrugSearchKeyword = useDebounce(drugSearchKeyword, 300);
+
+  const isDrugSuggestEnabled =
+    isDrugSearchOpen && debouncedDrugSearchKeyword.trim().length >= 2;
+
+  const {
+    data: drugSuggestions = [],
+    isLoading: isDrugSuggestLoading,
+  } = useMedicineSuggest(
+    isDrugSuggestEnabled ? debouncedDrugSearchKeyword.trim() : '',
+  );
+
+  const filteredDrugs = useMemo<DrugOption[]>(() => {
+    if (!isDrugSearchOpen || !isDrugSuggestEnabled) {
       return [];
     }
 
-    if (!drugSearchKeyword) {
-      return drugOptions;
-    }
-
-    return drugOptions.filter((drug) => {
-      const searchableText = `${drug.name} ${drug.ingredient}`.toLowerCase();
-
-      return searchableText.includes(drugSearchKeyword.toLowerCase());
-    });
-  }, [drugSearchKeyword, isDrugSearchOpen]);
+    return drugSuggestions.map((name) => ({
+      id: getDrugOptionId(name),
+      name,
+      ingredient: '',
+      type: '일반의약품',
+    }));
+  }, [drugSuggestions, isDrugSearchOpen, isDrugSuggestEnabled]);
 
   const handleChangeMessage = (value: string) => {
     setMessage(value);
@@ -145,7 +135,7 @@ function ChatPage() {
 
   const handleSelectDrug = (drug: DrugOption) => {
     setSelectedDrugs((prev) => {
-      const alreadySelected = prev.some((item) => item.id === drug.id);
+      const alreadySelected = prev.some((item) => item.name === drug.name);
 
       if (alreadySelected) {
         return prev;
@@ -436,38 +426,38 @@ function ChatPage() {
                     </div>
 
                     <div className="max-h-56 overflow-y-auto">
+                      {drugSearchKeyword.trim().length < 2 && (
+                        <div className="px-3 py-4 text-sm text-slate-500">
+                          두 글자 이상 입력하면 약 이름을 검색합니다.
+                        </div>
+                      )}
+
+                      {drugSearchKeyword.trim().length >= 2 && isDrugSuggestLoading && (
+                        <div className="px-3 py-4 text-sm text-slate-500">
+                          약 이름을 검색하고 있습니다.
+                        </div>
+                      )}
+
+                      {drugSearchKeyword.trim().length >= 2 &&
+                        !isDrugSuggestLoading &&
+                        filteredDrugs.length === 0 && (
+                          <div className="px-3 py-4 text-sm text-slate-500">
+                            검색 결과가 없습니다.
+                          </div>
+                        )}
+
                       {filteredDrugs.map((drug) => (
                         <button
-                          key={drug.id}
+                          key={drug.name}
                           type="button"
                           onClick={() => handleSelectDrug(drug)}
                           className="w-full rounded-xl px-3 py-3 text-left hover:bg-slate-50"
                         >
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-semibold text-slate-900">
-                              {drug.name}
-                            </p>
-
-                            <Badge
-                              variant={
-                                drug.type === '전문의약품' ? 'blue' : 'green'
-                              }
-                            >
-                              {drug.type}
-                            </Badge>
+                            <p className="font-semibold text-slate-900">{drug.name}</p>
                           </div>
-
-                          <p className="mt-1 text-xs text-slate-500">
-                            성분: {drug.ingredient}
-                          </p>
                         </button>
                       ))}
-
-                      {filteredDrugs.length === 0 && (
-                        <div className="px-3 py-4 text-sm text-slate-500">
-                          검색 결과가 없습니다.
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -481,8 +471,8 @@ function ChatPage() {
 
               <div className="mt-4 space-y-2">
                 {[
-                  '타이레놀 식후에 먹어야 해?',
-                  '아스피린이랑 같이 먹어도 돼?',
+                  '이 약은 식후에 먹어야 해?',
+                  '다른 약과 같이 먹어도 돼?',
                   '오늘 저녁 약 먹었는지 확인해줘',
                   '속이 불편한데 계속 먹어도 돼?',
                 ].map((question) => (
@@ -524,13 +514,18 @@ function ChatPage() {
 
               <div className="mt-4 space-y-3 text-sm text-slate-600">
                 <div className="rounded-xl bg-white p-3">
-                  현재 복용약: 타이레놀정 500mg
+                  선택한 약:{' '}
+                  {selectedDrugs.length > 0
+                    ? selectedDrugs.map((drug) => drug.name).join(', ')
+                    : '아직 선택된 약이 없습니다.'}
                 </div>
+
                 <div className="rounded-xl bg-white p-3">
-                  주의 성분: 아스피린, NSAIDs
+                  주의 성분: 내 정보의 주의 약/성분과 연동 예정
                 </div>
+
                 <div className="rounded-xl bg-white p-3">
-                  건강 정보: 흡연, 위염
+                  건강 정보: 내 정보의 건강 정보와 연동 예정
                 </div>
               </div>
             </Card>
