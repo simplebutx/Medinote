@@ -166,14 +166,23 @@ function ScheduleOcrPage() {
 
       await uploadFileToPresignedUrl(presigned.uploadUrl, selectedFile, presigned.headers)
       const ocrResponse = await runPrescriptionOcr(presigned.ocrResultId)
-      const ocrDraft = buildOcrScheduleDraft(ocrResponse.resultJson)
 
       setOcrResult({
         ...ocrResponse,
-        draft: ocrDraft,
         fileUrl: presigned.fileUrl || '',
         key: presigned.key || '',
       })
+
+      if (ocrResponse.status && ocrResponse.status !== 'OCR_DONE' && ocrResponse.status !== 'CONFIRMED') {
+        setMessage(ocrResponse.errorMessage || 'OCR 처리 중 오류가 발생했습니다.')
+        return
+      }
+
+      const ocrDraft = buildOcrScheduleDraft(ocrResponse.resultJson)
+      setOcrResult((prev) => ({
+        ...prev,
+        draft: ocrDraft,
+      }))
 
       if (ocrDraft) {
         setForm((prev) => applyOcrDraftToForm(prev, ocrDraft))

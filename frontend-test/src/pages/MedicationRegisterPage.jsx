@@ -162,9 +162,14 @@ function MedicationRegisterPage() {
 
       await uploadFileToPresignedUrl(presigned.uploadUrl, selectedFile, presigned.headers)
       const ocrResponse = await runPrescriptionOcr(presigned.ocrResultId)
-      const draft = buildOcrScheduleDraft(ocrResponse.resultJson)
-
       setOcrResult(ocrResponse)
+
+      if (ocrResponse.status && ocrResponse.status !== 'OCR_DONE' && ocrResponse.status !== 'CONFIRMED') {
+        setMessage(ocrResponse.errorMessage || 'OCR 처리 중 오류가 발생했습니다.')
+        return
+      }
+
+      const draft = buildOcrScheduleDraft(ocrResponse.resultJson)
 
       if (draft) {
         setForm((prev) => applyOcrDraftToForm(prev, draft))

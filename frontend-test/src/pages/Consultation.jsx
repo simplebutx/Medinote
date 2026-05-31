@@ -12,7 +12,7 @@ const Consultation = () => {
     const stompClientRef = useRef(null);
 
     const connect = () => {
-        const socket = new SockJS('http://localhost:8082/api/ws-stomp');
+        const socket = new SockJS('/api/ws-stomp');
         const stompClient = Stomp.over(socket);
 
         stompClient.connect({}, (frame) => {

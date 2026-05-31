@@ -11,8 +11,8 @@ import numpy as np
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import HTTPException
+from google.auth import load_credentials_from_dict
 from google.cloud import vision
-from google.oauth2 import service_account
 from PIL import Image
 
 from app.core.config import settings
@@ -975,7 +975,10 @@ def _get_ocr_client() -> vision.ImageAnnotatorClient:
         try:
             if settings.google_application_credentials_json:
                 credentials_info = json.loads(settings.google_application_credentials_json)
-                credentials = service_account.Credentials.from_service_account_info(credentials_info)
+                credentials, _ = load_credentials_from_dict(
+                    credentials_info,
+                    scopes=["https://www.googleapis.com/auth/cloud-platform"],
+                )
                 _ocr_client = vision.ImageAnnotatorClient(credentials=credentials)
             else:
                 if settings.google_application_credentials:

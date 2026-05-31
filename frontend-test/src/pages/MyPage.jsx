@@ -24,12 +24,15 @@ import {
   syncTimeSlots,
 } from './schedule/scheduleFormUtils'
 
+const DEFAULT_MEDICATION_TIME_SETTINGS_KEY = 'defaultMedicationTimeSettings'
+
 const tabs = [
   { key: 'profile', label: '기본 정보' },
   { key: 'health', label: '건강 정보' },
   { key: 'caution', label: '알레르기/주의 성분' },
   { key: 'history', label: '복약 이력' },
   { key: 'prescription', label: '처방전' },
+  { key: 'settings', label: '환경설정' },
 ]
 
 const cautionReasonOptions = [
@@ -37,7 +40,7 @@ const cautionReasonOptions = [
   { value: 'SIDE_EFFECT', label: '부작용' },
   { value: 'DOCTOR_ADVICE', label: '의사 권고' },
   { value: 'PHARMACIST_ADVICE', label: '약사 권고' },
-  { value: 'PERSONAL_AVOID', label: '개인 회피' },
+  { value: 'PERSONAL_AVOID', label: '개인 기피' },
   { value: 'OTHER', label: '기타' },
 ]
 
@@ -46,6 +49,43 @@ const intakeHistory = [
   { name: '암로디핀 5mg', rate: 86 },
   { name: '타이레놀 500mg', rate: 74 },
 ]
+
+const DEFAULT_MEDICATION_TIME_SETTINGS = {
+  1: ['08:00'],
+  2: ['08:00', '20:00'],
+  3: ['08:00', '13:00', '20:00'],
+  4: ['08:00', '12:00', '18:00', '22:00'],
+}
+
+function createDefaultMedicationTimeSettings() {
+  return Object.fromEntries(
+    Object.entries(DEFAULT_MEDICATION_TIME_SETTINGS).map(([timesPerDay, times]) => [
+      timesPerDay,
+      [...times],
+    ]),
+  )
+}
+
+function loadDefaultMedicationTimeSettings() {
+  const fallback = createDefaultMedicationTimeSettings()
+  const raw = localStorage.getItem(DEFAULT_MEDICATION_TIME_SETTINGS_KEY)
+
+  if (!raw) {
+    return fallback
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    return Object.fromEntries(
+      Object.entries(fallback).map(([timesPerDay, times]) => {
+        const storedTimes = Array.isArray(parsed?.[timesPerDay]) ? parsed[timesPerDay] : times
+        return [timesPerDay, storedTimes.map((time, index) => String(time || times[index] || ''))]
+      }),
+    )
+  } catch {
+    return fallback
+  }
+}
 
 function getPrescriptionStatus(schedule) {
   return schedule.isActive === false ? '종료' : '복용 중'
@@ -115,6 +155,9 @@ function MyPage() {
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState(null)
   const [prescriptionMessage, setPrescriptionMessage] = useState('')
   const [prescriptionSaving, setPrescriptionSaving] = useState(false)
+  const [defaultMedicationTimeSettings, setDefaultMedicationTimeSettings] = useState(() =>
+    loadDefaultMedicationTimeSettings(),
+  )
 
   const loadPrescriptionRecords = async (preferredId) => {
     const schedules = await getMedicationSchedules()
@@ -149,7 +192,7 @@ function MyPage() {
 
       try {
         const [profileResponse, cautionResponse] = await Promise.all([
-          axios.get('http://localhost:8080/api/auth/me', {
+          axios.get('/api/auth/me', {
             headers: {
               Authorization: `Bearer ${session.accessToken}`,
             },
@@ -194,7 +237,7 @@ function MyPage() {
 
   const handleAddCaution = async () => {
     if (!selectedSuggestion) {
-      setMessage('자동완성 목록에서 추가할 항목을 먼저 선택해주세요.')
+      setMessage('자동완성 목록에서 항목을 먼저 선택해 주세요.')
       return
     }
 
@@ -212,7 +255,7 @@ function MyPage() {
       setCautionKeyword('')
       setSelectedSuggestion(null)
       setMemo('')
-      setMessage('주의 성분을 등록했습니다.')
+      setMessage('주의 성분이 등록되었습니다.')
     } catch (error) {
       setMessage(error.response?.data?.message || '주의 성분 등록에 실패했습니다.')
     }
@@ -351,7 +394,7 @@ function MyPage() {
     }
 
     if (!selectedPrescription.medicines.length) {
-      setPrescriptionMessage('약을 최소 1개 이상 등록해주세요.')
+      setPrescriptionMessage('약을 최소 1개 이상 등록해 주세요.')
       return
     }
 
@@ -366,24 +409,24 @@ function MyPage() {
         const createdMedicines = createdSchedule.medicines || []
 
         if (createdMedicines.length !== selectedPrescription.medicines.length) {
-          throw new Error('약 저장 결과가 입력 수와 다릅니다.')
+          throw new Error('생성된 약 개수가 입력 개수와 일치하지 않습니다.')
         }
 
         await createTimesSequentially(selectedPrescription.medicines, createdMedicines)
         await loadPrescriptionRecords(`schedule-${createdSchedule.id}`)
-        setPrescriptionMessage('새 처방전을 저장했습니다.')
+        setPrescriptionMessage('처방전을 저장했습니다.')
       } else {
         const updatedSchedule = await updateMedicationSchedule(selectedPrescription.scheduleId, payload)
         const updatedMedicines = updatedSchedule.medicines || []
 
         if (updatedMedicines.length !== selectedPrescription.medicines.length) {
-          throw new Error('약 저장 결과가 입력 수와 다릅니다.')
+          throw new Error('수정된 약 개수가 입력 개수와 일치하지 않습니다.')
         }
 
         await deleteTimesSequentially(selectedPrescription.scheduleId)
         await createTimesSequentially(selectedPrescription.medicines, updatedMedicines)
         await loadPrescriptionRecords(`schedule-${selectedPrescription.scheduleId}`)
-        setPrescriptionMessage('처방전을 저장했습니다.')
+        setPrescriptionMessage('처방전을 수정했습니다.')
       }
     } catch (error) {
       setPrescriptionMessage(error.response?.data?.message || error.message || '처방전 저장에 실패했습니다.')
@@ -417,6 +460,30 @@ function MyPage() {
     } finally {
       setPrescriptionSaving(false)
     }
+  }
+
+  const handleDefaultMedicationTimeChange = (timesPerDay, slotIndex, value) => {
+    setDefaultMedicationTimeSettings((prev) => ({
+      ...prev,
+      [timesPerDay]: (prev[timesPerDay] || []).map((time, index) =>
+        index === slotIndex ? value : time,
+      ),
+    }))
+  }
+
+  const handleResetDefaultMedicationTimeSettings = () => {
+    const nextSettings = createDefaultMedicationTimeSettings()
+    setDefaultMedicationTimeSettings(nextSettings)
+    localStorage.setItem(DEFAULT_MEDICATION_TIME_SETTINGS_KEY, JSON.stringify(nextSettings))
+    setMessage('기본 복약 시간을 기본값으로 초기화했습니다.')
+  }
+
+  const handleSaveDefaultMedicationTimeSettings = () => {
+    localStorage.setItem(
+      DEFAULT_MEDICATION_TIME_SETTINGS_KEY,
+      JSON.stringify(defaultMedicationTimeSettings),
+    )
+    setMessage('기본 복약 시간이 저장되었습니다.')
   }
 
   if (loading) {
@@ -670,7 +737,7 @@ function MyPage() {
             <div className="mypage-section-heading">
               <div>
                 <h2>처방전</h2>
-                <p>실제 복약 스케줄을 처방전 단위로 열어서 병원, 약국, 약물, 복용 시간을 수정할 수 있습니다.</p>
+                <p>실제 복약 스케줄을 처방전 단위로 열어 병원, 약국, 약물, 복용 시간을 수정할 수 있습니다.</p>
               </div>
               <button type="button" className="register-add-button" onClick={handleCreatePrescription}>
                 새 처방전 추가
@@ -915,9 +982,71 @@ function MyPage() {
                     </div>
                   </>
                 ) : (
-                  <div className="app-placeholder-card">열어볼 처방전을 선택해주세요.</div>
+                  <div className="app-placeholder-card">열어볼 처방전을 선택해 주세요.</div>
                 )}
               </div>
+            </div>
+          </div>
+        ) : null}
+
+        {activeTab === 'settings' ? (
+          <div className="mypage-section">
+            <div className="mypage-section-heading">
+              <div>
+                <h2>환경설정</h2>
+                <p>약 등록 시 자동으로 들어갈 기본 복약 시간을 횟수별로 설정합니다.</p>
+              </div>
+            </div>
+
+            {message ? <div className="register-message">{message}</div> : null}
+
+            <div className="register-medicine-list">
+              {Object.entries(defaultMedicationTimeSettings).map(([timesPerDay, times]) => (
+                <section key={timesPerDay} className="register-medicine-card">
+                  <div className="register-medicine-title">
+                    <h3>하루 {timesPerDay}회 기본 시간</h3>
+                  </div>
+
+                  <div className="register-time-grid">
+                    {times.map((time, slotIndex) => (
+                      <div className="register-time-card" key={`default-time-${timesPerDay}-${slotIndex}`}>
+                        <strong>{slotIndex + 1}회차</strong>
+                        <label className="register-field">
+                          <span>기본 복용 시간</span>
+                          <input
+                            type="time"
+                            value={time}
+                            onChange={(event) =>
+                              handleDefaultMedicationTimeChange(
+                                timesPerDay,
+                                slotIndex,
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+
+            <div className="register-submit-row">
+              <button
+                type="button"
+                className="register-remove-button"
+                onClick={handleResetDefaultMedicationTimeSettings}
+              >
+                기본값으로 초기화
+              </button>
+              <button
+                type="button"
+                className="app-primary-button"
+                onClick={handleSaveDefaultMedicationTimeSettings}
+              >
+                환경설정 저장
+              </button>
             </div>
           </div>
         ) : null}
