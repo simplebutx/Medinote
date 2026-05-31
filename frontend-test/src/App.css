@@ -1134,6 +1134,20 @@
   gap: 12px;
 }
 
+.schedule-name-debug {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(109, 56, 39, 0.06);
+  border: 1px solid rgba(109, 56, 39, 0.12);
+  display: grid;
+  gap: 6px;
+}
+
+.schedule-name-debug strong {
+  color: #6d3827;
+  font-size: 14px;
+}
+
 .schedule-slot-card label {
   display: flex;
   flex-direction: column;

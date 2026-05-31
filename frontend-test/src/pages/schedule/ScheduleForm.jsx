@@ -126,6 +126,14 @@ function ScheduleForm({
                 </div>
 
                 <div className="schedule-form-grid">
+                  {medicine.originalMedicineName || medicine.matchedMedicineName ? (
+                    <div className="schedule-col-span-2 schedule-name-debug">
+                      <span className="schedule-status-label">OCR debug</span>
+                      <strong>원본 약명: {medicine.originalMedicineName || '-'}</strong>
+                      <strong>최종 약명: {medicine.matchedMedicineName || medicine.customMedicineName || '-'}</strong>
+                    </div>
+                  ) : null}
+
                   <label className="schedule-col-span-2">
                     Medicine name
                     <input
