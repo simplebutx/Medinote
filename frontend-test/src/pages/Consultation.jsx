@@ -19,15 +19,17 @@ const Consultation = () => {
     const [senderType, setSenderType] = useState(session?.role || 'USER');
     const [connected, setIsConnected] = useState(false);
     
+    // 웹소켓 중복 연결 및 구독 방지를 위한 Refs
     const stompClientRef = useRef(null);
     const subscriptionRef = useRef(null);
-    const isConnectingRef = useRef(false); // 연결 중복 방지 플래그
+    const isConnectingRef = useRef(false);
     const messagesEndRef = useRef(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
+    // 마운트 시 자동 연결 시도 및 언마운트 시 클린업
     useEffect(() => {
         if (initialRoomId && session && !connected) {
             connect(initialRoomId);
@@ -42,19 +44,19 @@ const Consultation = () => {
     }, [messages]);
 
     const connect = async (targetRoomId = roomId) => {
-        if (!targetRoomId) {
+        // 이미 연결 중이거나 연결된 상태라면 중복 연결 방지
+        if (isConnectingRef.current || connected) return;
+        
+        if (!targetRoomId && senderType !== 'USER') {
             alert("방 번호를 입력해주세요.");
             return;
         }
 
-        // 이미 연결되었거나 연결 중인 경우 차단
-        if (isConnectingRef.current || connected) return;
         isConnectingRef.current = true;
-
         let finalRoomId = targetRoomId;
 
-        // 1. 유저일 경우 방 생성 로직
-        if (senderType === 'USER' && !initialRoomId) {
+        // 1. 일반 유저가 신규 상담 신청하는 경우 방 자동 생성
+        if (senderType === 'USER' && !initialRoomId && !roomId) {
             try {
                 const createRes = await axios.post('http://localhost:8082/app/consult/room', {}, {
                     headers: { Authorization: `Bearer ${session.accessToken}` }
@@ -63,7 +65,7 @@ const Consultation = () => {
                 setRoomId(finalRoomId);
             } catch (error) {
                 console.error("방 생성 실패:", error);
-                alert("상담 신청에 실패했습니다.");
+                alert("상담방 생성에 실패했습니다.");
                 isConnectingRef.current = false;
                 return;
             }
@@ -79,16 +81,14 @@ const Consultation = () => {
 
         // 3. 웹소켓 연결
         const socket = new SockJS('http://localhost:8082/api/ws-stomp');
-    const connect = () => {
-        const socket = new SockJS('/api/ws-stomp');
         const stompClient = Stomp.over(socket);
-        stompClient.debug = null;
+        stompClient.debug = null; // 콘솔 로그 깔끔하게 유지
 
         stompClient.connect({}, (frame) => {
             setIsConnected(true);
             isConnectingRef.current = false;
 
-            // 기존 구독 해제 후 재구독
+            // 이전 구독이 있다면 안전하게 해제
             if (subscriptionRef.current) {
                 subscriptionRef.current.unsubscribe();
             }
@@ -97,16 +97,17 @@ const Consultation = () => {
                 onMessageReceived(sdkEvent);
             });
 
+            // 입장 알림 전송
             stompClient.send("/app/consult/message", {}, JSON.stringify({
                 type: 'ENTER',
                 roomId: finalRoomId,
-                senderId: parseInt(senderId),
+                senderId: parseInt(session?.userId || senderId),
                 senderType: senderType,
                 senderName: senderName,
                 message: ''
             }));
         }, (error) => {
-            console.error('Connection Error: ' + error);
+            console.error('WebSocket Connection Error: ' + error);
             setIsConnected(false);
             isConnectingRef.current = false;
         });
@@ -131,17 +132,14 @@ const Consultation = () => {
 
     const onMessageReceived = (payload) => {
         const message = JSON.parse(payload.body);
-        const incomingContent = message.content || message.message;
-
         setMessages((prev) => {
-            // 더 강력한 중복 체크: ID가 있으면 ID로, 없으면 내용+시간+보낸이로 비교
-            const isDuplicate = prev.some(msg => {
-                if (msg.messageId && message.messageId) return msg.messageId === message.messageId;
-                return (msg.content || msg.message) === incomingContent &&
-                       msg.senderId === message.senderId &&
-                       msg.type === message.type;
-            });
-
+            // 중복 메시지 방지 로직 (ID 또는 내용+시간 기반)
+            const isDuplicate = prev.some(msg => 
+                (msg.messageId && message.messageId && msg.messageId === message.messageId) ||
+                ((msg.content || msg.message) === (message.content || message.message) && 
+                 msg.senderId === message.senderId && 
+                 Math.abs(new Date(msg.createdAt).getTime() - new Date().getTime()) < 1000)
+            );
             if (isDuplicate) return prev;
             return [...prev, message];
         });
@@ -171,7 +169,7 @@ const Consultation = () => {
                 <div style={titleAreaStyle}>
                     <button onClick={() => navigate(-1)} style={backButtonStyle}>〈 뒤로</button>
                     <div style={{textAlign:'center', flex:1}}>
-                        <div style={roomTitleStyle}>실시간 상담방 {roomId}</div>
+                        <div style={roomTitleStyle}>실시간 상담방 {roomId || '신규'}</div>
                         <div style={statusTextStyle}>{connected ? '● 온라인' : '○ 오프라인'}</div>
                     </div>
                     <div style={{width:'60px'}}></div>
@@ -189,21 +187,21 @@ const Consultation = () => {
                             </div>
                             <div style={{marginBottom:'30px'}}>
                                 <label style={inputLabelStyle}>방 번호</label>
-                                <input
+                                <input 
                                     style={loginInputStyle}
-                                    type="text"
-                                    placeholder={senderType === 'USER' ? "새 상담 시작 (자동생성)" : "접속할 방 번호 입력"}
-                                    value={roomId}
-                                    onChange={(e) => setRoomId(e.target.value)}
-                                    readOnly={senderType === 'USER'}
+                                    type="text" 
+                                    placeholder={senderType === 'USER' ? "새 상담 시작 (자동생성)" : "접속할 방 번호 입력"} 
+                                    value={roomId} 
+                                    onChange={(e) => setRoomId(e.target.value)} 
+                                    readOnly={senderType === 'USER' && !roomId}
                                 />
                             </div>
                             <button onClick={() => connect()} style={connectButtonStyle}>
                                 {senderType === 'USER' && !roomId ? '새 상담 신청하기' : '상담 연결하기'}
                             </button>
                             <div style={{marginTop:'20px', textAlign:'center'}}>
-                                <Link to={senderType === 'PHARMACIST' ? "/pharmacist/rooms" : "/my/consultations"} style={{color:'#007AFF', fontSize:'14px'}}>
-                                    {senderType === 'PHARMACIST' ? "대기 목록으로" : "내 상담 내역 보기"}
+                                <Link to={senderType === 'PHARMACIST' ? "/pharmacist/rooms" : "/my/consultations"} style={{color:'#007AFF', fontSize:'14px', textDecoration:'none', fontWeight:'600'}}>
+                                    {senderType === 'PHARMACIST' ? "대기 목록으로 돌아가기" : "내 상담 내역 확인하기"}
                                 </Link>
                             </div>
                         </div>
@@ -211,8 +209,11 @@ const Consultation = () => {
                 ) : (
                     <div style={messageListStyle}>
                         {messages.map((msg, index) => {
-                            const isMe = msg.senderId === parseInt(getAuthSession()?.userId || senderId) &&
-                                         msg.senderType === (getAuthSession()?.role || senderType);
+                            const currentSession = getAuthSession();
+                            const myId = parseInt(currentSession?.userId || currentSession?.id || senderId);
+                            const myRole = currentSession?.role || senderType;
+                            
+                            const isMe = msg.senderId === myId && msg.senderType === myRole;
                             const isSystem = msg.type === 'ENTER';
 
                             if (isSystem) return <div key={index} style={systemMessageStyle}>{msg.message}</div>;
@@ -241,12 +242,15 @@ const Consultation = () => {
                 <div style={inputContainerWrapperStyle}>
                     <div style={inputContainerStyle}>
                         <div style={plusButtonStyle}>+</div>
-                        <input
-                            type="text"
-                            style={pcInputStyle}
-                            value={messageInput}
+                        <input 
+                            type="text" 
+                            style={pcInputStyle} 
+                            value={messageInput} 
                             onChange={(e) => setMessageInput(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') sendMessage(); }}
+                            onKeyDown={(e) => {
+                                if (e.nativeEvent.isComposing) return;
+                                if (e.key === 'Enter') sendMessage();
+                            }}
                             placeholder="메시지를 입력하세요..."
                         />
                         <button onClick={sendMessage} style={sendButtonStyle}>전송</button>
