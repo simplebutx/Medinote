@@ -72,6 +72,7 @@ public class SecurityConfig {
                                 "/api/auth/pharmacists/verification"
                         ).permitAll()
                         .requestMatchers("/api/auth/email/**", "/api/auth/sms/**").permitAll()
+                        .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/user/profile", "/api/auth/sms/**", "/api/auth/pharmacists/**").permitAll()
                         .requestMatchers(
                                 "/swagger-ui.html",
                                 "/swagger-ui/**","/swagger-resources/**",

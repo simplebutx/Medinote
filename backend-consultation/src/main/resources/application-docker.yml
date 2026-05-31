@@ -30,5 +30,5 @@ logging:
     com.ibmteam02.backend_medication.chatbot.service: DEBUG
 
 jwt:
-  secret: ${JWT_SECRET:your-very-long-and-secure-secret-key-at-least-32-chars}
+  secret: ${JWT_SECRET:}
   expiration: ${JWT_EXPIRATION:3600000}
