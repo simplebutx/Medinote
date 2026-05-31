@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom'
 
 const TAB_ITEMS = [
-  { to: '/schedule-test/new', label: '스케줄 등록' },
-  { to: '/schedule-test', label: '내 스케줄 목록' },
-  { to: '/schedule-test/calendar', label: '내 달력' },
+  { to: '/app/ocr', label: 'OCR 업로드' },
+  { to: '/app/schedule/new', label: '직접 등록' },
+  { to: '/app/schedule', label: '등록 목록' },
+  { to: '/app/schedule/calendar', label: '복약 달력' },
 ]
 
 function ScheduleTabs() {
@@ -13,7 +14,7 @@ function ScheduleTabs() {
         <NavLink
           key={tab.to}
           to={tab.to}
-          end={tab.to === '/schedule-test'}
+          end={tab.to === '/app/schedule'}
           className={({ isActive }) =>
             ['schedule-tab-button', isActive ? 'schedule-tab-button-active' : ''].join(' ').trim()
           }

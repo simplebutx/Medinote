@@ -124,7 +124,7 @@ function Signup() {
     }
 
     try {
-      await axios.post('http://localhost:8080/api/auth/sms/send', {
+      await axios.post('/api/auth/sms/send', {
         phoneNumber,
       })
 
@@ -144,7 +144,7 @@ function Signup() {
     }
 
     try {
-      const res = await axios.post('http://localhost:8080/api/auth/sms/verify', {
+      const res = await axios.post('/api/auth/sms/verify', {
         phoneNumber,
         code: verificationCode,
       })
@@ -171,7 +171,7 @@ function Signup() {
     }
 
     try {
-      await axios.post('http://localhost:8080/api/auth/signup', {
+      await axios.post('/api/auth/signup', {
         email,
         password,
         username,
@@ -208,7 +208,7 @@ function Signup() {
 
   const handleDiseaseSuggest = async (keyword) => {
     try {
-      const response = await axios.get('http://localhost:8080/api/auth/diseases/suggest', {
+      const response = await axios.get('/api/auth/diseases/suggest', {
         params: { keyword },
       })
 
@@ -272,7 +272,7 @@ function Signup() {
     }
 
     try {
-      await axios.post('http://localhost:8080/api/auth/user/profile', {
+      await axios.post('/api/auth/user/profile', {
         email: tempEmail,
         ...healthState,
         diseaseNames,
@@ -298,7 +298,7 @@ function Signup() {
     formData.append('licenseImage', licenseImage)
 
     try {
-      await axios.post('http://localhost:8080/api/auth/pharmacists/verification', formData, {
+      await axios.post('/api/auth/pharmacists/verification', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
 

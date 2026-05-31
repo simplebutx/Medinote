@@ -25,8 +25,18 @@ export function LoginScreen({ navigation }: NativeStackScreenProps<any>) {
       const response = await api.login(settings, email.trim(), password);
       await saveSession(response);
       setMessage("로그인되었습니다.");
-    } catch {
-      setMessage("로그인에 실패했습니다. 이메일과 비밀번호를 확인해 주세요.");
+    } catch (error: any) {
+      const serverMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.response?.data?.code ||
+        error?.message;
+
+      setMessage(
+        serverMessage
+          ? `로그인에 실패했습니다. ${serverMessage}`
+          : "로그인에 실패했습니다. 이메일과 비밀번호를 확인해 주세요."
+      );
     } finally {
       setLoading(false);
     }
@@ -36,7 +46,7 @@ export function LoginScreen({ navigation }: NativeStackScreenProps<any>) {
     <Screen>
       <SectionCard
         title="MyMedi Mobile"
-        subtitle="지금까지 만든 사용자용 기능을 Expo 앱으로 옮긴 모바일 버전입니다. 아래 계정으로 바로 로그인하거나 회원가입을 진행할 수 있어요."
+        subtitle="모바일 앱에서 바로 로그인하거나 회원가입을 진행할 수 있어요."
       >
         <Field
           label="이메일"

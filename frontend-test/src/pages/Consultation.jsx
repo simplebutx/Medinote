@@ -79,8 +79,10 @@ const Consultation = () => {
 
         // 3. 웹소켓 연결
         const socket = new SockJS('http://localhost:8082/api/ws-stomp');
+    const connect = () => {
+        const socket = new SockJS('/api/ws-stomp');
         const stompClient = Stomp.over(socket);
-        stompClient.debug = null; 
+        stompClient.debug = null;
 
         stompClient.connect({}, (frame) => {
             setIsConnected(true);
@@ -135,7 +137,7 @@ const Consultation = () => {
             // 더 강력한 중복 체크: ID가 있으면 ID로, 없으면 내용+시간+보낸이로 비교
             const isDuplicate = prev.some(msg => {
                 if (msg.messageId && message.messageId) return msg.messageId === message.messageId;
-                return (msg.content || msg.message) === incomingContent && 
+                return (msg.content || msg.message) === incomingContent &&
                        msg.senderId === message.senderId &&
                        msg.type === message.type;
             });
@@ -187,12 +189,12 @@ const Consultation = () => {
                             </div>
                             <div style={{marginBottom:'30px'}}>
                                 <label style={inputLabelStyle}>방 번호</label>
-                                <input 
+                                <input
                                     style={loginInputStyle}
-                                    type="text" 
-                                    placeholder={senderType === 'USER' ? "새 상담 시작 (자동생성)" : "접속할 방 번호 입력"} 
-                                    value={roomId} 
-                                    onChange={(e) => setRoomId(e.target.value)} 
+                                    type="text"
+                                    placeholder={senderType === 'USER' ? "새 상담 시작 (자동생성)" : "접속할 방 번호 입력"}
+                                    value={roomId}
+                                    onChange={(e) => setRoomId(e.target.value)}
                                     readOnly={senderType === 'USER'}
                                 />
                             </div>
@@ -209,7 +211,7 @@ const Consultation = () => {
                 ) : (
                     <div style={messageListStyle}>
                         {messages.map((msg, index) => {
-                            const isMe = msg.senderId === parseInt(getAuthSession()?.userId || senderId) && 
+                            const isMe = msg.senderId === parseInt(getAuthSession()?.userId || senderId) &&
                                          msg.senderType === (getAuthSession()?.role || senderType);
                             const isSystem = msg.type === 'ENTER';
 
@@ -239,10 +241,10 @@ const Consultation = () => {
                 <div style={inputContainerWrapperStyle}>
                     <div style={inputContainerStyle}>
                         <div style={plusButtonStyle}>+</div>
-                        <input 
-                            type="text" 
-                            style={pcInputStyle} 
-                            value={messageInput} 
+                        <input
+                            type="text"
+                            style={pcInputStyle}
+                            value={messageInput}
                             onChange={(e) => setMessageInput(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') sendMessage(); }}
                             placeholder="메시지를 입력하세요..."

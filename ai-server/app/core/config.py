@@ -7,16 +7,21 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_model: str = ""
     llm_timeout_seconds: int = 30
+    google_application_credentials: str = ""
+    google_application_credentials_json: str = ""
+    aws_s3_bucket: str = ""
+    aws_region: str = "ap-northeast-2"
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    aws_s3_endpoint: str = ""
     llm_system_prompt: str = (
-        "당신은 의약품 정보를 설명하는 한국어 챗봇입니다. "
-        "제공된 약 정보와 사용자 질문을 바탕으로만 답변하고, "
-        "정보가 없는 내용은 추측하지 마세요. "
-        "위험하거나 응급해 보이는 상황이면 병원 또는 전문가 상담을 권하세요."
+        "?뱀떊? ?섏빟???뺣낫瑜??ㅻ챸?섎뒗 ?쒓뎅??梨쀫큸?낅땲?? "
+        "?쒓났?????뺣낫? ?ъ슜??吏덈Ц??諛뷀깢?쇰줈留??듬??섍퀬, "
+        "?뺣낫媛 ?녿뒗 ?댁슜? 異붿륫?섏? 留덉꽭?? "
+        "?꾪뿕?섍굅???묎툒??蹂댁씠???곹솴?대㈃ 蹂묒썝 ?먮뒗 ?꾨Ц媛 ?곷떞??沅뚰븯?몄슂."
     )
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
         extra="ignore",
     )
 

@@ -6,4 +6,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface MedicationIntakeLogRepository extends JpaRepository<MedicationIntakeLog, Long> {
     List<MedicationIntakeLog> findByMedicationScheduleIdOrderByScheduledAtDesc(Long medicationScheduleId);
+
+    List<MedicationIntakeLog> findByMedicationScheduleIdInAndScheduledAtGreaterThanEqualAndScheduledAtLessThanOrderByScheduledAtAsc(
+            List<Long> medicationScheduleIds,
+            java.time.LocalDateTime start,
+            java.time.LocalDateTime end
+    );
 }

@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -14,7 +15,7 @@ public class MedicineSearchService {
 
     private final MedicineInfoRepository medicineInfoRepository;
 
-    // @로 약이름 선택
+    // 약이름 자동완성
     public List<String> suggestMedicine(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             return List.of();
@@ -26,23 +27,24 @@ public class MedicineSearchService {
                 .toList();
     }
 
-    // 약 자동완성
-    public List<MedicineSearchResponse> searchMedicines(String keyword) {
+    // 약 검색 결과
+    public MedicineSearchResponse searchMedicine(String keyword) {
         if (keyword == null || keyword.isBlank()) {
-            return List.of();
+            throw new IllegalArgumentException("keyword is blank");
         }
 
-        return medicineInfoRepository.findTop10ByItemNameContaining(keyword).stream()
-                .map(medicine -> new MedicineSearchResponse(
-                        medicine.getItemSeq(),
-                        medicine.getItemName(),
-                        medicine.getCompanyName(),
-                        medicine.getEfficacy(),
-                        medicine.getUseMethod(),
-                        medicine.getCaution(),
-                        medicine.getSideEffect(),
-                        medicine.getImageUrl()
-                ))
-                .toList();
+        MedicineInfo medicine = medicineInfoRepository.findByItemName(keyword)
+                .orElseThrow(() -> new IllegalArgumentException("medicine not found"));
+
+        return new MedicineSearchResponse(
+                medicine.getItemSeq(),
+                medicine.getItemName(),
+                medicine.getCompanyName(),
+                medicine.getEfficacy(),
+                medicine.getUseMethod(),
+                medicine.getCaution(),
+                medicine.getSideEffect(),
+                medicine.getImageUrl()
+        );
     }
 }

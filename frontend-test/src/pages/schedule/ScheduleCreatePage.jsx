@@ -1,8 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   createMedicationSchedule,
-  initializeMedicationScheduleWindow,
   createMedicationScheduleTime,
 } from '../../api'
 import ScheduleForm from './ScheduleForm'
@@ -10,6 +9,7 @@ import {
   buildSchedulePayload,
   buildTimePayload,
   createDefaultScheduleForm,
+  createMedicineForm,
   normalizeTimesPerDay,
   syncTimeSlots,
 } from './scheduleFormUtils'
@@ -18,41 +18,85 @@ function ScheduleCreatePage() {
   const navigate = useNavigate()
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState(() => {
-    return createDefaultScheduleForm()
-  })
-  const [timeSlots, setTimeSlots] = useState([
-    { takeTime: '08:00', timing: 'AFTER_MEAL', sortOrder: 1 },
-    { takeTime: '13:00', timing: 'AFTER_MEAL', sortOrder: 2 },
-    { takeTime: '20:00', timing: 'AFTER_MEAL', sortOrder: 3 },
-  ])
+  const [form, setForm] = useState(() => createDefaultScheduleForm())
 
-  const timesPerDay = useMemo(() => normalizeTimesPerDay(form.timesPerDay), [form.timesPerDay])
-
-  const handleFormChange = (event) => {
+  const handleSharedFieldChange = (event) => {
     const { name, value } = event.target
-
-    if (name === 'timesPerDay') {
-      const nextCount = value === '' ? '1' : String(normalizeTimesPerDay(value))
-      setForm((prev) => ({ ...prev, timesPerDay: nextCount }))
-      setTimeSlots((prev) => syncTimeSlots(prev, Number(nextCount)))
-      return
-    }
-
     setForm((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleTimeSlotChange = (index, field, value) => {
-    setTimeSlots((prev) =>
-      prev.map((slot, slotIndex) =>
-        slotIndex === index
-          ? {
-              ...slot,
-              [field]: value,
-            }
-          : slot,
-      ),
-    )
+  const handleMedicineFieldChange = (medicineIndex, event) => {
+    const { name, value } = event.target
+
+    setForm((prev) => ({
+      ...prev,
+      medicines: prev.medicines.map((medicine, index) => {
+        if (index !== medicineIndex) {
+          return medicine
+        }
+
+        if (name === 'timesPerDay') {
+          const nextCount = value === '' ? '1' : String(normalizeTimesPerDay(value))
+          return {
+            ...medicine,
+            timesPerDay: nextCount,
+            timeSlots: syncTimeSlots(medicine.timeSlots, Number(nextCount)),
+          }
+        }
+
+        return {
+          ...medicine,
+          [name]: value,
+        }
+      }),
+    }))
+  }
+
+  const handleMedicineTimeSlotChange = (medicineIndex, slotIndex, field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      medicines: prev.medicines.map((medicine, index) => {
+        if (index !== medicineIndex) {
+          return medicine
+        }
+
+        return {
+          ...medicine,
+          timeSlots: medicine.timeSlots.map((slot, currentSlotIndex) =>
+            currentSlotIndex === slotIndex
+              ? {
+                  ...slot,
+                  [field]: value,
+                }
+              : slot,
+          ),
+        }
+      }),
+    }))
+  }
+
+  const handleAddMedicine = () => {
+    setForm((prev) => ({
+      ...prev,
+      medicines: [...prev.medicines, createMedicineForm()],
+    }))
+  }
+
+  const handleRemoveMedicine = (medicineIndex) => {
+    setForm((prev) => ({
+      ...prev,
+      medicines: prev.medicines.filter((_, index) => index !== medicineIndex),
+    }))
+  }
+
+  const createTimesSequentially = async (medicines) => {
+    for (const [medicineIndex, medicine] of medicines.entries()) {
+      const slots = form.medicines[medicineIndex]?.timeSlots || []
+
+      for (const [slotIndex, slot] of slots.entries()) {
+        await createMedicationScheduleTime(buildTimePayload(slot, medicine.id, slotIndex))
+      }
+    }
   }
 
   const handleSubmit = async () => {
@@ -61,16 +105,15 @@ function ScheduleCreatePage() {
 
     try {
       const schedule = await createMedicationSchedule(buildSchedulePayload(form))
+      const createdMedicines = schedule.medicines || []
 
-      await Promise.all(
-        timeSlots.map((slot, index) =>
-          createMedicationScheduleTime(buildTimePayload(slot, schedule.id, index)),
-        ),
-      )
+      if (createdMedicines.length !== form.medicines.length) {
+        throw new Error('Not all medicines were created.')
+      }
 
-      await initializeMedicationScheduleWindow(schedule.id)
+      await createTimesSequentially(createdMedicines)
 
-      navigate('/schedule-test', {
+      navigate('/app/schedule', {
         state: {
           message: 'Schedule created successfully.',
         },
@@ -88,12 +131,14 @@ function ScheduleCreatePage() {
       description="Build a schedule the same way a user would read and enter a prescription."
       submitLabel="Create schedule"
       form={form}
-      timeSlots={timeSlots}
       calculatedWindow={null}
       message={message}
       loading={loading}
-      onFormChange={handleFormChange}
-      onTimeSlotChange={handleTimeSlotChange}
+      onSharedFieldChange={handleSharedFieldChange}
+      onMedicineFieldChange={handleMedicineFieldChange}
+      onMedicineTimeSlotChange={handleMedicineTimeSlotChange}
+      onAddMedicine={handleAddMedicine}
+      onRemoveMedicine={handleRemoveMedicine}
       onSubmit={handleSubmit}
     />
   )

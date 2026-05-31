@@ -1,8 +1,10 @@
 package com.ibmteam02.backend_medication.schedule.controller;
 
+import com.ibmteam02.backend_medication.schedule.dto.DailyMedicationResponse;
 import com.ibmteam02.backend_medication.schedule.dto.MedicationScheduleRequest;
 import com.ibmteam02.backend_medication.schedule.dto.MedicationScheduleResponse;
 import com.ibmteam02.backend_medication.schedule.service.MedicationScheduleService;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,7 +27,7 @@ public class MedicationScheduleController {
 
     private final MedicationScheduleService medicationScheduleService;
 
-    // 복약 일정 생성
+    // 복약 일정 등록
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public MedicationScheduleResponse create(
@@ -34,19 +37,28 @@ public class MedicationScheduleController {
         return medicationScheduleService.create(userId, request);
     }
 
-    // 상세페이지 (수정페이지)
+    // 복약 일정 조회
     @GetMapping("/{id}")
     public MedicationScheduleResponse get(@AuthenticationPrincipal Long userId, @PathVariable Long id) {
         return medicationScheduleService.getDetail(userId, id);
     }
 
-    // 내 일정 목록
+    // 복약 일정 목록 조회
     @GetMapping
     public List<MedicationScheduleResponse> getByUserId(@AuthenticationPrincipal Long userId) {
         return medicationScheduleService.getList(userId);
     }
 
-    // 내 일정 수정
+    // 날짜별 복약 일정 조회
+    @GetMapping("/daily")
+    public DailyMedicationResponse getDailyMedications(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam LocalDate date
+    ) {
+        return medicationScheduleService.getDailyMedications(userId, date);
+    }
+
+    // 복약 일정 수정
     @PutMapping("/{id}")
     public MedicationScheduleResponse update(
             @AuthenticationPrincipal Long userId,
@@ -56,13 +68,7 @@ public class MedicationScheduleController {
         return medicationScheduleService.update(userId, id, request);
     }
 
-    // 수정 완료 시 일정 업데이트 (수정 완료 시 호출)
-    @PostMapping("/{id}/initialize-window")
-    public MedicationScheduleResponse initializeWindow(@AuthenticationPrincipal Long userId, @PathVariable Long id) {
-        return medicationScheduleService.initializeScheduleWindow(userId, id);
-    }
-
-    // 내 일정 삭제
+    // 복약 일정 삭제
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@AuthenticationPrincipal Long userId, @PathVariable Long id) {

@@ -1,7 +1,13 @@
 import type { CautionReason, DosageUnit, MedicationTiming } from "./types";
 
 export const DEFAULT_API_HOST =
-  process.env.EXPO_PUBLIC_DEFAULT_API_HOST || "192.168.45.19";
+  process.env.EXPO_PUBLIC_DEFAULT_API_HOST || "";
+
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "";
+
+export const PRESIGNED_UPLOAD_URL_ENDPOINT =
+  process.env.EXPO_PUBLIC_PRESIGNED_UPLOAD_URL_ENDPOINT ||
+  (API_BASE_URL ? `${API_BASE_URL}/api/prescriptions/upload-url` : "");
 
 export const reasonOptions: Array<{ value: CautionReason; label: string }> = [
   { value: "ALLERGY", label: "알러지" },

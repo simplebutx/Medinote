@@ -72,7 +72,7 @@ function ScheduleListPage() {
         <div className="schedule-status-card">
           <span className="schedule-status-label">Quick links</span>
           <strong>
-            <Link className="schedule-inline-link" to="/schedule-test/new">
+            <Link className="schedule-inline-link" to="/app/schedule/new">
               Create schedule
             </Link>
           </strong>
@@ -98,11 +98,11 @@ function ScheduleListPage() {
               <div
                 key={schedule.id}
                 className="schedule-list-card"
-                onClick={() => navigate(`/schedule-test/${schedule.id}/edit`)}
+                onClick={() => navigate(`/app/schedule/${schedule.id}/edit`)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault()
-                    navigate(`/schedule-test/${schedule.id}/edit`)
+                    navigate(`/app/schedule/${schedule.id}/edit`)
                   }
                 }}
                 role="button"
@@ -117,7 +117,7 @@ function ScheduleListPage() {
                     {schedule.startDate} - {schedule.endDate}
                   </span>
                   <span>
-                    Prescribed: {schedule.prescribedDate || '-'} · Dispensed: {schedule.dispensedDate || '-'}
+                    Dispensed: {schedule.dispensedDate || '-'}
                   </span>
                   <span>Status: {schedule.isActive ? 'Active' : 'Inactive'}</span>
                 </div>
@@ -140,7 +140,7 @@ function ScheduleListPage() {
         ) : (
           <div className="schedule-empty-state">
             <p>No schedules yet.</p>
-            <Link className="schedule-primary-link" to="/schedule-test/new">
+            <Link className="schedule-primary-link" to="/app/schedule/new">
               Create your first schedule
             </Link>
           </div>

@@ -78,9 +78,18 @@ services:
       MYSQL_USERNAME: ${MYSQL_USERNAME:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
       AI_SERVICE_BASE_URL: http://ai-server:8000
+      AUTH_SERVICE_BASE_URL: http://backend-auth:8080
       PUBLIC_DATA_SERVICE_KEY: ${PUBLIC_DATA_SERVICE_KEY:-}
       PUBLIC_DATA_BASE_URL: ${PUBLIC_DATA_BASE_URL:-https://apis.data.go.kr/1471000/DrbEasyDrugInfoService/getDrbEasyDrugList}
       PUBLIC_DATA_INGREDIENT_BASE_URL: ${PUBLIC_DATA_INGREDIENT_BASE_URL:-https://apis.data.go.kr/1471000/DrugPrdtPrmsnInfoService07/getDrugPrdtMcpnDtlInq07}
+      AWS_ACCESS_KEY: ${AWS_ACCESS_KEY:-}
+      AWS_SECRET_KEY: ${AWS_SECRET_KEY:-}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+      AWS_S3_REGION: ${AWS_S3_REGION:-}
+      AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-}
+      AWS_S3_PRESCRIPTION_PREFIX: ${AWS_S3_PRESCRIPTION_PREFIX:-prescriptions}
+      AWS_PRESIGN_EXPIRATION_SECONDS: ${AWS_PRESIGN_EXPIRATION_SECONDS:-300}
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -132,8 +141,32 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-}
       LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-30}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-/app/secrets/gcloud-adc.json}
+      GOOGLE_APPLICATION_CREDENTIALS_JSON: ${GOOGLE_APPLICATION_CREDENTIALS_JSON:-}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_KEY:-}
+      AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-}
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS_HOST_PATH:-./secrets/gcloud-adc.json}:/app/secrets/gcloud-adc.json:ro
     ports:
       - "8000:8000"
+
+  api-gateway:
+    image: nginx:1.27-alpine
+    container_name: mymedi-api-gateway
+    volumes:
+      - ./infra/nginx/mobile-api-gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8090:80"
+    depends_on:
+      backend-auth:
+        condition: service_started
+      backend-medication:
+        condition: service_started
+      backend-consultation:
+        condition: service_started
 
   frontend-test:
     build:
@@ -141,8 +174,7 @@ services:
     container_name: mymedi-frontend-test
     working_dir: /app
     environment:
-      VITE_CONSULTATION_PROXY_TARGET: http://backend-consultation:8082
-      VITE_MEDICATION_PROXY_TARGET: http://backend-medication:8081
+      VITE_KAKAO_MAP_KEY: ${VITE_KAKAO_MAP_KEY:-}
     command: ["sh", "-c", "npm run dev -- --host 0.0.0.0"]
     ports:
       - "5173:5173"
@@ -158,10 +190,10 @@ services:
     container_name: mymedi-frontend
     working_dir: /app
     environment:
-      VITE_AUTH_API_URL: http://localhost:8080
-      VITE_MEDICATION_API_URL: http://localhost:8081
-      VITE_CONSULTATION_API_URL: http://localhost:8082
-      VITE_AI_API_URL: http://localhost:8000
+      VITE_AUTH_API_URL: ${VITE_AUTH_API_URL:-http://localhost:8080}
+      VITE_MEDICATION_API_URL: ${VITE_MEDICATION_API_URL:-http://localhost:8081}
+      VITE_CONSULTATION_API_URL: ${VITE_CONSULTATION_API_URL:-http://localhost:8082}
+      VITE_AI_API_URL: ${VITE_AI_API_URL:-http://localhost:8000}
     command: ["sh", "-c", "npm run dev -- --host 0.0.0.0"]
     ports:
       - "5174:5173"
@@ -178,10 +210,14 @@ services:
       context: ./mobile-expo
     container_name: mymedi-mobile-expo
     working_dir: /app
-    env_file:
-      - ./mobile-expo/.env.local
     environment:
       CI: "1"
+      MOBILE_EXPO_HOST: ${MOBILE_EXPO_HOST:-}
+      MOBILE_API_HOST: ${MOBILE_API_HOST:-}
+      REACT_NATIVE_PACKAGER_HOSTNAME: ${MOBILE_EXPO_HOST:-}
+      EXPO_PUBLIC_DEFAULT_API_HOST: ${EXPO_PUBLIC_DEFAULT_API_HOST:-}
+      EXPO_PUBLIC_API_BASE_URL: ${EXPO_PUBLIC_API_BASE_URL:-}
+      EXPO_PUBLIC_PRESIGNED_UPLOAD_URL_ENDPOINT: ${EXPO_PUBLIC_PRESIGNED_UPLOAD_URL_ENDPOINT:-}
     command: ["sh", "-c", "npm run start:docker"]
     ports:
       - "19000:19000"

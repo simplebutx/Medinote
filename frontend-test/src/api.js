@@ -112,6 +112,21 @@ export const searchMedicines = async (keyword) => {
   return response.data
 }
 
+export const getPharmaciesInBounds = async (params) => {
+  const response = await api.get('/pharmacies', {
+    params,
+    timeout: 30000,
+  })
+  return response.data
+}
+
+export const getPharmacyDetail = async (hpid) => {
+  const response = await api.get(`/pharmacies/${hpid}`, {
+    timeout: 30000,
+  })
+  return response.data
+}
+
 export const createMedicationSchedule = async (payload) => {
   const response = await api.post('/medication-schedules', payload)
   return response.data
@@ -129,11 +144,6 @@ export const getMedicationSchedule = async (id) => {
 
 export const updateMedicationSchedule = async (id, payload) => {
   const response = await api.put(`/medication-schedules/${id}`, payload)
-  return response.data
-}
-
-export const initializeMedicationScheduleWindow = async (id) => {
-  const response = await api.post(`/medication-schedules/${id}/initialize-window`)
   return response.data
 }
 
@@ -164,6 +174,16 @@ export const deleteMedicationScheduleTime = async (id) => {
 
 export const createMedicationIntakeLog = async (payload) => {
   const response = await api.post('/medication-intake-logs', payload)
+  return response.data
+}
+
+export const createPrescriptionUploadUrl = async (payload) => {
+  const response = await api.post('/prescriptions/upload-url', payload)
+  return response.data
+}
+
+export const runPrescriptionOcr = async (ocrResultId) => {
+  const response = await api.post(`/prescriptions/${ocrResultId}/ocr`)
   return response.data
 }
 

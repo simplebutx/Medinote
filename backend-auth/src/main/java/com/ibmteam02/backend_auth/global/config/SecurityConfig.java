@@ -59,15 +59,25 @@ public class SecurityConfig {
                 .sessionManagement(session->session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/internal/**").permitAll()
                         .requestMatchers("/api/auth/logout").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/auth/me").authenticated()
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/auth/signup",
+                                "/api/auth/login",
+                                "/api/auth/user/profile",
+                                "/api/auth/token/refresh",
+                                "/api/auth/pharmacists/verification"
+                        ).permitAll()
+                        .requestMatchers("/api/auth/email/**", "/api/auth/sms/**").permitAll()
                         .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/user/profile", "/api/auth/sms/**", "/api/auth/pharmacists/**").permitAll()
                         .requestMatchers(
                                 "/swagger-ui.html",
                                 "/swagger-ui/**","/swagger-resources/**",
                                 "/v3/api-docs/**",
-                                "/webjars/**").permitAll()
+                                "/webjars/**" , "/api/auth/diseases/suggest").permitAll()
                         .anyRequest().authenticated()
                 )
                         .addFilterBefore(new JwtAuthenticationFilter(jwtProvider),
