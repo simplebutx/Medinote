@@ -25,6 +25,7 @@ public class MedicationIntakeLogController {
 
     private final MedicationIntakeLogService medicationIntakeLogService;
 
+    // 복약 체크 생성
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public MedicationIntakeLogResponse create(
@@ -34,11 +35,13 @@ public class MedicationIntakeLogController {
         return medicationIntakeLogService.create(userId, request);
     }
 
+    // 복약 체크 조회
     @GetMapping("/{id}")
     public MedicationIntakeLogResponse get(@AuthenticationPrincipal Long userId, @PathVariable Long id) {
         return medicationIntakeLogService.get(userId, id);
     }
 
+    // 복약 체크 목록 조회
     @GetMapping
     public List<MedicationIntakeLogResponse> getByScheduleId(
             @AuthenticationPrincipal Long userId,
@@ -47,6 +50,7 @@ public class MedicationIntakeLogController {
         return medicationIntakeLogService.getByScheduleId(userId, medicationScheduleId);
     }
 
+    // 복약 체크 수정
     @PutMapping("/{id}")
     public MedicationIntakeLogResponse update(
             @AuthenticationPrincipal Long userId,
@@ -56,6 +60,7 @@ public class MedicationIntakeLogController {
         return medicationIntakeLogService.update(userId, id, request);
     }
 
+    // 복약 체크 삭제
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@AuthenticationPrincipal Long userId, @PathVariable Long id) {

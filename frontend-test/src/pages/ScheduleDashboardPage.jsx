@@ -6,7 +6,12 @@ import {
   getMedicationScheduleTimes,
   getMedicationSchedules,
 } from '../api'
-import { buildCalendarDays, formatIsoDate, getEffectiveScheduleWindow } from './schedule/scheduleCalendarUtils'
+import {
+  buildCalendarDays,
+  formatIsoDate,
+  getDoseTimesForDate,
+  getEffectiveScheduleWindow,
+} from './schedule/scheduleCalendarUtils'
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -18,16 +23,16 @@ function formatTimeLabel(value) {
   return normalizeTakeTime(value) || '시간 미정'
 }
 
-function parseDateValue(value) {
-  if (!value) return null
-  if (/[zZ]$|[+-]\d{2}:\d{2}$/.test(value)) {
-    return new Date(value)
-  }
-  return new Date(`${value}Z`)
+function getScheduleName(schedule) {
+  return (
+    schedule.customMedicineName ||
+    schedule.medicines?.[0]?.customMedicineName ||
+    `약 #${schedule.medicineId || schedule.id}`
+  )
 }
 
-function getScheduleName(schedule) {
-  return schedule.customMedicineName || schedule.medicines?.[0]?.customMedicineName || `약 #${schedule.medicineId || schedule.id}`
+function getScheduleMedicine(schedule, medicationScheduleMedicineId) {
+  return (schedule.medicines || []).find((medicine) => medicine.id === medicationScheduleMedicineId) || null
 }
 
 function buildDoseGroups({ schedules, scheduleTimesById, intakeLogsByScheduleId, selectedDate }) {
@@ -39,23 +44,30 @@ function buildDoseGroups({ schedules, scheduleTimesById, intakeLogsByScheduleId,
     if (schedule.effectiveStartDate > selectedDate || schedule.effectiveEndDate < selectedDate) return
 
     const scheduleTimes = scheduleTimesById[schedule.id] || []
+    const visibleTimes = new Set(getDoseTimesForDate(schedule, scheduleTimes, selectedDate))
     const intakeLogs = intakeLogsByScheduleId[schedule.id] || []
 
     scheduleTimes.forEach((scheduleTime) => {
       const takeTime = normalizeTakeTime(scheduleTime.takeTime)
-      if (!takeTime) return
+      if (!takeTime || !visibleTimes.has(takeTime)) return
 
+      const scheduleMedicine = getScheduleMedicine(schedule, scheduleTime.medicationScheduleMedicineId)
       const matchingLogs = intakeLogs.filter(
         (log) =>
           log.medicationScheduleTimeId === scheduleTime.id &&
           String(log.scheduledAt || '').startsWith(selectedDate),
       )
 
+      const dosageAmount =
+        scheduleMedicine?.dosageAmount ?? schedule.dosageAmount ?? schedule.medicines?.[0]?.dosageAmount ?? 1
+      const dosageUnit =
+        scheduleMedicine?.dosageUnit ?? schedule.dosageUnit ?? schedule.medicines?.[0]?.dosageUnit ?? ''
+
       const item = {
         scheduleId: schedule.id,
         scheduleTimeId: scheduleTime.id,
-        name: getScheduleName(schedule),
-        dosage: `${schedule.dosageAmount || schedule.medicines?.[0]?.dosageAmount || 1}${schedule.dosageUnit || schedule.medicines?.[0]?.dosageUnit || ''}`,
+        name: scheduleMedicine?.customMedicineName || getScheduleName(schedule),
+        dosage: `${dosageAmount}${dosageUnit}`,
         timing: scheduleTime.timing || 'AFTER_MEAL',
         time: takeTime,
         status: matchingLogs[0]?.status || 'PENDING',
@@ -181,10 +193,7 @@ function ScheduleDashboardPage() {
           medicationScheduleTimeId: item.scheduleTimeId,
           status,
           scheduledAt: `${selectedDate}T${item.time}:00`,
-          takenAt:
-            status === 'TAKEN'
-              ? new Date().toISOString().slice(0, 19)
-              : null,
+          takenAt: status === 'TAKEN' ? new Date().toISOString().slice(0, 19) : null,
         })
       }
 
@@ -206,7 +215,9 @@ function ScheduleDashboardPage() {
         <section className="app-card">
           <p className="schedule-stat-label">선택 날짜 복약 완료율</p>
           <strong className="schedule-stat-value primary">{selectedCompletionRate}%</strong>
-          <p className="schedule-stat-help">{selectedItems.length}개 중 {selectedItems.filter((item) => item.status === 'TAKEN').length}개 복용 완료</p>
+          <p className="schedule-stat-help">
+            {selectedItems.length}개 중 {selectedItems.filter((item) => item.status === 'TAKEN').length}개 복용 완료
+          </p>
         </section>
         <section className="app-card">
           <p className="schedule-stat-label">선택 날짜 남은 복약</p>

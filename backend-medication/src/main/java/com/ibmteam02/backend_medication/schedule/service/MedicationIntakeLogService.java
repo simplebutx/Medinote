@@ -23,6 +23,7 @@ public class MedicationIntakeLogService {
     private final MedicationScheduleRepository medicationScheduleRepository;
     private final MedicationScheduleTimeRepository medicationScheduleTimeRepository;
 
+    // 복약 체크 생성
     public MedicationIntakeLogResponse create(Long userId, MedicationIntakeLogRequest request) {
         MedicationIntakeLog intakeLog = MedicationIntakeLog.builder()
                 .medicationSchedule(findSchedule(userId, request.medicationScheduleId()))
@@ -35,11 +36,13 @@ public class MedicationIntakeLogService {
         return toResponse(medicationIntakeLogRepository.save(intakeLog));
     }
 
+    // 복약 체크 조회
     @Transactional(readOnly = true)
     public MedicationIntakeLogResponse get(Long userId, Long id) {
         return toResponse(findById(userId, id));
     }
 
+    // 복약 체크 목록 조회
     @Transactional(readOnly = true)
     public List<MedicationIntakeLogResponse> getByScheduleId(Long userId, Long medicationScheduleId) {
         findSchedule(userId, medicationScheduleId);
@@ -50,6 +53,7 @@ public class MedicationIntakeLogService {
                 .toList();
     }
 
+    // 복약 체크 수정
     public MedicationIntakeLogResponse update(Long userId, Long id, MedicationIntakeLogRequest request) {
         MedicationIntakeLog intakeLog = findById(userId, id);
         intakeLog.update(
@@ -62,6 +66,7 @@ public class MedicationIntakeLogService {
         return toResponse(intakeLog);
     }
 
+    // 복약 체크 삭제
     public void delete(Long userId, Long id) {
         medicationIntakeLogRepository.delete(findById(userId, id));
     }
