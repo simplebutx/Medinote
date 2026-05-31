@@ -87,10 +87,25 @@ function getEasySummary(medicine: MedicineSearchItem) {
 
 function DrugSearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const keyword = searchParams.get("keyword") ?? "";
+  const initialKeyword = searchParams.get("keyword") ?? "";
+
+  const [keyword, setKeyword] = useState(initialKeyword);
+  const [committedKeyword, setCommittedKeyword] = useState(initialKeyword);
 
   const handleChangeKeyword = (value: string) => {
     const nextKeyword = value.trimStart();
+
+    setKeyword(nextKeyword);
+    setCommittedKeyword('');
+    setSelectedMedicineId(null);
+  };
+
+  const handleSelectKeyword = (value: string) => {
+    const nextKeyword = value.trim();
+
+    setKeyword(nextKeyword);
+    setCommittedKeyword(nextKeyword);
+    setSelectedMedicineId(null);
 
     if (nextKeyword) {
       setSearchParams({ keyword: nextKeyword }, { replace: true });
@@ -105,8 +120,10 @@ function DrugSearchPage() {
   );
 
   const debouncedKeyword = useDebounce(keyword, 300);
-  const searchKeyword = debouncedKeyword.trim();
+  const suggestKeyword = debouncedKeyword.trim();
+  const searchKeyword = committedKeyword.trim();
 
+  const isSuggestEnabled = suggestKeyword.length >= 2;
   const isSearchEnabled = searchKeyword.length >= 2;
 
   const {
@@ -115,9 +132,10 @@ function DrugSearchPage() {
     isError: isMedicineSearchError,
   } = useMedicineSearch(isSearchEnabled ? searchKeyword : "");
 
-  const { data: suggestions = [] } = useMedicineSuggest(
-    isSearchEnabled ? searchKeyword : ""
-  );
+  const {
+    data: suggestions = [],
+    isLoading: isMedicineSuggestLoading,
+  } = useMedicineSuggest(isSuggestEnabled ? suggestKeyword : '');
 
   const selectedMedicine = useMemo(() => {
     if (medicineResults.length === 0) {
@@ -166,23 +184,44 @@ function DrugSearchPage() {
             handleChangeKeyword(event.target.value);
             setSelectedMedicineId(null);
           }}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter') {
+              return;
+            }
+
+            if (suggestions.length > 0) {
+              handleSelectKeyword(suggestions[0]);
+            }
+          }}
         />
 
-        {suggestions.length > 0 ? (
+        {isSuggestEnabled ? (
           <div className="mt-4 flex flex-wrap gap-2">
-            {suggestions.map((suggestion) => (
-              <button
-                key={suggestion}
-                type="button"
-                onClick={() => {
-                  handleChangeKeyword(suggestion);
-                  setSelectedMedicineId(null);
-                }}
-                className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700 hover:bg-blue-100"
-              >
-                {suggestion}
-              </button>
-            ))}
+            {isMedicineSuggestLoading && (
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
+                자동완성 검색 중...
+              </span>
+            )}
+
+            {!isMedicineSuggestLoading &&
+              suggestions.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => {
+                    handleSelectKeyword(suggestion);
+                  }}
+                  className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                >
+                  {suggestion}
+                </button>
+              ))}
+
+            {!isMedicineSuggestLoading && suggestions.length === 0 && (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-500">
+                자동완성 결과가 없습니다.
+              </span>
+            )}
           </div>
         ) : (
           <div className="mt-4 flex flex-wrap gap-2">
@@ -192,7 +231,6 @@ function DrugSearchPage() {
                 type="button"
                 onClick={() => {
                   handleChangeKeyword(item);
-                  setSelectedMedicineId(null);
                 }}
                 className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700"
               >
@@ -213,13 +251,19 @@ function DrugSearchPage() {
           <div className="mt-4 space-y-3">
             {keyword.trim().length === 0 && (
               <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                약 이름이나 성분명을 입력해주세요.
+                약 이름을 입력해주세요.
               </div>
             )}
 
             {keyword.trim().length > 0 && keyword.trim().length < 2 && (
               <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                두 글자 이상 입력하면 검색이 시작됩니다.
+                두 글자 이상 입력하면 자동완성이 시작됩니다.
+              </div>
+            )}
+
+            {keyword.trim().length >= 2 && !committedKeyword && (
+              <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                자동완성 목록에서 약 이름을 선택하면 상세 정보가 표시됩니다.
               </div>
             )}
 
