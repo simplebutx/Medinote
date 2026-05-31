@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import { sendChatbotMessage, suggestMedicines } from '../api'
 
@@ -36,6 +37,7 @@ function renderHighlightedMessage(message, confirmedMentions) {
 }
 
 function Chatbot() {
+  const navigate = useNavigate()
   const [message, setMessage] = useState('')
   const [answer, setAnswer] = useState('')
   const [loading, setLoading] = useState(false)
@@ -144,7 +146,7 @@ function Chatbot() {
         <p className="app-page-eyebrow">Chat & Consult</p>
         <h1 className="app-page-title">챗봇 & 상담</h1>
         <p className="app-page-description">
-          약 이름 멘션 자동완성과 챗봇 응답 기능을 사용자 공통 레이아웃 안으로 옮겼습니다.
+          AI 챗봇 서비스와 전문 약사 1:1 상담 서비스를 한 곳에서 이용하실 수 있습니다.
         </p>
       </div>
 
@@ -202,6 +204,20 @@ function Chatbot() {
             <div className="answer-text app-answer-panel">
               <ReactMarkdown>{answer || '아직 답변이 없습니다.'}</ReactMarkdown>
             </div>
+          </section>
+
+          <section className="app-card app-muted-card">
+            <div className="app-card-header">
+              <h2 style={{ color: '#10b981' }}>💊 약사 상담</h2>
+              <p>AI 답변으로 부족하신가요? 전문 약사님께 1:1 상담을 신청해보세요.</p>
+            </div>
+            <button 
+              className="app-primary-button" 
+              style={{ marginTop: '15px', backgroundColor: '#10b981', border: 'none' }}
+              onClick={() => navigate('/consultation')}
+            >
+              약사님께 1:1 상담 신청하기
+            </button>
           </section>
 
           <section className="app-card app-muted-card">
