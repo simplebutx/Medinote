@@ -2,8 +2,10 @@ package com.ibmteam02.backend_consultation;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 @SpringBootApplication
+@EnableJpaAuditing
 public class BackendConsultationApplication {
 
 	public static void main(String[] args) {

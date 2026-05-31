@@ -15,6 +15,8 @@ import Sync from './pages/Sync'
 import YunjuTest from './pages/YunjuTest'
 
 import Consultation from './pages/Consultation'
+import UserConsultationList from './pages/UserConsultationList'
+import PharmacistRoomList from './pages/PharmacistRoomList'
 
 function Home() {
   return (
@@ -49,7 +51,13 @@ function Home() {
           <Link to="/my">my page</Link>
         </li>
         <li>
-          <Link to="/consultation" style={{ color: 'green', fontWeight: 'bold' }}>실시간 상담 테스트</Link>
+          <Link to="/my/consultations" style={{ color: 'blue', fontWeight: 'bold' }}>내 상담 내역</Link>
+        </li>
+        <li>
+          <Link to="/consultation" style={{ color: 'green', fontWeight: 'bold' }}>실시간 상담 신청</Link>
+        </li>
+        <li>
+          <Link to="/pharmacist/rooms" style={{ color: 'purple', fontWeight: 'bold' }}>약사 대기 목록 (상담 수락)</Link>
         </li>
       </ul>
     </div>
@@ -74,6 +82,8 @@ function App() {
         <Route path="/yunjutest" element={<YunjuTest />} />
         <Route path="/my" element={<MyPage />} />
         <Route path="/consultation" element={<Consultation />} />
+        <Route path="/my/consultations" element={<UserConsultationList />} />
+        <Route path="/pharmacist/rooms" element={<PharmacistRoomList />} />
       </Routes>
     </BrowserRouter>
   )

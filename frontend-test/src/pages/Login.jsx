@@ -22,6 +22,7 @@ const Login = () => {
         refreshToken: res.refreshToken,
         email: res.email,
         role: res.role,
+        userId: res.userId || res.id, // ID 추가
       })
 
       alert('로그인 성공! 마이페이지로 이동합니다.')
