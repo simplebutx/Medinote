@@ -24,7 +24,7 @@ public class JwtProvider {
     // 생성자 주입: yml의 값을 가져와 final 키워드로 열쇠를 고정 (실무 표준)
     public JwtProvider(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.expiration:3600000}") long expirationTime) {
+            @Value("${jwt.expiration:86400000}") long expirationTime) {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationTime = expirationTime;
     }

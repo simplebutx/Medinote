@@ -3,7 +3,6 @@ import {
   createMedicationSchedule,
   createMedicationScheduleTime,
   createPrescriptionUploadUrl,
-  initializeMedicationScheduleWindow,
   runPrescriptionOcr,
 } from '../api'
 import { DOSAGE_UNIT_OPTIONS, MAX_TIMES_PER_DAY, TIMING_OPTIONS } from './schedule/constants'
@@ -117,6 +116,16 @@ function MedicationRegisterPage() {
     }))
   }
 
+  const createTimesSequentially = async (medicines) => {
+    for (const [medicineIndex, medicine] of medicines.entries()) {
+      const slots = form.medicines[medicineIndex]?.timeSlots || []
+
+      for (const [slotIndex, slot] of slots.entries()) {
+        await createMedicationScheduleTime(buildTimePayload(slot, medicine.id, slotIndex))
+      }
+    }
+  }
+
   const handleFileChange = (event) => {
     const file = event.target.files?.[0] || null
 
@@ -153,9 +162,14 @@ function MedicationRegisterPage() {
 
       await uploadFileToPresignedUrl(presigned.uploadUrl, selectedFile, presigned.headers)
       const ocrResponse = await runPrescriptionOcr(presigned.ocrResultId)
-      const draft = buildOcrScheduleDraft(ocrResponse.resultJson)
-
       setOcrResult(ocrResponse)
+
+      if (ocrResponse.status && ocrResponse.status !== 'OCR_DONE' && ocrResponse.status !== 'CONFIRMED') {
+        setMessage(ocrResponse.errorMessage || 'OCR 처리 중 오류가 발생했습니다.')
+        return
+      }
+
+      const draft = buildOcrScheduleDraft(ocrResponse.resultJson)
 
       if (draft) {
         setForm((prev) => applyOcrDraftToForm(prev, draft))
@@ -178,15 +192,8 @@ function MedicationRegisterPage() {
       const schedule = await createMedicationSchedule(buildSchedulePayload(form))
       const createdMedicines = schedule.medicines || []
 
-      await Promise.all(
-        createdMedicines.flatMap((createdMedicine, medicineIndex) =>
-          (form.medicines[medicineIndex]?.timeSlots || []).map((slot, slotIndex) =>
-            createMedicationScheduleTime(buildTimePayload(slot, createdMedicine.id, slotIndex)),
-          ),
-        ),
-      )
+      await createTimesSequentially(createdMedicines)
 
-      await initializeMedicationScheduleWindow(schedule.id)
       setMessage('복약 일정이 저장되었습니다.')
       setForm(createDefaultScheduleForm())
       setSelectedFile(null)

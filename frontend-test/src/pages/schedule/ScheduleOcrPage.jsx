@@ -4,7 +4,6 @@ import {
   createMedicationSchedule,
   createMedicationScheduleTime,
   createPrescriptionUploadUrl,
-  initializeMedicationScheduleWindow,
   runPrescriptionOcr,
 } from '../../api'
 import ScheduleForm from './ScheduleForm'
@@ -122,6 +121,16 @@ function ScheduleOcrPage() {
     }))
   }
 
+  const createTimesSequentially = async (medicines) => {
+    for (const [medicineIndex, medicine] of medicines.entries()) {
+      const slots = form.medicines[medicineIndex]?.timeSlots || []
+
+      for (const [slotIndex, slot] of slots.entries()) {
+        await createMedicationScheduleTime(buildTimePayload(slot, medicine.id, slotIndex))
+      }
+    }
+  }
+
   const handleFileChange = (event) => {
     const file = event.target.files?.[0] || null
 
@@ -157,14 +166,23 @@ function ScheduleOcrPage() {
 
       await uploadFileToPresignedUrl(presigned.uploadUrl, selectedFile, presigned.headers)
       const ocrResponse = await runPrescriptionOcr(presigned.ocrResultId)
-      const ocrDraft = buildOcrScheduleDraft(ocrResponse.resultJson)
 
       setOcrResult({
         ...ocrResponse,
-        draft: ocrDraft,
         fileUrl: presigned.fileUrl || '',
         key: presigned.key || '',
       })
+
+      if (ocrResponse.status && ocrResponse.status !== 'OCR_DONE' && ocrResponse.status !== 'CONFIRMED') {
+        setMessage(ocrResponse.errorMessage || 'OCR 처리 중 오류가 발생했습니다.')
+        return
+      }
+
+      const ocrDraft = buildOcrScheduleDraft(ocrResponse.resultJson)
+      setOcrResult((prev) => ({
+        ...prev,
+        draft: ocrDraft,
+      }))
 
       if (ocrDraft) {
         setForm((prev) => applyOcrDraftToForm(prev, ocrDraft))
@@ -191,15 +209,7 @@ function ScheduleOcrPage() {
         throw new Error('Not all medicines were created.')
       }
 
-      await Promise.all(
-        createdMedicines.flatMap((createdMedicine, medicineIndex) =>
-          (form.medicines[medicineIndex]?.timeSlots || []).map((slot, slotIndex) =>
-            createMedicationScheduleTime(buildTimePayload(slot, createdMedicine.id, slotIndex)),
-          ),
-        ),
-      )
-
-      await initializeMedicationScheduleWindow(schedule.id)
+      await createTimesSequentially(createdMedicines)
 
       navigate('/app/schedule', {
         state: {

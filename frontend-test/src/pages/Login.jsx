@@ -26,6 +26,7 @@ function Login() {
         refreshToken: res.refreshToken,
         email: res.email,
         role: res.role,
+        userId: res.userId || res.id, // ID 추가
       })
 
       navigate('/app/my')

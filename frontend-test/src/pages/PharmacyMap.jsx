@@ -119,7 +119,7 @@ function PharmacyMap() {
         })
 
         if (error.message === 'MISSING_KAKAO_MAP_KEY') {
-          setStatus('VITE_KAKAO_MAP_KEY 값을 찾지 못했습니다. frontend-test/.env.local 파일을 확인해주세요.')
+          setStatus('VITE_KAKAO_MAP_KEY 값을 찾지 못했습니다. 루트 .env.docker 또는 compose 환경변수를 확인해주세요.')
           return
         }
 

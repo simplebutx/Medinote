@@ -2,17 +2,29 @@ import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import {
   createCaution,
+  createMedicationSchedule,
+  createMedicationScheduleTime,
   deleteCaution,
+  deleteMedicationSchedule,
+  deleteMedicationScheduleTime,
   getAuthSession,
   getCautions,
+  getMedicationScheduleTimes,
+  getMedicationSchedules,
   suggestCautions,
+  updateMedicationSchedule,
 } from '../api'
 import { DOSAGE_UNIT_OPTIONS, MAX_TIMES_PER_DAY, TIMING_OPTIONS } from './schedule/constants'
 import {
+  buildSchedulePayload,
+  buildTimePayload,
   createMedicineForm,
+  mapScheduleToForm,
   normalizeTimesPerDay,
   syncTimeSlots,
 } from './schedule/scheduleFormUtils'
+
+const DEFAULT_MEDICATION_TIME_SETTINGS_KEY = 'defaultMedicationTimeSettings'
 
 const tabs = [
   { key: 'profile', label: '기본 정보' },
@@ -20,6 +32,7 @@ const tabs = [
   { key: 'caution', label: '알레르기/주의 성분' },
   { key: 'history', label: '복약 이력' },
   { key: 'prescription', label: '처방전' },
+  { key: 'settings', label: '환경설정' },
 ]
 
 const cautionReasonOptions = [
@@ -27,7 +40,7 @@ const cautionReasonOptions = [
   { value: 'SIDE_EFFECT', label: '부작용' },
   { value: 'DOCTOR_ADVICE', label: '의사 권고' },
   { value: 'PHARMACIST_ADVICE', label: '약사 권고' },
-  { value: 'PERSONAL_AVOID', label: '개인 회피' },
+  { value: 'PERSONAL_AVOID', label: '개인 기피' },
   { value: 'OTHER', label: '기타' },
 ]
 
@@ -37,91 +50,84 @@ const intakeHistory = [
   { name: '타이레놀 500mg', rate: 74 },
 ]
 
-function buildMedicineDraft({
-  customMedicineName,
-  dosageAmount,
-  dosageUnit,
-  timesPerDay,
-  durationDays,
-  timeSlots,
-}) {
-  const normalizedTimes = String(normalizeTimesPerDay(timesPerDay))
-  const base = createMedicineForm()
+const DEFAULT_MEDICATION_TIME_SETTINGS = {
+  1: ['08:00'],
+  2: ['08:00', '20:00'],
+  3: ['08:00', '13:00', '20:00'],
+  4: ['08:00', '12:00', '18:00', '22:00'],
+}
 
-  return {
-    ...base,
-    customMedicineName,
-    dosageAmount: String(dosageAmount),
-    dosageUnit,
-    timesPerDay: normalizedTimes,
-    durationDays: String(durationDays),
-    timeSlots: syncTimeSlots(timeSlots, Number(normalizedTimes)),
+function createDefaultMedicationTimeSettings() {
+  return Object.fromEntries(
+    Object.entries(DEFAULT_MEDICATION_TIME_SETTINGS).map(([timesPerDay, times]) => [
+      timesPerDay,
+      [...times],
+    ]),
+  )
+}
+
+function loadDefaultMedicationTimeSettings() {
+  const fallback = createDefaultMedicationTimeSettings()
+  const raw = localStorage.getItem(DEFAULT_MEDICATION_TIME_SETTINGS_KEY)
+
+  if (!raw) {
+    return fallback
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    return Object.fromEntries(
+      Object.entries(fallback).map(([timesPerDay, times]) => {
+        const storedTimes = Array.isArray(parsed?.[timesPerDay]) ? parsed[timesPerDay] : times
+        return [timesPerDay, storedTimes.map((time, index) => String(time || times[index] || ''))]
+      }),
+    )
+  } catch {
+    return fallback
   }
 }
 
-function createPrescriptionRecord(record) {
+function getPrescriptionStatus(schedule) {
+  return schedule.isActive === false ? '종료' : '복용 중'
+}
+
+function getPrescriptionTitle(schedule) {
+  if (schedule.hospitalName) {
+    return `${schedule.hospitalName} 처방전`
+  }
+
+  const primaryMedicineName =
+    schedule.medicines?.[0]?.customMedicineName || schedule.customMedicineName
+
+  if (primaryMedicineName) {
+    return `${primaryMedicineName} 처방전`
+  }
+
+  return `처방전 #${schedule.id}`
+}
+
+function mapScheduleToPrescriptionRecord(schedule, times) {
+  const form = mapScheduleToForm(schedule, times)
+
   return {
-    ...record,
-    medicines: record.medicines.map((medicine) => buildMedicineDraft(medicine)),
+    id: `schedule-${schedule.id}`,
+    scheduleId: schedule.id,
+    isNew: false,
+    title: getPrescriptionTitle(schedule),
+    hospitalName: form.hospitalName,
+    pharmacyName: form.pharmacyName,
+    dispensedDate: form.dispensedDate,
+    status: getPrescriptionStatus(schedule),
+    notes: '',
+    medicines: form.medicines,
   }
 }
 
-const initialPrescriptionRecords = [
-  createPrescriptionRecord({
-    id: 'prescription-1',
-    title: '내과 처방전',
-    hospitalName: '서울 내과의원',
-    pharmacyName: '행복약국',
-    dispensedDate: '2026-05-12',
-    status: '복용 중',
-    notes: '혈압약과 식후 복용 약이 함께 포함된 처방전입니다.',
-    medicines: [
-      {
-        customMedicineName: '아스피린 100mg',
-        dosageAmount: 1,
-        dosageUnit: 'TABLET',
-        timesPerDay: 1,
-        durationDays: 14,
-        timeSlots: [{ takeTime: '08:00', timing: 'AFTER_MEAL' }],
-      },
-      {
-        customMedicineName: '암로디핀 5mg',
-        dosageAmount: 1,
-        dosageUnit: 'TABLET',
-        timesPerDay: 1,
-        durationDays: 14,
-        timeSlots: [{ takeTime: '20:00', timing: 'AFTER_MEAL' }],
-      },
-    ],
-  }),
-  createPrescriptionRecord({
-    id: 'prescription-2',
-    title: '두통 관련 처방전',
-    hospitalName: '바른신경과',
-    pharmacyName: '온유약국',
-    dispensedDate: '2026-05-03',
-    status: '종료',
-    notes: '필요 시 복용 약 위주로 받은 처방전입니다.',
-    medicines: [
-      {
-        customMedicineName: '타이레놀 500mg',
-        dosageAmount: 1,
-        dosageUnit: 'TABLET',
-        timesPerDay: 3,
-        durationDays: 5,
-        timeSlots: [
-          { takeTime: '09:00', timing: 'AFTER_MEAL' },
-          { takeTime: '14:00', timing: 'AFTER_MEAL' },
-          { takeTime: '20:00', timing: 'AFTER_MEAL' },
-        ],
-      },
-    ],
-  }),
-]
-
-const emptyPrescriptionRecord = () =>
-  createPrescriptionRecord({
-    id: `prescription-${Date.now()}`,
+function createEmptyPrescriptionRecord() {
+  return {
+    id: `draft-${Date.now()}`,
+    scheduleId: null,
+    isNew: true,
     title: '새 처방전',
     hospitalName: '',
     pharmacyName: '',
@@ -129,7 +135,8 @@ const emptyPrescriptionRecord = () =>
     status: '복용 예정',
     notes: '',
     medicines: [createMedicineForm()],
-  })
+  }
+}
 
 function MyPage() {
   const session = useMemo(() => getAuthSession(), [])
@@ -144,9 +151,37 @@ function MyPage() {
   const [reason, setReason] = useState('ALLERGY')
   const [memo, setMemo] = useState('')
   const [message, setMessage] = useState('')
-  const [prescriptions, setPrescriptions] = useState(initialPrescriptionRecords)
-  const [selectedPrescriptionId, setSelectedPrescriptionId] = useState(initialPrescriptionRecords[0].id)
+  const [prescriptions, setPrescriptions] = useState([])
+  const [selectedPrescriptionId, setSelectedPrescriptionId] = useState(null)
   const [prescriptionMessage, setPrescriptionMessage] = useState('')
+  const [prescriptionSaving, setPrescriptionSaving] = useState(false)
+  const [defaultMedicationTimeSettings, setDefaultMedicationTimeSettings] = useState(() =>
+    loadDefaultMedicationTimeSettings(),
+  )
+
+  const loadPrescriptionRecords = async (preferredId) => {
+    const schedules = await getMedicationSchedules()
+    const timeEntries = await Promise.all(
+      schedules.map(async (schedule) => [schedule.id, await getMedicationScheduleTimes(schedule.id)]),
+    )
+    const timeMap = Object.fromEntries(timeEntries)
+    const records = schedules.map((schedule) =>
+      mapScheduleToPrescriptionRecord(schedule, timeMap[schedule.id] || []),
+    )
+
+    setPrescriptions(records)
+    setSelectedPrescriptionId((currentId) => {
+      if (preferredId && records.some((record) => record.id === preferredId)) {
+        return preferredId
+      }
+
+      if (currentId && records.some((record) => record.id === currentId)) {
+        return currentId
+      }
+
+      return records[0]?.id || null
+    })
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -157,7 +192,7 @@ function MyPage() {
 
       try {
         const [profileResponse, cautionResponse] = await Promise.all([
-          axios.get('http://localhost:8080/api/auth/me', {
+          axios.get('/api/auth/me', {
             headers: {
               Authorization: `Bearer ${session.accessToken}`,
             },
@@ -167,8 +202,9 @@ function MyPage() {
 
         setProfile(profileResponse.data)
         setCautions(cautionResponse)
+        await loadPrescriptionRecords()
       } catch (error) {
-        setMessage(error.response?.data?.message || '내 정보를 불러오지 못했습니다.')
+        setMessage(error.response?.data?.message || '정보를 불러오지 못했습니다.')
       } finally {
         setLoading(false)
       }
@@ -187,7 +223,7 @@ function MyPage() {
       try {
         const items = await suggestCautions(cautionKeyword.trim(), cautionType)
         setCautionSuggestions(items)
-      } catch (error) {
+      } catch {
         setCautionSuggestions([])
       }
     }
@@ -201,7 +237,7 @@ function MyPage() {
 
   const handleAddCaution = async () => {
     if (!selectedSuggestion) {
-      setMessage('자동완성 목록에서 원하는 성분이나 약을 먼저 선택해주세요.')
+      setMessage('자동완성 목록에서 항목을 먼저 선택해 주세요.')
       return
     }
 
@@ -219,7 +255,7 @@ function MyPage() {
       setCautionKeyword('')
       setSelectedSuggestion(null)
       setMemo('')
-      setMessage('주의 성분을 등록했습니다.')
+      setMessage('주의 성분이 등록되었습니다.')
     } catch (error) {
       setMessage(error.response?.data?.message || '주의 성분 등록에 실패했습니다.')
     }
@@ -238,7 +274,10 @@ function MyPage() {
   const updateSelectedPrescription = (updater) => {
     setPrescriptions((prev) =>
       prev.map((item) => {
-        if (item.id !== selectedPrescriptionId) return item
+        if (item.id !== selectedPrescriptionId) {
+          return item
+        }
+
         return typeof updater === 'function' ? updater(item) : updater
       }),
     )
@@ -246,7 +285,11 @@ function MyPage() {
 
   const handlePrescriptionFieldChange = (event) => {
     const { name, value } = event.target
-    updateSelectedPrescription((prev) => ({ ...prev, [name]: value }))
+
+    updateSelectedPrescription((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
     setPrescriptionMessage('')
   }
 
@@ -256,7 +299,9 @@ function MyPage() {
     updateSelectedPrescription((prev) => ({
       ...prev,
       medicines: prev.medicines.map((medicine, index) => {
-        if (index !== medicineIndex) return medicine
+        if (index !== medicineIndex) {
+          return medicine
+        }
 
         if (name === 'timesPerDay') {
           const nextCount = value === '' ? '1' : String(normalizeTimesPerDay(value))
@@ -281,7 +326,9 @@ function MyPage() {
     updateSelectedPrescription((prev) => ({
       ...prev,
       medicines: prev.medicines.map((medicine, index) => {
-        if (index !== medicineIndex) return medicine
+        if (index !== medicineIndex) {
+          return medicine
+        }
 
         return {
           ...medicine,
@@ -317,19 +364,130 @@ function MyPage() {
   }
 
   const handleCreatePrescription = () => {
-    const nextPrescription = emptyPrescriptionRecord()
+    const nextPrescription = createEmptyPrescriptionRecord()
     setPrescriptions((prev) => [nextPrescription, ...prev])
     setSelectedPrescriptionId(nextPrescription.id)
     setPrescriptionMessage('새 처방전 초안을 만들었습니다.')
   }
 
-  const handleSavePrescription = () => {
-    if (!selectedPrescription) return
-    setPrescriptionMessage(`"${selectedPrescription.title}" 내용을 저장할 준비가 되었습니다.`)
+  const createTimesSequentially = async (medicines, createdScheduleMedicines) => {
+    for (const [medicineIndex, createdMedicine] of createdScheduleMedicines.entries()) {
+      const slots = medicines[medicineIndex]?.timeSlots || []
+
+      for (const [slotIndex, slot] of slots.entries()) {
+        await createMedicationScheduleTime(buildTimePayload(slot, createdMedicine.id, slotIndex))
+      }
+    }
+  }
+
+  const deleteTimesSequentially = async (scheduleId) => {
+    const existingTimes = await getMedicationScheduleTimes(scheduleId)
+
+    for (const time of existingTimes) {
+      await deleteMedicationScheduleTime(time.id)
+    }
+  }
+
+  const handleSavePrescription = async () => {
+    if (!selectedPrescription) {
+      return
+    }
+
+    if (!selectedPrescription.medicines.length) {
+      setPrescriptionMessage('약을 최소 1개 이상 등록해 주세요.')
+      return
+    }
+
+    setPrescriptionSaving(true)
+    setPrescriptionMessage('')
+
+    try {
+      const payload = buildSchedulePayload(selectedPrescription)
+
+      if (selectedPrescription.isNew) {
+        const createdSchedule = await createMedicationSchedule(payload)
+        const createdMedicines = createdSchedule.medicines || []
+
+        if (createdMedicines.length !== selectedPrescription.medicines.length) {
+          throw new Error('생성된 약 개수가 입력 개수와 일치하지 않습니다.')
+        }
+
+        await createTimesSequentially(selectedPrescription.medicines, createdMedicines)
+        await loadPrescriptionRecords(`schedule-${createdSchedule.id}`)
+        setPrescriptionMessage('처방전을 저장했습니다.')
+      } else {
+        const updatedSchedule = await updateMedicationSchedule(selectedPrescription.scheduleId, payload)
+        const updatedMedicines = updatedSchedule.medicines || []
+
+        if (updatedMedicines.length !== selectedPrescription.medicines.length) {
+          throw new Error('수정된 약 개수가 입력 개수와 일치하지 않습니다.')
+        }
+
+        await deleteTimesSequentially(selectedPrescription.scheduleId)
+        await createTimesSequentially(selectedPrescription.medicines, updatedMedicines)
+        await loadPrescriptionRecords(`schedule-${selectedPrescription.scheduleId}`)
+        setPrescriptionMessage('처방전을 수정했습니다.')
+      }
+    } catch (error) {
+      setPrescriptionMessage(error.response?.data?.message || error.message || '처방전 저장에 실패했습니다.')
+    } finally {
+      setPrescriptionSaving(false)
+    }
+  }
+
+  const handleDeletePrescription = async () => {
+    if (!selectedPrescription) {
+      return
+    }
+
+    if (selectedPrescription.isNew) {
+      const remainingPrescriptions = prescriptions.filter((item) => item.id !== selectedPrescription.id)
+      setPrescriptions(remainingPrescriptions)
+      setSelectedPrescriptionId(remainingPrescriptions[0]?.id || null)
+      setPrescriptionMessage('초안 처방전을 삭제했습니다.')
+      return
+    }
+
+    setPrescriptionSaving(true)
+    setPrescriptionMessage('')
+
+    try {
+      await deleteMedicationSchedule(selectedPrescription.scheduleId)
+      await loadPrescriptionRecords()
+      setPrescriptionMessage('처방전을 삭제했습니다.')
+    } catch (error) {
+      setPrescriptionMessage(error.response?.data?.message || error.message || '처방전 삭제에 실패했습니다.')
+    } finally {
+      setPrescriptionSaving(false)
+    }
+  }
+
+  const handleDefaultMedicationTimeChange = (timesPerDay, slotIndex, value) => {
+    setDefaultMedicationTimeSettings((prev) => ({
+      ...prev,
+      [timesPerDay]: (prev[timesPerDay] || []).map((time, index) =>
+        index === slotIndex ? value : time,
+      ),
+    }))
+  }
+
+  const handleResetDefaultMedicationTimeSettings = () => {
+    const nextSettings = createDefaultMedicationTimeSettings()
+    setDefaultMedicationTimeSettings(nextSettings)
+    localStorage.setItem(DEFAULT_MEDICATION_TIME_SETTINGS_KEY, JSON.stringify(nextSettings))
+    setMessage('기본 복약 시간을 기본값으로 초기화했습니다.')
+  }
+
+  const handleSaveDefaultMedicationTimeSettings = () => {
+    localStorage.setItem(
+      DEFAULT_MEDICATION_TIME_SETTINGS_KEY,
+      JSON.stringify(defaultMedicationTimeSettings),
+    )
+    setMessage('기본 복약 시간이 저장되었습니다.')
   }
 
   if (loading) {
-    return <div className="app-card app-placeholder-card">내 정보를 불러오는 중입니다.</div>
+    return <div className="app-card app-placeholder-card">정보를 불러오는 중입니다.</div>
   }
 
   if (!profile) {
@@ -516,7 +674,11 @@ function MyPage() {
 
                 <label className="register-field">
                   <span>메모</span>
-                  <input value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="예: 복용 후 두드러기 발생" />
+                  <input
+                    value={memo}
+                    onChange={(event) => setMemo(event.target.value)}
+                    placeholder="예: 복용 시 두드러기 발생"
+                  />
                 </label>
               </div>
 
@@ -575,7 +737,7 @@ function MyPage() {
             <div className="mypage-section-heading">
               <div>
                 <h2>처방전</h2>
-                <p>처방전 단위로 열어서 병원, 약국, 복약 약물과 시간을 바로 수정할 수 있습니다.</p>
+                <p>실제 복약 스케줄을 처방전 단위로 열어 병원, 약국, 약물, 복용 시간을 수정할 수 있습니다.</p>
               </div>
               <button type="button" className="register-add-button" onClick={handleCreatePrescription}>
                 새 처방전 추가
@@ -586,35 +748,39 @@ function MyPage() {
 
             <div className="mypage-prescription-workspace">
               <div className="mypage-prescription-sidebar">
-                {prescriptions.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={item.id === selectedPrescriptionId ? 'mypage-prescription-card selected' : 'mypage-prescription-card'}
-                    onClick={() => {
-                      setSelectedPrescriptionId(item.id)
-                      setPrescriptionMessage('')
-                    }}
-                  >
-                    <div className="mypage-prescription-header">
-                      <div>
-                        <strong>{item.title}</strong>
-                        <p>{item.dispensedDate.replaceAll('-', '.')}</p>
-                      </div>
-                      <span className={item.status === '종료' ? 'profile-badge yellow' : 'profile-badge green'}>
-                        {item.status}
-                      </span>
-                    </div>
-                    <p>{item.hospitalName}</p>
-                    <div className="profile-badge-row">
-                      {item.medicines.map((medicine, index) => (
-                        <span key={`${item.id}-${index}`} className="profile-badge blue">
-                          {medicine.customMedicineName || `약 ${index + 1}`}
+                {prescriptions.length ? (
+                  prescriptions.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={item.id === selectedPrescriptionId ? 'mypage-prescription-card selected' : 'mypage-prescription-card'}
+                      onClick={() => {
+                        setSelectedPrescriptionId(item.id)
+                        setPrescriptionMessage('')
+                      }}
+                    >
+                      <div className="mypage-prescription-header">
+                        <div>
+                          <strong>{item.title}</strong>
+                          <p>{item.dispensedDate ? item.dispensedDate.replaceAll('-', '.') : '-'}</p>
+                        </div>
+                        <span className={item.status === '종료' ? 'profile-badge yellow' : 'profile-badge green'}>
+                          {item.status}
                         </span>
-                      ))}
-                    </div>
-                  </button>
-                ))}
+                      </div>
+                      <p>{item.hospitalName || '병원 정보 없음'}</p>
+                      <div className="profile-badge-row">
+                        {item.medicines.map((medicine, index) => (
+                          <span key={`${item.id}-${index}`} className="profile-badge blue">
+                            {medicine.customMedicineName || `약 ${index + 1}`}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="app-placeholder-card">등록된 처방전이 없습니다.</div>
+                )}
               </div>
 
               <div className="mypage-prescription-editor">
@@ -623,12 +789,7 @@ function MyPage() {
                     <div className="register-form-grid">
                       <label className="register-field register-span-full">
                         <span>처방전 제목</span>
-                        <input
-                          name="title"
-                          value={selectedPrescription.title}
-                          onChange={handlePrescriptionFieldChange}
-                          placeholder="예: 내과 처방전"
-                        />
+                        <input value={selectedPrescription.title} readOnly />
                       </label>
 
                       <label className="register-field">
@@ -663,28 +824,14 @@ function MyPage() {
 
                       <label className="register-field">
                         <span>상태</span>
-                        <select name="status" value={selectedPrescription.status} onChange={handlePrescriptionFieldChange}>
-                          <option value="복용 예정">복용 예정</option>
-                          <option value="복용 중">복용 중</option>
-                          <option value="종료">종료</option>
-                        </select>
-                      </label>
-
-                      <label className="register-field register-span-full">
-                        <span>메모</span>
-                        <input
-                          name="notes"
-                          value={selectedPrescription.notes}
-                          onChange={handlePrescriptionFieldChange}
-                          placeholder="처방전에 대한 간단한 메모를 남겨주세요."
-                        />
+                        <input value={selectedPrescription.status} readOnly />
                       </label>
                     </div>
 
                     <div className="register-medicine-header">
                       <div>
                         <h2>처방 약물</h2>
-                        <p>약 등록 페이지처럼 약 이름, 용량, 횟수, 복용 시간을 한 번에 수정할 수 있습니다.</p>
+                        <p>병원/약국 정보와 함께 약 이름, 용량, 횟수, 복용 시간을 실제 데이터에 반영합니다.</p>
                       </div>
                       <button type="button" className="register-add-button" onClick={handleAddPrescriptionMedicine}>
                         약 추가
@@ -714,7 +861,7 @@ function MyPage() {
                                 name="customMedicineName"
                                 value={medicine.customMedicineName}
                                 onChange={(event) => handlePrescriptionMedicineFieldChange(medicineIndex, event)}
-                                placeholder="예: 타이레놀 500mg"
+                                placeholder="예: 아스피린 100mg"
                               />
                             </label>
 
@@ -816,15 +963,90 @@ function MyPage() {
                     </div>
 
                     <div className="register-submit-row">
-                      <button type="button" className="app-primary-button" onClick={handleSavePrescription}>
-                        수정 내용 저장
+                      <button
+                        type="button"
+                        className="register-remove-button"
+                        onClick={handleDeletePrescription}
+                        disabled={prescriptionSaving}
+                      >
+                        처방전 삭제
+                      </button>
+                      <button
+                        type="button"
+                        className="app-primary-button"
+                        onClick={handleSavePrescription}
+                        disabled={prescriptionSaving}
+                      >
+                        {prescriptionSaving ? '저장 중...' : '수정 내용 저장'}
                       </button>
                     </div>
                   </>
                 ) : (
-                  <div className="app-placeholder-card">열어볼 처방전을 선택해주세요.</div>
+                  <div className="app-placeholder-card">열어볼 처방전을 선택해 주세요.</div>
                 )}
               </div>
+            </div>
+          </div>
+        ) : null}
+
+        {activeTab === 'settings' ? (
+          <div className="mypage-section">
+            <div className="mypage-section-heading">
+              <div>
+                <h2>환경설정</h2>
+                <p>약 등록 시 자동으로 들어갈 기본 복약 시간을 횟수별로 설정합니다.</p>
+              </div>
+            </div>
+
+            {message ? <div className="register-message">{message}</div> : null}
+
+            <div className="register-medicine-list">
+              {Object.entries(defaultMedicationTimeSettings).map(([timesPerDay, times]) => (
+                <section key={timesPerDay} className="register-medicine-card">
+                  <div className="register-medicine-title">
+                    <h3>하루 {timesPerDay}회 기본 시간</h3>
+                  </div>
+
+                  <div className="register-time-grid">
+                    {times.map((time, slotIndex) => (
+                      <div className="register-time-card" key={`default-time-${timesPerDay}-${slotIndex}`}>
+                        <strong>{slotIndex + 1}회차</strong>
+                        <label className="register-field">
+                          <span>기본 복용 시간</span>
+                          <input
+                            type="time"
+                            value={time}
+                            onChange={(event) =>
+                              handleDefaultMedicationTimeChange(
+                                timesPerDay,
+                                slotIndex,
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+
+            <div className="register-submit-row">
+              <button
+                type="button"
+                className="register-remove-button"
+                onClick={handleResetDefaultMedicationTimeSettings}
+              >
+                기본값으로 초기화
+              </button>
+              <button
+                type="button"
+                className="app-primary-button"
+                onClick={handleSaveDefaultMedicationTimeSettings}
+              >
+                환경설정 저장
+              </button>
             </div>
           </div>
         ) : null}

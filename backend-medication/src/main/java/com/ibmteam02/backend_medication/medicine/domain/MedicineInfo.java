@@ -14,34 +14,46 @@ public class MedicineInfo {
     @Id
     private Long itemSeq;
 
+    @Column(columnDefinition = "TEXT")
     private String itemName;
-    private String companyName;  // 업체명
+
+    @Column(length = 500)
+    private String companyName;
 
     @Column(columnDefinition = "TEXT")
-    private String efficacy;  // 효능
+    private String efficacy;
 
     @Column(columnDefinition = "TEXT")
-    private String useMethod;  // 사용법
+    private String useMethod;
 
     @Column(columnDefinition = "TEXT")
-    private String warningBeforeUse;  // 사용 전 경고사항
+    private String warningBeforeUse;
 
     @Column(columnDefinition = "TEXT")
-    private String caution;  // 주의사항
+    private String caution;
 
     @Column(columnDefinition = "TEXT")
-    private String interaction;  // 같이 주의해야 할 약/음식
+    private String interaction;
 
     @Column(columnDefinition = "TEXT")
-    private String sideEffect;  // 부작용
+    private String sideEffect;
 
     @Column(columnDefinition = "TEXT")
-    private String storageMethod;  // 보관법
+    private String storageMethod;
 
     @Column(name = "update_de")
-    private String updateDe;  // 공공데이터 수정일자
+    private String updateDe;
 
     private String imageUrl;
+
+    @Column(name = "efficacy_document_id")
+    private String efficacyDocumentId;
+
+    @Column(name = "usage_document_id")
+    private String usageDocumentId;
+
+    @Column(name = "precaution_document_id")
+    private String precautionDocumentId;
 
     public MedicineInfo(
             Long itemSeq,
@@ -55,7 +67,10 @@ public class MedicineInfo {
             String sideEffect,
             String storageMethod,
             String updateDe,
-            String imageUrl
+            String imageUrl,
+            String efficacyDocumentId,
+            String usageDocumentId,
+            String precautionDocumentId
     ) {
         this.itemSeq = itemSeq;
         this.itemName = itemName;
@@ -69,5 +84,24 @@ public class MedicineInfo {
         this.storageMethod = storageMethod;
         this.updateDe = updateDe;
         this.imageUrl = imageUrl;
+        this.efficacyDocumentId = efficacyDocumentId;
+        this.usageDocumentId = usageDocumentId;
+        this.precautionDocumentId = precautionDocumentId;
+    }
+
+    public void updateFromCsv(
+            String itemName,
+            String companyName,
+            String storageMethod,
+            String efficacyDocumentId,
+            String usageDocumentId,
+            String precautionDocumentId
+    ) {
+        this.itemName = itemName;
+        this.companyName = companyName;
+        this.storageMethod = storageMethod;
+        this.efficacyDocumentId = efficacyDocumentId;
+        this.usageDocumentId = usageDocumentId;
+        this.precautionDocumentId = precautionDocumentId;
     }
 }

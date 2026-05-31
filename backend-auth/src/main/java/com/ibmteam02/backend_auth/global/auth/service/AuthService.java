@@ -147,7 +147,7 @@ public class AuthService {
 
         refreshTokenRepository.save(refreshToken);
 
-        return new LoginResponse(accessToken, refreshTokenValue, user.getEmail(), user.getRole().name());
+        return new LoginResponse(user.getId(), accessToken, refreshTokenValue, user.getEmail(), user.getRole().name());
     }
 
     // Refresh Token 재발급
@@ -173,7 +173,7 @@ public class AuthService {
 
         refreshTokenRepository.save(new RefreshToken(user.getEmail(), newRefreshToken, 14 * 24 * 60 * 60L));
 
-        return new LoginResponse(newAccessToken, newRefreshToken, user.getEmail(), user.getRole().name());
+        return new LoginResponse(user.getId(), newAccessToken, newRefreshToken, user.getEmail(), user.getRole().name());
     }
 
     // 로그아웃

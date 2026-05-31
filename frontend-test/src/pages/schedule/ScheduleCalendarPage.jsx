@@ -12,8 +12,17 @@ import {
   buildCalendarDays,
   formatIsoDate,
   getDaySummaryLabel,
+  getDoseTimesForDate,
   getEffectiveScheduleWindow,
 } from './scheduleCalendarUtils'
+
+function normalizeTakeTime(value) {
+  if (!value) {
+    return ''
+  }
+
+  return String(value).slice(0, 5)
+}
 
 function parseServerDateTime(value) {
   if (!value) {
@@ -25,14 +34,6 @@ function parseServerDateTime(value) {
   }
 
   return new Date(`${value}Z`)
-}
-
-function normalizeTakeTime(value) {
-  if (!value) {
-    return ''
-  }
-
-  return String(value).slice(0, 5)
 }
 
 function getDatePart(value) {
@@ -76,18 +77,8 @@ function toLocalDateTimeString(isoDate, takeTime) {
   return `${isoDate}T${normalizeTakeTime(takeTime) || '00:00'}:00`
 }
 
-function isDoseVisibleOnDate(schedule, takeTime, isoDate) {
-  const createdAt = parseServerDateTime(schedule.createdAt)
-
-  if (!createdAt || Number.isNaN(createdAt.getTime())) {
-    return true
-  }
-
-  if (formatIsoDate(createdAt) !== isoDate) {
-    return true
-  }
-
-  return normalizeTakeTime(takeTime) >= `${String(createdAt.getHours()).padStart(2, '0')}:${String(createdAt.getMinutes()).padStart(2, '0')}`
+function getScheduleMedicine(schedule, medicationScheduleMedicineId) {
+  return (schedule.medicines || []).find((medicine) => medicine.id === medicationScheduleMedicineId) || null
 }
 
 function buildDoseGroups({ schedules, scheduleTimesById, intakeLogsByScheduleId, selectedDate }) {
@@ -105,15 +96,17 @@ function buildDoseGroups({ schedules, scheduleTimesById, intakeLogsByScheduleId,
     }
 
     const scheduleTimes = scheduleTimesById[schedule.id] || []
+    const visibleTimes = new Set(getDoseTimesForDate(schedule, scheduleTimes, selectedDate))
     const intakeLogs = intakeLogsByScheduleId[schedule.id] || []
 
     scheduleTimes.forEach((scheduleTime) => {
       const takeTime = normalizeTakeTime(scheduleTime.takeTime)
 
-      if (!takeTime || !isDoseVisibleOnDate(schedule, takeTime, selectedDate)) {
+      if (!takeTime || !visibleTimes.has(takeTime)) {
         return
       }
 
+      const scheduleMedicine = getScheduleMedicine(schedule, scheduleTime.medicationScheduleMedicineId)
       const matchingTakenLogs = intakeLogs.filter(
         (log) =>
           log.medicationScheduleTimeId === scheduleTime.id &&
@@ -124,7 +117,10 @@ function buildDoseGroups({ schedules, scheduleTimesById, intakeLogsByScheduleId,
       const medicine = {
         scheduleId: schedule.id,
         scheduleTimeId: scheduleTime.id,
-        name: schedule.customMedicineName || `Medicine #${schedule.medicineId || '-'}`,
+        name:
+          scheduleMedicine?.customMedicineName ||
+          schedule.customMedicineName ||
+          `Medicine #${schedule.medicineId || '-'}`,
         scheduledAt: toLocalDateTimeString(selectedDate, takeTime),
         takenLogIds: matchingTakenLogs.map((log) => log.id),
         takenAt: matchingTakenLogs[0]?.takenAt || null,
@@ -305,7 +301,7 @@ function ScheduleCalendarPage() {
       <section className="schedule-card schedule-card-wide">
         <div className="schedule-card-header">
           <h2>Monthly calendar</h2>
-          <p>각 날짜를 누르면 해당 날짜 회차별 복약 목록이 아래에 표시됩니다.</p>
+          <p>날짜를 누르면 해당 날짜 복약 목록이 아래에 표시됩니다.</p>
         </div>
 
         <div className="schedule-calendar-toolbar">
@@ -364,7 +360,7 @@ function ScheduleCalendarPage() {
             <div className="schedule-selected-day-panel">
               <div className="schedule-card-header">
                 <h2>{selectedDate}</h2>
-                <p>선택한 날짜의 회차별 복약 목록입니다.</p>
+                <p>선택한 날짜의 복약 목록입니다.</p>
               </div>
 
               {selectedDateDoseGroups.length ? (
@@ -379,7 +375,7 @@ function ScheduleCalendarPage() {
                         className={`today-dose-card${isComplete ? ' today-dose-card-complete' : ''}`}
                       >
                         <div className="today-dose-status-rail">
-                          <span>{isComplete ? '✓' : '○'}</span>
+                          <span>{isComplete ? '완료' : '예정'}</span>
                         </div>
                         <div className="today-dose-body">
                           <div className="today-dose-header">

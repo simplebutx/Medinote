@@ -1,7 +1,7 @@
 import type { CautionReason, DosageUnit, MedicationTiming } from "./types";
 
 export const DEFAULT_API_HOST =
-  process.env.EXPO_PUBLIC_DEFAULT_API_HOST || "192.168.45.19";
+  process.env.EXPO_PUBLIC_DEFAULT_API_HOST || "";
 
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "";
 

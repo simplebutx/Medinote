@@ -27,7 +27,7 @@ public class MedicationScheduleController {
 
     private final MedicationScheduleService medicationScheduleService;
 
-    // 蹂듭빟 ?쇱젙 ?앹꽦
+    // 복약 일정 등록
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public MedicationScheduleResponse create(
@@ -37,19 +37,19 @@ public class MedicationScheduleController {
         return medicationScheduleService.create(userId, request);
     }
 
-    // ?곸꽭?섏씠吏 (?섏젙?섏씠吏)
+    // 복약 일정 조회
     @GetMapping("/{id}")
     public MedicationScheduleResponse get(@AuthenticationPrincipal Long userId, @PathVariable Long id) {
         return medicationScheduleService.getDetail(userId, id);
     }
 
-    // ???쇱젙 紐⑸줉
+    // 복약 일정 목록 조회
     @GetMapping
     public List<MedicationScheduleResponse> getByUserId(@AuthenticationPrincipal Long userId) {
         return medicationScheduleService.getList(userId);
     }
 
-    // ?좏깮??吏쒖쭨 蹂듭빟 紐⑸줉
+    // 날짜별 복약 일정 조회
     @GetMapping("/daily")
     public DailyMedicationResponse getDailyMedications(
             @AuthenticationPrincipal Long userId,
@@ -58,7 +58,7 @@ public class MedicationScheduleController {
         return medicationScheduleService.getDailyMedications(userId, date);
     }
 
-    // ???쇱젙 ?섏젙
+    // 복약 일정 수정
     @PutMapping("/{id}")
     public MedicationScheduleResponse update(
             @AuthenticationPrincipal Long userId,
@@ -68,13 +68,7 @@ public class MedicationScheduleController {
         return medicationScheduleService.update(userId, id, request);
     }
 
-    // ?섏젙 ?꾨즺 ???쇱젙 ?낅뜲?댄듃 (?섏젙 ?꾨즺 ???몄텧)
-    @PostMapping("/{id}/initialize-window")
-    public MedicationScheduleResponse initializeWindow(@AuthenticationPrincipal Long userId, @PathVariable Long id) {
-        return medicationScheduleService.initializeScheduleWindow(userId, id);
-    }
-
-    // ???쇱젙 ??젣
+    // 복약 일정 삭제
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@AuthenticationPrincipal Long userId, @PathVariable Long id) {
