@@ -215,7 +215,7 @@ export function buildSchedulePayload(form) {
     timesPerDay: primaryMedicine?.timesPerDay ?? 1,
     intervalHours: null,
     durationDays: primaryMedicine?.durationDays ?? 1,
-    startDate: null,
+    startDate: form.dispensedDate || null,
     endDate: null,
     dispensedDate: form.dispensedDate || null,
     isActive: null,

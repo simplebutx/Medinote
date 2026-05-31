@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import {
   createMedicationSchedule,
   createMedicationScheduleTime,
-  initializeMedicationScheduleWindow,
 } from '../../api'
 import ScheduleForm from './ScheduleForm'
 import {
@@ -90,6 +89,16 @@ function ScheduleCreatePage() {
     }))
   }
 
+  const createTimesSequentially = async (medicines) => {
+    for (const [medicineIndex, medicine] of medicines.entries()) {
+      const slots = form.medicines[medicineIndex]?.timeSlots || []
+
+      for (const [slotIndex, slot] of slots.entries()) {
+        await createMedicationScheduleTime(buildTimePayload(slot, medicine.id, slotIndex))
+      }
+    }
+  }
+
   const handleSubmit = async () => {
     setLoading(true)
     setMessage('')
@@ -102,15 +111,7 @@ function ScheduleCreatePage() {
         throw new Error('Not all medicines were created.')
       }
 
-      await Promise.all(
-        createdMedicines.flatMap((createdMedicine, medicineIndex) =>
-          (form.medicines[medicineIndex]?.timeSlots || []).map((slot, slotIndex) =>
-            createMedicationScheduleTime(buildTimePayload(slot, createdMedicine.id, slotIndex)),
-          ),
-        ),
-      )
-
-      await initializeMedicationScheduleWindow(schedule.id)
+      await createTimesSequentially(createdMedicines)
 
       navigate('/app/schedule', {
         state: {

@@ -5,7 +5,6 @@ import {
   deleteMedicationScheduleTime,
   getMedicationSchedule,
   getMedicationScheduleTimes,
-  initializeMedicationScheduleWindow,
   updateMedicationSchedule,
 } from '../../api'
 import ScheduleForm from './ScheduleForm'
@@ -121,6 +120,20 @@ function ScheduleEditPage() {
     }))
   }
 
+  const recreateTimesSequentially = async (medicines) => {
+    for (const time of existingTimes) {
+      await deleteMedicationScheduleTime(time.id)
+    }
+
+    for (const [medicineIndex, medicine] of medicines.entries()) {
+      const slots = form.medicines[medicineIndex]?.timeSlots || []
+
+      for (const [slotIndex, slot] of slots.entries()) {
+        await createMedicationScheduleTime(buildTimePayload(slot, medicine.id, slotIndex))
+      }
+    }
+  }
+
   const handleSubmit = async () => {
     setSaving(true)
     setMessage('')
@@ -133,17 +146,7 @@ function ScheduleEditPage() {
         throw new Error('Not all medicines were created.')
       }
 
-      await Promise.all(existingTimes.map((time) => deleteMedicationScheduleTime(time.id)))
-      await Promise.all(
-        updatedMedicines.flatMap((updatedMedicine, medicineIndex) =>
-          (form.medicines[medicineIndex]?.timeSlots || []).map((slot, slotIndex) =>
-            createMedicationScheduleTime(buildTimePayload(slot, updatedMedicine.id, slotIndex)),
-          ),
-        ),
-      )
-
-      const recalculatedSchedule = await initializeMedicationScheduleWindow(id)
-      setScheduleSummary(recalculatedSchedule)
+      await recreateTimesSequentially(updatedMedicines)
 
       navigate('/app/schedule', {
         state: {

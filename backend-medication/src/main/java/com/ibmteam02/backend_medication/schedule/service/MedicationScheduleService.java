@@ -17,8 +17,8 @@ import com.ibmteam02.backend_medication.schedule.repository.MedicationIntakeLogR
 import com.ibmteam02.backend_medication.schedule.repository.MedicationScheduleMedicineRepository;
 import com.ibmteam02.backend_medication.schedule.repository.MedicationScheduleRepository;
 import com.ibmteam02.backend_medication.schedule.repository.MedicationScheduleTimeRepository;
-import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -41,8 +41,9 @@ public class MedicationScheduleService {
     private final MedicationScheduleMedicineRepository medicationScheduleMedicineRepository;
     private final MedicationScheduleTimeRepository medicationScheduleTimeRepository;
     private final MedicationIntakeLogRepository medicationIntakeLogRepository;
+    private final MedicationScheduleWindowService medicationScheduleWindowService;
 
-    // 복약 일정 생성
+    // 복약 일정 등록
     public MedicationScheduleResponse create(Long userId, MedicationScheduleRequest request) {
         MedicationSchedule schedule = medicationScheduleRepository.save(MedicationSchedule.builder()
                 .userId(userId)
@@ -53,19 +54,19 @@ public class MedicationScheduleService {
                 .build());
 
         List<MedicationScheduleMedicine> medicines = saveMedicines(schedule, request);
-        syncScheduleActivity(schedule, medicines);
+        medicines = medicationScheduleWindowService.recalculateSchedule(schedule);
 
         return toResponse(schedule, medicines);
     }
 
-    // 복약 스케줄 상세
+    // 복약 일정 조회
     @Transactional(readOnly = true)
     public MedicationScheduleResponse getDetail(Long userId, Long id) {
         MedicationSchedule schedule = findOwnedSchedule(userId, id);
         return toResponse(schedule);
     }
 
-    // 복약 스케쥴 목록
+    // 복약 일정 목록 조회
     @Transactional(readOnly = true)
     public List<MedicationScheduleResponse> getList(Long userId) {
         return medicationScheduleRepository.findByUserId(userId).stream()
@@ -73,6 +74,7 @@ public class MedicationScheduleService {
                 .toList();
     }
 
+    // 선택한 날짜 기준으로 복약 일정 조회
     @Transactional(readOnly = true)
     public DailyMedicationResponse getDailyMedications(Long userId, LocalDate date) {
         List<MedicationScheduleMedicine> medicines =
@@ -135,7 +137,7 @@ public class MedicationScheduleService {
         return new DailyMedicationResponse(date, timeGroups);
     }
 
-    // 복약 스케쥴 수정
+    // 복약 일정 수정
     public MedicationScheduleResponse update(Long userId, Long id, MedicationScheduleRequest request) {
         MedicationSchedule schedule = findOwnedSchedule(userId, id);
 
@@ -155,33 +157,11 @@ public class MedicationScheduleService {
         );
 
         List<MedicationScheduleMedicine> medicines = saveMedicines(schedule, request);
-        syncScheduleActivity(schedule, medicines);
+        medicines = medicationScheduleWindowService.recalculateSchedule(schedule);
 
         return toResponse(schedule, medicines);
     }
 
-    // 약별 시작일/종료일/활성 상태를 다시 계산해서 갱신
-    public MedicationScheduleResponse initializeScheduleWindow(Long userId, Long id) {
-        MedicationSchedule schedule = findOwnedSchedule(userId, id);
-        List<MedicationScheduleMedicine> medicines =
-                medicationScheduleMedicineRepository.findByMedicationScheduleIdOrderByIdAsc(id);
-
-        for (MedicationScheduleMedicine medicine : medicines) {
-            LocalDate startDate = medicine.getStartDate() != null
-                    ? medicine.getStartDate()
-                    : LocalDate.now(SCHEDULE_ZONE);
-            int durationDays = normalizeDurationDays(medicine.getDurationDays());
-            LocalDate endDate = startDate.plusDays(durationDays - 1L);
-            medicine.updateScheduleWindow(startDate, endDate, isActive(endDate));
-        }
-
-        syncScheduleActivity(schedule, medicines);
-        medicationScheduleRepository.saveAndFlush(schedule);
-
-        return toResponse(schedule, medicines);
-    }
-
-    // 삭제
     public void delete(Long userId, Long id) {
         MedicationSchedule schedule = findOwnedSchedule(userId, id);
 
@@ -192,7 +172,6 @@ public class MedicationScheduleService {
         medicationScheduleMedicineRepository.deleteByMedicationScheduleId(id);
         medicationScheduleRepository.delete(schedule);
     }
-
 
     private MedicationSchedule findOwnedSchedule(Long userId, Long id) {
         MedicationSchedule schedule = medicationScheduleRepository.findById(id)
@@ -314,19 +293,6 @@ public class MedicationScheduleService {
                 .endDate(endDate)
                 .isActive(isActive(endDate))
                 .build());
-    }
-
-    private void syncScheduleActivity(MedicationSchedule schedule, List<MedicationScheduleMedicine> medicines) {
-        boolean active = medicines.isEmpty()
-                || medicines.stream().anyMatch(medicine -> Boolean.TRUE.equals(medicine.getIsActive()));
-
-        schedule.update(
-                schedule.getUserId(),
-                schedule.getHospitalName(),
-                schedule.getPharmacyName(),
-                schedule.getDispensedDate(),
-                active
-        );
     }
 
     private int normalizeDurationDays(Integer durationDays) {

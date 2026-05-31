@@ -147,11 +147,6 @@ export const updateMedicationSchedule = async (id, payload) => {
   return response.data
 }
 
-export const initializeMedicationScheduleWindow = async (id) => {
-  const response = await api.post(`/medication-schedules/${id}/initialize-window`)
-  return response.data
-}
-
 export const deleteMedicationSchedule = async (id) => {
   await api.delete(`/medication-schedules/${id}`)
 }
