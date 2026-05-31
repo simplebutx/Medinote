@@ -324,7 +324,10 @@ public class MedicineInfoService {
                 itemNode.path("seQesitm").asText(),
                 itemNode.path("depositMethodQesitm").asText(),
                 itemNode.path("updateDe").asText(),
-                itemNode.path("itemImage").asText()
+                itemNode.path("itemImage").asText(),
+                null,
+                null,
+                null
         );
     }
 

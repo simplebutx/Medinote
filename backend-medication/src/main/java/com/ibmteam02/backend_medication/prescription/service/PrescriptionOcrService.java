@@ -12,6 +12,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClientException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +23,8 @@ public class PrescriptionOcrService {
 
     private final OcrResultRepository ocrResultRepository;
     private final AiOcrClient aiOcrClient;
+    private final MedicineNameMatchService medicineMatchService;
+    private final ObjectMapper objectMapper;
 
     // 업로드한 사진에 대해 ocr 실행
     @Transactional
@@ -34,16 +39,14 @@ public class PrescriptionOcrService {
         ocrResult.markProcessing(OCR_ENGINE_NAME);
 
         try {
-            AiOcrResponse aiResponse = aiOcrClient.analyzePrescription(   // 8081 -> 8000 -> 8081
+            AiOcrResponse aiResponse = aiOcrClient.analyzePrescription(   // 8081 -> 8000 -> 8081 (AI 서버에 요청)
                     new AiOcrRequest(ocrResult.getId(), userId, ocrResult.getImageKey())
             );
 
+            String updatedResultJson = addMatchedName(aiResponse.resultJson());   // 매칭된 ocr 약명들을 비교후, result JSON에 추가 (최종 리턴할 json)
+
             // 상태값 바꾸고 결과 ocrResult에 저장
-            ocrResult.markSuccess(
-                    aiResponse.rawText(),
-                    aiResponse.resultJson(),
-                    aiResponse.ocrEngine()
-            );
+            ocrResult.markSuccess(aiResponse.rawText(), updatedResultJson, aiResponse.ocrEngine());
 
             return toResponse(ocrResult, aiResponse.preprocessedImageDataUrl());
         } catch (RestClientException exception) {
@@ -52,6 +55,52 @@ public class PrescriptionOcrService {
         } catch (RuntimeException exception) {
             ocrResult.markFailed(exception.getMessage(), OCR_ENGINE_NAME);
             throw exception;
+        }
+    }
+
+    // ocr 결과에서 약 이름 추출
+    private String extractFirstMedicineName(String resultJson) {
+        try {
+            JsonNode root = objectMapper.readTree(resultJson);
+            JsonNode medicines = root.path("medicines");
+
+            if (!medicines.isArray() || medicines.isEmpty()) {
+                return null;
+            }
+
+            return medicines.get(0).path("name").asText(null);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to parse OCR resultJson", e);
+        }
+    }
+
+    // 매칭된 이름들을 최종결과 json에 포함
+    private String addMatchedName(String resultJson) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            ObjectNode root = (ObjectNode) objectMapper.readTree(resultJson);
+
+            JsonNode medicinesNode = root.path("medicines");
+            if (!medicinesNode.isArray() || medicinesNode.isEmpty()) {
+                return resultJson;
+            }
+
+            // 약 이름 하나씩 대조함수에 넣기
+            for (JsonNode medicineNode : medicinesNode) {
+                if (!(medicineNode instanceof ObjectNode medicineObject)) {
+                    continue;
+                }
+
+                String originalName = medicineObject.path("name").asText(null);
+                String matchedName = medicineMatchService.matchName(originalName);
+
+                medicineObject.put("originalName", originalName);
+                medicineObject.put("matchedName", matchedName != null ? matchedName : originalName);
+            }
+
+            return objectMapper.writeValueAsString(root);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("matchedName 추가 실패", e);
         }
     }
 

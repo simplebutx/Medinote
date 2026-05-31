@@ -41,6 +41,8 @@ export function syncTimeSlots(previousSlots, nextCount) {
 export function createMedicineForm() {
   return {
     customMedicineName: '',
+    originalMedicineName: '',
+    matchedMedicineName: '',
     dosageAmount: '1',
     dosageUnit: 'TABLET',
     timesPerDay: '3',
@@ -129,9 +131,12 @@ function inferDurationDays(text) {
 
 function mapOcrMedicineToForm(medicine) {
   const timesPerDay = inferTimesPerDay(medicine.frequency)
+  const finalName = medicine.matchedName || medicine.name || ''
 
   return {
-    customMedicineName: medicine.name || '',
+    customMedicineName: finalName,
+    originalMedicineName: medicine.originalName || medicine.name || '',
+    matchedMedicineName: finalName,
     dosageAmount: extractFirstNumber(medicine.dosage, '1'),
     dosageUnit: inferDosageUnit(medicine.dosage),
     timesPerDay,
@@ -151,11 +156,13 @@ export function buildOcrScheduleDraft(resultJson) {
       ? parsed.medicines
           .map((medicine) => ({
             name: String(medicine?.name || '').trim(),
+            originalName: String(medicine?.originalName || medicine?.name || '').trim(),
+            matchedName: String(medicine?.matchedName || medicine?.name || '').trim(),
             dosage: String(medicine?.dosage || '').trim(),
             frequency: String(medicine?.frequency || '').trim(),
             days: String(medicine?.days || '').trim(),
           }))
-          .filter((medicine) => medicine.name)
+          .filter((medicine) => medicine.name || medicine.originalName || medicine.matchedName)
       : []
 
     if (!medicines.length) {
@@ -240,6 +247,8 @@ export function mapScheduleToForm(schedule, times) {
     return {
       id: medicine.id,
       customMedicineName: medicine.customMedicineName || '',
+      originalMedicineName: medicine.originalMedicineName || '',
+      matchedMedicineName: medicine.matchedMedicineName || medicine.customMedicineName || '',
       dosageAmount: medicine.dosageAmount ? String(medicine.dosageAmount) : '',
       dosageUnit: medicine.dosageUnit || 'TABLET',
       timesPerDay: medicine.timesPerDay ? String(medicine.timesPerDay) : '1',
