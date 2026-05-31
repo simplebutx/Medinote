@@ -53,7 +53,7 @@ const YunjuTest = () => {
     }
 
     try {
-      const res = await axios.post('http://localhost:8080/api/auth/signup', formData, {
+      const res = await axios.post('/api/auth/signup', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
