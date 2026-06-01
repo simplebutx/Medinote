@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { sendChatbotMessage, suggestMedicines } from '../api'
+import {
+  createChatbotRoom,
+  deleteChatbotRoom,
+  deleteChatbotMessage,
+  getChatbotMessages,
+  getChatbotRooms,
+  sendChatbotMessage,
+  suggestMedicines,
+  updateChatbotRoom,
+} from '../api'
 
 const quickQuestions = [
   '타이레놀 식후에 먹어야 해?',
@@ -7,22 +16,6 @@ const quickQuestions = [
   '오늘 저녁 약 먹었는지 확인해줘',
   '속이 불편한데 계속 먹어도 돼?',
 ]
-
-const initialMessage = {
-  id: 1,
-  sender: 'AI',
-  time: '09:00',
-  content: '안녕하세요. 복약 관련 궁금한 점을 물어보세요. 약 이름을 @로 검색해서 함께 볼 수 있어요.',
-}
-
-function createRoom(id) {
-  return {
-    id,
-    title: id === 1 ? '새 대화' : `대화 ${id}`,
-    updatedAt: '방금',
-    messages: [{ ...initialMessage }],
-  }
-}
 
 function renderHighlightedText(message, confirmedMentions) {
   if (!message) return null
@@ -54,11 +47,49 @@ function renderHighlightedText(message, confirmedMentions) {
   return parts
 }
 
-function createTimestampLabel() {
-  return new Date().toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+function formatRoomTime(value) {
+  if (!value) return '방금'
+
+  try {
+    return new Date(value).toLocaleString('ko-KR', {
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return '방금'
+  }
+}
+
+function formatMessageTime(value) {
+  if (!value) return '방금'
+
+  try {
+    return new Date(value).toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return '방금'
+  }
+}
+
+function mapRoom(room) {
+  return {
+    id: room.roomId,
+    title: room.title || '새 대화',
+    updatedAt: formatRoomTime(room.updatedAt ?? room.createdAt),
+  }
+}
+
+function mapMessage(message) {
+  return {
+    id: message.messageId ?? `${message.roomId}-${message.createdAt}-${message.senderType}`,
+    sender: message.senderType === 'USER' ? 'USER' : 'AI',
+    time: formatMessageTime(message.createdAt),
+    content: message.content || message.answer || '',
+  }
 }
 
 function ChatbotPage() {
@@ -66,24 +97,23 @@ function ChatbotPage() {
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [confirmedMentions, setConfirmedMentions] = useState([])
-  const [rooms, setRooms] = useState([createRoom(1)])
-  const [selectedRoomId, setSelectedRoomId] = useState(1)
+  const [rooms, setRooms] = useState([])
+  const [selectedRoomId, setSelectedRoomId] = useState(null)
+  const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
+  const [loadingRooms, setLoadingRooms] = useState(false)
+  const [loadingMessages, setLoadingMessages] = useState(false)
+  const [openMenuRoomId, setOpenMenuRoomId] = useState(null)
+  const [openMessageMenuId, setOpenMessageMenuId] = useState(null)
 
   const debounceTimeoutRef = useRef(null)
   const latestRequestIdRef = useRef(0)
   const latestKeywordRef = useRef('')
-  const nextMessageIdRef = useRef(10)
-  const nextRoomIdRef = useRef(2)
+  const tempMessageIdRef = useRef(1)
 
   const pageDescription = useMemo(
     () => 'AI 챗봇으로 복약 정보를 먼저 확인하고, 필요한 경우 상담으로 이어갈 수 있습니다.',
     [],
-  )
-
-  const selectedRoom = useMemo(
-    () => rooms.find((room) => room.id === selectedRoomId) ?? rooms[0],
-    [rooms, selectedRoomId],
   )
 
   useEffect(() => {
@@ -94,25 +124,152 @@ function ChatbotPage() {
     }
   }, [])
 
+  useEffect(() => {
+    const fetchRooms = async () => {
+      setLoadingRooms(true)
+      try {
+        const data = await getChatbotRooms()
+        const mappedRooms = (data || []).map(mapRoom)
+        setRooms(mappedRooms)
+        setSelectedRoomId((prev) => prev ?? mappedRooms[0]?.id ?? null)
+      } catch (error) {
+        console.error('챗봇 대화방 목록 조회 실패:', error)
+      } finally {
+        setLoadingRooms(false)
+      }
+    }
+
+    fetchRooms()
+  }, [])
+
+  useEffect(() => {
+    if (!selectedRoomId) {
+      setMessages([])
+      return
+    }
+
+    const fetchMessages = async () => {
+      setLoadingMessages(true)
+      try {
+        const data = await getChatbotMessages(selectedRoomId)
+        setMessages((data || []).map(mapMessage))
+      } catch (error) {
+        console.error('챗봇 메시지 조회 실패:', error)
+        setMessages([])
+      } finally {
+        setLoadingMessages(false)
+      }
+    }
+
+    fetchMessages()
+  }, [selectedRoomId])
+
   const clearSuggestions = () => {
     setSuggestions([])
     setShowSuggestions(false)
   }
 
-  const createNewRoom = () => {
-    const roomId = nextRoomIdRef.current++
-    const room = createRoom(roomId)
-    setRooms((prev) => [room, ...prev])
-    setSelectedRoomId(roomId)
-    setMessage('')
-    setConfirmedMentions([])
-    clearSuggestions()
+  const closeRoomMenu = () => {
+    setOpenMenuRoomId(null)
   }
 
-  const updateRoom = (roomId, updater) => {
-    setRooms((prev) =>
-      prev.map((room) => (room.id === roomId ? { ...room, ...updater(room) } : room)),
-    )
+  const closeMessageMenu = () => {
+    setOpenMessageMenuId(null)
+  }
+
+  const createNewRoom = async () => {
+    try {
+      const room = await createChatbotRoom()
+      const mappedRoom = mapRoom(room)
+      setRooms((prev) => [mappedRoom, ...prev])
+      setSelectedRoomId(mappedRoom.id)
+      setMessages([])
+      setMessage('')
+      setConfirmedMentions([])
+      closeRoomMenu()
+      closeMessageMenu()
+      clearSuggestions()
+    } catch (error) {
+      console.error('챗봇 대화방 생성 실패:', error)
+      alert('대화방 생성에 실패했습니다.')
+    }
+  }
+
+  const handleToggleRoomMenu = (event, roomId) => {
+    event.stopPropagation()
+    setOpenMenuRoomId((prev) => (prev === roomId ? null : roomId))
+  }
+
+  const handleRenameRoom = async (event, room) => {
+    event.stopPropagation()
+    const nextTitle = window.prompt('대화방 이름을 입력하세요.', room.title)
+    if (nextTitle == null) return
+
+    const trimmedTitle = nextTitle.trim()
+    if (!trimmedTitle) {
+      alert('대화방 이름은 비워둘 수 없습니다.')
+      return
+    }
+
+    try {
+      const updatedRoom = await updateChatbotRoom(room.id, { title: trimmedTitle })
+      setRooms((prev) =>
+        prev.map((item) =>
+          item.id === room.id
+            ? {
+                ...item,
+                title: updatedRoom.title || trimmedTitle,
+                updatedAt: formatRoomTime(updatedRoom.updatedAt ?? updatedRoom.createdAt),
+              }
+            : item,
+        ),
+      )
+      closeRoomMenu()
+    } catch (error) {
+      console.error('챗봇 대화방 이름 수정 실패:', error)
+      alert('대화방 이름 수정에 실패했습니다.')
+    }
+  }
+
+  const handleDeleteRoom = async (event, room) => {
+    event.stopPropagation()
+    if (!window.confirm(`"${room.title}" 대화방을 삭제할까요?`)) return
+
+    try {
+      await deleteChatbotRoom(room.id)
+      const nextRooms = rooms.filter((item) => item.id !== room.id)
+      setRooms(nextRooms)
+      if (selectedRoomId === room.id) {
+        setSelectedRoomId(nextRooms[0]?.id ?? null)
+        if (nextRooms.length === 0) {
+          setMessages([])
+        }
+      }
+      closeRoomMenu()
+    } catch (error) {
+      console.error('챗봇 대화방 삭제 실패:', error)
+      alert('대화방 삭제에 실패했습니다.')
+    }
+  }
+
+  const handleToggleMessageMenu = (event, messageId) => {
+    event.stopPropagation()
+    setOpenMessageMenuId((prev) => (prev === messageId ? null : messageId))
+  }
+
+  const handleDeleteMessage = async (event, chat) => {
+    event.stopPropagation()
+    if (chat.id == null) return
+    if (!window.confirm('이 메시지를 삭제할까요?')) return
+
+    try {
+      await deleteChatbotMessage(chat.id)
+      setMessages((prev) => prev.filter((item) => item.id !== chat.id))
+      closeMessageMenu()
+    } catch (error) {
+      console.error('챗봇 메시지 삭제 실패:', error)
+      alert('메시지 삭제에 실패했습니다.')
+    }
   }
 
   const handleMessageChange = (event) => {
@@ -160,51 +317,63 @@ function ChatbotPage() {
   const handleSubmit = async (event) => {
     event.preventDefault()
     const trimmedMessage = message.trim()
-    if (!trimmedMessage || !selectedRoom) return
+    if (!trimmedMessage) return
 
-    const roomId = selectedRoom.id
-    const userMsg = {
-      id: nextMessageIdRef.current++,
+    let roomId = selectedRoomId
+    if (!roomId) {
+      try {
+        const room = await createChatbotRoom()
+        const mappedRoom = mapRoom(room)
+        setRooms((prev) => [mappedRoom, ...prev])
+        setSelectedRoomId(mappedRoom.id)
+        roomId = mappedRoom.id
+      } catch (error) {
+        alert('대화방 생성에 실패했습니다.')
+        return
+      }
+    }
+
+    const optimisticMessage = {
+      id: `temp-${tempMessageIdRef.current++}`,
       sender: 'USER',
       time: '방금',
       content: trimmedMessage,
     }
 
-    updateRoom(roomId, (room) => ({
-      messages: [...room.messages, userMsg],
-      updatedAt: '방금',
-      title: room.messages.length <= 1 ? trimmedMessage.slice(0, 14) || room.title : room.title,
-    }))
-
+    setMessages((prev) => [...prev, optimisticMessage])
     setMessage('')
     clearSuggestions()
     setLoading(true)
 
     try {
-      const data = await sendChatbotMessage(trimmedMessage)
-      const botMessage = {
-        id: nextMessageIdRef.current++,
-        sender: 'AI',
-        time: createTimestampLabel(),
-        content: data.answer || '답변을 가져오지 못했습니다.',
-      }
-      updateRoom(roomId, (room) => ({
-        messages: [...room.messages, botMessage],
-        updatedAt: botMessage.time,
-        title: room.title,
-      }))
+      const data = await sendChatbotMessage(roomId, trimmedMessage)
+      const refreshedMessages = await getChatbotMessages(roomId)
+      setMessages((refreshedMessages || []).map(mapMessage))
+      setRooms((prev) =>
+        prev.map((room) =>
+          room.id === roomId
+            ? {
+                ...room,
+                title:
+                  room.title === '새 대화' || !room.title
+                    ? trimmedMessage.slice(0, 14) || '새 대화'
+                    : room.title,
+                updatedAt: formatMessageTime(data.createdAt) || '방금',
+              }
+            : room,
+        ),
+      )
     } catch (error) {
-      const botMessage = {
-        id: nextMessageIdRef.current++,
-        sender: 'AI',
-        time: createTimestampLabel(),
-        content: '오류가 발생했습니다.',
-      }
-      updateRoom(roomId, (room) => ({
-        messages: [...room.messages, botMessage],
-        updatedAt: botMessage.time,
-        title: room.title,
-      }))
+      console.error('챗봇 메시지 전송 실패:', error)
+      setMessages((prev) => [
+        ...prev.filter((item) => item.id !== optimisticMessage.id),
+        {
+          id: `temp-${tempMessageIdRef.current++}`,
+          sender: 'AI',
+          time: '방금',
+          content: '오류가 발생했습니다.',
+        },
+      ])
     } finally {
       setLoading(false)
     }
@@ -231,17 +400,60 @@ function ChatbotPage() {
           </div>
 
           <div className="chatbot-room-list">
-            {rooms.map((room) => (
-              <button
-                key={room.id}
-                type="button"
-                className={room.id === selectedRoomId ? 'chatbot-room-item active' : 'chatbot-room-item'}
-                onClick={() => setSelectedRoomId(room.id)}
-              >
-                <strong>{room.title}</strong>
-                <span>{room.updatedAt}</span>
-              </button>
-            ))}
+            {loadingRooms ? (
+              <div className="app-placeholder-card">불러오는 중...</div>
+            ) : rooms.length === 0 ? (
+              <div className="app-placeholder-card">등록된 대화방이 없습니다.</div>
+            ) : (
+              rooms.map((room) => (
+                <div
+                  key={room.id}
+                  className={room.id === selectedRoomId ? 'chatbot-room-item active' : 'chatbot-room-item'}
+                  onClick={() => {
+                    closeRoomMenu()
+                    setSelectedRoomId(room.id)
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      closeRoomMenu()
+                      setSelectedRoomId(room.id)
+                    }
+                  }}
+                >
+                  <div className="chatbot-room-item-copy">
+                    <strong>{room.title}</strong>
+                    <span>{room.updatedAt}</span>
+                  </div>
+
+                  <div className="chatbot-room-menu-shell">
+                    <button
+                      type="button"
+                      className="chatbot-room-menu-trigger"
+                      aria-label={`${room.title} 메뉴`}
+                      onClick={(event) => handleToggleRoomMenu(event, room.id)}
+                    >
+                      <span />
+                      <span />
+                      <span />
+                    </button>
+
+                    {openMenuRoomId === room.id && (
+                      <div className="chatbot-room-menu-popover">
+                        <button type="button" onClick={(event) => handleRenameRoom(event, room)}>
+                          이름 바꾸기
+                        </button>
+                        <button type="button" className="danger" onClick={(event) => handleDeleteRoom(event, room)}>
+                          대화방 삭제
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </aside>
 
@@ -255,17 +467,47 @@ function ChatbotPage() {
           <div className="chat-body-layout">
             <div className="chat-main-panel">
               <div className="chat-scroll-panel">
-                {selectedRoom?.messages.map((chat) => (
-                  <div key={chat.id} className={chat.sender === 'USER' ? 'chat-bubble-row mine' : 'chat-bubble-row'}>
-                    <div className={chat.sender === 'USER' ? 'chat-bubble mine' : 'chat-bubble'}>
-                      <div className="chat-bubble-meta">
-                        <strong>{chat.sender === 'USER' ? '나' : 'AI'}</strong>
-                        <span>{chat.time}</span>
+                {!selectedRoomId ? (
+                  <div className="app-placeholder-card">왼쪽에서 새 대화를 만들어 시작하세요.</div>
+                ) : loadingMessages ? (
+                  <div className="app-placeholder-card">대화 내용을 불러오는 중입니다.</div>
+                ) : messages.length === 0 ? (
+                  <div className="app-placeholder-card">아직 대화 내용이 없습니다.</div>
+                ) : (
+                  messages.map((chat) => (
+                    <div key={chat.id} className={chat.sender === 'USER' ? 'chat-bubble-row mine' : 'chat-bubble-row'}>
+                      <div className={chat.sender === 'USER' ? 'chat-bubble mine' : 'chat-bubble'}>
+                        <div className="chat-bubble-meta">
+                          <strong>{chat.sender === 'USER' ? '나' : 'AI'}</strong>
+                          <span>{chat.time}</span>
+                          {chat.id != null && (
+                            <div className="chat-message-menu-shell">
+                              <button
+                                type="button"
+                                className="chat-message-menu-trigger"
+                                aria-label="메시지 메뉴"
+                                onClick={(event) => handleToggleMessageMenu(event, chat.id)}
+                              >
+                                <span />
+                                <span />
+                                <span />
+                              </button>
+
+                              {openMessageMenuId === chat.id && (
+                                <div className="chat-message-menu-popover">
+                                  <button type="button" className="danger" onClick={(event) => handleDeleteMessage(event, chat)}>
+                                    메시지 삭제
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <p>{chat.content}</p>
                       </div>
-                      <p>{chat.content}</p>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
 
               <form className="chat-input-area" onSubmit={handleSubmit}>

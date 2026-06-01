@@ -4,6 +4,7 @@ import lombok.Getter;
 
 @Getter
 public class ChatbotMessageRequest {
+    private Long roomId;
     private String message;
 }
 
