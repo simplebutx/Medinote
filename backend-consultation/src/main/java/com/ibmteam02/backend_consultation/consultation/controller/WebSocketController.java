@@ -1,6 +1,7 @@
 package com.ibmteam02.backend_consultation.consultation.controller;
 
 import com.ibmteam02.backend_consultation.consultation.dto.ChatMessageDto;
+import com.ibmteam02.backend_consultation.consultation.service.ConsultationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Controller;
 public class WebSocketController {
 
     private final SimpMessageSendingOperations simpMessageSendingOperations;
-    private final com.ibmteam02.backend_consultation.consultation.service.ConsultationService consultationService;
+    private final ConsultationService consultationService;
 
     //메세지 발송(Publish) (최종 주소: /app/consult/message)
     @MessageMapping("/consult/message")

@@ -197,7 +197,7 @@ public class AuthService {
 
         return UserProfileResponse.builder()
                 .email(user.getEmail())
-                .username(user.getEmail())
+                .username(user.getUsername())
                 .birthDate(user.getBirthDate())
                 .gender(user.getGender())
                 .role(user.getRole())
@@ -220,7 +220,12 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        user.updateUsername(profileUpdateRequest.getUsername());
+        //기본정보 수정(이름, 생년월일, 성별)
+        user.updateBasicProfile(
+                profileUpdateRequest.getUsername(),
+                profileUpdateRequest.getBirthDate(),
+                profileUpdateRequest.getGender()
+        );
 
         //일반 유저 추가 정보 수정
         if (user.getRole() == Role.USER) {

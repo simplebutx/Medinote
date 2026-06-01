@@ -30,10 +30,13 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-mail'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
+    //웹소켓 부품 추가
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
     // DB & Lombok
-    compileOnly 'org.projectlombok:lombok'
+    compileOnly 'org.projectlombok:lombok:1.18.34'
     runtimeOnly 'com.mysql:mysql-connector-j'
-    annotationProcessor 'org.projectlombok:lombok'    // JWT
+    annotationProcessor 'org.projectlombok:lombok:1.18.34'    // JWT
     implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'
@@ -47,6 +50,8 @@ dependencies {
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
+    testCompileOnly 'org.projectlombok:lombok:1.18.34'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.34'
 }
 
 tasks.named('test') {

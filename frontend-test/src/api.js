@@ -113,6 +113,18 @@ export const suggestCautions = async (keyword, type) => {
   return response.data
 }
 
+export const updateMyProfile = async (payload) => {
+  const response = await api.patch('/auth/me', payload)
+  return response.data
+}
+
+export const suggestDiseases = async (keyword) => {
+  const response = await api.get('/auth/diseases/suggest', {
+    params: { keyword }
+  })
+  return response.data
+}
+
 export const createCaution = async (payload) => {
   const response = await api.post('/me/cautions', payload)
   return response.data

@@ -23,12 +23,12 @@ public class InternalUserHealthContextService {
     @Transactional(readOnly = true)
     public InternalUserHealthContextResponse getHealthContext(Long userId) {
         if (userId == null) {
-            return new InternalUserHealthContextResponse(false, false, false, false, List.of());
+            return new InternalUserHealthContextResponse(null, null, null, false, false, false, false, List.of());
         }
 
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
-            return new InternalUserHealthContextResponse(false, false, false, false, List.of());
+            return new InternalUserHealthContextResponse(null, null, null, false, false, false, false, List.of());
         }
 
         UserProfileHealth health = userProfileHealthRepository.findByUser(user).orElse(null);
@@ -37,6 +37,9 @@ public class InternalUserHealthContextService {
                 .toList();
 
         return new InternalUserHealthContextResponse(
+                user.getUsername(),
+                user.getBirthDate(),
+                user.getGender(),
                 health != null && Boolean.TRUE.equals(health.getIsPregnant()),
                 health != null && Boolean.TRUE.equals(health.getIsBreastfeeding()),
                 health != null && Boolean.TRUE.equals(health.getIsSmoking()),

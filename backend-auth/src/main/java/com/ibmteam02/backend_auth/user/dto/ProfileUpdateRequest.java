@@ -1,15 +1,21 @@
 package com.ibmteam02.backend_auth.user.dto;
 
+import com.ibmteam02.backend_auth.user.domain.Gender;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
 @NoArgsConstructor
 public class ProfileUpdateRequest {
     private String username;
+    private LocalDate birthDate;
+    private Gender gender;
 
+    //건강정보
     private Boolean isPregnant;
     private Boolean isBreastfeeding;
     private Boolean isSmoking;

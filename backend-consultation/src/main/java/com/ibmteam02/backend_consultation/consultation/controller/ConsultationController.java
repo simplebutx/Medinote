@@ -2,6 +2,7 @@ package com.ibmteam02.backend_consultation.consultation.controller;
 
 import com.ibmteam02.backend_consultation.consultation.dto.ChatMessageResponse;
 import com.ibmteam02.backend_consultation.consultation.dto.ConsultationRoomResponse;
+import com.ibmteam02.backend_consultation.consultation.dto.PatientInfoResponse;
 import com.ibmteam02.backend_consultation.consultation.service.ConsultationService;
 import com.ibmteam02.backend_consultation.global.auth.JwtProvider;
 import lombok.RequiredArgsConstructor;
@@ -136,6 +137,21 @@ public class ConsultationController {
         } catch (Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
+    }
 
+    // 약사가 상담 중 환자 정보 조회
+    @GetMapping("/room/{roomId}/patient-info")
+    public ResponseEntity<?> getPatientInfo(
+            @PathVariable Long roomId,
+            @RequestHeader("Authorization") String bearerToken) {
+        try {
+            String token = bearerToken.substring(7);
+            String role = jwtProvider.getRoleFromToken(token);
+
+            PatientInfoResponse patientInfo = consultationService.getPatientInfoByRoomId(roomId, role);
+            return ResponseEntity.ok(patientInfo);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
     }
 }
