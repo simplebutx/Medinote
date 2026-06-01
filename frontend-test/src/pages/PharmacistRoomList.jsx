@@ -12,9 +12,9 @@ const PharmacistRoomList = () => {
     const navigate = useNavigate();
     const session = getAuthSession();
 
-    const fetchRooms = async () => {
+    const fetchRooms = async (isInitial = false) => {
         if (!session) return;
-        setLoading(true);
+        if (isInitial) setLoading(true);
         try {
             const [p, a, c] = await Promise.all([
                 axios.get('http://localhost:8082/app/consult/rooms/pending', { headers: { Authorization: `Bearer ${session.accessToken}` } }),
@@ -27,13 +27,13 @@ const PharmacistRoomList = () => {
         } catch (error) {
             console.error("방 목록 조회 실패:", error);
         } finally {
-            setLoading(false);
+            if (isInitial) setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchRooms();
-        const interval = setInterval(fetchRooms, 10000); // 10초마다 자동 갱신
+        fetchRooms(true); // 처음 로드할 때만 로딩 표시
+        const interval = setInterval(() => fetchRooms(false), 10000); // 배경에서 10초마다 갱신
         return () => clearInterval(interval);
     }, []);
 

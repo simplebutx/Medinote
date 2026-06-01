@@ -1,21 +1,32 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { getAuthSession, updateMyProfile } from '../api'
+import { useNavigate } from 'react-router-dom'
 
 const PharmacistProfile = () => {
     const session = getAuthSession()
+    const navigate = useNavigate()
     const [activeTab, setActiveTab] = useState('basic') // basic, verification
     const [profile, setProfile] = useState(null)
     const [loading, setLoading] = useState(true)
-    const [isEditing, setIsEditing] = useState(false)
     
-    // 수정 폼 상태
-    const [form, setProfileForm] = useState({
+    // 수정 모드 상태 분리
+    const [isEditingBasic, setIsEditingBasic] = useState(false)
+    const [isEditingLicense, setIsEditingLicense] = useState(false)
+    
+    // 기본 정보 폼 상태
+    const [basicForm, setBasicForm] = useState({
         username: '',
         birthDate: '',
-        gender: '',
-        docNumber: ''
+        gender: ''
     })
+
+    // 면허 정보 폼 상태
+    const [licenseForm, setLicenseForm] = useState({
+        docNumber: '',
+        licenseNumber: ''
+    })
+    const [licenseFile, setLicenseFile] = useState(null)
 
     const loadProfile = async () => {
         try {
@@ -23,11 +34,14 @@ const PharmacistProfile = () => {
                 headers: { Authorization: `Bearer ${session.accessToken}` }
             })
             setProfile(res.data)
-            setProfileForm({
+            setBasicForm({
                 username: res.data.username || '',
                 birthDate: res.data.birthDate || '',
-                gender: res.data.gender || '',
-                docNumber: res.data.docNumber || ''
+                gender: res.data.gender || ''
+            })
+            setLicenseForm({
+                docNumber: res.data.docNumber || '',
+                licenseNumber: res.data.licenseNumber || ''
             })
         } catch (error) {
             console.error("프로필 로드 실패", error)
@@ -40,20 +54,54 @@ const PharmacistProfile = () => {
         if (session) loadProfile()
     }, [])
 
-    const handleSave = async () => {
+    // 기본 정보 저장
+    const handleSaveBasic = async () => {
         try {
             await updateMyProfile({
-                username: form.username,
-                birthDate: form.birthDate,
-                gender: form.gender,
-                docNumber: form.docNumber
-                // 약사 인증 정보(면허번호 등)는 보통 수정이 불가능하므로 제외
+                username: basicForm.username,
+                birthDate: basicForm.birthDate,
+                gender: basicForm.gender
             })
-            alert('정보가 수정되었습니다.')
-            setIsEditing(false)
+            alert('기본 정보가 수정되었습니다.')
+            setIsEditingBasic(false)
             loadProfile()
         } catch (error) {
             alert('수정에 실패했습니다.')
+        }
+    }
+
+    // 면허 정보 수정 (재승인 필요)
+    const handleSaveLicense = async () => {
+        if (!window.confirm("면허 정보를 수정하면 관리자의 재승인이 완료될 때까지 약사 기능을 이용할 수 없습니다. 계속하시겠습니까?")) {
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('data', new Blob([JSON.stringify({
+                docNumber: licenseForm.docNumber,
+                licenseNumber: licenseForm.licenseNumber
+            })], { type: 'application/json' }));
+            
+            if (licenseFile) {
+                formData.append('licenseImage', licenseFile);
+            }
+
+            await axios.patch('/api/auth/pharmacists/profile', formData, {
+                headers: { 
+                    Authorization: `Bearer ${session.accessToken}`,
+                    'Content-Type': 'multipart/form-data' 
+                }
+            });
+
+            alert('정보 수정 및 재승인 요청이 완료되었습니다. 관리자 승인 후 다시 이용 가능합니다.');
+            setIsEditingLicense(false);
+            
+            // 재승인 대기 상태이므로 로그아웃 처리하거나 대시보드로 이동
+            localStorage.removeItem('authSession');
+            navigate('/login');
+        } catch (error) {
+            alert('수정 요청에 실패했습니다: ' + (error.response?.data || error.message));
         }
     }
 
@@ -86,31 +134,31 @@ const PharmacistProfile = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                         <h2 style={{ fontSize: '18px', fontWeight: '700' }}>계정 및 개인정보</h2>
                         <button 
-                            onClick={() => setIsEditing(!isEditing)}
-                            style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #e2e8f0', cursor: 'pointer', background: isEditing ? '#f1f5f9' : '#fff' }}
+                            onClick={() => setIsEditingBasic(!isEditingBasic)}
+                            style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #e2e8f0', cursor: 'pointer', background: isEditingBasic ? '#f1f5f9' : '#fff' }}
                         >
-                            {isEditing ? '취소' : '수정하기'}
+                            {isEditingBasic ? '취소' : '수정하기'}
                         </button>
                     </div>
 
-                    {isEditing ? (
+                    {isEditingBasic ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                             <div style={inputGroupStyle}>
                                 <label style={labelStyle}>이름</label>
-                                <input style={inputStyle} value={form.username} onChange={e => setProfileForm({...form, username: e.target.value})} />
+                                <input style={inputStyle} value={basicForm.username} onChange={e => setBasicForm({...basicForm, username: e.target.value})} />
                             </div>
                             <div style={inputGroupStyle}>
                                 <label style={labelStyle}>생년월일</label>
-                                <input type="date" style={inputStyle} value={form.birthDate} onChange={e => setProfileForm({...form, birthDate: e.target.value})} />
+                                <input type="date" style={inputStyle} value={basicForm.birthDate} onChange={e => setBasicForm({...basicForm, birthDate: e.target.value})} />
                             </div>
                             <div style={inputGroupStyle}>
                                 <label style={labelStyle}>성별</label>
-                                <select style={inputStyle} value={form.gender} onChange={e => setProfileForm({...form, gender: e.target.value})}>
+                                <select style={inputStyle} value={basicForm.gender} onChange={e => setBasicForm({...basicForm, gender: e.target.value})}>
                                     <option value="MALE">남성</option>
                                     <option value="FEMALE">여성</option>
                                 </select>
                             </div>
-                            <button onClick={handleSave} style={saveButtonStyle}>변경사항 저장</button>
+                            <button onClick={handleSaveBasic} style={saveButtonStyle}>변경사항 저장</button>
                         </div>
                     ) : (
                         <div style={gridInfoStyle}>
@@ -126,13 +174,27 @@ const PharmacistProfile = () => {
             {/* 약사 인증 상태 탭 */}
             {activeTab === 'verification' && (
                 <div style={sectionCardStyle}>
-                    <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '25px' }}>전문 자격 인증 정보</h2>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <h2 style={{ fontSize: '18px', fontWeight: '700' }}>전문 자격 인증 정보</h2>
+                        <button 
+                            onClick={() => setIsEditingLicense(!isEditingLicense)}
+                            style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #e2e8f0', cursor: 'pointer', background: isEditingLicense ? '#f1f5f9' : '#fff' }}
+                        >
+                            {isEditingLicense ? '취소' : '인증 정보 수정'}
+                        </button>
+                    </div>
                     
+                    {isEditingLicense && (
+                        <div style={warningBoxStyle}>
+                            ⚠️ 주의: 면허 정보를 수정하면 관리자의 재승인이 필요하며, 승인 전까지 약사 기능 사용이 제한됩니다.
+                        </div>
+                    )}
+
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
                         <div style={infoItemVerticalStyle}>
                             <span style={labelStyle}>소속 약국명</span>
-                            {isEditing ? (
-                                <input style={inputStyle} value={form.docNumber} onChange={e => setProfileForm({...form, docNumber: e.target.value})} placeholder="약국명을 입력하세요" />
+                            {isEditingLicense ? (
+                                <input style={inputStyle} value={licenseForm.docNumber} onChange={e => setLicenseForm({...licenseForm, docNumber: e.target.value})} placeholder="약국명을 입력하세요" />
                             ) : (
                                 <strong style={{ fontSize: '18px' }}>{profile.docNumber || '미등록'}</strong>
                             )}
@@ -140,12 +202,21 @@ const PharmacistProfile = () => {
 
                         <div style={infoItemVerticalStyle}>
                             <span style={labelStyle}>약사 면허번호</span>
-                            <strong style={{ fontSize: '18px', color: '#64748b' }}>{profile.licenseNumber}</strong>
-                            <p style={{ fontSize: '12px', color: '#10b981', marginTop: '5px' }}>✓ 인증된 면허번호는 수정할 수 없습니다.</p>
+                            {isEditingLicense ? (
+                                <input style={inputStyle} value={licenseForm.licenseNumber} onChange={e => setLicenseForm({...licenseForm, licenseNumber: e.target.value})} placeholder="면허번호를 입력하세요" />
+                            ) : (
+                                <strong style={{ fontSize: '18px', color: '#1e293b' }}>{profile.licenseNumber}</strong>
+                            )}
                         </div>
 
                         <div style={infoItemVerticalStyle}>
-                            <span style={labelStyle}>등록된 면허증 이미지</span>
+                            <span style={labelStyle}>면허증 이미지</span>
+                            {isEditingLicense && (
+                                <div style={{marginBottom:'10px'}}>
+                                    <input type="file" onChange={e => setLicenseFile(e.target.files[0])} accept="image/*" />
+                                    <p style={{fontSize:'12px', color:'#64748b', marginTop:'5px'}}>* 이미지를 변경할 경우에만 선택하세요.</p>
+                                </div>
+                            )}
                             <div style={imageContainerStyle}>
                                 {profile.licenseImage ? (
                                     <img 
@@ -161,8 +232,8 @@ const PharmacistProfile = () => {
                         </div>
                     </div>
 
-                    {isEditing && (
-                        <button onClick={handleSave} style={{ ...saveButtonStyle, marginTop: '30px' }}>약국명 수정 저장</button>
+                    {isEditingLicense && (
+                        <button onClick={handleSaveLicense} style={{ ...saveButtonStyle, marginTop: '30px', background: '#ef4444' }}>정보 수정 및 재승인 요청</button>
                     )}
                 </div>
             )}
@@ -183,5 +254,6 @@ const inputStyle = { padding: '12px', borderRadius: '8px', border: '1px solid #e
 const saveButtonStyle = { padding: '14px', borderRadius: '8px', border: 'none', background: '#065f46', color: '#fff', fontWeight: '700', cursor: 'pointer' };
 const imageContainerStyle = { marginTop: '10px', background: '#f8fafc', padding: '20px', borderRadius: '12px', textAlign: 'center' };
 const noImageStyle = { padding: '40px', color: '#94a3b8', fontSize: '14px', border: '2px dashed #e2e8f0', borderRadius: '8px' };
+const warningBoxStyle = { backgroundColor: '#fff7ed', border: '1px solid #ffedd5', color: '#9a3412', padding: '15px', borderRadius: '10px', fontSize: '14px', marginBottom: '25px', fontWeight: '500' };
 
 export default PharmacistProfile

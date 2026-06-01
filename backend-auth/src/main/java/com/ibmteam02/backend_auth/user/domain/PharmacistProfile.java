@@ -44,4 +44,12 @@ public class PharmacistProfile {
         }
     }
 
+    // 면허 정보 전체 수정 (재인증용)
+    public void updateLicenseInfo(String docNumber, String licenseNumber, String licenseImage) {
+        this.docNumber = docNumber;
+        this.licenseNumber = licenseNumber;
+        if (licenseImage != null) {
+            this.licenseImage = licenseImage;
+        }
+    }
 }
