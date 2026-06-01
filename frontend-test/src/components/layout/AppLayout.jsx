@@ -4,7 +4,8 @@ import { clearAuthSession, getAuthSession, logout } from '../../api'
 const USER_MENUS = [
   { label: '복약 일정', path: '/app/schedule' },
   { label: '복약 등록', path: '/app/ocr' },
-  { label: '챗봇 & 상담', path: '/app/chat' },
+  { label: '챗봇', path: '/app/chatbot' },
+  { label: '상담', path: '/app/chat' },
   { label: '약 검색', path: '/app/drugs' },
   { label: 'FAQ', path: '/app/faq' },
   { label: '근처 약국', path: '/app/pharmacies' },

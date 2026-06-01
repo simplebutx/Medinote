@@ -312,8 +312,7 @@ function MedicationRegisterPage() {
 
         <div className="register-medicine-header">
           <div>
-            <h2>복약 정보</h2>
-            <p>지금 구현된 기능만 사용해서 약 정보와 시간대를 함께 등록합니다.</p>
+
           </div>
           <button type="button" className="register-add-button" onClick={handleAddMedicine}>
             약 추가
