@@ -42,6 +42,7 @@ function MedicationRegisterPage() {
   const [selectedFile, setSelectedFile] = useState(null)
   const [selectedPreviewUrl, setSelectedPreviewUrl] = useState('')
   const [ocrResult, setOcrResult] = useState(null)
+  const showOcrDetails = activeMode !== 'ocr' || Boolean(ocrResult)
 
   useEffect(() => {
     return () => {
@@ -210,7 +211,7 @@ function MedicationRegisterPage() {
   }
 
   return (
-    <div className="app-page">
+    <div className="app-page medication-register-page">
       <div className="app-page-header">
         <p className="app-page-eyebrow">Medication Register</p>
         <h1 className="app-page-title">복약 등록</h1>
@@ -241,8 +242,9 @@ function MedicationRegisterPage() {
         {message ? <div className="register-message">{message}</div> : null}
 
         {activeMode === 'ocr' ? (
-          <div className="register-ocr-layout">
+          <div className="register-ocr-layout register-ocr-layout-centered">
             <div className="register-ocr-upload">
+              <div className="register-ocr-upload-form">
               <label className="register-field">
                 <span>처방전 이미지</span>
                 <input type="file" accept="image/*" onChange={handleFileChange} />
@@ -251,15 +253,16 @@ function MedicationRegisterPage() {
               <button type="button" className="app-primary-button" onClick={handleRunOcr} disabled={ocrLoading}>
                 {ocrLoading ? '분석 중...' : 'OCR 분석 시작'}
               </button>
+              </div>
 
-              {selectedPreviewUrl ? (
+              {!ocrResult ? (selectedPreviewUrl ? (
                 <img className="register-preview-image" src={selectedPreviewUrl} alt="OCR preview" />
               ) : (
                 <div className="register-preview-empty">이미지를 선택하면 미리보기가 표시됩니다.</div>
-              )}
+              )) : null}
             </div>
 
-            <div className="register-ocr-result">
+            {/*
               <div className="register-ocr-panel">
                 <h2>추출 텍스트</h2>
                 <pre>{ocrResult?.rawText || '분석 결과가 여기에 표시됩니다.'}</pre>
@@ -268,11 +271,19 @@ function MedicationRegisterPage() {
                 <h2>구조화 결과</h2>
                 <pre>{ocrResult?.resultJson || '구조화된 OCR 결과가 여기에 표시됩니다.'}</pre>
               </div>
-            </div>
+            </div> : (
+              selectedPreviewUrl ? (
+                <img className="register-preview-image" src={selectedPreviewUrl} alt="OCR preview" />
+              ) : (
+                <div className="register-preview-empty">?대?吏瑜??좏깮?섎㈃ 誘몃━蹂닿린媛 ?쒖떆?⑸땲??</div>
+              )
+            */}
           </div>
         ) : null}
 
-        <div className="register-form-grid">
+        {showOcrDetails ? (
+          <>
+        <div className="register-form-grid register-shared-grid">
           <label className="register-field">
             <span>처방 병원</span>
             <input
@@ -321,99 +332,105 @@ function MedicationRegisterPage() {
                 ) : null}
               </div>
 
-              <div className="register-form-grid">
-                <label className="register-field register-span-full">
-                  <span>약 이름</span>
-                  <input
-                    name="customMedicineName"
-                    value={medicine.customMedicineName}
-                    onChange={(event) => handleMedicineFieldChange(medicineIndex, event)}
-                    placeholder="예: 타이레놀 500mg"
-                  />
-                </label>
-
-                <label className="register-field">
-                  <span>1회 복용량</span>
-                  <input
-                    name="dosageAmount"
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={medicine.dosageAmount}
-                    onChange={(event) => handleMedicineFieldChange(medicineIndex, event)}
-                  />
-                </label>
-
-                <label className="register-field">
-                  <span>단위</span>
-                  <select
-                    name="dosageUnit"
-                    value={medicine.dosageUnit}
-                    onChange={(event) => handleMedicineFieldChange(medicineIndex, event)}
-                  >
-                    {DOSAGE_UNIT_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="register-field">
-                  <span>하루 복용 횟수</span>
-                  <input
-                    name="timesPerDay"
-                    type="number"
-                    min="1"
-                    max={MAX_TIMES_PER_DAY}
-                    value={medicine.timesPerDay}
-                    onChange={(event) => handleMedicineFieldChange(medicineIndex, event)}
-                  />
-                </label>
-
-                <label className="register-field">
-                  <span>총 복용 일수</span>
-                  <input
-                    name="durationDays"
-                    type="number"
-                    min="1"
-                    value={medicine.durationDays}
-                    onChange={(event) => handleMedicineFieldChange(medicineIndex, event)}
-                  />
-                </label>
-              </div>
-
-              <div className="register-time-grid">
-                {medicine.timeSlots.map((slot, slotIndex) => (
-                  <div className="register-time-card" key={`slot-${medicineIndex}-${slotIndex}`}>
-                    <strong>{slotIndex + 1}회차</strong>
-                    <label className="register-field">
-                      <span>복용 시간</span>
+              <div className="register-medicine-layout">
+                <div className="register-medicine-main">
+                  <div className="register-form-grid">
+                    <label className="register-field register-span-full">
+                      <span>약 이름</span>
                       <input
-                        type="time"
-                        value={slot.takeTime}
-                        onChange={(event) =>
-                          handleMedicineTimeSlotChange(medicineIndex, slotIndex, 'takeTime', event.target.value)
-                        }
+                        name="customMedicineName"
+                        value={medicine.customMedicineName}
+                        onChange={(event) => handleMedicineFieldChange(medicineIndex, event)}
+                        placeholder="예: 타이레놀 500mg"
                       />
                     </label>
+
                     <label className="register-field">
-                      <span>복용 시점</span>
+                      <span>1회 복용량</span>
+                      <input
+                        name="dosageAmount"
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        value={medicine.dosageAmount}
+                        onChange={(event) => handleMedicineFieldChange(medicineIndex, event)}
+                      />
+                    </label>
+
+                    <label className="register-field">
+                      <span>단위</span>
                       <select
-                        value={slot.timing}
-                        onChange={(event) =>
-                          handleMedicineTimeSlotChange(medicineIndex, slotIndex, 'timing', event.target.value)
-                        }
+                        name="dosageUnit"
+                        value={medicine.dosageUnit}
+                        onChange={(event) => handleMedicineFieldChange(medicineIndex, event)}
                       >
-                        {TIMING_OPTIONS.map((option) => (
+                        {DOSAGE_UNIT_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
                           </option>
                         ))}
                       </select>
                     </label>
+
+                    <label className="register-field">
+                      <span>하루 복용 횟수</span>
+                      <input
+                        name="timesPerDay"
+                        type="number"
+                        min="1"
+                        max={MAX_TIMES_PER_DAY}
+                        value={medicine.timesPerDay}
+                        onChange={(event) => handleMedicineFieldChange(medicineIndex, event)}
+                      />
+                    </label>
+
+                    <label className="register-field">
+                      <span>총 복용 일수</span>
+                      <input
+                        name="durationDays"
+                        type="number"
+                        min="1"
+                        value={medicine.durationDays}
+                        onChange={(event) => handleMedicineFieldChange(medicineIndex, event)}
+                      />
+                    </label>
                   </div>
-                ))}
+                </div>
+
+                <div className="register-medicine-times">
+                  <div className="register-time-grid">
+                    {medicine.timeSlots.map((slot, slotIndex) => (
+                      <div className="register-time-card" key={`slot-${medicineIndex}-${slotIndex}`}>
+                        <strong>{slotIndex + 1}회차</strong>
+                        <label className="register-field">
+                          <span>복용 시간</span>
+                          <input
+                            type="time"
+                            value={slot.takeTime}
+                            onChange={(event) =>
+                              handleMedicineTimeSlotChange(medicineIndex, slotIndex, 'takeTime', event.target.value)
+                            }
+                          />
+                        </label>
+                        <label className="register-field">
+                          <span>복용 시점</span>
+                          <select
+                            value={slot.timing}
+                            onChange={(event) =>
+                              handleMedicineTimeSlotChange(medicineIndex, slotIndex, 'timing', event.target.value)
+                            }
+                          >
+                            {TIMING_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </section>
           ))}
@@ -424,6 +441,8 @@ function MedicationRegisterPage() {
             {saving ? '저장 중...' : '복약 일정 등록'}
           </button>
         </div>
+          </>
+        ) : null}
       </section>
     </div>
   )
