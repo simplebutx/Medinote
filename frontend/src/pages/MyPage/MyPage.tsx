@@ -6,9 +6,12 @@ import {
   useCreateMyCaution,
   useDeleteMyCaution,
   useMyCautions,
+  useUpdateMyCaution,
 } from '../../features/user/hooks';
 import type {
+  CautionItem,
   CautionReason,
+  CautionRequest,
   CautionTargetType,
 } from '../../features/user/types/caution.types';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -97,6 +100,32 @@ function getPrescriptionStatus(schedule: MedicationSchedule) {
   return schedule.isActive ? '복용 중' : '종료';
 }
 
+function getPrescriptionRange(schedule: MedicationSchedule) {
+  const medicines = getScheduleMedicines(schedule);
+
+  if (medicines.length === 0) {
+    return {
+      startDate: schedule.startDate ?? '-',
+      endDate: schedule.endDate ?? '-',
+    };
+  }
+
+  const startDates = medicines
+    .map((medicine) => medicine.startDate)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+
+  const endDates = medicines
+    .map((medicine) => medicine.endDate)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+
+  return {
+    startDate: startDates[0] ?? schedule.startDate ?? '-',
+    endDate: endDates[endDates.length - 1] ?? schedule.endDate ?? '-',
+  };
+}
+
 function getMedicineDisplayName(medicine: MedicationScheduleMedicine) {
   return (
     medicine.customMedicineName ||
@@ -104,9 +133,20 @@ function getMedicineDisplayName(medicine: MedicationScheduleMedicine) {
   );
 }
 
+function getDosageUnitLabel(unit?: string | null) {
+  if (unit === 'TABLET') return '정';
+  if (unit === 'CAPSULE') return '캡슐';
+  if (unit === 'PACK') return '포';
+  if (unit === 'ML') return 'ml';
+  if (unit === 'MG') return 'mg';
+  if (unit === 'DROP') return '방울';
+
+  return unit ?? '';
+}
+
 function getDosageText(medicine: MedicationScheduleMedicine) {
   const amount = medicine.dosageAmount ?? '-';
-  const unit = medicine.dosageUnit ?? '';
+  const unit = getDosageUnitLabel(medicine.dosageUnit);
 
   return `1회 ${amount}${unit} · 하루 ${medicine.timesPerDay ?? '-'}회 · ${
     medicine.durationDays ?? '-'
@@ -207,6 +247,9 @@ function MyPage() {
 
   const createCautionMutation = useCreateMyCaution();
   const deleteCautionMutation = useDeleteMyCaution();
+  const updateCautionMutation = useUpdateMyCaution();
+
+  const [editingCautionId, setEditingCautionId] = useState<number | null>(null);
 
   const [isCautionFormOpen, setIsCautionFormOpen] = useState(false);
   const [cautionSourceType, setCautionSourceType] =
@@ -229,6 +272,17 @@ function MyPage() {
   const [reason, setReason] = useState<CautionReason>('ALLERGY');
   const [memo, setMemo] = useState('');
 
+  const resetCautionForm = () => {
+    setCautionSourceType('MEDICINE');
+    setCautionKeyword('');
+    setSelectedCautionTarget(null);
+    setReason('ALLERGY');
+    setMemo('');
+    setIsCautionSearchOpen(false);
+    setIsCautionFormOpen(false);
+    setEditingCautionId(null);
+  };
+
   const handleChangeCautionSourceType = (sourceType: CautionTargetType) => {
     setCautionSourceType(sourceType);
     setCautionKeyword('');
@@ -245,7 +299,25 @@ function MyPage() {
     setIsCautionSearchOpen(false);
   };
 
-  const handleAddCaution = () => {
+  const handleStartEditCaution = (item: CautionItem) => {
+    const isMedicine = Boolean(item.itemName);
+    const targetName = item.itemName || item.ingredientName || '';
+    const targetType: CautionTargetType = isMedicine ? 'MEDICINE' : 'INGREDIENT';
+
+    setEditingCautionId(item.id);
+    setIsCautionFormOpen(true);
+    setCautionSourceType(targetType);
+    setCautionKeyword(targetName);
+    setSelectedCautionTarget({
+      name: targetName,
+      type: targetType,
+    });
+    setReason(item.reason);
+    setMemo(item.memo ?? '');
+    setIsCautionSearchOpen(false);
+  };
+
+  const handleSaveCaution = () => {
     if (!selectedCautionTarget) {
       toast.error('등록할 약 또는 성분을 검색 결과에서 선택해주세요.');
       return;
@@ -253,39 +325,56 @@ function MyPage() {
 
     const isMedicine = selectedCautionTarget.type === 'MEDICINE';
 
-    createCautionMutation.mutate(
-      {
-        itemSeq: null,
-        itemName: isMedicine ? selectedCautionTarget.name : null,
-        ingredientCode: null,
-        ingredientName: isMedicine ? null : selectedCautionTarget.name,
-        reason,
-        memo: memo.trim(),
-      },
-      {
-        onSuccess: () => {
-          toast.success('주의 약/성분이 등록되었습니다.');
+    const body: CautionRequest = {
+      itemSeq: null,
+      itemName: isMedicine ? selectedCautionTarget.name : null,
+      ingredientCode: null,
+      ingredientName: isMedicine ? null : selectedCautionTarget.name,
+      reason,
+      memo: memo.trim(),
+    };
 
-          setCautionSourceType('MEDICINE');
-          setCautionKeyword('');
-          setSelectedCautionTarget(null);
-          setReason('ALLERGY');
-          setMemo('');
-          setIsCautionSearchOpen(false);
-          setIsCautionFormOpen(false);
+    if (editingCautionId !== null) {
+      updateCautionMutation.mutate(
+        {
+          id: editingCautionId,
+          body,
         },
-        onError: (error) => {
-          console.error('주의 약/성분 등록 실패:', error);
-          toast.error('주의 약/성분 등록에 실패했습니다.');
+        {
+          onSuccess: () => {
+            toast.success('주의 약/성분이 수정되었습니다.');
+            resetCautionForm();
+          },
+          onError: (error) => {
+            console.error('주의 약/성분 수정 실패:', error);
+            toast.error('주의 약/성분 수정에 실패했습니다.');
+          },
         },
+      );
+
+      return;
+    }
+
+    createCautionMutation.mutate(body, {
+      onSuccess: () => {
+        toast.success('주의 약/성분이 등록되었습니다.');
+        resetCautionForm();
       },
-    );
+      onError: (error) => {
+        console.error('주의 약/성분 등록 실패:', error);
+        toast.error('주의 약/성분 등록에 실패했습니다.');
+      },
+    });
   };
 
   const handleDeleteCaution = (id: number) => {
     deleteCautionMutation.mutate(id, {
       onSuccess: () => {
         toast.success('주의 약/성분이 삭제되었습니다.');
+
+        if (editingCautionId === id) {
+          resetCautionForm();
+        }
       },
       onError: (error) => {
         console.error('주의 약/성분 삭제 실패:', error);
@@ -567,7 +656,9 @@ function MyPage() {
 
               {isCautionFormOpen && (
                 <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                  <h3 className="font-bold text-slate-900">주의 성분 추가</h3>
+                  <h3 className="font-bold text-slate-900">
+                    {editingCautionId !== null ? '주의 약/성분 수정' : '주의 약/성분 추가'}
+                  </h3>
 
                   <div className="mt-4">
                     <p className="mb-2 text-sm font-medium text-slate-700">
@@ -719,17 +810,21 @@ function MyPage() {
                       type="button"
                       variant="ghost"
                       className="border border-slate-200"
-                      onClick={() => setIsCautionFormOpen(false)}
+                      onClick={resetCautionForm}
                     >
                       취소
                     </Button>
 
                     <Button
                       type="button"
-                      onClick={handleAddCaution}
-                      disabled={createCautionMutation.isPending}
+                      onClick={handleSaveCaution}
+                      disabled={createCautionMutation.isPending || updateCautionMutation.isPending}
                     >
-                      {createCautionMutation.isPending ? '저장 중...' : '저장'}
+                      {createCautionMutation.isPending || updateCautionMutation.isPending
+                        ? '저장 중...'
+                        : editingCautionId !== null
+                          ? '수정 완료'
+                          : '저장'}
                     </Button>
                   </div>
                 </div>
@@ -801,6 +896,7 @@ function MyPage() {
                             size="sm"
                             variant="ghost"
                             className="border border-slate-200"
+                            onClick={() => handleStartEditCaution(item)}
                           >
                             수정
                           </Button>
@@ -881,6 +977,7 @@ function MyPage() {
                 medicationSchedules.map((schedule) => {
                   const medicines = getScheduleMedicines(schedule);
                   const status = getPrescriptionStatus(schedule);
+                  const range = getPrescriptionRange(schedule);
 
                   return (
                     <div
@@ -906,7 +1003,7 @@ function MyPage() {
                           </p>
 
                           <p className="mt-1 text-sm text-slate-500">
-                            기간: {schedule.startDate || '-'} ~ {schedule.endDate || '-'}
+                            기간: {range.startDate} ~ {range.endDate}
                           </p>
 
                           <p className="mt-1 text-sm text-slate-500">
@@ -920,6 +1017,7 @@ function MyPage() {
                           size="sm"
                           variant="ghost"
                           className="border border-slate-200"
+                          onClick={() => toast('처방전 수정 기능은 준비 중입니다.')}
                         >
                           수정
                         </Button>
