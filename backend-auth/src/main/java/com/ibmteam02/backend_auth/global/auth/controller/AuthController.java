@@ -104,5 +104,16 @@ public class AuthController {
         return ResponseEntity.ok("프로필 정보 수정 완료");
     }
 
+    // 약사 면허 정보 수정 (파일 업로드 포함) -> 약사 재승인 필요
+    @PatchMapping(value = "/pharmacists/profile", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> updatePharmacistProfile(
+            @AuthenticationPrincipal String email,
+            @RequestPart("data") PharmacistVerifyRequest pharmacistVerifyRequest,
+            @RequestPart(value = "licenseImage", required = false) MultipartFile licenseImage
+    ) {
+        authService.updatePharmacistProfile(email, pharmacistVerifyRequest, licenseImage);
+        return ResponseEntity.ok("약사 정보 수정 및 재승인 요청 완료");
+    }
+
 
 }

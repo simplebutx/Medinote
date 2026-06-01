@@ -214,6 +214,7 @@ public class AuthService {
                 .build();
     }
 
+
     //마이페이지 정보 수정
     @Transactional
     public void updateMyProfile(String email, ProfileUpdateRequest profileUpdateRequest) {
@@ -253,15 +254,28 @@ public class AuthService {
             }
         }
 
-        //약사 정보 수정
-        else if (user.getRole() == Role.PHARMACIST) {
-            pharmacistProfileRepository.findByUser(user).ifPresent(profile ->{
-                profile.updatePharmacistInfo(profileUpdateRequest.getDocNumber());
-            });
+    }
 
+    // 약사 정보 수정 (면허 재인증 포함)
+    @Transactional
+    public void updatePharmacistProfile(String email, PharmacistVerifyRequest request, MultipartFile image) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        PharmacistProfile profile = pharmacistProfileRepository.findByUser(user)
+                .orElseThrow(() -> new RuntimeException("약사 프로필이 존재하지 않습니다"));
+
+        String imageUrl = profile.getLicenseImage();
+        if (image != null && !image.isEmpty()) {
+            imageUrl = "s3/mymedi/licenses/" + image.getOriginalFilename(); // 실제 S3 연동 시 업로드 로직 필요
         }
 
+        // 1. 프로필 정보 업데이트
+        profile.updateLicenseInfo(request.getDocNumber(), request.getLicenseNumber(), imageUrl);
 
+        // 2. 관리자 재승인 상태로 변경
+        user.setWaitingForApproval();
+        userRepository.save(user);
     }
 
 }
