@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import './App.css'
 import AppLayout from './components/layout/AppLayout'
+import ChatbotPage from './pages/ChatbotPage'
 import Consultation from './pages/Consultation'
 import Login from './pages/Login'
 import MedicineSearch from './pages/MedicineSearch'
@@ -39,6 +40,7 @@ function App() {
           <Route path="/app/schedule/new" element={<ScheduleCreatePage />} />
           <Route path="/app/schedule/:id/edit" element={<ScheduleEditPage />} />
           <Route path="/app/ocr" element={<MedicationRegisterPage />} />
+          <Route path="/app/chatbot" element={<ChatbotPage />} />
           <Route path="/app/chat" element={<ChatConsultPage />} />
           <Route path="/app/drugs" element={<MedicineSearch />} />
           <Route path="/app/pharmacies" element={<PharmacyMap />} />
@@ -75,7 +77,7 @@ function App() {
           <Route path="/app/my" element={<MyPage />} />
         </Route>
 
-        <Route path="/chatbot" element={<Navigate to="/app/chat" replace />} />
+        <Route path="/chatbot" element={<Navigate to="/app/chatbot" replace />} />
         <Route path="/caution-register" element={<Navigate to="/app/my" replace />} />
         <Route path="/medicine-search" element={<Navigate to="/app/drugs" replace />} />
         <Route path="/schedule-test" element={<ScheduleListPage />} />
