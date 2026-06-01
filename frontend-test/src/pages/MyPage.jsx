@@ -610,6 +610,7 @@ function MyPage() {
 
             {message ? <div className="register-message">{message}</div> : null}
 
+            <div className="mypage-caution-layout">
             <div className="mypage-caution-form">
               <div className="register-tab-row compact">
                 <button
@@ -661,7 +662,7 @@ function MyPage() {
               ) : null}
 
               <div className="register-form-grid">
-                <label className="register-field">
+                <label className="register-field register-span-full">
                   <span>사유</span>
                   <select value={reason} onChange={(event) => setReason(event.target.value)}>
                     {cautionReasonOptions.map((option) => (
@@ -693,13 +694,21 @@ function MyPage() {
               {cautions.length ? (
                 cautions.map((item) => (
                   <article key={item.id} className="mypage-caution-card">
-                    <div>
-                      <div className="profile-badge-row">
-                        <span className="profile-badge blue">{item.itemName ? '약' : '성분'}</span>
-                        <span className="profile-badge yellow">{item.reason}</span>
+                    <div className="mypage-caution-card-main">
+                      <div className="mypage-caution-inline-grid">
+                        <div className="mypage-caution-inline-item">
+                          <span>약검색</span>
+                          <strong>{item.itemName || item.ingredientName}</strong>
+                        </div>
+                        <div className="mypage-caution-inline-item">
+                          <span>사유</span>
+                          <strong>{item.reason}</strong>
+                        </div>
+                        <div className="mypage-caution-inline-item">
+                          <span>메모</span>
+                          <strong>{item.memo || '메모 없음'}</strong>
+                        </div>
                       </div>
-                      <h3>{item.itemName || item.ingredientName}</h3>
-                      <p>{item.memo || '메모 없음'}</p>
                     </div>
                     <button type="button" className="register-remove-button" onClick={() => handleDeleteCaution(item.id)}>
                       삭제
@@ -709,6 +718,7 @@ function MyPage() {
               ) : (
                 <div className="app-placeholder-card">등록된 주의 성분이 없습니다.</div>
               )}
+            </div>
             </div>
           </div>
         ) : null}
@@ -993,8 +1003,7 @@ function MyPage() {
           <div className="mypage-section">
             <div className="mypage-section-heading">
               <div>
-                <h2>환경설정</h2>
-                <p>약 등록 시 자동으로 들어갈 기본 복약 시간을 횟수별로 설정합니다.</p>
+                <h2>기본 복용 시간 설정</h2>
               </div>
             </div>
 
@@ -1004,7 +1013,7 @@ function MyPage() {
               {Object.entries(defaultMedicationTimeSettings).map(([timesPerDay, times]) => (
                 <section key={timesPerDay} className="register-medicine-card">
                   <div className="register-medicine-title">
-                    <h3>하루 {timesPerDay}회 기본 시간</h3>
+                    <h3>하루 {timesPerDay}회</h3>
                   </div>
 
                   <div className="register-time-grid">
@@ -1012,7 +1021,6 @@ function MyPage() {
                       <div className="register-time-card" key={`default-time-${timesPerDay}-${slotIndex}`}>
                         <strong>{slotIndex + 1}회차</strong>
                         <label className="register-field">
-                          <span>기본 복용 시간</span>
                           <input
                             type="time"
                             value={time}

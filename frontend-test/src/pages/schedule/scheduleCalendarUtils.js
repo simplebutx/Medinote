@@ -11,10 +11,15 @@ function buildCalendarDays(referenceMonth, schedules) {
   const year = referenceMonth.getFullYear()
   const month = referenceMonth.getMonth()
   const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
   const gridStart = new Date(firstDay)
   gridStart.setDate(firstDay.getDate() - firstDay.getDay())
+  const gridEnd = new Date(lastDay)
+  gridEnd.setDate(lastDay.getDate() + (6 - lastDay.getDay()))
+  const totalDays =
+    Math.floor((gridEnd.getTime() - gridStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
 
-  return Array.from({ length: 42 }, (_, index) => {
+  return Array.from({ length: totalDays }, (_, index) => {
     const current = new Date(gridStart)
     current.setDate(gridStart.getDate() + index)
     const isoDate = formatIsoDate(current)

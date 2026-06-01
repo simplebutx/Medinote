@@ -93,7 +93,7 @@
 }
 
 .medicine-search-shell {
-  max-width: 1180px;
+  max-width: 1120px;
   margin: 0 auto;
 }
 
@@ -143,6 +143,7 @@
 .medicine-search-form {
   display: grid;
   gap: 12px;
+  width: 100%;
 }
 
 .medicine-search-input-group {
@@ -180,49 +181,13 @@
 }
 
 .medicine-search-hero-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.8fr);
-  gap: 18px;
+  display: block;
   margin-bottom: 24px;
   padding: 24px;
   border-radius: 28px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(160, 196, 191, 0.42);
   box-shadow: 0 18px 36px rgba(43, 71, 77, 0.08);
-}
-
-.medicine-search-preview {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 10px;
-  padding: 18px;
-  border-radius: 22px;
-  background: linear-gradient(180deg, #17313b 0%, #244652 100%);
-  color: #f4fbfa;
-}
-
-.medicine-search-preview-badge {
-  width: fit-content;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(176, 236, 223, 0.18);
-  color: #9be1d4;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.medicine-search-preview strong {
-  font-size: 22px;
-  line-height: 1.2;
-}
-
-.medicine-search-preview p {
-  margin: 0;
-  color: #d7ece8;
-  line-height: 1.6;
 }
 
 .medicine-search-wireframe {
@@ -741,20 +706,25 @@
 
 .medicine-search-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 20px;
   align-items: start;
 }
 
 .medicine-card {
   display: grid;
-  grid-template-columns: 176px minmax(0, 1fr);
   gap: 18px;
   padding: 18px;
   border-radius: 28px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(160, 196, 191, 0.42);
   box-shadow: 0 18px 36px rgba(43, 71, 77, 0.08);
+}
+
+.medicine-card-content {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 18px;
   align-items: start;
 }
 
@@ -788,8 +758,7 @@
 }
 
 .medicine-card-body {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 10px;
   min-width: 0;
 }
@@ -803,12 +772,9 @@
 
 .medicine-card-title-row h2 {
   margin: 0;
-  font-size: 24px;
+  font-size: 28px;
   line-height: 1.2;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
+  min-width: 0;
 }
 
 .medicine-card-title-row span {
@@ -827,36 +793,45 @@
   white-space: nowrap;
 }
 
-.medicine-card-meta {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 0;
-}
-
-.medicine-card-meta div {
-  padding: 12px;
-  border-radius: 16px;
-  background: #f5faf9;
+.medicine-card-section {
   border: 1px solid #dceae7;
-  min-width: 0;
-}
-
-.medicine-card-meta dt {
-  margin-bottom: 6px;
-  color: #0f766e;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.medicine-card-meta dd {
-  margin: 0;
-  color: #33515a;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  border-radius: 18px;
+  background: #f8fbfb;
   overflow: hidden;
+}
+
+.medicine-card-section summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  color: #0f766e;
+  font-size: 15px;
+  font-weight: 700;
+  list-style: none;
+}
+
+.medicine-card-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.medicine-card-section summary::after {
+  content: '+';
+  color: #48606a;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.medicine-card-section[open] summary::after {
+  content: '-';
+}
+
+.medicine-card-section-body {
+  padding: 0 16px 16px;
+  color: #33515a;
+  line-height: 1.7;
   word-break: break-word;
 }
 
@@ -1671,6 +1646,7 @@
   .medicine-search-input-group,
   .medicine-search-hero-card,
   .medicine-card,
+  .medicine-card-content,
   .caution-header,
   .caution-hero-card,
   .caution-search-input-group {
@@ -1757,7 +1733,7 @@
 }
 
 .pharmacy-map-shell {
-  max-width: 1280px;
+  max-width: 1120px;
   margin: 0 auto;
 }
 
@@ -1877,18 +1853,17 @@
 
 .pharmacy-map-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.8fr);
-  gap: 20px;
+  gap: 14px;
 }
 
 .pharmacy-map-panel,
 .pharmacy-map-list-card,
 .pharmacy-map-detail-card {
-  padding: 22px;
+  padding: 18px;
 }
 
 .pharmacy-map-toolbar {
-  margin-bottom: 18px;
+  margin-bottom: 10px;
 }
 
 .pharmacy-map-toolbar h2,
@@ -1907,16 +1882,10 @@
 
 .pharmacy-map-canvas {
   width: 100%;
-  min-height: 640px;
+  min-height: 560px;
   border-radius: 24px;
   overflow: hidden;
   background: linear-gradient(180deg, #dbe9e6 0%, #edf3f2 100%);
-}
-
-.pharmacy-map-sidebar {
-  display: grid;
-  gap: 20px;
-  align-content: start;
 }
 
 .pharmacy-map-list-header,
@@ -1992,6 +1961,10 @@
   margin: 0;
   color: #23313a;
   word-break: break-word;
+}
+
+.pharmacy-map-detail-card-wide {
+  margin-top: 14px;
 }
 
 @media (max-width: 960px) {
@@ -2078,6 +2051,23 @@ body {
   overflow-x: auto;
 }
 
+.app-sidebar-footer {
+  margin-top: 18px;
+}
+
+.app-sidebar-logout {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #d5deea;
+  border-radius: 14px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .app-sidebar-link {
   display: block;
   flex-shrink: 0;
@@ -2141,10 +2131,13 @@ body {
 }
 
 .app-content {
+  position: relative;
   padding: 24px 16px 40px;
 }
 
 .app-page {
+  max-width: 1120px;
+  margin: auto;
   display: grid;
   gap: 24px;
 }
@@ -2234,7 +2227,8 @@ body {
 .app-shell .medicine-search-shell,
 .app-shell .caution-shell,
 .app-shell .pharmacy-map-shell {
-  max-width: none;
+  max-width: 1120px;
+  margin: 16px auto 0;
 }
 
 .app-shell .medicine-search-header h1,
@@ -2270,11 +2264,15 @@ body {
 
   .app-sidebar-inner {
     padding: 24px 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
 
   .app-sidebar-nav {
     display: grid;
     overflow: visible;
+    margin-top: 0;
   }
 
   .app-main {
@@ -2283,13 +2281,33 @@ body {
   }
 
   .app-content {
-    padding: 32px;
+    padding: 50px 32px 32px;
+  }
+
+  .app-sidebar-footer {
+    margin-top: 12px;
+    padding-top: 0;
   }
 
   .app-two-column {
     grid-template-columns: minmax(0, 1fr) 320px;
   }
 
+  .app-page-header,
+  .app-shell .medicine-search-header,
+  .app-shell .caution-header,
+  .app-shell .pharmacy-map-header {
+    display: none;
+  }
+
+  .app-shell .schedule-hero > :first-child {
+    display: none;
+  }
+
+  .app-shell .schedule-hero {
+    justify-content: flex-end;
+    margin-bottom: 20px;
+  }
 }
 
 .chat-layout-card {
@@ -2346,6 +2364,10 @@ body {
   background: #2563eb;
   color: #fff;
   box-shadow: none;
+}
+
+.medication-register-page {
+  max-width: 1300px;
 }
 
 .chat-body-layout {
@@ -2506,6 +2528,34 @@ body {
   gap: 16px;
 }
 
+.register-shared-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.schedule-stats-grid .app-card {
+  padding: 18px 20px;
+  border-radius: 22px;
+}
+
+.schedule-dashboard-page {
+  max-width: 1380px;
+}
+
+.schedule-dashboard-layout {
+  display: grid;
+  gap: 24px;
+}
+
+.schedule-calendar-card,
+.schedule-selected-card {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.schedule-selected-card {
+  padding: 20px;
+}
+
 .schedule-stat-label,
 .schedule-stat-help {
   margin: 0;
@@ -2513,13 +2563,14 @@ body {
 
 .schedule-stat-label {
   color: #64748b;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .schedule-stat-value {
   display: block;
-  margin-top: 12px;
-  font-size: 52px;
+  margin-top: 8px;
+  font-size: 34px;
+  line-height: 1.05;
   color: #0f172a;
 }
 
@@ -2532,8 +2583,10 @@ body {
 }
 
 .schedule-stat-help {
-  margin-top: 8px;
+  margin-top: 6px;
   color: #64748b;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .schedule-banner-panel,
@@ -2648,7 +2701,7 @@ body {
 .dashboard-calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .dashboard-weekday-cell {
@@ -2660,8 +2713,8 @@ body {
 }
 
 .dashboard-calendar-cell {
-  min-height: 118px;
-  padding: 14px;
+  min-height: 92px;
+  padding: 12px;
   border: 1px solid #edf2f7;
   border-radius: 20px;
   background: #f8fbff;
@@ -2694,7 +2747,9 @@ body {
 
 .dashboard-calendar-cell.empty.muted,
 .dashboard-calendar-cell.muted {
-  opacity: 0.72;
+  opacity: 0.42;
+  background: #f8fafc;
+  color: #c3cfde;
 }
 
 .dashboard-calendar-cell .date-number {
@@ -2705,64 +2760,158 @@ body {
 
 .dashboard-calendar-cell strong {
   display: block;
-  margin-top: 12px;
-  font-size: 14px;
+  margin-top: 8px;
+  font-size: 13px;
 }
 
 .schedule-dose-groups {
   display: grid;
   gap: 18px;
+  justify-items: stretch;
 }
 
 .dose-time-group {
-  padding: 18px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 12px 14px;
   border: 1px solid #d9e2ef;
-  border-radius: 22px;
+  border-radius: 18px;
   background: #fff;
+  box-sizing: border-box;
+}
+
+.dose-time-header > div {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .dose-time-header strong {
   color: #2563eb;
-  font-size: 20px;
+  font-size: 17px;
+  line-height: 1.2;
 }
 
 .dose-time-header p,
 .dose-item-card p {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: #64748b;
+  font-size: 14px;
 }
 
 .dose-item-list {
   display: grid;
-  gap: 14px;
-  margin-top: 16px;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 .dose-item-card {
+  width: 100%;
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
-  padding: 16px;
-  border-radius: 18px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 16px;
   background: #f8fbff;
+  box-sizing: border-box;
+}
+
+.schedule-selected-card {
+  max-width: none;
+}
+
+.dose-item-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .dose-title-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+
+.dose-item-content .dose-title-row {
+  flex: 0 0 auto;
+}
+
+.dose-item-content > p,
+.dose-time-header p {
+  margin: 0;
 }
 
 .dose-title-row h3 {
   margin: 0;
-  font-size: 24px;
+  font-size: 20px;
+  line-height: 1.15;
 }
 
 .dose-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.dose-check-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: transparent;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.dose-check-toggle span {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.dose-check-toggle.active {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.schedule-selected-card .schedule-panel-header {
+  margin-bottom: 14px;
+}
+
+.schedule-selected-card .schedule-panel-header h2 {
+  margin-bottom: 6px;
+  font-size: 20px;
+}
+
+.schedule-selected-card .schedule-panel-header p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.schedule-selected-card .today-pill {
+  padding: 5px 10px;
+  font-size: 11px;
+}
+
+.schedule-selected-card .dose-status {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .register-ocr-layout {
@@ -2771,10 +2920,28 @@ body {
   margin: 24px 0;
 }
 
+.register-ocr-layout-centered {
+  max-width: 400px;
+  margin: 32px auto;
+}
+
+.app-card > .register-tab-row {
+  margin-bottom: 24px;
+}
+
 .register-ocr-upload,
 .register-ocr-result {
   display: grid;
   gap: 16px;
+}
+
+.register-ocr-upload-form {
+  display: grid;
+  gap: 16px;
+}
+
+.register-ocr-result {
+  display: none;
 }
 
 .register-ocr-panel {
@@ -2836,6 +3003,17 @@ body {
 .mypage-prescription-list {
   display: grid;
   gap: 16px;
+}
+
+.register-medicine-layout {
+  display: grid;
+  gap: 20px;
+  margin-top: 12px;
+}
+
+.register-medicine-main,
+.register-medicine-times {
+  min-width: 0;
 }
 
 .register-medicine-card,
@@ -3037,6 +3215,52 @@ body {
   padding: 20px;
   border-radius: 22px;
   background: #f8fbff;
+}
+
+.mypage-caution-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.mypage-caution-list {
+  grid-template-columns: 1fr;
+}
+
+.mypage-caution-card {
+  align-items: center;
+}
+
+.mypage-caution-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.mypage-caution-inline-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  width: 100%;
+}
+
+.mypage-caution-inline-item {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mypage-caution-inline-item span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mypage-caution-inline-item strong {
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
 .mypage-suggestion-list {
@@ -3246,19 +3470,37 @@ body {
     grid-template-columns: minmax(0, 1fr) 320px;
   }
 
-  .register-ocr-layout,
   .schedule-stats-grid,
   .register-form-grid,
   .mypage-info-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .register-shared-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .schedule-stats-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .register-ocr-layout {
-    grid-template-columns: 0.9fr 1.1fr;
+  .schedule-dashboard-layout {
+    grid-template-columns: minmax(0, 1.6fr) minmax(360px, 0.9fr);
+    align-items: start;
+  }
+
+  .schedule-selected-card {
+    position: sticky;
+    top: 24px;
+  }
+
+  .medication-register-page {
+    max-width: 1480px;
+  }
+
+  .register-medicine-layout {
+    grid-template-columns: minmax(0, 1.05fr) minmax(420px, 0.95fr);
+    align-items: start;
   }
 
   .register-time-grid {
@@ -3290,6 +3532,16 @@ body {
   .dose-item-card {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .schedule-dashboard-page {
+    max-width: 1120px;
+  }
+
+  .mypage-caution-list,
+  .mypage-caution-layout,
+  .mypage-caution-inline-grid {
+    grid-template-columns: 1fr;
   }
 
   .dashboard-calendar-grid {

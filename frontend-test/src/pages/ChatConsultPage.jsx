@@ -108,6 +108,14 @@ function ChatConsultPage() {
     if (activeTab === 'my') fetchMyRooms()
   }, [activeTab])
 
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current)
+      }
+    }
+  }, [])
+
   const handleMessageChange = (event) => {
     const value = event.target.value
     setMessage(value)
@@ -135,6 +143,9 @@ function ChatConsultPage() {
 
   const clearSuggestions = () => { setSuggestions([]); setShowSuggestions(false); }
   const handleSuggestionClick = (selectedName) => {
+    if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current)
+    latestKeywordRef.current = ''
+    latestRequestIdRef.current += 1
     setMessage((prev) => prev.replace(/@([^\s@]*)$/, `@${selectedName} `))
     setConfirmedMentions((prev) => (prev.includes(selectedName) ? prev : [...prev, selectedName]))
     clearSuggestions()
@@ -148,7 +159,7 @@ function ChatConsultPage() {
     if (activeTab === 'ai') {
       const userMsg = { id: nextMessageIdRef.current++, sender: 'USER', time: '방금', content: trimmedMessage }
       setAiMessages(prev => [...prev, userMsg])
-      setMessage(''); setLoading(true);
+      setMessage(''); clearSuggestions(); setLoading(true);
       try {
         const data = await sendChatbotMessage(trimmedMessage)
         setAiMessages(prev => [...prev, { id: nextMessageIdRef.current++, sender: 'AI', time: createTimestampLabel(), content: data.answer || '답변을 가져오지 못했습니다.' }])
@@ -160,6 +171,7 @@ function ChatConsultPage() {
     else if (activeTab === 'pharmacist') {
       // 실제 약사 상담 신청 로직
       if (!window.confirm('입력하신 내용으로 약사 상담을 신청하시겠습니까?')) return
+      clearSuggestions()
       setLoading(true)
       try {
         const res = await axios.post('http://localhost:8082/app/consult/room', {}, {
@@ -262,6 +274,21 @@ function ChatConsultPage() {
                   <div className="message-input-highlight" aria-hidden="true">{renderHighlightedText(message, confirmedMentions)}</div>
                   <textarea className="message-input" value={message} onChange={handleMessageChange} placeholder={activeTab === 'ai' ? "@로 약을 검색하거나 질문을 입력하세요." : "약사님께 보낼 첫 메시지를 입력하세요."} rows={2} />
                 </div>
+                {activeTab === 'ai' && showSuggestions && (
+                  <ul className="suggestion-list chat-suggestion-list">
+                    {suggestions.map((suggestion) => (
+                      <li key={suggestion}>
+                        <button
+                          className="suggestion-item"
+                          type="button"
+                          onClick={() => handleSuggestionClick(suggestion)}
+                        >
+                          {suggestion}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <button type="submit" className="chat-send-button" disabled={loading}>{loading ? '전송 중' : '전송'}</button>
               </form>
             )}
