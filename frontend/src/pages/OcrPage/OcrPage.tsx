@@ -383,6 +383,54 @@ function OcrPage() {
     return '식후';
   }
 
+  function getRawTextFromOcrResponse(response: PrescriptionOcrResponse) {
+    const parsed = parseOcrResultJson(response.resultJson);
+
+    const parsedRawText =
+      parsed && typeof parsed.rawText === 'string' ? parsed.rawText : '';
+
+    return response.rawText || parsedRawText || '';
+  }
+
+  function inferTimesPerDayFromText(text: string) {
+    const normalizedText = text.replace(/\s+/g, ' ');
+
+    const patterns = [
+      /1\s*일\s*(\d{1,2})\s*회/,
+      /1\s*일\s*(\d{1,2})\s*번/,
+      /하루\s*(\d{1,2})\s*회/,
+      /하루\s*(\d{1,2})\s*번/,
+      /매일\s*(\d{1,2})\s*회/,
+      /(\d{1,2})\s*회\s*\/\s*일/,
+      /(\d{1,2})\s*번\s*\/\s*일/,
+    ];
+
+    for (const pattern of patterns) {
+      const matched = normalizedText.match(pattern);
+
+      if (matched?.[1]) {
+        return clampTimesPerDay(matched[1]);
+      }
+    }
+
+    if (
+      normalizedText.includes('아침') &&
+      normalizedText.includes('점심') &&
+      normalizedText.includes('저녁')
+    ) {
+      return 3;
+    }
+
+    if (
+      normalizedText.includes('아침') &&
+      normalizedText.includes('저녁')
+    ) {
+      return 2;
+    }
+
+    return 0;
+  }
+
   function convertOcrResponseToMedicationPreviews(
     response: PrescriptionOcrResponse,
   ): MedicationPreview[] {
@@ -434,21 +482,34 @@ function OcrPage() {
         'item_sequence',
       ]);
 
-      const timesPerDay = clampTimesPerDay(
-        getValueByKeys(item, [
-          'timesPerDay',
-          'times_per_day',
-          'dailyCount',
-          'daily_count',
-          'doseCountPerDay',
-          'dose_count_per_day',
-          'countPerDay',
-          'count_per_day',
-          'frequencyPerDay',
-          'frequency_per_day',
-          'frequency',
-        ]),
-      );
+      const rawText = getRawTextFromOcrResponse(response);
+
+      const explicitTimesPerDay = getValueByKeys(item, [
+        'timesPerDay',
+        'times_per_day',
+        'dailyCount',
+        'daily_count',
+        'doseCountPerDay',
+        'dose_count_per_day',
+        'countPerDay',
+        'count_per_day',
+        'frequencyPerDay',
+        'frequency_per_day',
+      ]);
+
+      const itemText = Object.values(item)
+        .filter((value) => typeof value === 'string' || typeof value === 'number')
+        .join(' ');
+
+      const inferredTimesPerDay =
+        inferTimesPerDayFromText(String(explicitTimesPerDay ?? '')) ||
+        inferTimesPerDayFromText(itemText) ||
+        inferTimesPerDayFromText(rawText);
+
+      const timesPerDay =
+        inferredTimesPerDay > 0
+          ? inferredTimesPerDay
+          : clampTimesPerDay(explicitTimesPerDay);
 
       const timing = parseTiming(
         getValueByKeys(item, [
@@ -562,15 +623,6 @@ function OcrPage() {
         return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
       }
 
-      function getRawTextFromOcrResponse(response: PrescriptionOcrResponse) {
-        const parsed = parseOcrResultJson(response.resultJson);
-
-        const parsedRawText =
-          parsed && typeof parsed.rawText === 'string' ? parsed.rawText : '';
-
-        return response.rawText || parsedRawText || '';
-      }
-
       function inferHospitalNameFromRawText(rawText: string) {
         const matched = rawText.match(
           /([가-힣A-Za-z0-9\s]+(?:병원|의원|클리닉))/,
@@ -591,6 +643,8 @@ function OcrPage() {
       ): PrescriptionCommonForm {
         const parsed = parseOcrResultJson(response.resultJson);
         const rawText = getRawTextFromOcrResponse(response);
+
+        const durationDaysFromRawText = inferDurationDaysFromRawText(rawText);
 
         if (!parsed) {
           return prevCommonForm;
@@ -693,6 +747,10 @@ function OcrPage() {
             itemDurations.length > 0 ? Math.max(...itemDurations) : 0;
         }
 
+        if (durationDaysFromRawText > 0) {
+          durationDays = durationDaysFromRawText;
+        }
+
         return {
           hospitalName,
           pharmacyName,
@@ -702,6 +760,27 @@ function OcrPage() {
               ? String(durationDays)
               : prevCommonForm.durationDays,
         };
+      }
+
+      function inferDurationDaysFromRawText(rawText: string) {
+        const patterns = [
+          /(\d{1,3})\s*일\s*분/,
+          /(\d{1,3})\s*일분/,
+          /(\d{1,3})\s*일\s*치/,
+          /투약\s*일수\s*[:：]?\s*(\d{1,3})/,
+          /처방\s*일수\s*[:：]?\s*(\d{1,3})/,
+          /복용\s*기간\s*[:：]?\s*(\d{1,3})/,
+        ];
+
+        for (const pattern of patterns) {
+          const matched = rawText.match(pattern);
+
+          if (matched?.[1]) {
+            return Number(matched[1]);
+          }
+        }
+
+        return 0;
       }
 
       const convertedResults =
@@ -880,16 +959,14 @@ function OcrPage() {
           throw new Error('복약 시간 등록에 필요한 약별 ID가 없습니다.');
         }
 
-        await Promise.all(
-          item.doseTimes.map((doseTime, doseIndex) =>
-            createScheduleTimeMutation.mutateAsync({
-              medicationScheduleMedicineId: createdMedicine.id,
-              timing: mapTiming(doseTime.timing),
-              takeTime: normalizeTakeTime(doseTime.takeTime),
-              sortOrder: doseIndex + 1,
-            }),
-          ),
-        );
+        for (const [doseIndex, doseTime] of item.doseTimes.entries()) {
+          await createScheduleTimeMutation.mutateAsync({
+            medicationScheduleMedicineId: createdMedicine.id,
+            timing: mapTiming(doseTime.timing),
+            takeTime: normalizeTakeTime(doseTime.takeTime),
+            sortOrder: doseIndex + 1,
+          });
+        }
       }
 
       toast.success('복약 일정이 등록되었습니다.');
