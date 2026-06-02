@@ -2,6 +2,7 @@ package com.ibmteam02.backend_auth.user.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -39,6 +40,10 @@ public class User {
     @Column(length = 50)
     private UserStatus status; // WAITING_APPROVAL, ACTIVE
 
+    @CreationTimestamp
+    @Column(updatable = false)
+    private LocalDateTime createdAt; // 가입일
+
     @Builder
     public User(String email, String password, String username, LocalDate birthDate, Gender gender, Role role) {
         this.email = email;
@@ -58,6 +63,11 @@ public class User {
     //약사 2단계 완료 시 승인 대기 상태로 변경
     public void setWaitingForApproval() {
         this.status = UserStatus.WAITING_APPROVAL;
+    }
+
+    //약사 승인 거절 시 REJECTED 상태로 변경
+    public void rejectPharmacist(){
+        this.status = UserStatus.REJECTED;
     }
 
     //기본 정보 수정

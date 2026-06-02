@@ -21,6 +21,16 @@ export const logout = async (accessToken) => {
   return response.data
 }
 
+export const updateMyProfile = async (payload) => {
+  const response = await api.patch('/auth/me', payload)
+  return response.data
+}
+
+export const withdrawAccount = async () => {
+  const response = await api.delete('/auth/me')
+  return response.data
+}
+
 export const saveAuthSession = (session) => {
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
 }

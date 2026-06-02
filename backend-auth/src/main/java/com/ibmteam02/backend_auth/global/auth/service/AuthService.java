@@ -30,6 +30,7 @@ public class AuthService {
     private final DiseaseMasterRepository diseaseMasterRepository;
     private final UserChronicDiseaseRepository userChronicDiseaseRepository;
     private final PharmacistProfileRepository pharmacistProfileRepository;
+    private final S3Service s3Service;
 
     public List<String> suggestDiseaseNames(String keyword) {
         if (!StringUtils.hasText(keyword)) {
@@ -104,7 +105,8 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("유저 없음"));
 
-        String imageUrl = "s3/mymedi/licenses/" + image.getOriginalFilename();
+        // 실제 S3에 업로드
+        String imageUrl = s3Service.upload(image);
 
         PharmacistProfile pharmacistProfile = PharmacistProfile.builder()
                 .user(user)
@@ -129,10 +131,8 @@ public class AuthService {
             throw new IllegalArgumentException("회원가입이 완료되지 않은 회원입니다");
         }
 
-        if (user.getStatus() == UserStatus.WAITING_APPROVAL) {
-            if (user.getRole() == Role.PHARMACIST) {
-                throw new IllegalArgumentException("관리자 확인 후 로그인이 가능합니다");
-            }
+        // WAITING_APPROVAL 상태여도 로그인은 가능하게 수정 (마이페이지 접근 등 허용을 위함)
+        if (user.getStatus() == UserStatus.WAITING_APPROVAL && user.getRole() == Role.USER) {
             throw new IllegalArgumentException("회원가입이 완료되지 않은 계정입니다");
         }
 
@@ -210,7 +210,9 @@ public class AuthService {
                 //약사 정보
                 .docNumber(pharmacistProfile != null ? pharmacistProfile.getDocNumber() : null)
                 .licenseNumber(pharmacistProfile != null ? pharmacistProfile.getLicenseNumber() : null)
-                .licenseImage(pharmacistProfile != null ? pharmacistProfile.getLicenseImage() : null)
+                .licenseImage(pharmacistProfile != null && pharmacistProfile.getLicenseImage() != null 
+                        ? s3Service.getPresignedUrl(pharmacistProfile.getLicenseImage()) 
+                        : null)
                 .build();
     }
 
@@ -267,7 +269,7 @@ public class AuthService {
 
         String imageUrl = profile.getLicenseImage();
         if (image != null && !image.isEmpty()) {
-            imageUrl = "s3/mymedi/licenses/" + image.getOriginalFilename(); // 실제 S3 연동 시 업로드 로직 필요
+            imageUrl = s3Service.upload(image);
         }
 
         // 1. 프로필 정보 업데이트
@@ -277,5 +279,14 @@ public class AuthService {
         user.setWaitingForApproval();
         userRepository.save(user);
     }
+
+    //본인 계정 탈퇴 및 삭제 (일반 유저, 약사용)
+    @Transactional
+    public void withdraw(String email){
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(()->new CustomException(ErrorCode.USER_NOT_FOUND));
+        userRepository.delete(user);
+    }
+
 
 }

@@ -1,7 +1,10 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Link, Route, Routes, Navigate, Outlet } from 'react-router-dom'
+import { getAuthSession } from './api'
 
 import './App.css'
 import AppLayout from './components/layout/AppLayout'
+import PharmLayout from './components/layout/PharmLayout'
+import AdminLayout from './components/layout/AdminLayout'
 import ChatbotPage from './pages/ChatbotPage'
 import Consultation from './pages/Consultation'
 import Login from './pages/Login'
@@ -20,6 +23,12 @@ import Signup from './pages/Signup'
 import SimplePlaceholderPage from './pages/SimplePlaceholderPage'
 import Sync from './pages/Sync'
 import YunjuTest from './pages/YunjuTest'
+import PharmacistDashboard from './pages/PharmacistDashboard'
+import PharmacistRoomList from './pages/PharmacistRoomList'
+import PharmacistProfile from './pages/PharmacistProfile'
+import AdminDashboard from './pages/AdminDashboard'
+import AdminPharmacistList from './pages/AdminPharmacistList'
+import AdminUserList from './pages/AdminUserList'
 
 function App() {
   return (
@@ -32,6 +41,24 @@ function App() {
         <Route path="/yunjutest" element={<YunjuTest />} />
         <Route path="/sync" element={<Sync />} />
         <Route path="/consultation" element={<Consultation />} />
+
+        {/* 🩺 약사 전용 (/p) */}
+        <Route element={<PharmLayout />}>
+          <Route path="/p" element={<Navigate to="/p/dashboard" replace />} />
+          <Route path="/p/dashboard" element={<PharmacistDashboard />} />
+          <Route path="/p/rooms" element={<PharmacistRoomList />} />
+          <Route path="/p/profile" element={<PharmacistProfile />} />
+          <Route path="/p/consultation" element={<Consultation />} />
+        </Route>
+
+        {/* ⚙️ 관리자 전용 (/a) */}
+        <Route element={<AdminLayout />}>
+          <Route path="/a" element={<Navigate to="/a/dashboard" replace />} />
+          <Route path="/a/dashboard" element={<AdminDashboard />} />
+          <Route path="/a/approvals" element={<AdminPharmacistList />} />
+          <Route path="/a/users" element={<AdminUserList />} />
+          <Route path="/a/sync" element={<Sync />} />
+        </Route>
 
         <Route element={<AppLayout />}>
           <Route path="/app" element={<Navigate to="/app/schedule" replace />} />

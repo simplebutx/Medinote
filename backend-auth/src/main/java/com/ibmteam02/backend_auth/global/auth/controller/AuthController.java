@@ -6,6 +6,7 @@ import com.ibmteam02.backend_auth.user.dto.*;
 
 import java.util.List;
 import java.util.Map;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -113,6 +114,13 @@ public class AuthController {
     ) {
         authService.updatePharmacistProfile(email, pharmacistVerifyRequest, licenseImage);
         return ResponseEntity.ok("약사 정보 수정 및 재승인 요청 완료");
+    }
+
+    //본인 계정 탈퇴 및 삭제 (일반 유저, 약사용)
+    @DeleteMapping("/me")
+    public ResponseEntity<String> withdraw(@AuthenticationPrincipal String email){
+        authService.withdraw(email);
+        return ResponseEntity.ok("회원 탈퇴가 완료되었습니다.");
     }
 
 

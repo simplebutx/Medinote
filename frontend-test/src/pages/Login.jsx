@@ -29,7 +29,14 @@ function Login() {
         userId: res.userId || res.id, // ID 추가
       })
 
-      navigate('/app/my')
+      const role = res.role;
+      if (role === 'PHARMACIST' || role === 'ROLE_PHARMACIST') {
+        navigate('/p/dashboard');
+      } else if (role === 'ADMIN' || role === 'ROLE_ADMIN') {
+        navigate('/a/dashboard');
+      } else {
+        navigate('/app/schedule');
+      }
     } catch (error) {
       setMessage(`로그인에 실패했습니다. ${error.response?.data?.message || error.message}`)
     } finally {

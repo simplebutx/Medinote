@@ -82,6 +82,11 @@ public class JwtProvider {
         return Long.valueOf(String.valueOf(userId));
     }
 
+    // [추출] 토큰에서 role 꺼내기
+    public String getRoleFromToken(String token) {
+        return (String) getClaims(token).get("role");
+    }
+
     // [검증] 토큰이 유효한지 체크
     public boolean validateToken(String token) {
         try {

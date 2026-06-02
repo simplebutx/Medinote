@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Getter
@@ -13,7 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 public class PatientInfoResponse {
     private String username;
-    private Integer age;
+    private LocalDate birthDate;
     private String gender;
     private Boolean isPregnant;
     private Boolean isBreastfeeding;

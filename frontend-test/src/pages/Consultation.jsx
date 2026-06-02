@@ -18,6 +18,7 @@ const Consultation = () => {
     const [senderId, setSenderId] = useState(session?.userId || '');
     const [senderType, setSenderType] = useState(session?.role || 'USER');
     const [connected, setIsConnected] = useState(false);
+    const [patientInfo, setPatientInfo] = useState(null);
     
     // 웹소켓 중복 연결 및 구독 방지를 위한 Refs
     const stompClientRef = useRef(null);
@@ -34,10 +35,24 @@ const Consultation = () => {
         if (initialRoomId && session && !connected) {
             connect(initialRoomId);
         }
+        if (initialRoomId && (session?.role === 'PHARMACIST' || session?.role === 'ROLE_PHARMACIST')) {
+            fetchPatientInfo(initialRoomId);
+        }
         return () => {
             disconnect();
         };
     }, [initialRoomId]);
+
+    const fetchPatientInfo = async (targetRoomId) => {
+        try {
+            const res = await axios.get(`http://localhost:8082/app/consult/room/${targetRoomId}/patient-info`, {
+                headers: { Authorization: `Bearer ${session.accessToken}` }
+            });
+            setPatientInfo(res.data);
+        } catch (error) {
+            console.error("환자 정보 조회 실패:", error);
+        }
+    };
 
     useEffect(() => {
         scrollToBottom();
@@ -177,6 +192,25 @@ const Consultation = () => {
             </div>
 
             <div style={chatBodyStyle}>
+                {(senderType === 'PHARMACIST' || senderType === 'ROLE_PHARMACIST') && patientInfo && (
+                    <div style={patientInfoBoxStyle}>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
+                            <strong style={{fontSize:'16px', color:'#065f46'}}>📋 환자 상세 정보</strong>
+                            <span style={{fontSize:'12px', color:'#64748b'}}>Room ID: {roomId}</span>
+                        </div>
+                        <div style={{display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:'8px', fontSize:'14px'}}>
+                            <div><span style={labelDimStyle}>성함:</span> {patientInfo.username}</div>
+                            <div><span style={labelDimStyle}>나이/성별:</span> {patientInfo.age}세 / {patientInfo.gender === 'MALE' ? '남성' : '여성'}</div>
+                            <div><span style={labelDimStyle}>흡연/음주:</span> {patientInfo.isSmoking ? 'Y' : 'N'} / {patientInfo.isDrinking ? 'Y' : 'N'}</div>
+                            <div><span style={labelDimStyle}>임신/수유:</span> {patientInfo.isPregnant ? 'Y' : 'N'} / {patientInfo.isBreastfeeding ? 'Y' : 'N'}</div>
+                        </div>
+                        {patientInfo.chronicDiseases && patientInfo.chronicDiseases.length > 0 && (
+                            <div style={{marginTop:'8px', fontSize:'13px', borderTop:'1px dashed #cbd5e1', paddingTop:'8px'}}>
+                                <span style={labelDimStyle}>기저질환:</span> {patientInfo.chronicDiseases.join(', ')}
+                            </div>
+                        )}
+                    </div>
+                )}
                 {!connected ? (
                     <div style={loginOverlayStyle}>
                         <div style={loginBoxStyle}>
@@ -287,6 +321,19 @@ const bubbleStyle = { maxWidth: '65%', padding: '12px 18px', fontSize: '16px', l
 const senderNameStyle = { fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#8e8e93' };
 const systemMessageStyle = { textAlign: 'center', fontSize: '13px', color: '#8e8e93', margin: '20px 0', fontWeight: '500' };
 const avatarStyle = { width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#007AFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', fontWeight: '700', color: '#fff', opacity: 0.8 };
+
+const patientInfoBoxStyle = {
+    padding: '16px 20px',
+    backgroundColor: '#f0fdf4',
+    borderBottom: '1px solid #dcfce7',
+    position: 'sticky',
+    top: 0,
+    zIndex: 10,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+};
+
+const labelDimStyle = { color: '#64748b', fontWeight: '500', marginRight: '4px' };
+
 const inputContainerWrapperStyle = { padding: '16px 24px 30px', backgroundColor: 'rgba(255,255,255,0.9)', borderTop: '1px solid #f2f2f7' };
 const inputContainerStyle = { display: 'flex', alignItems: 'center', gap: '12px', maxWidth: '1000px', margin: '0 auto' };
 const pcInputStyle = { flex: 1, padding: '12px 20px', borderRadius: '24px', border: '1px solid #e5e5ea', backgroundColor: '#f2f2f7', fontSize: '16px', outline: 'none' };
