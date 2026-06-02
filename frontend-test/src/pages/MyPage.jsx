@@ -13,8 +13,6 @@ import {
   getMedicationSchedules,
   suggestCautions,
   updateMedicationSchedule,
-  updateMyProfile,
-  suggestDiseases,
 } from '../api'
 import { DOSAGE_UNIT_OPTIONS, MAX_TIMES_PER_DAY, TIMING_OPTIONS } from './schedule/constants'
 import {
@@ -161,78 +159,28 @@ function MyPage() {
     loadDefaultMedicationTimeSettings(),
   )
 
-  // 기본 정보 수정 관련 상태
-  const [isEditingProfile, setIsEditingProfile] = useState(false)
-  const [profileForm, setProfileForm] = useState({
-    username: '',
-    birthDate: '',
-    gender: ''
-  })
-
-  // 건강 정보 수정 관련 상태
-  const [isEditingHealth, setIsEditingHealth] = useState(false)
-  const [healthForm, setHealthForm] = useState({
-    isPregnant: false,
-    isBreastfeeding: false,
-    isSmoking: false,
-    isDrinking: false,
-    chronicDiseases: []
-  })
-  const [diseaseKeyword, setDiseaseKeyword] = useState('')
-  const [diseaseSuggestions, setDiseaseSuggestions] = useState([])
-
-  const loadProfile = async () => {
-    try {
-      const response = await axios.get('/api/auth/me', {
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-        },
-      })
-      const data = response.data
-      setProfile(data)
-      
-      // 폼 초기화
-      setProfileForm({
-        username: data.username || '',
-        birthDate: data.birthDate || '',
-        gender: data.gender || ''
-      })
-      setHealthForm({
-        isPregnant: data.isPregnant || false,
-        isBreastfeeding: data.isBreastfeeding || false,
-        isSmoking: data.isSmoking || false,
-        isDrinking: data.isDrinking || false,
-        chronicDiseases: data.chronicDiseases || []
-      })
-    } catch (error) {
-      setMessage('프로필 정보를 불러오지 못했습니다.')
-    }
-  }
-
   const loadPrescriptionRecords = async (preferredId) => {
-    try {
-      const schedules = await getMedicationSchedules()
-      const timeEntries = await Promise.all(
-        schedules.map(async (schedule) => [schedule.id, await getMedicationScheduleTimes(schedule.id)]),
-      )
-      const timeMap = Object.fromEntries(timeEntries)
-      const records = schedules.map((schedule) =>
-        mapScheduleToPrescriptionRecord(schedule, timeMap[schedule.id] || []),
-      )
+    const schedules = await getMedicationSchedules()
+    const timeEntries = await Promise.all(
+      schedules.map(async (schedule) => [schedule.id, await getMedicationScheduleTimes(schedule.id)]),
+    )
+    const timeMap = Object.fromEntries(timeEntries)
+    const records = schedules.map((schedule) =>
+      mapScheduleToPrescriptionRecord(schedule, timeMap[schedule.id] || []),
+    )
 
-      setPrescriptions(records)
-      setSelectedPrescriptionId((currentId) => {
-        if (preferredId && records.some((record) => record.id === preferredId)) {
-          return preferredId
-        }
-        if (currentId && records.some((record) => record.id === currentId)) {
-          return currentId
-        }
-        return records[0]?.id || null
-      })
-    } catch (e) {
-      console.error("처방전 로드 실패", e)
-    }
+    setPrescriptions(records)
+    setSelectedPrescriptionId((currentId) => {
+      if (preferredId && records.some((record) => record.id === preferredId)) {
+        return preferredId
+      }
+
+      if (currentId && records.some((record) => record.id === currentId)) {
+        return currentId
+      }
+
+      return records[0]?.id || null
+    })
   }
 
   useEffect(() => {
@@ -243,8 +191,16 @@ function MyPage() {
       }
 
       try {
-        await loadProfile()
-        const cautionResponse = await getCautions()
+        const [profileResponse, cautionResponse] = await Promise.all([
+          axios.get('/api/auth/me', {
+            headers: {
+              Authorization: `Bearer ${session.accessToken}`,
+            },
+          }),
+          getCautions(),
+        ])
+
+        setProfile(profileResponse.data)
         setCautions(cautionResponse)
         await loadPrescriptionRecords()
       } catch (error) {
@@ -257,79 +213,13 @@ function MyPage() {
     load()
   }, [session])
 
-  // 질병 검색 로직
-  useEffect(() => {
-    const run = async () => {
-      if (diseaseKeyword.trim().length < 2) {
-        setDiseaseSuggestions([])
-        return
-      }
-      try {
-        const items = await suggestDiseases(diseaseKeyword.trim())
-        setDiseaseSuggestions(items)
-      } catch {
-        setDiseaseSuggestions([])
-      }
-    }
-    const timeoutId = window.setTimeout(run, 250)
-    return () => window.clearTimeout(timeoutId)
-  }, [diseaseKeyword])
-
-  // 기본 정보 저장
-  const handleSaveBasicProfile = async () => {
-    try {
-      await updateMyProfile({
-        ...profileForm,
-        isPregnant: profile.isPregnant,
-        isBreastfeeding: profile.isBreastfeeding,
-        isSmoking: profile.isSmoking,
-        isDrinking: profile.isDrinking,
-        diseases: profile.chronicDiseases
-      })
-      alert('기본 정보가 수정되었습니다.')
-      await loadProfile()
-      setIsEditingProfile(false)
-    } catch (error) {
-      alert('기본 정보 수정에 실패했습니다.')
-    }
-  }
-
-  // 건강 정보 저장
-  const handleSaveHealth = async () => {
-    try {
-      await updateMyProfile({
-        username: profile.username,
-        birthDate: profile.birthDate,
-        gender: profile.gender,
-        isPregnant: healthForm.isPregnant,
-        isBreastfeeding: healthForm.isBreastfeeding,
-        isSmoking: healthForm.isSmoking,
-        isDrinking: healthForm.isDrinking,
-        diseases: healthForm.chronicDiseases
-      })
-      alert('건강 정보가 수정되었습니다.')
-      await loadProfile()
-      setIsEditingHealth(false)
-    } catch (error) {
-      alert('건강 정보 수정에 실패했습니다.')
-    }
-  }
-
-  const toggleDisease = (name) => {
-    setHealthForm(prev => ({
-      ...prev,
-      chronicDiseases: prev.chronicDiseases.includes(name)
-        ? prev.chronicDiseases.filter(d => d !== name)
-        : [...prev.chronicDiseases, name]
-    }))
-  }
-
   useEffect(() => {
     const run = async () => {
       if (cautionKeyword.trim().length < 2) {
         setCautionSuggestions([])
         return
       }
+
       try {
         const items = await suggestCautions(cautionKeyword.trim(), cautionType)
         setCautionSuggestions(items)
@@ -337,6 +227,7 @@ function MyPage() {
         setCautionSuggestions([])
       }
     }
+
     const timeoutId = window.setTimeout(run, 200)
     return () => window.clearTimeout(timeoutId)
   }, [cautionKeyword, cautionType])
@@ -620,12 +511,16 @@ function MyPage() {
             <h2>{profile.username}</h2>
             <p>{profile.email}</p>
             <div className="profile-badge-row">
-              <span className="profile-badge blue">{profile.role}</span>
+              <span className="profile-badge blue">일반 사용자</span>
               <span className="profile-badge green">활성 계정</span>
               <span className="profile-badge yellow">주의 성분 {cautions.length}건</span>
             </div>
           </div>
         </div>
+
+        <button type="button" className="profile-edit-button">
+          프로필 수정
+        </button>
       </section>
 
       <section className="app-card">
@@ -644,175 +539,63 @@ function MyPage() {
 
         {activeTab === 'profile' ? (
           <div className="mypage-section">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2>기본 정보</h2>
-              <button 
-                type="button" 
-                className="app-primary-button" 
-                onClick={() => setIsEditingProfile(!isEditingProfile)}
-                style={{ backgroundColor: isEditingProfile ? '#64748b' : '#007AFF' }}
-              >
-                {isEditingProfile ? '취소' : '정보 수정'}
-              </button>
+            <h2>기본 정보</h2>
+            <div className="mypage-info-grid">
+              <div className="mypage-info-card">
+                <span>이름</span>
+                <strong>{profile.username}</strong>
+              </div>
+              <div className="mypage-info-card">
+                <span>이메일</span>
+                <strong>{profile.email}</strong>
+              </div>
+              <div className="mypage-info-card">
+                <span>생년월일</span>
+                <strong>{profile.birthDate || '-'}</strong>
+              </div>
+              <div className="mypage-info-card">
+                <span>성별</span>
+                <strong>{profile.gender || '-'}</strong>
+              </div>
             </div>
-
-            {isEditingProfile ? (
-              <div className="mypage-health-edit-form">
-                <div className="register-form-grid">
-                  <label className="register-field register-span-full">
-                    <span>이름</span>
-                    <input value={profileForm.username} onChange={e => setProfileForm({...profileForm, username: e.target.value})} />
-                  </label>
-                  <label className="register-field">
-                    <span>생년월일</span>
-                    <input type="date" value={profileForm.birthDate} onChange={e => setProfileForm({...profileForm, birthDate: e.target.value})} />
-                  </label>
-                  <label className="register-field">
-                    <span>성별</span>
-                    <select value={profileForm.gender} onChange={e => setProfileForm({...profileForm, gender: e.target.value})}>
-                      <option value="">선택 안함</option>
-                      <option value="MALE">남성</option>
-                      <option value="FEMALE">여성</option>
-                    </select>
-                  </label>
-                </div>
-                <button 
-                  className="app-primary-button" 
-                  style={{ width: '100%', marginTop: '30px' }} 
-                  onClick={handleSaveBasicProfile}
-                >
-                  수정 내용 저장하기
-                </button>
-              </div>
-            ) : (
-              <div className="mypage-info-grid">
-                <div className="mypage-info-card">
-                  <span>이름</span>
-                  <strong>{profile.username}</strong>
-                </div>
-                <div className="mypage-info-card">
-                  <span>이메일</span>
-                  <strong>{profile.email}</strong>
-                </div>
-                <div className="mypage-info-card">
-                  <span>생년월일</span>
-                  <strong>{profile.birthDate || '-'}</strong>
-                </div>
-                <div className="mypage-info-card">
-                  <span>성별</span>
-                  <strong>{profile.gender === 'MALE' ? '남성' : profile.gender === 'FEMALE' ? '여성' : '-'}</strong>
-                </div>
-              </div>
-            )}
           </div>
         ) : null}
 
         {activeTab === 'health' ? (
           <div className="mypage-section">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2>건강 정보</h2>
-              <button 
-                type="button" 
-                className="app-primary-button" 
-                onClick={() => setIsEditingHealth(!isEditingHealth)}
-                style={{ backgroundColor: isEditingHealth ? '#64748b' : '#007AFF' }}
-              >
-                {isEditingHealth ? '취소' : '정보 수정'}
-              </button>
-            </div>
-
-            {isEditingHealth ? (
-              <div className="mypage-health-edit-form">
-                <div className="mypage-info-grid">
-                  <label className="mypage-checkbox-card">
-                    <input type="checkbox" checked={healthForm.isPregnant} onChange={e => setHealthForm({...healthForm, isPregnant: e.target.checked})} />
-                    <span>임신 여부</span>
-                  </label>
-                  <label className="mypage-checkbox-card">
-                    <input type="checkbox" checked={healthForm.isBreastfeeding} onChange={e => setHealthForm({...healthForm, isBreastfeeding: e.target.checked})} />
-                    <span>수유 여부</span>
-                  </label>
-                  <label className="mypage-checkbox-card">
-                    <input type="checkbox" checked={healthForm.isSmoking} onChange={e => setHealthForm({...healthForm, isSmoking: e.target.checked})} />
-                    <span>흡연 여부</span>
-                  </label>
-                  <label className="mypage-checkbox-card">
-                    <input type="checkbox" checked={healthForm.isDrinking} onChange={e => setHealthForm({...healthForm, isDrinking: e.target.checked})} />
-                    <span>음주 여부</span>
-                  </label>
-                </div>
-
-                <div className="mypage-disease-section" style={{ marginTop: '30px' }}>
-                  <h3>기저질환 수정</h3>
-                  <div className="register-field">
-                    <input 
-                      value={diseaseKeyword} 
-                      onChange={e => setDiseaseKeyword(e.target.value)} 
-                      placeholder="질병명을 입력하세요 (예: 위염)" 
-                    />
-                  </div>
-                  {diseaseSuggestions.length > 0 && (
-                    <div className="mypage-suggestion-list">
-                      {diseaseSuggestions.map(name => (
-                        <button key={name} type="button" onClick={() => { toggleDisease(name); setDiseaseKeyword(''); }}>
-                          {name} {healthForm.chronicDiseases.includes(name) ? '✅' : '+'}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <div className="profile-badge-row" style={{ marginTop: '15px' }}>
-                    {healthForm.chronicDiseases.map(disease => (
-                      <span key={disease} className="profile-badge blue" onClick={() => toggleDisease(disease)} style={{ cursor: 'pointer' }}>
-                        {disease} ✕
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <button 
-                  className="app-primary-button" 
-                  style={{ width: '100%', marginTop: '30px' }} 
-                  onClick={handleSaveHealth}
-                >
-                  수정 내용 저장하기
-                </button>
+            <h2>건강 정보</h2>
+            <div className="mypage-info-grid">
+              <div className="mypage-info-card">
+                <span>임신 여부</span>
+                <strong>{profile.isPregnant ? '해당' : '없음'}</strong>
               </div>
-            ) : (
-              <>
-                <div className="mypage-info-grid">
-                  <div className="mypage-info-card">
-                    <span>임신 여부</span>
-                    <strong>{profile.isPregnant ? '해당' : '없음'}</strong>
-                  </div>
-                  <div className="mypage-info-card">
-                    <span>수유 여부</span>
-                    <strong>{profile.isBreastfeeding ? '해당' : '없음'}</strong>
-                  </div>
-                  <div className="mypage-info-card">
-                    <span>흡연</span>
-                    <strong>{profile.isSmoking ? '예' : '아니오'}</strong>
-                  </div>
-                  <div className="mypage-info-card">
-                    <span>음주</span>
-                    <strong>{profile.isDrinking ? '예' : '아니오'}</strong>
-                  </div>
-                </div>
-                <div className="mypage-disease-box">
-                  <span>기저질환</span>
-                  <div className="profile-badge-row">
-                    {(profile.chronicDiseases || []).length ? (
-                      profile.chronicDiseases.map((disease) => (
-                        <span key={disease} className="profile-badge blue">
-                          {disease}
-                        </span>
-                      ))
-                    ) : (
-                      <strong>등록된 기저질환이 없습니다.</strong>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
+              <div className="mypage-info-card">
+                <span>수유 여부</span>
+                <strong>{profile.isBreastfeeding ? '해당' : '없음'}</strong>
+              </div>
+              <div className="mypage-info-card">
+                <span>흡연</span>
+                <strong>{profile.isSmoking ? '예' : '아니오'}</strong>
+              </div>
+              <div className="mypage-info-card">
+                <span>음주</span>
+                <strong>{profile.isDrinking ? '예' : '아니오'}</strong>
+              </div>
+            </div>
+            <div className="mypage-disease-box">
+              <span>기저질환</span>
+              <div className="profile-badge-row">
+                {(profile.chronicDiseases || []).length ? (
+                  profile.chronicDiseases.map((disease) => (
+                    <span key={disease} className="profile-badge blue">
+                      {disease}
+                    </span>
+                  ))
+                ) : (
+                  <strong>등록된 기저질환이 없습니다.</strong>
+                )}
+              </div>
+            </div>
           </div>
         ) : null}
 
@@ -1280,7 +1063,7 @@ function MyPage() {
       <section className="app-card withdraw-card">
         <div>
           <h2>회원 탈퇴</h2>
-          <p>탈퇴 시 복약 일정, 상담 내역, 알림 설정 등 계정 관련 정보가 비활성화됩니다</p>
+          <p>탈퇴 시 복약 일정, 상담 내역, 알림 설정 등 계정 관련 정보가 비활성화됩니다.</p>
         </div>
         <button type="button">회원 탈퇴</button>
       </section>
