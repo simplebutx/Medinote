@@ -5,9 +5,11 @@ import {
   useCautionSuggest,
   useCreateMyCaution,
   useDeleteMyCaution,
+  useDiseaseSuggest,
   useMyCautions,
   useMyProfile,
   useUpdateMyCaution,
+  useUpdateMyProfile,
 } from '../../features/user/hooks';
 import type {
   CautionItem,
@@ -22,7 +24,7 @@ import type {
   MedicationScheduleMedicine,
 } from '../../features/schedule/types/schedule.types';
 
-type MyPageTab = 'profile' | 'health' | 'caution' | 'history' | 'prescription';
+type MyPageTab = 'profile' | 'health' | 'caution' | 'prescription';
 
 const reasonOptions: { label: string; value: CautionReason }[] = [
   { label: '알레르기', value: 'ALLERGY' },
@@ -42,18 +44,13 @@ interface DiseaseOption {
   name: string;
 }
 
-const diseaseOptions: DiseaseOption[] = [
-  { code: 'I10', name: '고혈압' },
-  { code: 'E11', name: '당뇨병' },
-  { code: 'J45', name: '천식' },
-  { code: 'K29', name: '위염' },
-  { code: 'K21', name: '역류성 식도염' },
-  { code: 'N18', name: '만성 신장질환' },
-  { code: 'K76', name: '간 질환' },
-  { code: 'E78', name: '고지혈증' },
-  { code: 'I20', name: '협심증' },
-  { code: 'I50', name: '심부전' },
-];
+interface HealthFormState {
+  isPregnant: boolean;
+  isBreastfeeding: boolean;
+  isSmoking: boolean;
+  isDrinking: boolean;
+  diseases: DiseaseOption[];
+}
 
 function getReasonLabel(reason: CautionReason) {
   return (
@@ -158,11 +155,8 @@ const tabs: { label: string; value: MyPageTab }[] = [
   { label: '기본 정보', value: 'profile' },
   { label: '건강 정보', value: 'health' },
   { label: '알레르기/주의 성분', value: 'caution' },
-  { label: '복약 이력', value: 'history' },
   { label: '처방전', value: 'prescription' },
 ];
-
-const adherenceItems: { drugName: string; rate: number }[] = [];
 
 function MyPage() {
   const [activeTab, setActiveTab] = useState<MyPageTab>('profile');
@@ -172,6 +166,103 @@ function MyPage() {
     isLoading: isMyProfileLoading,
     isError: isMyProfileError,
   } = useMyProfile();
+
+  const updateMyProfileMutation = useUpdateMyProfile();
+
+  const {
+    data: medicationSchedules = [],
+    isLoading: isMedicationScheduleLoading,
+    isError: isMedicationScheduleError,
+  } = useMedicationSchedules();
+
+  const {
+    data: cautionList = [],
+    isLoading: isCautionLoading,
+    isError: isCautionError,
+  } = useMyCautions();
+
+  const createCautionMutation = useCreateMyCaution();
+  const deleteCautionMutation = useDeleteMyCaution();
+  const updateCautionMutation = useUpdateMyCaution();
+
+  const [healthDiseaseKeyword, setHealthDiseaseKeyword] = useState('');
+
+  const debouncedHealthDiseaseKeyword = useDebounce(healthDiseaseKeyword, 300);
+  const diseaseSearchKeyword = debouncedHealthDiseaseKeyword.trim();
+
+  const {
+    data: diseaseSuggestions = [],
+    isLoading: isDiseaseSuggestLoading,
+  } = useDiseaseSuggest(diseaseSearchKeyword);
+
+  const [isHealthDiseaseSearchOpen, setIsHealthDiseaseSearchOpen] =
+    useState(false);
+
+  const [healthDraft, setHealthDraft] = useState<HealthFormState | null>(null);
+
+  const profileHealthForm = useMemo<HealthFormState>(() => {
+    const profileDiseases = myProfile?.chronicDiseases ?? myProfile?.diseases ?? [];
+
+    return {
+      isPregnant: Boolean(myProfile?.isPregnant ?? myProfile?.is_pregnant),
+      isBreastfeeding: Boolean(
+        myProfile?.isBreastfeeding ?? myProfile?.is_breastfeeding,
+      ),
+      isSmoking: Boolean(myProfile?.isSmoking ?? myProfile?.is_smoking),
+      isDrinking: Boolean(myProfile?.isDrinking ?? myProfile?.is_drinking),
+      diseases: profileDiseases
+        .map((disease) => {
+          if (typeof disease === 'string') {
+            return {
+              code: disease,
+              name: disease,
+            };
+          }
+
+          const code = disease.diseaseCode ?? disease.disease_code ?? '';
+          const name =
+            disease.diseaseName ?? disease.disease_name ?? disease.name ?? '';
+
+          if (!name) {
+            return null;
+          }
+
+          return {
+            code: code || name,
+            name,
+          };
+        })
+        .filter((disease): disease is DiseaseOption => disease !== null),
+    };
+  }, [myProfile]);
+
+  const healthForm = healthDraft ?? profileHealthForm;
+
+  const updateHealthForm = (
+    updater: (current: HealthFormState) => HealthFormState,
+  ) => {
+    setHealthDraft((prev) => updater(prev ?? profileHealthForm));
+  };
+
+  const [editingCautionId, setEditingCautionId] = useState<number | null>(null);
+  const [isCautionFormOpen, setIsCautionFormOpen] = useState(false);
+  const [cautionSourceType, setCautionSourceType] =
+    useState<CautionTargetType>('MEDICINE');
+
+  const [cautionKeyword, setCautionKeyword] = useState('');
+  const [isCautionSearchOpen, setIsCautionSearchOpen] = useState(false);
+  const [selectedCautionTarget, setSelectedCautionTarget] = useState<{
+    name: string;
+    type: CautionTargetType;
+  } | null>(null);
+
+  const [reason, setReason] = useState<CautionReason>('ALLERGY');
+  const [memo, setMemo] = useState('');
+
+  const debouncedCautionKeyword = useDebounce(cautionKeyword, 300);
+
+  const { data: cautionSuggestions = [], isLoading: isCautionSuggestLoading } =
+    useCautionSuggest(debouncedCautionKeyword, cautionSourceType);
 
   const profileInfo = {
     name: myProfile?.username || myProfile?.name || '사용자',
@@ -187,59 +278,32 @@ function MyPage() {
     role: myProfile?.role || 'USER',
   };
 
-  const {
-    data: medicationSchedules = [],
-    isLoading: isMedicationScheduleLoading,
-    isError: isMedicationScheduleError,
-  } = useMedicationSchedules();
-
-  const [isPregnant, setIsPregnant] = useState(false);
-  const [isBreastfeeding, setIsBreastfeeding] = useState(false);
-  const [isSmoking, setIsSmoking] = useState(true);
-  const [isDrinking, setIsDrinking] = useState(false);
-
-  const [healthDiseaseKeyword, setHealthDiseaseKeyword] = useState('');
-  const [isHealthDiseaseSearchOpen, setIsHealthDiseaseSearchOpen] =
-    useState(false);
-  const [selectedHealthDiseases, setSelectedHealthDiseases] = useState<
-    DiseaseOption[]
-  >([
-    { code: 'I10', name: '고혈압' },
-    { code: 'K29', name: '위염' },
-  ]);
-
   const filteredHealthDiseases = useMemo(() => {
-    const keyword = healthDiseaseKeyword.trim().replace('@', '').toLowerCase();
-
-    if (!keyword) {
-      return diseaseOptions;
-    }
-
-    return diseaseOptions.filter((disease) =>
-      disease.name.toLowerCase().includes(keyword),
-    );
-  }, [healthDiseaseKeyword]);
+    return diseaseSuggestions.map((diseaseName) => ({
+      code: diseaseName,
+      name: diseaseName,
+    }));
+  }, [diseaseSuggestions]);
 
   const handleChangeHealthDiseaseKeyword = (value: string) => {
     setHealthDiseaseKeyword(value);
-
-    if (value.startsWith('@')) {
-      setIsHealthDiseaseSearchOpen(true);
-      return;
-    }
-
-    setIsHealthDiseaseSearchOpen(false);
+    setIsHealthDiseaseSearchOpen(value.trim().length >= 2);
   };
 
   const handleSelectHealthDisease = (disease: DiseaseOption) => {
-    setSelectedHealthDiseases((prev) => {
-      const alreadySelected = prev.some((item) => item.code === disease.code);
+    updateHealthForm((current) => {
+      const alreadySelected = current.diseases.some(
+        (item) => item.code === disease.code,
+      );
 
       if (alreadySelected) {
-        return prev;
+        return current;
       }
 
-      return [...prev, disease];
+      return {
+        ...current,
+        diseases: [...current.diseases, disease],
+      };
     });
 
     setHealthDiseaseKeyword('');
@@ -247,45 +311,41 @@ function MyPage() {
   };
 
   const handleRemoveHealthDisease = (diseaseCode: string) => {
-    setSelectedHealthDiseases((prev) =>
-      prev.filter((disease) => disease.code !== diseaseCode),
-    );
+    updateHealthForm((current) => ({
+      ...current,
+      diseases: current.diseases.filter(
+        (disease) => disease.code !== diseaseCode,
+      ),
+    }));
   };
 
   const handleSaveHealthInfo = () => {
-    toast('건강 정보 저장 기능은 준비 중입니다.');
+    updateMyProfileMutation.mutate(
+      {
+        username: profileInfo.name,
+        birthDate: myProfile?.birthDate || myProfile?.birth_date || undefined,
+        gender:
+          myProfile?.gender === 'MALE' || myProfile?.gender === 'FEMALE'
+            ? myProfile.gender
+            : undefined,
+        isPregnant: healthForm.isPregnant,
+        isBreastfeeding: healthForm.isBreastfeeding,
+        isSmoking: healthForm.isSmoking,
+        isDrinking: healthForm.isDrinking,
+        diseases: healthForm.diseases.map((disease) => disease.name),
+      },
+      {
+        onSuccess: () => {
+          toast.success('건강 정보가 저장되었습니다.');
+          setHealthDraft(null);
+        },
+        onError: (error) => {
+          console.error('건강 정보 저장 실패:', error);
+          toast.error('건강 정보 저장에 실패했습니다.');
+        },
+      },
+    );
   };
-
-  const {
-    data: cautionList = [],
-    isLoading: isCautionLoading,
-    isError: isCautionError,
-  } = useMyCautions();
-
-  const createCautionMutation = useCreateMyCaution();
-  const deleteCautionMutation = useDeleteMyCaution();
-  const updateCautionMutation = useUpdateMyCaution();
-
-  const [editingCautionId, setEditingCautionId] = useState<number | null>(null);
-
-  const [isCautionFormOpen, setIsCautionFormOpen] = useState(false);
-  const [cautionSourceType, setCautionSourceType] =
-    useState<CautionTargetType>('MEDICINE');
-
-  const [cautionKeyword, setCautionKeyword] = useState('');
-  const [isCautionSearchOpen, setIsCautionSearchOpen] = useState(false);
-  const [selectedCautionTarget, setSelectedCautionTarget] = useState<{
-    name: string;
-    type: CautionTargetType;
-  } | null>(null);
-
-  const debouncedCautionKeyword = useDebounce(cautionKeyword, 300);
-
-  const { data: cautionSuggestions = [], isLoading: isCautionSuggestLoading } =
-    useCautionSuggest(debouncedCautionKeyword, cautionSourceType);
-
-  const [reason, setReason] = useState<CautionReason>('ALLERGY');
-  const [memo, setMemo] = useState('');
 
   const resetCautionForm = () => {
     setCautionSourceType('MEDICINE');
@@ -408,7 +468,7 @@ function MyPage() {
         <h1 className="mt-2 text-3xl font-bold text-slate-900">내 정보</h1>
 
         <p className="mt-2 text-slate-500">
-          기본 정보, 알레르기/주의 성분, 복약 이력, 처방전 정보를 관리합니다.
+          기본 정보, 건강 정보, 알레르기/주의 성분, 처방전 정보를 관리합니다.
         </p>
       </div>
 
@@ -446,6 +506,7 @@ function MyPage() {
             type="button"
             variant="ghost"
             className="border border-slate-200"
+            onClick={() => toast('프로필 수정 기능은 준비 중입니다.')}
           >
             프로필 수정
           </Button>
@@ -542,10 +603,15 @@ function MyPage() {
                 <div className="grid gap-3 md:grid-cols-2">
                   <button
                     type="button"
-                    onClick={() => setIsPregnant((prev) => !prev)}
+                    onClick={() =>
+                      updateHealthForm((current) => ({
+                        ...current,
+                        isPregnant: !current.isPregnant,
+                      }))
+                    }
                     className={[
                       'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
-                      isPregnant
+                      healthForm.isPregnant
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
                     ].join(' ')}
@@ -555,10 +621,15 @@ function MyPage() {
 
                   <button
                     type="button"
-                    onClick={() => setIsBreastfeeding((prev) => !prev)}
+                    onClick={() =>
+                      updateHealthForm((current) => ({
+                        ...current,
+                        isBreastfeeding: !current.isBreastfeeding,
+                      }))
+                    }
                     className={[
                       'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
-                      isBreastfeeding
+                      healthForm.isBreastfeeding
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
                     ].join(' ')}
@@ -568,10 +639,15 @@ function MyPage() {
 
                   <button
                     type="button"
-                    onClick={() => setIsSmoking((prev) => !prev)}
+                    onClick={() =>
+                      updateHealthForm((current) => ({
+                        ...current,
+                        isSmoking: !current.isSmoking,
+                      }))
+                    }
                     className={[
                       'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
-                      isSmoking
+                      healthForm.isSmoking
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
                     ].join(' ')}
@@ -581,10 +657,15 @@ function MyPage() {
 
                   <button
                     type="button"
-                    onClick={() => setIsDrinking((prev) => !prev)}
+                    onClick={() =>
+                      updateHealthForm((current) => ({
+                        ...current,
+                        isDrinking: !current.isDrinking,
+                      }))
+                    }
                     className={[
                       'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
-                      isDrinking
+                      healthForm.isDrinking
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
                     ].join(' ')}
@@ -599,9 +680,9 @@ function MyPage() {
                   기저질환
                 </p>
 
-                {selectedHealthDiseases.length > 0 && (
+                {healthForm.diseases.length > 0 && (
                   <div className="mb-3 flex flex-wrap gap-2">
-                    {selectedHealthDiseases.map((disease) => (
+                    {healthForm.diseases.map((disease) => (
                       <button
                         key={disease.code}
                         type="button"
@@ -616,10 +697,13 @@ function MyPage() {
 
                 <div className="relative">
                   <Input
-                    placeholder="@고혈압 처럼 입력하면 질환을 검색할 수 있습니다."
+                    placeholder="예: 고혈압, 당뇨병, 위염"
                     value={healthDiseaseKeyword}
                     onChange={(event) =>
                       handleChangeHealthDiseaseKeyword(event.target.value)
+                    }
+                    onFocus={() =>
+                      setIsHealthDiseaseSearchOpen(healthDiseaseKeyword.trim().length >= 2)
                     }
                   />
 
@@ -630,25 +714,29 @@ function MyPage() {
                       </div>
 
                       <div className="max-h-56 overflow-y-auto">
-                        {filteredHealthDiseases.map((disease) => (
-                          <button
-                            key={disease.code}
-                            type="button"
-                            onClick={() => handleSelectHealthDisease(disease)}
-                            className="w-full rounded-xl px-3 py-3 text-left hover:bg-slate-50"
-                          >
-                            <p className="font-semibold text-slate-900">
-                              {disease.name}
-                            </p>
-                            <p className="mt-1 text-xs text-slate-500">
-                              코드: {disease.code}
-                            </p>
-                          </button>
-                        ))}
-
-                        {filteredHealthDiseases.length === 0 && (
+                        {isDiseaseSuggestLoading && (
                           <div className="px-3 py-4 text-sm text-slate-500">
-                            검색 결과가 없습니다.
+                            기저질환을 검색하고 있습니다.
+                          </div>
+                        )}
+
+                        {!isDiseaseSuggestLoading &&
+                          filteredHealthDiseases.map((disease) => (
+                            <button
+                              key={disease.name}
+                              type="button"
+                              onClick={() => handleSelectHealthDisease(disease)}
+                              className="w-full rounded-xl px-3 py-3 text-left hover:bg-slate-50"
+                            >
+                              <p className="font-semibold text-slate-900">
+                                {disease.name}
+                              </p>
+                            </button>
+                          ))}
+
+                        {!isDiseaseSuggestLoading && filteredHealthDiseases.length === 0 && (
+                          <div className="px-3 py-4 text-sm text-slate-500">
+                            일치하는 기저질환 결과가 없습니다.
                           </div>
                         )}
                       </div>
@@ -657,8 +745,7 @@ function MyPage() {
                 </div>
 
                 <p className="mt-2 text-xs text-slate-500">
-                  질환 검색 기능은 현재 기본 목록 기준으로 제공되며, 추후 질환
-                  데이터 연동 시 확장됩니다.
+                  기저질환은 검색 결과에서 선택해 등록합니다.
                 </p>
               </div>
 
@@ -668,8 +755,12 @@ function MyPage() {
               </div>
 
               <div className="flex justify-end">
-                <Button type="button" onClick={handleSaveHealthInfo}>
-                  건강 정보 저장
+                <Button
+                  type="button"
+                  onClick={handleSaveHealthInfo}
+                  disabled={updateMyProfileMutation.isPending}
+                >
+                  {updateMyProfileMutation.isPending ? '저장 중...' : '건강 정보 저장'}
                 </Button>
               </div>
             </div>
@@ -984,36 +1075,6 @@ function MyPage() {
                     );
                   })}
               </div>
-            </div>
-          )}
-
-          {activeTab === 'history' && (
-            <div className="space-y-5">
-              <h2 className="text-xl font-bold text-slate-900">복약 이력</h2>
-
-              {adherenceItems.length === 0 ? (
-                <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                  복약 이력은 복용 기록 데이터 연동 후 표시됩니다.
-                </div>
-              ) : (
-                adherenceItems.map((item) => (
-                  <div key={item.drugName}>
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="font-semibold text-slate-900">
-                        {item.drugName}
-                      </p>
-                      <p className="text-sm text-slate-500">{item.rate}%</p>
-                    </div>
-
-                    <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className="h-full rounded-full bg-blue-600"
-                        style={{ width: `${item.rate}%` }}
-                      />
-                    </div>
-                  </div>
-                ))
-              )}
             </div>
           )}
 
