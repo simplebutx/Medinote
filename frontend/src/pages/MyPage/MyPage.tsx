@@ -6,6 +6,7 @@ import {
   useCreateMyCaution,
   useDeleteMyCaution,
   useMyCautions,
+  useMyProfile,
   useUpdateMyCaution,
 } from '../../features/user/hooks';
 import type {
@@ -161,14 +162,30 @@ const tabs: { label: string; value: MyPageTab }[] = [
   { label: '처방전', value: 'prescription' },
 ];
 
-const adherenceItems = [
-  { drugName: '아스피린 100mg', rate: 92 },
-  { drugName: '암로디핀 5mg', rate: 86 },
-  { drugName: '타이레놀 500mg', rate: 74 },
-];
+const adherenceItems: { drugName: string; rate: number }[] = [];
 
 function MyPage() {
   const [activeTab, setActiveTab] = useState<MyPageTab>('profile');
+
+  const {
+    data: myProfile,
+    isLoading: isMyProfileLoading,
+    isError: isMyProfileError,
+  } = useMyProfile();
+
+  const profileInfo = {
+    name: myProfile?.username || myProfile?.name || '사용자',
+    email: myProfile?.email || '이메일 정보 없음',
+    birthDate:
+      myProfile?.birthDate || myProfile?.birth_date || '등록된 생년월일 없음',
+    gender:
+      myProfile?.gender === 'MALE'
+        ? '남성'
+        : myProfile?.gender === 'FEMALE'
+          ? '여성'
+          : '등록된 성별 없음',
+    role: myProfile?.role || 'USER',
+  };
 
   const {
     data: medicationSchedules = [],
@@ -236,7 +253,7 @@ function MyPage() {
   };
 
   const handleSaveHealthInfo = () => {
-    alert('건강 정보가 저장되었습니다. 추후 API 연동 시 실제 저장 처리합니다.');
+    toast('건강 정보 저장 기능은 준비 중입니다.');
   };
 
   const {
@@ -264,10 +281,8 @@ function MyPage() {
 
   const debouncedCautionKeyword = useDebounce(cautionKeyword, 300);
 
-  const {
-    data: cautionSuggestions = [],
-    isLoading: isCautionSuggestLoading,
-  } = useCautionSuggest(debouncedCautionKeyword, cautionSourceType);
+  const { data: cautionSuggestions = [], isLoading: isCautionSuggestLoading } =
+    useCautionSuggest(debouncedCautionKeyword, cautionSourceType);
 
   const [reason, setReason] = useState<CautionReason>('ALLERGY');
   const [memo, setMemo] = useState('');
@@ -302,7 +317,9 @@ function MyPage() {
   const handleStartEditCaution = (item: CautionItem) => {
     const isMedicine = Boolean(item.itemName);
     const targetName = item.itemName || item.ingredientName || '';
-    const targetType: CautionTargetType = isMedicine ? 'MEDICINE' : 'INGREDIENT';
+    const targetType: CautionTargetType = isMedicine
+      ? 'MEDICINE'
+      : 'INGREDIENT';
 
     setEditingCautionId(item.id);
     setIsCautionFormOpen(true);
@@ -400,17 +417,26 @@ function MyPage() {
           <div>
             <div className="flex items-center gap-3">
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-xl font-bold text-blue-700">
-                오
+                {profileInfo.name.slice(0, 1)}
               </div>
 
               <div>
-                <h2 className="text-xl font-bold text-slate-900">오충환</h2>
-                <p className="text-sm text-slate-500">user@example.com</p>
+                <h2 className="text-xl font-bold text-slate-900">
+                  {profileInfo.name}
+                </h2>
+                <p className="text-sm text-slate-500">{profileInfo.email}</p>
               </div>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <Badge variant="blue">일반 사용자</Badge>
+              <Badge variant="blue">
+                {profileInfo.role === 'PHARMACIST'
+                  ? '약사'
+                  : profileInfo.role === 'ADMIN'
+                    ? '관리자'
+                    : '일반 사용자'}
+              </Badge>
+              {/* <Badge variant="blue">일반 사용자</Badge> */}
               <Badge variant="green">활성 계정</Badge>
               <Badge variant="yellow">주의 성분 {cautionList.length}건</Badge>
             </div>
@@ -450,6 +476,18 @@ function MyPage() {
         </div>
 
         <div className="p-6">
+          {isMyProfileLoading && (
+            <div className="mb-4 rounded-2xl bg-blue-50 p-4 text-sm text-blue-700">
+              내 정보를 불러오는 중입니다.
+            </div>
+          )}
+
+          {isMyProfileError && (
+            <div className="mb-4 rounded-2xl bg-red-50 p-4 text-sm text-red-700">
+              내 정보를 불러오지 못했습니다.
+            </div>
+          )}
+
           {activeTab === 'profile' && (
             <div className="space-y-4">
               <h2 className="text-xl font-bold text-slate-900">기본 정보</h2>
@@ -457,26 +495,30 @@ function MyPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-sm text-slate-500">이름</p>
-                  <p className="mt-2 font-semibold text-slate-900">오충환</p>
+                  <p className="mt-2 font-semibold text-slate-900">
+                    {profileInfo.name}
+                  </p>
                 </div>
 
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-sm text-slate-500">이메일</p>
                   <p className="mt-2 font-semibold text-slate-900">
-                    user@example.com
+                    {profileInfo.email}
                   </p>
                 </div>
 
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-sm text-slate-500">생년월일</p>
                   <p className="mt-2 font-semibold text-slate-900">
-                    1998.05.12
+                    {profileInfo.birthDate}
                   </p>
                 </div>
 
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-sm text-slate-500">성별</p>
-                  <p className="mt-2 font-semibold text-slate-900">남성</p>
+                  <p className="mt-2 font-semibold text-slate-900">
+                    {profileInfo.gender}
+                  </p>
                 </div>
               </div>
             </div>
@@ -615,8 +657,8 @@ function MyPage() {
                 </div>
 
                 <p className="mt-2 text-xs text-slate-500">
-                  현재는 Mock Data 기준이며, 추후 질병 목록 API가 확정되면 DB
-                  검색으로 교체합니다.
+                  질환 검색 기능은 현재 기본 목록 기준으로 제공되며, 추후 질환
+                  데이터 연동 시 확장됩니다.
                 </p>
               </div>
 
@@ -657,7 +699,9 @@ function MyPage() {
               {isCautionFormOpen && (
                 <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
                   <h3 className="font-bold text-slate-900">
-                    {editingCautionId !== null ? '주의 약/성분 수정' : '주의 약/성분 추가'}
+                    {editingCautionId !== null
+                      ? '주의 약/성분 수정'
+                      : '주의 약/성분 추가'}
                   </h3>
 
                   <div className="mt-4">
@@ -721,49 +765,59 @@ function MyPage() {
                         onFocus={() => setIsCautionSearchOpen(true)}
                       />
 
-                      {cautionKeyword.trim().length > 0 && cautionKeyword.trim().length < 2 && (
-                        <p className="mt-2 text-xs text-slate-500">
-                          두 글자 이상 입력하면 검색됩니다.
-                        </p>
-                      )}
+                      {cautionKeyword.trim().length > 0 &&
+                        cautionKeyword.trim().length < 2 && (
+                          <p className="mt-2 text-xs text-slate-500">
+                            두 글자 이상 입력하면 검색됩니다.
+                          </p>
+                        )}
 
-                      {isCautionSearchOpen && cautionKeyword.trim().length >= 2 && (
-                        <div className="absolute left-0 top-full z-10 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
-                          <div className="mb-2 px-2 text-xs font-semibold text-slate-500">
-                            {getCautionSourceLabel(cautionSourceType)} 검색 결과
+                      {isCautionSearchOpen &&
+                        cautionKeyword.trim().length >= 2 && (
+                          <div className="absolute left-0 top-full z-10 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
+                            <div className="mb-2 px-2 text-xs font-semibold text-slate-500">
+                              {getCautionSourceLabel(cautionSourceType)} 검색
+                              결과
+                            </div>
+
+                            <div className="max-h-56 overflow-y-auto">
+                              {isCautionSuggestLoading && (
+                                <div className="px-3 py-4 text-sm text-slate-500">
+                                  검색 중입니다.
+                                </div>
+                              )}
+
+                              {!isCautionSuggestLoading &&
+                                cautionSuggestions.map((target) => (
+                                  <button
+                                    key={`${target.type}-${target.name}`}
+                                    type="button"
+                                    onClick={() =>
+                                      handleSelectCautionTarget(target)
+                                    }
+                                    className="w-full rounded-xl px-3 py-3 text-left hover:bg-slate-50"
+                                  >
+                                    <p className="font-semibold text-slate-900">
+                                      {target.name}
+                                    </p>
+
+                                    <p className="mt-1 text-xs text-slate-500">
+                                      {target.type === 'MEDICINE'
+                                        ? '약'
+                                        : '성분'}
+                                    </p>
+                                  </button>
+                                ))}
+
+                              {!isCautionSuggestLoading &&
+                                cautionSuggestions.length === 0 && (
+                                  <div className="px-3 py-4 text-sm text-slate-500">
+                                    검색 결과가 없습니다.
+                                  </div>
+                                )}
+                            </div>
                           </div>
-
-                          <div className="max-h-56 overflow-y-auto">
-                            {isCautionSuggestLoading && (
-                              <div className="px-3 py-4 text-sm text-slate-500">
-                                검색 중입니다.
-                              </div>
-                            )}
-
-                            {!isCautionSuggestLoading &&
-                              cautionSuggestions.map((target) => (
-                                <button
-                                  key={`${target.type}-${target.name}`}
-                                  type="button"
-                                  onClick={() => handleSelectCautionTarget(target)}
-                                  className="w-full rounded-xl px-3 py-3 text-left hover:bg-slate-50"
-                                >
-                                  <p className="font-semibold text-slate-900">{target.name}</p>
-
-                                  <p className="mt-1 text-xs text-slate-500">
-                                    {target.type === 'MEDICINE' ? '약' : '성분'}
-                                  </p>
-                                </button>
-                              ))}
-
-                            {!isCautionSuggestLoading && cautionSuggestions.length === 0 && (
-                              <div className="px-3 py-4 text-sm text-slate-500">
-                                검색 결과가 없습니다.
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                        )}
                     </div>
 
                     {selectedCautionTarget && (
@@ -818,9 +872,13 @@ function MyPage() {
                     <Button
                       type="button"
                       onClick={handleSaveCaution}
-                      disabled={createCautionMutation.isPending || updateCautionMutation.isPending}
+                      disabled={
+                        createCautionMutation.isPending ||
+                        updateCautionMutation.isPending
+                      }
                     >
-                      {createCautionMutation.isPending || updateCautionMutation.isPending
+                      {createCautionMutation.isPending ||
+                      updateCautionMutation.isPending
                         ? '저장 중...'
                         : editingCautionId !== null
                           ? '수정 완료'
@@ -843,11 +901,13 @@ function MyPage() {
                   </div>
                 )}
 
-                {!isCautionLoading && !isCautionError && cautionList.length === 0 && (
-                  <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                    등록된 주의 약/성분이 없습니다.
-                  </div>
-                )}
+                {!isCautionLoading &&
+                  !isCautionError &&
+                  cautionList.length === 0 && (
+                    <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                      등록된 주의 약/성분이 없습니다.
+                    </div>
+                  )}
 
                 {!isCautionLoading &&
                   !isCautionError &&
@@ -868,7 +928,9 @@ function MyPage() {
                       >
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-bold text-slate-900">{targetName}</p>
+                            <p className="font-bold text-slate-900">
+                              {targetName}
+                            </p>
 
                             <Badge variant={getReasonBadge(item.reason)}>
                               {getReasonLabel(item.reason)}
@@ -876,12 +938,18 @@ function MyPage() {
                           </div>
 
                           <div className="mt-1 flex flex-wrap items-center gap-2">
-                            <Badge variant={sourceType === 'MEDICINE' ? 'blue' : 'green'}>
+                            <Badge
+                              variant={
+                                sourceType === 'MEDICINE' ? 'blue' : 'green'
+                              }
+                            >
                               {getCautionSourceLabel(sourceType)}
                             </Badge>
 
                             {targetCode && (
-                              <p className="text-sm text-slate-500">코드: {targetCode}</p>
+                              <p className="text-sm text-slate-500">
+                                코드: {targetCode}
+                              </p>
                             )}
                           </div>
 
@@ -923,23 +991,29 @@ function MyPage() {
             <div className="space-y-5">
               <h2 className="text-xl font-bold text-slate-900">복약 이력</h2>
 
-              {adherenceItems.map((item) => (
-                <div key={item.drugName}>
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="font-semibold text-slate-900">
-                      {item.drugName}
-                    </p>
-                    <p className="text-sm text-slate-500">{item.rate}%</p>
-                  </div>
-
-                  <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-blue-600"
-                      style={{ width: `${item.rate}%` }}
-                    />
-                  </div>
+              {adherenceItems.length === 0 ? (
+                <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                  복약 이력은 복용 기록 데이터 연동 후 표시됩니다.
                 </div>
-              ))}
+              ) : (
+                adherenceItems.map((item) => (
+                  <div key={item.drugName}>
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="font-semibold text-slate-900">
+                        {item.drugName}
+                      </p>
+                      <p className="text-sm text-slate-500">{item.rate}%</p>
+                    </div>
+
+                    <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-blue-600"
+                        style={{ width: `${item.rate}%` }}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
 
@@ -960,7 +1034,8 @@ function MyPage() {
 
               {isMedicationScheduleError && (
                 <div className="rounded-2xl bg-red-50 p-6 text-sm text-red-700">
-                  처방전 정보를 불러오지 못했습니다. 로그인 상태와 서버를 확인해주세요.
+                  처방전 정보를 불러오지 못했습니다. 로그인 상태와 서버를
+                  확인해주세요.
                 </div>
               )}
 
@@ -991,11 +1066,15 @@ function MyPage() {
                               {getPrescriptionTitle(schedule)}
                             </p>
 
-                            <Badge variant={status === '복용 중' ? 'green' : 'gray'}>
+                            <Badge
+                              variant={status === '복용 중' ? 'green' : 'gray'}
+                            >
                               {status}
                             </Badge>
 
-                            <Badge variant="blue">{medicines.length}개 약</Badge>
+                            <Badge variant="blue">
+                              {medicines.length}개 약
+                            </Badge>
                           </div>
 
                           <p className="mt-2 text-sm text-slate-500">
@@ -1017,7 +1096,9 @@ function MyPage() {
                           size="sm"
                           variant="ghost"
                           className="border border-slate-200"
-                          onClick={() => toast('처방전 수정 기능은 준비 중입니다.')}
+                          onClick={() =>
+                            toast('처방전 수정 기능은 준비 중입니다.')
+                          }
                         >
                           수정
                         </Button>
