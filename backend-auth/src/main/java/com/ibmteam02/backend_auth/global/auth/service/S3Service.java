@@ -6,16 +6,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class S3Service {
     private final S3Client s3Client;
+    private final S3Presigner s3Presigner;
 
     @Value("${spring.cloud.aws.s3.bucket}")
     private String bucket;
@@ -40,12 +45,29 @@ public class S3Service {
             // S3 버킷에 다이렉트로 파일 전송!
             s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(inputStream, multipartFile.getSize()));
 
-            // 윤주님 기존 기획대로 생성된 경로(key) 반환
+            // 생성된 경로(key) 반환
             return s3FileName;
 
         } catch (IOException e) {
             throw new RuntimeException("사진 업로드 에러", e);
         }
+    }
+
+    // 비밀 주소(Pre-signed URL) 생성 로직
+    public String getPresignedUrl(String key) {
+        if (key == null || key.isEmpty()) return null;
+
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .build();
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(10)) // 10분 동안만 유효
+                .getObjectRequest(getObjectRequest)
+                .build();
+
+        return s3Presigner.presignGetObject(presignRequest).url().toString();
     }
 
 }
