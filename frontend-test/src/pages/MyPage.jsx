@@ -142,7 +142,6 @@ function createEmptyPrescriptionRecord() {
 }
 
 function MyPage() {
-  const navigate = useNavigate()
   const session = useMemo(() => getAuthSession(), [])
   const [activeTab, setActiveTab] = useState('profile')
   const [profile, setProfile] = useState(null)
@@ -162,6 +161,54 @@ function MyPage() {
   const [defaultMedicationTimeSettings, setDefaultMedicationTimeSettings] = useState(() =>
     loadDefaultMedicationTimeSettings(),
   )
+
+  // 기본 정보 수정 관련 상태
+  const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [profileForm, setProfileForm] = useState({
+    username: '',
+    birthDate: '',
+    gender: ''
+  })
+
+  // 건강 정보 수정 관련 상태
+  const [isEditingHealth, setIsEditingHealth] = useState(false)
+  const [healthForm, setHealthForm] = useState({
+    isPregnant: false,
+    isBreastfeeding: false,
+    isSmoking: false,
+    isDrinking: false,
+    chronicDiseases: []
+  })
+  const [diseaseKeyword, setDiseaseKeyword] = useState('')
+  const [diseaseSuggestions, setDiseaseSuggestions] = useState([])
+
+  const loadProfile = async () => {
+    try {
+      const response = await axios.get('/api/auth/me', {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+      })
+      const data = response.data
+      setProfile(data)
+
+      // 폼 초기화
+      setProfileForm({
+        username: data.username || '',
+        birthDate: data.birthDate || '',
+        gender: data.gender || ''
+      })
+      setHealthForm({
+        isPregnant: data.isPregnant || false,
+        isBreastfeeding: data.isBreastfeeding || false,
+        isSmoking: data.isSmoking || false,
+        isDrinking: data.isDrinking || false,
+        chronicDiseases: data.chronicDiseases || []
+      })
+    } catch (error) {
+      setMessage('프로필 정보를 불러오지 못했습니다.')
+    }
+  }
 
   const loadPrescriptionRecords = async (preferredId) => {
     const schedules = await getMedicationSchedules()
@@ -216,6 +263,73 @@ function MyPage() {
 
     load()
   }, [session])
+
+  // 질병 검색 로직
+  useEffect(() => {
+    const run = async () => {
+      if (diseaseKeyword.trim().length < 2) {
+        setDiseaseSuggestions([])
+        return
+      }
+      try {
+        const items = await suggestDiseases(diseaseKeyword.trim())
+        setDiseaseSuggestions(items)
+      } catch {
+        setDiseaseSuggestions([])
+      }
+    }
+    const timeoutId = window.setTimeout(run, 250)
+    return () => window.clearTimeout(timeoutId)
+  }, [diseaseKeyword])
+
+  // 기본 정보 저장
+  const handleSaveBasicProfile = async () => {
+    try {
+      await updateMyProfile({
+        ...profileForm,
+        isPregnant: profile.isPregnant,
+        isBreastfeeding: profile.isBreastfeeding,
+        isSmoking: profile.isSmoking,
+        isDrinking: profile.isDrinking,
+        diseases: profile.chronicDiseases
+      })
+      alert('기본 정보가 수정되었습니다.')
+      await loadProfile()
+      setIsEditingProfile(false)
+    } catch (error) {
+      alert('기본 정보 수정에 실패했습니다.')
+    }
+  }
+
+  // 건강 정보 저장
+  const handleSaveHealth = async () => {
+    try {
+      await updateMyProfile({
+        username: profile.username,
+        birthDate: profile.birthDate,
+        gender: profile.gender,
+        isPregnant: healthForm.isPregnant,
+        isBreastfeeding: healthForm.isBreastfeeding,
+        isSmoking: healthForm.isSmoking,
+        isDrinking: healthForm.isDrinking,
+        diseases: healthForm.chronicDiseases
+      })
+      alert('건강 정보가 수정되었습니다.')
+      await loadProfile()
+      setIsEditingHealth(false)
+    } catch (error) {
+      alert('건강 정보 수정에 실패했습니다.')
+    }
+  }
+
+  const toggleDisease = (name) => {
+    setHealthForm(prev => ({
+      ...prev,
+      chronicDiseases: prev.chronicDiseases.includes(name)
+        ? prev.chronicDiseases.filter(d => d !== name)
+        : [...prev.chronicDiseases, name]
+    }))
+  }
 
   useEffect(() => {
     const run = async () => {

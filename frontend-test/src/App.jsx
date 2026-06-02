@@ -1,4 +1,5 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Link, Route, Routes, Navigate, Outlet } from 'react-router-dom'
+import { getAuthSession } from './api'
 
 import './App.css'
 import AppLayout from './components/layout/AppLayout'
