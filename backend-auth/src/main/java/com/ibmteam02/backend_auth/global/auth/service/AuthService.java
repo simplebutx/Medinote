@@ -280,5 +280,13 @@ public class AuthService {
         userRepository.save(user);
     }
 
+    //본인 계정 탈퇴 및 삭제 (일반 유저, 약사용)
+    @Transactional
+    public void withdraw(String email){
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(()->new CustomException(ErrorCode.USER_NOT_FOUND));
+        userRepository.delete(user);
+    }
+
 
 }

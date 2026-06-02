@@ -23,6 +23,10 @@ export default defineConfig({
         target: authTarget,
         changeOrigin: true,
       },
+      '/api/admin': {
+        target: authTarget,
+        changeOrigin: true,
+      },
       '/api/ws-stomp': {
         target: consultationTarget,
         changeOrigin: true,

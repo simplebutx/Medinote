@@ -6,7 +6,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.time.LocalDate;
-import java.time.Period;
 import java.util.List;
 import java.util.Map;
 
@@ -40,15 +39,11 @@ public class AuthUserClient {
             if (response == null) return null;
 
             String birthDateStr = (String) response.get("birthDate");
-            Integer age = null;
-            if (birthDateStr != null) {
-                LocalDate birthDate = LocalDate.parse(birthDateStr);
-                age = Period.between(birthDate, LocalDate.now()).getYears();
-            }
+            LocalDate birthDate = birthDateStr != null ? LocalDate.parse(birthDateStr) : null;
 
             return PatientInfoResponse.builder()
                     .username((String) response.get("username"))
-                    .age(age)
+                    .birthDate(birthDate)
                     .gender((String) response.get("gender"))
                     .isPregnant((Boolean) response.get("isPregnant"))
                     .isBreastfeeding((Boolean) response.get("isBreastfeeding"))

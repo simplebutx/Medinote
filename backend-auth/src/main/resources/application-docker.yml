@@ -18,6 +18,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        temp:
+          use_jdbc_metadata_defaults: false
 
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}

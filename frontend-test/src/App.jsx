@@ -1,126 +1,119 @@
-import { BrowserRouter, Link, Route, Routes, Navigate, Outlet } from 'react-router-dom'
-import { getAuthSession } from './api'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import './App.css'
-import Chatbot from './pages/Chatbot'
+import AppLayout from './components/layout/AppLayout'
+import PharmLayout from './components/layout/PharmLayout'
+import AdminLayout from './components/layout/AdminLayout'
+import ChatbotPage from './pages/ChatbotPage'
+import Consultation from './pages/Consultation'
 import Login from './pages/Login'
 import MedicineSearch from './pages/MedicineSearch'
 import MyPage from './pages/MyPage'
+import PharmacyMap from './pages/PharmacyMap'
+import ChatConsultPage from './pages/ChatConsultPage'
+import MedicationRegisterPage from './pages/MedicationRegisterPage'
+import ScheduleDashboardPage from './pages/ScheduleDashboardPage'
+import ScheduleCalendarPage from './pages/schedule/ScheduleCalendarPage'
+import ScheduleCreatePage from './pages/schedule/ScheduleCreatePage'
+import ScheduleEditPage from './pages/schedule/ScheduleEditPage'
 import ScheduleListPage from './pages/schedule/ScheduleListPage'
+import ScheduleOcrPage from './pages/schedule/ScheduleOcrPage'
 import Signup from './pages/Signup'
+import SimplePlaceholderPage from './pages/SimplePlaceholderPage'
 import Sync from './pages/Sync'
-import Consultation from './pages/Consultation'
-import UserConsultationList from './pages/UserConsultationList'
-import PharmacistRoomList from './pages/PharmacistRoomList'
+import YunjuTest from './pages/YunjuTest'
 import PharmacistDashboard from './pages/PharmacistDashboard'
+import PharmacistRoomList from './pages/PharmacistRoomList'
 import PharmacistProfile from './pages/PharmacistProfile'
-
-// --- 1. 유저 레이아웃 (기존 유지: 블루) ---
-const UserLayout = () => (
-  <div className="user-layout">
-    <nav className="user-nav" style={{ 
-      display: 'flex', gap: '20px', padding: '15px 25px', 
-      background: '#007AFF', color: '#fff', alignItems: 'center',
-      boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-    }}>
-      <strong style={{ fontSize: '1.2rem' }}>Mymedi User</strong>
-      <Link to="/u/home" style={userNavLinkStyle}>홈</Link>
-      <Link to="/u/chat" style={userNavLinkStyle}>상담/챗봇</Link>
-      <Link to="/u/my" style={userNavLinkStyle}>마이페이지</Link>
-      <button onClick={() => { localStorage.removeItem('authSession'); window.location.href='/login'; }} 
-              style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid #fff', color: '#fff', padding: '5px 12px', borderRadius: '5px', cursor: 'pointer' }}>
-        로그아웃
-      </button>
-    </nav>
-    <div className="user-content" style={{ padding: '20px' }}>
-      <Outlet />
-    </div>
-  </div>
-)
-
-// --- 2. 약사 레이아웃 (초록색 테마) ---
-const PharmLayout = () => (
-  <div className="pharm-layout" style={{ display: 'flex', minHeight: '100vh' }}>
-    <aside style={{ 
-      width: '260px', background: '#065f46', color: '#fff', 
-      padding: '30px 20px', display: 'flex', flexDirection: 'column'
-    }}>
-      <h2 style={{ fontSize: '20px', marginBottom: '40px', color: '#34d399' }}>🩺 약사 포털</h2>
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        <Link to="/p/dashboard" style={pharmNavLinkStyle}>대시보드</Link>
-        <Link to="/p/rooms" style={pharmNavLinkStyle}>상담 관리</Link>
-        <Link to="/p/profile" style={pharmNavLinkStyle}>내 정보 관리</Link>
-      </nav>
-      <button onClick={() => { localStorage.removeItem('authSession'); window.location.href='/login'; }} 
-              style={{ marginTop: 'auto', background: '#10b981', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
-        로그아웃
-      </button>
-    </aside>
-    <main style={{ flex: 1, padding: '40px', background: '#f0fdf4' }}>
-      <Outlet />
-    </main>
-  </div>
-)
-
-// --- 3. 관리자 레이아웃 (진회색 테마) ---
-const AdminLayout = () => (
-  <div className="admin-layout" style={{ display: 'flex', minHeight: '100vh' }}>
-    <aside style={{ width: '260px', background: '#1f2937', color: '#fff', padding: '30px 20px', display: 'flex', flexDirection: 'column' }}>
-      <h2 style={{ fontSize: '20px', marginBottom: '40px', color: '#9ca3af' }}>⚙️ 시스템 관리</h2>
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        <Link to="/a/users" style={pharmNavLinkStyle}>회원 관리</Link>
-        <Link to="/a/sync" style={pharmNavLinkStyle}>데이터 동기화</Link>
-      </nav>
-      <button onClick={() => { localStorage.removeItem('authSession'); window.location.href='/login'; }} 
-              style={{ marginTop: 'auto', background: '#4b5563', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
-        로그아웃
-      </button>
-    </aside>
-    <main style={{ flex: 1, padding: '40px', background: '#f9fafb' }}>
-      <Outlet />
-    </main>
-  </div>
-)
-
-// --- 스타일 헬퍼 ---
-const userNavLinkStyle = { color: '#fff', textDecoration: 'none', fontWeight: '500' };
-const pharmNavLinkStyle = { color: '#e5e7eb', textDecoration: 'none', fontSize: '16px' };
+import AdminDashboard from './pages/AdminDashboard'
+import AdminPharmacistList from './pages/AdminPharmacistList'
+import AdminUserList from './pages/AdminUserList'
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 공통 진입점 */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        <Route path="/" element={<Navigate to="/app/schedule" replace />} />
 
-        {/* 👤 일반 유저 전용 (/u) */}
-        <Route path="/u" element={<UserLayout />}>
-          <Route path="home" element={<ScheduleListPage />} />
-          <Route path="chat" element={<Chatbot />} />
-          <Route path="my" element={<MyPage />} />
-          <Route path="consultations" element={<UserConsultationList />} />
-          <Route path="consultation" element={<Consultation />} />
-          <Route path="medicine-search" element={<MedicineSearch />} />
-        </Route>
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/yunjutest" element={<YunjuTest />} />
+        <Route path="/sync" element={<Sync />} />
+        <Route path="/consultation" element={<Consultation />} />
 
         {/* 🩺 약사 전용 (/p) */}
-        <Route path="/p" element={<PharmLayout />}>
-          <Route path="dashboard" element={<PharmacistDashboard />} />
-          <Route path="rooms" element={<PharmacistRoomList />} />
-          <Route path="profile" element={<PharmacistProfile />} />
-          <Route path="consultation" element={<Consultation />} />
+        <Route element={<PharmLayout />}>
+          <Route path="/p" element={<Navigate to="/p/dashboard" replace />} />
+          <Route path="/p/dashboard" element={<PharmacistDashboard />} />
+          <Route path="/p/rooms" element={<PharmacistRoomList />} />
+          <Route path="/p/profile" element={<PharmacistProfile />} />
+          <Route path="/p/consultation" element={<Consultation />} />
         </Route>
 
         {/* ⚙️ 관리자 전용 (/a) */}
-        <Route path="/a" element={<AdminLayout />}>
-          <Route path="users" element={<div>전체 회원 목록 (준비중)</div>} />
-          <Route path="sync" element={<Sync />} />
+        <Route element={<AdminLayout />}>
+          <Route path="/a" element={<Navigate to="/a/dashboard" replace />} />
+          <Route path="/a/dashboard" element={<AdminDashboard />} />
+          <Route path="/a/approvals" element={<AdminPharmacistList />} />
+          <Route path="/a/users" element={<AdminUserList />} />
+          <Route path="/a/sync" element={<Sync />} />
         </Route>
 
-        {/* 404 처리 */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route element={<AppLayout />}>
+          <Route path="/app" element={<Navigate to="/app/schedule" replace />} />
+          <Route path="/app/schedule" element={<ScheduleDashboardPage />} />
+          <Route path="/app/schedule/calendar" element={<ScheduleDashboardPage />} />
+          <Route path="/app/schedule/new" element={<ScheduleCreatePage />} />
+          <Route path="/app/schedule/:id/edit" element={<ScheduleEditPage />} />
+          <Route path="/app/ocr" element={<MedicationRegisterPage />} />
+          <Route path="/app/chatbot" element={<ChatbotPage />} />
+          <Route path="/app/chat" element={<ChatConsultPage />} />
+          <Route path="/app/drugs" element={<MedicineSearch />} />
+          <Route path="/app/pharmacies" element={<PharmacyMap />} />
+          <Route
+            path="/app/faq"
+            element={
+              <SimplePlaceholderPage
+                eyebrow="FAQ"
+                title="FAQ"
+                description="사용자 공통 레이아웃에 맞춰 FAQ 자리를 먼저 구성했습니다."
+              />
+            }
+          />
+          <Route
+            path="/app/notifications"
+            element={
+              <SimplePlaceholderPage
+                eyebrow="Notifications"
+                title="알림"
+                description="현재는 사용자 페이지 구조에 맞춘 알림 영역만 구성했습니다."
+              />
+            }
+          />
+          <Route
+            path="/app/iot"
+            element={
+              <SimplePlaceholderPage
+                eyebrow="Smart Pillbox"
+                title="스마트 약통"
+                description="스마트 약통 화면은 추후 기능 연동을 위해 사용자 레이아웃 안에 자리만 맞춰뒀습니다."
+              />
+            }
+          />
+          <Route path="/app/my" element={<MyPage />} />
+        </Route>
+
+        <Route path="/chatbot" element={<Navigate to="/app/chatbot" replace />} />
+        <Route path="/caution-register" element={<Navigate to="/app/my" replace />} />
+        <Route path="/medicine-search" element={<Navigate to="/app/drugs" replace />} />
+        <Route path="/schedule-test" element={<ScheduleListPage />} />
+        <Route path="/schedule-test/calendar" element={<ScheduleCalendarPage />} />
+        <Route path="/schedule-test/ocr" element={<ScheduleOcrPage />} />
+        <Route path="/schedule-test/new" element={<ScheduleCreatePage />} />
+        <Route path="/schedule-test/:id/edit" element={<ScheduleEditPage />} />
+        <Route path="/my" element={<Navigate to="/app/my" replace />} />
+        <Route path="/pharmacy-map" element={<Navigate to="/app/pharmacies" replace />} />
+        <Route path="*" element={<Navigate to="/app/schedule" replace />} />
       </Routes>
     </BrowserRouter>
   )

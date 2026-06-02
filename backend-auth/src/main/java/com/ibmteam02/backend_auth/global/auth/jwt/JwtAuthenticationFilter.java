@@ -7,12 +7,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -28,12 +30,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter{
 
         if(token != null && jwtProvider.validateToken(token)){
             String email = jwtProvider.getEmailFromToken(token);
+            String role = jwtProvider.getRoleFromToken(token);
+
+            List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
 
             UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(email,null, Collections.emptyList());
+                    new UsernamePasswordAuthenticationToken(email,null, authorities);
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.info("Security Context에 {} 인증 정보를 저장했습니다", email);
+            log.info("Security Context에 {} ({}) 인증 정보를 저장했습니다", email, role);
         }
 
         filterChain.doFilter(request, response);

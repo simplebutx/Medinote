@@ -21,6 +21,16 @@ export const logout = async (accessToken) => {
   return response.data
 }
 
+export const updateMyProfile = async (payload) => {
+  const response = await api.patch('/auth/me', payload)
+  return response.data
+}
+
+export const withdrawAccount = async () => {
+  const response = await api.delete('/auth/me')
+  return response.data
+}
+
 export const saveAuthSession = (session) => {
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
 }
@@ -62,39 +72,11 @@ export const syncMedicines = async () => {
   return response.data
 }
 
-export const createChatbotRoom = async (payload = {}) => {
-  const response = await api.post('/chatbot/rooms', payload)
-  return response.data
-}
-
-export const getChatbotRooms = async () => {
-  const response = await api.get('/chatbot/rooms')
-  return response.data
-}
-
-export const updateChatbotRoom = async (roomId, payload) => {
-  const response = await api.patch(`/chatbot/rooms/${roomId}`, payload)
-  return response.data
-}
-
-export const deleteChatbotRoom = async (roomId) => {
-  await api.delete(`/chatbot/rooms/${roomId}`)
-}
-
-export const getChatbotMessages = async (roomId) => {
-  const response = await api.get(`/chatbot/rooms/${roomId}/messages`)
-  return response.data
-}
-
-export const sendChatbotMessage = async (roomId, message) => {
-  const response = await api.post('/chatbot/message', { roomId, message }, {
+export const sendChatbotMessage = async (message) => {
+  const response = await api.post('/chatbot/message', { message }, {
     timeout: 300000,
   })
   return response.data
-}
-
-export const deleteChatbotMessage = async (messageId) => {
-  await api.delete(`/chatbot/messages/${messageId}`)
 }
 
 export const suggestMedicines = async (keyword) => {
@@ -109,18 +91,6 @@ export const suggestCautions = async (keyword, type) => {
   const response = await api.post('/me/cautions/suggest', null, {
     params: { keyword, type },
     timeout: 300000,
-  })
-  return response.data
-}
-
-export const updateMyProfile = async (payload) => {
-  const response = await api.patch('/auth/me', payload)
-  return response.data
-}
-
-export const suggestDiseases = async (keyword) => {
-  const response = await api.get('/auth/diseases/suggest', {
-    params: { keyword }
   })
   return response.data
 }

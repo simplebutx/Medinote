@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { getAuthSession } from '../api';
+import api, { getAuthSession } from '../api';
 
 const AdminPharmacistList = () => {
     const [pendingPharmacists, setPendingPharmacists] = useState([]);
@@ -12,9 +11,7 @@ const AdminPharmacistList = () => {
         if (!session) return;
         setLoading(true);
         try {
-            const res = await axios.get('http://localhost:8080/api/admin/pharmacists/pending', {
-                headers: { Authorization: `Bearer ${session.accessToken}` }
-            });
+            const res = await api.get('/admin/pharmacists/pending');
             setPendingPharmacists(res.data);
         } catch (error) {
             console.error("승인 대기 목록 조회 실패:", error);
@@ -30,9 +27,7 @@ const AdminPharmacistList = () => {
     const handleApprove = async (userId) => {
         if (!window.confirm("이 약사를 승인하시겠습니까?")) return;
         try {
-            await axios.post(`http://localhost:8080/api/admin/pharmacists/${userId}/approve`, {}, {
-                headers: { Authorization: `Bearer ${session.accessToken}` }
-            });
+            await api.post(`/admin/pharmacists/${userId}/approve`);
             alert("승인 완료되었습니다.");
             fetchPendingList();
         } catch (error) {
@@ -43,9 +38,7 @@ const AdminPharmacistList = () => {
     const handleReject = async (userId) => {
         if (!window.confirm("이 약사를 거절하시겠습니까? 인증 정보가 초기화됩니다.")) return;
         try {
-            await axios.post(`http://localhost:8080/api/admin/pharmacists/${userId}/reject`, {}, {
-                headers: { Authorization: `Bearer ${session.accessToken}` }
-            });
+            await api.post(`/admin/pharmacists/${userId}/reject`);
             alert("거절 처리되었습니다.");
             fetchPendingList();
         } catch (error) {

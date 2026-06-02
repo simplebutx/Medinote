@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
-import { getAuthSession } from '../api';
+import api, { getAuthSession } from '../api';
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
@@ -18,9 +17,7 @@ const AdminDashboard = () => {
 
         const fetchStats = async () => {
             try {
-                const res = await axios.get('http://localhost:8080/api/admin/pharmacists/pending', {
-                    headers: { Authorization: `Bearer ${session.accessToken}` }
-                });
+                const res = await api.get('/admin/pharmacists/pending');
                 setStats({
                     pendingPharmacists: res.data.length,
                     totalUsers: 0 // 전체 유저 조회 API 생기면 연결
