@@ -101,6 +101,18 @@ function getRateClass(rate) {
   return 'empty'
 }
 
+function getDoseDisplayStatus(item, selectedDate, now = new Date()) {
+  if (item.status === 'TAKEN') return 'TAKEN'
+  if (item.status === 'SKIPPED') return 'SKIPPED'
+
+  const scheduledAt = new Date(`${selectedDate}T${item.time}:00`)
+  if (!Number.isNaN(scheduledAt.getTime()) && scheduledAt < now) {
+    return 'SKIPPED'
+  }
+
+  return 'PENDING'
+}
+
 function ScheduleDashboardPage() {
   const todayText = formatIsoDate(new Date())
   const [selectedDate, setSelectedDate] = useState(todayText)
@@ -181,19 +193,19 @@ function ScheduleDashboardPage() {
     [calendarDays, intakeLogsByScheduleId, scheduleTimesById, schedules],
   )
 
-  const setItemStatus = async (item, status) => {
+  const toggleItemTaken = async (item) => {
     try {
       if (item.logIds.length) {
         await Promise.all(item.logIds.map((id) => deleteMedicationIntakeLog(id)))
       }
 
-      if (status !== 'PENDING') {
+      if (item.status !== 'TAKEN') {
         await createMedicationIntakeLog({
           medicationScheduleId: item.scheduleId,
           medicationScheduleTimeId: item.scheduleTimeId,
-          status,
+          status: 'TAKEN',
           scheduledAt: `${selectedDate}T${item.time}:00`,
-          takenAt: status === 'TAKEN' ? new Date().toISOString().slice(0, 19) : null,
+          takenAt: new Date().toISOString().slice(0, 19),
         })
       }
 
@@ -204,7 +216,7 @@ function ScheduleDashboardPage() {
   }
 
   return (
-    <div className="app-page">
+    <div className="app-page schedule-dashboard-page">
       <div className="app-page-header">
         <p className="app-page-eyebrow">Medication Schedule</p>
         <h1 className="app-page-title">복약 일정</h1>
@@ -233,132 +245,132 @@ function ScheduleDashboardPage() {
 
       {message ? <div className="schedule-banner-panel">{message}</div> : null}
 
-      <section className="app-card">
-        <div className="schedule-panel-header">
-          <div>
-            <h2>
-              {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월 복약 달력
-            </h2>
-            <p>날짜를 클릭하면 아래 복약 목록이 선택한 날짜 기준으로 표시됩니다.</p>
+      <div className="schedule-dashboard-layout">
+        <section className="app-card schedule-calendar-card">
+          <div className="schedule-panel-header">
+            <div>
+              <h2>
+                {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월 복약 달력
+              </h2>
+              <p>날짜를 클릭하면 아래 복약 목록이 선택한 날짜 기준으로 표시됩니다.</p>
+            </div>
+
+            <div className="schedule-calendar-controls">
+              <div className="schedule-legend-row">
+                <span className="good">80% 이상</span>
+                <span className="medium">50% 이상</span>
+                <span className="poor">50% 미만</span>
+                <span className="empty">일정 없음</span>
+              </div>
+              <div className="schedule-control-buttons">
+                <button type="button" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}>
+                  이전 달
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const now = new Date()
+                    setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1))
+                    setSelectedDate(todayText)
+                  }}
+                >
+                  오늘
+                </button>
+                <button type="button" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}>
+                  다음 달
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="schedule-calendar-controls">
-            <div className="schedule-legend-row">
-              <span className="good">80% 이상</span>
-              <span className="medium">50% 이상</span>
-              <span className="poor">50% 미만</span>
-              <span className="empty">일정 없음</span>
-            </div>
-            <div className="schedule-control-buttons">
-              <button type="button" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}>
-                이전 달
-              </button>
+          <div className="dashboard-calendar-grid">
+            {WEEKDAY_LABELS.map((label) => (
+              <div key={label} className="dashboard-weekday-cell">
+                {label}
+              </div>
+            ))}
+
+            {calendarWithRates.map((day) => (
               <button
+                key={day.isoDate}
                 type="button"
-                onClick={() => {
-                  const now = new Date()
-                  setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1))
-                  setSelectedDate(todayText)
-                }}
+                className={[
+                  'dashboard-calendar-cell',
+                  day.isCurrentMonth ? '' : 'muted',
+                  selectedDate === day.isoDate ? 'selected' : '',
+                  day.rate == null ? 'empty' : getRateClass(day.rate),
+                ]
+                  .join(' ')
+                  .trim()}
+                onClick={() => setSelectedDate(day.isoDate)}
               >
-                오늘
+                <span className="date-number">{day.dayNumber}</span>
+                {day.rate != null ? <strong>{day.rate}%</strong> : null}
               </button>
-              <button type="button" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}>
-                다음 달
-              </button>
-            </div>
+            ))}
           </div>
-        </div>
+        </section>
 
-        <div className="dashboard-calendar-grid">
-          {WEEKDAY_LABELS.map((label) => (
-            <div key={label} className="dashboard-weekday-cell">
-              {label}
+        <section className="app-card schedule-selected-card">
+          <div className="schedule-panel-header">
+            <div>
+              <h2>선택 날짜 복약</h2>
+              <p>{selectedDate} 기준 복약 목록입니다.</p>
             </div>
-          ))}
-
-          {calendarWithRates.map((day) => (
-            <button
-              key={day.isoDate}
-              type="button"
-              className={[
-                'dashboard-calendar-cell',
-                day.isCurrentMonth ? '' : 'muted',
-                selectedDate === day.isoDate ? 'selected' : '',
-                day.rate == null ? 'empty' : getRateClass(day.rate),
-              ]
-                .join(' ')
-                .trim()}
-              onClick={() => setSelectedDate(day.isoDate)}
-            >
-              <span className="date-number">{day.dayNumber}</span>
-              {day.rate != null ? <strong>{day.rate}%</strong> : null}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="app-card">
-        <div className="schedule-panel-header">
-          <div>
-            <h2>선택 날짜 복약</h2>
-            <p>{selectedDate} 기준 복약 목록입니다.</p>
+            <span className="today-pill">{selectedDate === todayText ? '오늘' : '선택됨'}</span>
           </div>
-          <span className="today-pill">{selectedDate === todayText ? '오늘' : '선택됨'}</span>
-        </div>
 
-        {loading ? (
-          <div className="app-placeholder-card">복약 일정을 불러오는 중입니다.</div>
-        ) : doseGroups.length === 0 ? (
-          <div className="app-placeholder-card">선택한 날짜에 등록된 복약 일정이 없습니다.</div>
-        ) : (
+          {loading ? (
+            <div className="app-placeholder-card">복약 일정을 불러오는 중입니다.</div>
+          ) : doseGroups.length === 0 ? (
+            <div className="app-placeholder-card">선택한 날짜에 등록된 복약 일정이 없습니다.</div>
+          ) : (
           <div className="schedule-dose-groups">
             {doseGroups.map((group) => (
               <section key={group.time} className="dose-time-group">
-                <div className="dose-time-header">
-                  <div>
-                    <strong>{formatTimeLabel(group.time)}</strong>
-                    <p>같은 시간대 복약 {group.items.length}개</p>
+                  <div className="dose-time-header">
+                    <div>
+                      <strong>{formatTimeLabel(group.time)}</strong>
+                      <p>같은 시간대 복약 {group.items.length}개</p>
+                    </div>
                   </div>
-                </div>
 
                 <div className="dose-item-list">
-                  {group.items.map((item) => (
+                  {group.items.map((item) => {
+                    const displayStatus = getDoseDisplayStatus(item, selectedDate)
+
+                    return (
                     <article key={`${item.scheduleId}-${item.scheduleTimeId}`} className="dose-item-card">
-                      <div>
+                      <div className="dose-item-content">
                         <div className="dose-title-row">
                           <h3>{item.name}</h3>
-                          <span className={`dose-status ${item.status === 'TAKEN' ? 'done' : item.status === 'SKIPPED' ? 'skipped' : ''}`}>
-                            {item.status === 'TAKEN' ? '복용 완료' : item.status === 'SKIPPED' ? '건너뜀' : '예정'}
+                          <span className={`dose-status ${displayStatus === 'TAKEN' ? 'done' : displayStatus === 'SKIPPED' ? 'skipped' : ''}`}>
+                            {displayStatus === 'TAKEN' ? '복용 완료' : displayStatus === 'SKIPPED' ? '건너뜀' : '예정'}
                           </span>
                         </div>
-                        <p>{item.time} · {item.dosage} · {item.timing}</p>
+                        <p>{item.dosage} · {item.timing}</p>
                       </div>
 
                       <div className="dose-actions">
                         <button
                           type="button"
-                          className={item.status === 'TAKEN' ? 'primary active' : 'primary'}
-                          onClick={() => setItemStatus(item, item.status === 'TAKEN' ? 'PENDING' : 'TAKEN')}
+                          className={`dose-check-toggle ${item.status === 'TAKEN' ? 'active' : ''}`}
+                          aria-label={item.status === 'TAKEN' ? '복용 완료 해제' : '복용 완료 체크'}
+                          title={item.status === 'TAKEN' ? '복용 완료 해제' : '복용 완료 체크'}
+                          onClick={() => toggleItemTaken(item)}
                         >
-                          복용 완료
-                        </button>
-                        <button
-                          type="button"
-                          className={item.status === 'SKIPPED' ? 'ghost active' : 'ghost'}
-                          onClick={() => setItemStatus(item, item.status === 'SKIPPED' ? 'PENDING' : 'SKIPPED')}
-                        >
-                          건너뜀
+                          <span aria-hidden="true">{item.status === 'TAKEN' ? 'V' : ''}</span>
                         </button>
                       </div>
                     </article>
-                  ))}
+                  )})}
                 </div>
               </section>
             ))}
-          </div>
-        )}
-      </section>
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   )
 }

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -16,7 +17,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true,nullable = false)
+    @Column(unique = true, nullable = false)
     private String email; // 이메일
 
     @Column(nullable = false)
@@ -39,7 +40,7 @@ public class User {
     private UserStatus status; // WAITING_APPROVAL, ACTIVE
 
     @Builder
-    public User(String email,String password, String username, LocalDate birthDate, Gender gender,Role role ){
+    public User(String email, String password, String username, LocalDate birthDate, Gender gender, Role role) {
         this.email = email;
         this.password = password;
         this.username = username;
@@ -55,14 +56,20 @@ public class User {
     }
 
     //약사 2단계 완료 시 승인 대기 상태로 변경
-    public void setWaitingForApproval(){
+    public void setWaitingForApproval() {
         this.status = UserStatus.WAITING_APPROVAL;
     }
 
-    //닉네임 정보 수정
-    public void updateUsername(String username){
-        if(username != null && username.isEmpty()){
+    //기본 정보 수정
+    public void updateBasicProfile(String username,LocalDate birthDate, Gender gender) {
+        if (username != null && username.trim().isEmpty()) {
             this.username = username;
+        }
+        if (birthDate != null) {
+            this.birthDate = birthDate;
+        }
+        if (gender != null) {
+            this.gender = gender;
         }
     }
 }

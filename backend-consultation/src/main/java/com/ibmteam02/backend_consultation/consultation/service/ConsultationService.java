@@ -6,9 +6,11 @@ import com.ibmteam02.backend_consultation.consultation.domain.SessionStatus;
 import com.ibmteam02.backend_consultation.consultation.dto.ChatMessageDto;
 import com.ibmteam02.backend_consultation.consultation.dto.ChatMessageResponse;
 import com.ibmteam02.backend_consultation.consultation.dto.ConsultationRoomResponse;
+import com.ibmteam02.backend_consultation.consultation.dto.PatientInfoResponse;
 import com.ibmteam02.backend_consultation.consultation.repository.ConsultationFeedbackRepository;
 import com.ibmteam02.backend_consultation.consultation.repository.ConsultationMessageRepository;
 import com.ibmteam02.backend_consultation.consultation.repository.ConsultationSessionRepository;
+import com.ibmteam02.backend_consultation.global.auth.AuthUserClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,14 +25,26 @@ public class ConsultationService {
     private final ConsultationSessionRepository consultationSessionRepository;
     private final ConsultationMessageRepository consultationMessageRepository;
     private final ConsultationFeedbackRepository consultationFeedbackRepository;
+    private final AuthUserClient authUserClient;
 
     // 공통 변환 메서드
     public ConsultationRoomResponse convertToResponse(ConsultationSession session){
+        //일반 유저 username 가져오기
+        String customerName = authUserClient.getCustomerName(session.getCustomerId());
+
+        String firstMessage = consultationMessageRepository.findBySessionOrderByCreatedAtAsc(session)
+                .stream()
+                .findFirst()
+                .map(ConsultationMessage::getContent)
+                .orElse("상담 요청 메시지가 없습니다");
+
         return ConsultationRoomResponse.builder()
                 .roomId(session.getId())
                 .customId(session.getCustomerId())
                 .status(session.getStatus().name())
                 .createdAt(session.getCreatedAt())
+                .firstMessage(firstMessage)
+                .customerName(customerName)
                 .build();
     }
 
@@ -135,6 +149,19 @@ public class ConsultationService {
         }
         return consultationSessionRepository.findByCustomerId(userId)
                 .stream().map(this::convertToResponse).toList();
+    }
+
+    // 약사가 상담 중 환자 정보 조회
+    @Transactional(readOnly = true)
+    public PatientInfoResponse getPatientInfoByRoomId(Long roomId, String role) {
+        if (!"PHARMACIST".equals(role) && !"ROLE_PHARMACIST".equals(role)) {
+            throw new IllegalArgumentException("약사만 환자 정보를 조회할 수 있습니다");
+        }
+
+        ConsultationSession session = consultationSessionRepository.findById(roomId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 방입니다"));
+
+        return authUserClient.getPatientInfo(session.getCustomerId());
     }
 
     //상담 종료 처리

@@ -1,305 +1,158 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { getAuthSession } from '../api';
 
 const PharmacistRoomList = () => {
+    const [pendingRooms, setPendingRooms] = useState([]);
+    const [activeRooms, setActiveRooms] = useState([]);
+    const [completedRooms, setCompletedRooms] = useState([]);
+    const [activeTab, setActiveTab] = useState('pending'); // pending, matched, completed
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const session = getAuthSession();
-    
-    const [activeTab, setActiveTab] = useState('PENDING'); // PENDING, MATCHED, CLOSED
-    const [rooms, setRooms] = useState([]);
-    const [loading, setLoading] = useState(true);
 
-    const fetchRooms = async (status) => {
-        setLoading(true);
+    const fetchRooms = async (isInitial = false) => {
+        if (!session) return;
+        if (isInitial) setLoading(true);
         try {
-            let endpoint = '';
-            if (status === 'PENDING') endpoint = '/rooms/pending';
-            else if (status === 'MATCHED') endpoint = '/rooms/active';
-            else if (status === 'CLOSED') endpoint = '/rooms/completed';
-
-            const response = await axios.get(`http://localhost:8082/app/consult${endpoint}`, {
-                headers: {
-                    Authorization: `Bearer ${session.accessToken}`
-                }
-            });
-            setRooms(response.data);
+            const [p, a, c] = await Promise.all([
+                axios.get('http://localhost:8082/app/consult/rooms/pending', { headers: { Authorization: `Bearer ${session.accessToken}` } }),
+                axios.get('http://localhost:8082/app/consult/rooms/active', { headers: { Authorization: `Bearer ${session.accessToken}` } }),
+                axios.get('http://localhost:8082/app/consult/rooms/completed', { headers: { Authorization: `Bearer ${session.accessToken}` } })
+            ]);
+            setPendingRooms(p.data);
+            setActiveRooms(a.data);
+            setCompletedRooms(c.data);
         } catch (error) {
-            console.error(`${status} 목록 조회 실패:`, error);
-            setRooms([]);
+            console.error("방 목록 조회 실패:", error);
         } finally {
-            setLoading(false);
+            if (isInitial) setLoading(false);
         }
     };
 
     useEffect(() => {
-        if (!session || session.role !== 'PHARMACIST') {
-            alert('약사 전용 페이지입니다.');
-            navigate('/');
-            return;
-        }
-        fetchRooms(activeTab);
-    }, [activeTab, navigate]);
+        fetchRooms(true); // 처음 로드할 때만 로딩 표시
+        const interval = setInterval(() => fetchRooms(false), 10000); // 배경에서 10초마다 갱신
+        return () => clearInterval(interval);
+    }, []);
 
-    // 상담 수락 (PENDING -> MATCHED)
-    const handleAcceptConsultation = async (roomId) => {
+    const handleAccept = async (roomId) => {
         try {
             await axios.post(`http://localhost:8082/app/consult/room/${roomId}/match`, {}, {
                 headers: { Authorization: `Bearer ${session.accessToken}` }
             });
-            alert('상담을 수락했습니다. 상담방으로 이동합니다.');
-            // 수락 즉시 해당 상담방으로 입장
-            navigate('/consultation', { state: { initialRoomId: roomId } });
+            alert("상담을 수락했습니다.");
+            navigate('/p/consultation', { state: { initialRoomId: roomId } });
         } catch (error) {
-            alert('상담 수락 실패: ' + (error.response?.data || error.message));
+            alert("수락 실패: " + (error.response?.data || error.message));
         }
     };
 
-    // 상담 종료 (MATCHED -> CLOSED)
-    const handleCloseConsultation = async (roomId) => {
-        if (!window.confirm('상담을 종료하시겠습니까?')) return;
+    const handleClose = async (roomId) => {
+        if (!window.confirm("상담을 종료하시겠습니까?")) return;
         try {
             await axios.patch(`http://localhost:8082/app/consult/room/${roomId}/close`, {}, {
                 headers: { Authorization: `Bearer ${session.accessToken}` }
             });
-            alert('상담이 종료되었습니다.');
-            fetchRooms('MATCHED');
+            fetchRooms();
         } catch (error) {
-            alert('상담 종료 실패: ' + (error.response?.data || error.message));
+            alert("종료 실패");
         }
     };
 
-    // 채팅방 입장
-    const handleEnterRoom = (roomId) => {
-        navigate('/consultation', { state: { initialRoomId: roomId } });
-    };
+    const renderRoomCard = (room, type) => (
+        <div key={room.roomId} style={roomCardStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span style={roomIdBadgeStyle}>#{room.roomId}</span>
+                        <span style={timeLabelStyle}>{new Date(room.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} 신청</span>
+                    </div>
+                    
+                    <div style={{ fontWeight: '800', fontSize: '18px', marginBottom: '10px', color: '#1e293b' }}>
+                        {room.customerName || "익명"} 환자님
+                    </div>
 
-    if (loading && rooms.length === 0) return <div style={containerStyle}><h2>로딩 중...</h2></div>;
+                    {/* 첫 번째 메시지 미리보기 표시 */}
+                    <div style={messagePreviewBoxStyle}>
+                        <p style={messagePreviewTextStyle}>
+                            {room.firstMessage || "상담 요청 메시지가 없습니다."}
+                        </p>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginLeft: '20px' }}>
+                    {type === 'pending' && (
+                        <button onClick={() => handleAccept(room.roomId)} style={acceptButtonStyle}>상담 수락</button>
+                    )}
+                    {type === 'matched' && (
+                        <>
+                            <button onClick={() => navigate('/p/consultation', { state: { initialRoomId: room.roomId } })} style={enterButtonStyle}>입장</button>
+                            <button onClick={() => handleClose(room.roomId)} style={closeButtonStyle}>종료</button>
+                        </>
+                    )}
+                    {type === 'completed' && (
+                        <button onClick={() => navigate('/p/consultation', { state: { initialRoomId: room.roomId } })} style={viewButtonStyle}>기록 확인</button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 
     return (
-        <div style={containerStyle}>
-            <div style={headerStyle}>
-                <h2>🩺 약사 상담 관리</h2>
-                <Link to="/" style={linkStyle}>홈으로</Link>
+        <div style={{ maxWidth: '900px' }}>
+            <div style={{ marginBottom: '30px' }}>
+                <h1 style={{ fontSize: '28px', fontWeight: '800', color: '#1e293b' }}>상담 관리 센터</h1>
+                <p style={{ color: '#64748b' }}>실시간 상담 요청 및 관리 현황입니다.</p>
             </div>
 
-            {/* 탭 메뉴 */}
-            <div style={tabContainerStyle}>
-                <button 
-                    onClick={() => setActiveTab('PENDING')} 
-                    style={{...tabStyle, borderBottom: activeTab === 'PENDING' ? '3px solid #007AFF' : 'none', color: activeTab === 'PENDING' ? '#007AFF' : '#64748b'}}
-                >
-                    대기 중
+            {/* 탭 전환 */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '25px' }}>
+                <button onClick={() => setActiveTab('pending')} style={activeTab === 'pending' ? activeTabBtnStyle : tabBtnStyle}>
+                    수락 대기 {pendingRooms.length > 0 && <span style={countBadgeStyle}>{pendingRooms.length}</span>}
                 </button>
-                <button 
-                    onClick={() => setActiveTab('MATCHED')} 
-                    style={{...tabStyle, borderBottom: activeTab === 'MATCHED' ? '3px solid #10b981' : 'none', color: activeTab === 'MATCHED' ? '#10b981' : '#64748b'}}
-                >
-                    진행 중
+                <button onClick={() => setActiveTab('matched')} style={activeTab === 'matched' ? activeTabBtnStyle : tabBtnStyle}>
+                    상담 중 {activeRooms.length > 0 && <span style={countBadgeStyle}>{activeRooms.length}</span>}
                 </button>
-                <button 
-                    onClick={() => setActiveTab('CLOSED')} 
-                    style={{...tabStyle, borderBottom: activeTab === 'CLOSED' ? '3px solid #64748b' : 'none', color: activeTab === 'CLOSED' ? '#64748b' : '#64748b'}}
-                >
-                    완료됨
+                <button onClick={() => setActiveTab('completed')} style={activeTab === 'completed' ? activeTabBtnStyle : tabBtnStyle}>
+                    종료된 상담
                 </button>
             </div>
 
-            {rooms.length === 0 ? (
-                <div style={emptyStyle}>
-                    {activeTab === 'PENDING' && "새로운 상담 요청이 없습니다."}
-                    {activeTab === 'MATCHED' && "현재 진행 중인 상담이 없습니다."}
-                    {activeTab === 'CLOSED' && "완료된 상담 내역이 없습니다."}
-                </div>
-            ) : (
-                <div style={listStyle}>
-                    {rooms.map((room) => (
-                        <div key={room.roomId} style={cardStyle}>
-                            <div style={cardHeaderStyle}>
-                                <span style={{
-                                    ...badgeStyle, 
-                                    backgroundColor: activeTab === 'PENDING' ? '#fef08a' : activeTab === 'MATCHED' ? '#dcfce7' : '#f1f5f9',
-                                    color: activeTab === 'PENDING' ? '#854d0e' : activeTab === 'MATCHED' ? '#166534' : '#475569'
-                                }}>
-                                    {activeTab === 'PENDING' ? '대기중' : activeTab === 'MATCHED' ? '진행중' : '완료'}
-                                </span>
-                                <span style={timeStyle}>{new Date(room.createdAt).toLocaleString()}</span>
-                            </div>
-                            <div style={cardBodyStyle}>
-                                <p><strong>방 번호:</strong> {room.roomId}</p>
-                                <p><strong>사용자 ID:</strong> {room.customId}</p>
-                            </div>
-                            
-                            <div style={actionAreaStyle}>
-                                {activeTab === 'PENDING' && (
-                                    <button onClick={() => handleAcceptConsultation(room.roomId)} style={acceptButtonStyle}>
-                                        상담 수락하기
-                                    </button>
-                                )}
-                                {activeTab === 'MATCHED' && (
-                                    <>
-                                        <button onClick={() => handleEnterRoom(room.roomId)} style={enterButtonStyle}>
-                                            채팅방 입장
-                                        </button>
-                                        <button onClick={() => handleCloseConsultation(room.roomId)} style={closeButtonStyle}>
-                                            상담 종료
-                                        </button>
-                                    </>
-                                )}
-                                {activeTab === 'CLOSED' && (
-                                    <button onClick={() => handleEnterRoom(room.roomId)} style={historyButtonStyle}>
-                                        대화 내역 보기
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                {loading && <p style={{ textAlign: 'center', color: '#64748b' }}>데이터를 불러오는 중...</p>}
+                
+                {!loading && activeTab === 'pending' && (
+                    pendingRooms.length > 0 ? pendingRooms.map(r => renderRoomCard(r, 'pending')) : <div style={emptyStateStyle}>현재 대기 중인 상담이 없습니다.</div>
+                )}
+                {!loading && activeTab === 'matched' && (
+                    activeRooms.length > 0 ? activeRooms.map(r => renderRoomCard(r, 'matched')) : <div style={emptyStateStyle}>현재 진행 중인 상담이 없습니다.</div>
+                )}
+                {!loading && activeTab === 'completed' && (
+                    completedRooms.length > 0 ? completedRooms.map(r => renderRoomCard(r, 'completed')) : <div style={emptyStateStyle}>완료된 상담 내역이 없습니다.</div>
+                )}
+            </div>
         </div>
     );
 };
 
-// --- 스타일 가이드 ---
-const containerStyle = {
-    maxWidth: '800px',
-    margin: '40px auto',
-    padding: '20px',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
-};
+// --- Styles ---
+const roomCardStyle = { padding: '24px', background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', transition: 'all 0.2s' };
+const roomIdBadgeStyle = { background: '#f1f5f9', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '700', color: '#475569' };
+const timeLabelStyle = { fontSize: '13px', color: '#94a3b8' };
+const messagePreviewBoxStyle = { marginTop: '5px', padding: '15px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' };
+const messagePreviewTextStyle = { margin: 0, fontSize: '15px', color: '#334155', lineHeight: '1.6', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxDirection: 'vertical' };
 
-const headerStyle = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '20px'
-};
+const tabBtnStyle = { padding: '12px 24px', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' };
+const activeTabBtnStyle = { ...tabBtnStyle, background: '#065f46', color: '#fff', border: 'none' };
+const countBadgeStyle = { background: '#ef4444', color: '#fff', fontSize: '11px', padding: '2px 8px', borderRadius: '20px' };
 
-const tabContainerStyle = {
-    display: 'flex',
-    gap: '20px',
-    marginBottom: '30px',
-    borderBottom: '1px solid #e2e8f0'
-};
+const acceptButtonStyle = { padding: '12px 24px', borderRadius: '10px', background: '#065f46', color: '#fff', border: 'none', fontWeight: '800', cursor: 'pointer', minWidth: '100px' };
+const enterButtonStyle = { padding: '10px 20px', borderRadius: '8px', background: '#10b981', color: '#fff', border: 'none', fontWeight: 'bold', cursor: 'pointer' };
+const closeButtonStyle = { padding: '10px 20px', borderRadius: '8px', background: '#fff', color: '#ef4444', border: '1px solid #fee2e2', fontWeight: 'bold', cursor: 'pointer' };
+const viewButtonStyle = { padding: '10px 20px', borderRadius: '8px', background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 'bold', cursor: 'pointer' };
 
-const tabStyle = {
-    padding: '10px 5px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    transition: 'all 0.2s'
-};
-
-const linkStyle = {
-    color: '#007AFF',
-    textDecoration: 'none',
-    fontWeight: 'bold'
-};
-
-const emptyStyle = {
-    textAlign: 'center',
-    padding: '60px',
-    backgroundColor: '#f8fafc',
-    borderRadius: '16px',
-    color: '#94a3b8',
-    fontSize: '15px'
-};
-
-const listStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px'
-};
-
-const cardStyle = {
-    border: '1px solid #e2e8f0',
-    borderRadius: '16px',
-    padding: '24px',
-    backgroundColor: '#ffffff',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px'
-};
-
-const cardHeaderStyle = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-};
-
-const badgeStyle = {
-    padding: '4px 12px',
-    borderRadius: '20px',
-    fontSize: '12px',
-    fontWeight: '800'
-};
-
-const timeStyle = {
-    fontSize: '13px',
-    color: '#94a3b8'
-};
-
-const cardBodyStyle = {
-    fontSize: '15px',
-    color: '#334155',
-    lineHeight: '1.6'
-};
-
-const actionAreaStyle = {
-    display: 'flex',
-    gap: '10px'
-};
-
-const acceptButtonStyle = {
-    flex: 1,
-    padding: '12px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '15px',
-    fontWeight: 'bold',
-    cursor: 'pointer'
-};
-
-const enterButtonStyle = {
-    flex: 2,
-    padding: '12px',
-    backgroundColor: '#007AFF',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '15px',
-    fontWeight: 'bold',
-    cursor: 'pointer'
-};
-
-const closeButtonStyle = {
-    flex: 1,
-    padding: '12px',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '15px',
-    fontWeight: 'bold',
-    cursor: 'pointer'
-};
-
-const historyButtonStyle = {
-    flex: 1,
-    padding: '12px',
-    backgroundColor: '#f1f5f9',
-    color: '#475569',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '15px',
-    fontWeight: 'bold',
-    cursor: 'pointer'
-};
+const emptyStateStyle = { padding: '80px 20px', textAlign: 'center', color: '#94a3b8', background: '#fff', borderRadius: '16px', border: '2px dashed #f1f5f9' };
 
 export default PharmacistRoomList;

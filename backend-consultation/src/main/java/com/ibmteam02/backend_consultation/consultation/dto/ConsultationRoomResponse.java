@@ -12,4 +12,7 @@ public class ConsultationRoomResponse {
     private Long customId;
     private String status;
     private LocalDateTime createdAt;
+
+    private String firstMessage; //첫 메세지
+    private String customerName; //상담 신청 유저 이름
 }
