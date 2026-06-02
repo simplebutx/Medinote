@@ -26,17 +26,10 @@ function Login() {
         refreshToken: res.refreshToken,
         email: res.email,
         role: res.role,
-        userId: res.userId || res.id,
+        userId: res.userId || res.id, // ID 추가
       })
 
-      const role = res.role;
-      if (role === 'PHARMACIST' || role === 'ROLE_PHARMACIST') {
-        navigate('/p/dashboard');
-      } else if (role === 'ADMIN' || role === 'ROLE_ADMIN') {
-        navigate('/a/users');
-      } else {
-        navigate('/u/home');
-      }
+      navigate('/app/my')
     } catch (error) {
       setMessage(`로그인에 실패했습니다. ${error.response?.data?.message || error.message}`)
     } finally {
