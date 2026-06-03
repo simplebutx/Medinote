@@ -44,6 +44,8 @@ public class User {
     @Column(updatable = false)
     private LocalDateTime createdAt; // 가입일
 
+    private LocalDateTime updatedAt;
+
     @Builder
     public User(String email, String password, String username, LocalDate birthDate, Gender gender, Role role) {
         this.email = email;

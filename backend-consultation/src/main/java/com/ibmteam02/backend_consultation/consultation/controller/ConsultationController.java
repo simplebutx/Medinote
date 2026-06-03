@@ -1,6 +1,7 @@
 package com.ibmteam02.backend_consultation.consultation.controller;
 
 import com.ibmteam02.backend_consultation.consultation.dto.ChatMessageResponse;
+import com.ibmteam02.backend_consultation.consultation.dto.ConsultationFeedbackRequest;
 import com.ibmteam02.backend_consultation.consultation.dto.ConsultationRoomResponse;
 import com.ibmteam02.backend_consultation.consultation.dto.PatientInfoResponse;
 import com.ibmteam02.backend_consultation.consultation.service.ConsultationService;
@@ -152,6 +153,20 @@ public class ConsultationController {
             return ResponseEntity.ok(patientInfo);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
+    //종료된 상담 피드백 및 별점 등록
+    @PostMapping("/room/{roomId}/feedback")
+    public ResponseEntity<?> saveFeedback(
+            @PathVariable Long roomId,
+            @RequestBody ConsultationFeedbackRequest consultationFeedbackRequest){
+        try{
+            consultationService.saveFeedback(roomId,consultationFeedbackRequest);
+            return ResponseEntity.ok("평가가 성공적으로 등록되었습니다");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("평가 등록 실패" + e.getMessage());
         }
     }
 }

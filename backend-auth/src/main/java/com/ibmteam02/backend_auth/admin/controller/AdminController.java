@@ -1,5 +1,6 @@
 package com.ibmteam02.backend_auth.admin.controller;
 
+import com.ibmteam02.backend_auth.admin.dto.AdminStatsResponse;
 import com.ibmteam02.backend_auth.admin.dto.PharmacistApprovalResponse;
 import com.ibmteam02.backend_auth.admin.dto.UserManagementResponse;
 import com.ibmteam02.backend_auth.admin.service.AdminService;
@@ -74,6 +75,16 @@ public class AdminController {
 
         adminService.deleteUser(userId,role);
         return ResponseEntity.ok("회원이 정상적으로 삭제되었습니다");
+    }
+
+    //관리자 대시보드 명수 통계
+    @GetMapping("stats")
+    public ResponseEntity<AdminStatsResponse> getStats(
+            @RequestHeader("Authorization") String bearerToken){
+        String token = bearerToken.substring(7);
+        String role = jwtProvider.getRoleFromToken(token);
+
+        return ResponseEntity.ok(adminService.getStats(role));
     }
 
 }

@@ -1,12 +1,10 @@
 package com.ibmteam02.backend_consultation.consultation.service;
 
+import com.ibmteam02.backend_consultation.consultation.domain.ConsultationFeedback;
 import com.ibmteam02.backend_consultation.consultation.domain.ConsultationMessage;
 import com.ibmteam02.backend_consultation.consultation.domain.ConsultationSession;
 import com.ibmteam02.backend_consultation.consultation.domain.SessionStatus;
-import com.ibmteam02.backend_consultation.consultation.dto.ChatMessageDto;
-import com.ibmteam02.backend_consultation.consultation.dto.ChatMessageResponse;
-import com.ibmteam02.backend_consultation.consultation.dto.ConsultationRoomResponse;
-import com.ibmteam02.backend_consultation.consultation.dto.PatientInfoResponse;
+import com.ibmteam02.backend_consultation.consultation.dto.*;
 import com.ibmteam02.backend_consultation.consultation.repository.ConsultationFeedbackRepository;
 import com.ibmteam02.backend_consultation.consultation.repository.ConsultationMessageRepository;
 import com.ibmteam02.backend_consultation.consultation.repository.ConsultationSessionRepository;
@@ -177,5 +175,26 @@ public class ConsultationService {
             throw new IllegalArgumentException("본인이 담당한 상담만 종료할 수 있습니다");
         }
         session.closeSession();
+    }
+
+    //종료된 상담 피드백 및 별점 등록
+    @Transactional
+    public void saveFeedback(Long roomId, ConsultationFeedbackRequest consultationFeedbackRequest){
+        ConsultationSession session = consultationSessionRepository.findById(roomId)
+                .orElseThrow(()->new IllegalArgumentException("존재하지 않는 상담방입니다"));
+
+        if(consultationFeedbackRepository.existsBySession(session)){
+            throw new IllegalStateException("이미 평가가 완료된 상담입니다");
+        }
+
+        ConsultationFeedback feedback = ConsultationFeedback.createFeedback(
+                session,
+                session.getPharmacistId(),
+                consultationFeedbackRequest.getRating(),
+                consultationFeedbackRequest.getComment()
+        );
+
+        consultationFeedbackRepository.save(feedback);
+
     }
 }
