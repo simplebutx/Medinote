@@ -5,7 +5,11 @@ import api, { getAuthSession } from '../api';
 const AdminDashboard = () => {
     const navigate = useNavigate();
     const session = getAuthSession();
-    const [stats, setStats] = useState({ pendingPharmacists: 0, totalUsers: 0 });
+    const [stats, setStats] = useState({ 
+        totalUserCount: 0, 
+        totalPharmacistCount: 0, 
+        pendingPharmacistCount: 0 
+    });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -17,11 +21,9 @@ const AdminDashboard = () => {
 
         const fetchStats = async () => {
             try {
-                const res = await api.get('/admin/pharmacists/pending');
-                setStats({
-                    pendingPharmacists: res.data.length,
-                    totalUsers: 0 // 전체 유저 조회 API 생기면 연결
-                });
+                // 새로운 통계 전용 API 호출
+                const res = await api.get('/admin/stats');
+                setStats(res.data);
             } catch (error) {
                 console.error("통계 조회 실패", error);
             } finally {
@@ -44,20 +46,20 @@ const AdminDashboard = () => {
             <div style={gridStyle}>
                 <div style={{...cardStyle, borderLeft: '6px solid #ef4444'}} onClick={() => navigate('/a/approvals')}>
                     <div style={cardLabelStyle}>🚨 승인 대기 약사</div>
-                    <div style={cardValueStyle}>{stats.pendingPharmacists}명</div>
+                    <div style={cardValueStyle}>{stats.pendingPharmacistCount}명</div>
                     <div style={cardActionStyle}>지금 검토하기 〉</div>
                 </div>
 
-                <div style={{...cardStyle, borderLeft: '6px solid #3b82f6'}} onClick={() => alert('준비중')}>
-                    <div style={cardLabelStyle}>👥 전체 회원</div>
-                    <div style={cardValueStyle}>- 명</div>
+                <div style={{...cardStyle, borderLeft: '6px solid #3b82f6'}} onClick={() => navigate('/a/users')}>
+                    <div style={cardLabelStyle}>👥 전체 회원 (약사 포함)</div>
+                    <div style={cardValueStyle}>{stats.totalUserCount}명</div>
                     <div style={cardActionStyle}>목록 보기 〉</div>
                 </div>
 
                 <div style={{...cardStyle, borderLeft: '6px solid #10b981'}} onClick={() => navigate('/a/sync')}>
-                    <div style={cardLabelStyle}>🔄 데이터 상태</div>
-                    <div style={cardValueStyle}>정상</div>
-                    <div style={cardActionStyle}>동기화 관리 〉</div>
+                    <div style={cardLabelStyle}>👨‍⚕️ 등록된 약사</div>
+                    <div style={cardValueStyle}>{stats.totalPharmacistCount}명</div>
+                    <div style={cardActionStyle}>상세 보기 〉</div>
                 </div>
             </div>
 

@@ -10,6 +10,7 @@ const Consultation = () => {
     const navigate = useNavigate();
     const session = getAuthSession();
     const initialRoomId = location.state?.initialRoomId;
+    const initialMessage = location.state?.initialMessage;
 
     const [messages, setMessages] = useState([]);
     const [messageInput, setMessageInput] = useState('');
@@ -121,6 +122,18 @@ const Consultation = () => {
                 senderName: senderName,
                 message: ''
             }));
+
+            // 첫 메시지가 있으면 자동으로 전송
+            if (initialMessage) {
+                stompClient.send("/app/consult/message", {}, JSON.stringify({
+                    type: 'TALK',
+                    roomId: finalRoomId,
+                    senderId: parseInt(session?.userId || senderId),
+                    senderType: senderType,
+                    senderName: senderName,
+                    message: initialMessage
+                }));
+            }
         }, (error) => {
             console.error('WebSocket Connection Error: ' + error);
             setIsConnected(false);

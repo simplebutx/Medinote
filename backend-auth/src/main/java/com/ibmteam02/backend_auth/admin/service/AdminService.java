@@ -1,5 +1,6 @@
 package com.ibmteam02.backend_auth.admin.service;
 
+import com.ibmteam02.backend_auth.admin.dto.AdminStatsResponse;
 import com.ibmteam02.backend_auth.admin.dto.PharmacistApprovalResponse;
 import com.ibmteam02.backend_auth.admin.dto.UserManagementResponse;
 import com.ibmteam02.backend_auth.global.auth.service.S3Service;
@@ -126,9 +127,32 @@ public class AdminService {
         }
 
         User user = userRepository.findById(userId)
-                .orElseThrow(()-> new RuntimeException("존재하지 않는 유저입니다"));
+                .orElseThrow(() -> new RuntimeException("존재하지 않는 유저입니다"));
 
         userRepository.delete(user);
+    }
+
+    //관리자 대시보드 명수 통계
+    @Transactional
+    public AdminStatsResponse getStats(String adminRole) {
+        if (!"ADMIN".equals(adminRole) && !"ROLE_ADMIN".equals(adminRole)) {
+            throw new RuntimeException("관리자만 조회 가능합니다.");
+        }
+
+        long totalUser = userRepository.count();
+
+        long pharmacistCount = userRepository.findAll().stream()
+                .filter(u -> u.getRole() == Role.PHARMACIST)
+                .count();
+        long pendingPharmacist = userRepository.findByStatus(UserStatus.WAITING_APPROVAL).stream()
+                .filter(u -> u.getRole() == Role.PHARMACIST)
+                .count();
+
+        return AdminStatsResponse.builder()
+                .totalUserCount(totalUser)
+                .totalPharmacistCount(pharmacistCount)
+                .pendingPharmacistCount(pendingPharmacist)
+                .build();
     }
 
 }
