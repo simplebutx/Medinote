@@ -171,3 +171,16 @@ export interface CreateMedicationScheduleTimeRequest {
   sortOrder: number;
 }
 
+export interface MedicationTimePresetSlot {
+  sortOrder: number;
+  takeTime: string;
+}
+
+export interface MedicationTimePreset {
+  timesPerDay: number;
+  slots: MedicationTimePresetSlot[];
+}
+
+export interface UpdateMedicationTimePresetsRequest {
+  presets: MedicationTimePreset[];
+}

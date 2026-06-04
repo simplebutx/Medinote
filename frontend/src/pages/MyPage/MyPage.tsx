@@ -20,10 +20,12 @@ import type {
 import { useDebounce } from '../../hooks/useDebounce';
 import {
   useCreateMedicationScheduleTime,
-  useDeleteMedicationScheduleTime,
   useDeleteMedicationSchedule,
+  useDeleteMedicationScheduleTime,
   useMedicationSchedules,
+  useMedicationTimePresets,
   useUpdateMedicationSchedule,
+  useUpdateMedicationTimePresets,
 } from '../../features/schedule/hooks';
 import { getMedicationScheduleTimes } from '../../features/schedule/api/schedule.api';
 import type {
@@ -31,9 +33,10 @@ import type {
   MedicationSchedule,
   MedicationScheduleMedicine,
   MedicationTiming,
+  MedicationTimePreset,
 } from '../../features/schedule/types/schedule.types';
 
-type MyPageTab = 'profile' | 'health' | 'caution' | 'prescription';
+type MyPageTab = 'profile' | 'health' | 'caution' | 'timePreset' | 'prescription';
 
 const reasonOptions: { label: string; value: CautionReason }[] = [
   { label: '알레르기', value: 'ALLERGY' },
@@ -266,10 +269,74 @@ function createEmptyPrescriptionEditForm(): PrescriptionEditForm {
   };
 }
 
+function createDefaultMedicationTimePresets(): MedicationTimePreset[] {
+  return [
+    {
+      timesPerDay: 1,
+      slots: [{ sortOrder: 1, takeTime: '08:00' }],
+    },
+    {
+      timesPerDay: 2,
+      slots: [
+        { sortOrder: 1, takeTime: '08:00' },
+        { sortOrder: 2, takeTime: '18:00' },
+      ],
+    },
+    {
+      timesPerDay: 3,
+      slots: [
+        { sortOrder: 1, takeTime: '08:00' },
+        { sortOrder: 2, takeTime: '12:00' },
+        { sortOrder: 3, takeTime: '18:00' },
+      ],
+    },
+    {
+      timesPerDay: 4,
+      slots: [
+        { sortOrder: 1, takeTime: '08:00' },
+        { sortOrder: 2, takeTime: '12:00' },
+        { sortOrder: 3, takeTime: '18:00' },
+        { sortOrder: 4, takeTime: '23:00' },
+      ],
+    },
+  ];
+}
+
+function normalizeMedicationTimePresets(
+  presets: MedicationTimePreset[],
+): MedicationTimePreset[] {
+  const defaults = createDefaultMedicationTimePresets();
+
+  return defaults.map((defaultPreset) => {
+    const matchedPreset = presets.find(
+      (preset) => preset.timesPerDay === defaultPreset.timesPerDay,
+    );
+
+    if (!matchedPreset) {
+      return defaultPreset;
+    }
+
+    return {
+      timesPerDay: defaultPreset.timesPerDay,
+      slots: defaultPreset.slots.map((defaultSlot) => {
+        const matchedSlot = matchedPreset.slots.find(
+          (slot) => slot.sortOrder === defaultSlot.sortOrder,
+        );
+
+        return {
+          sortOrder: defaultSlot.sortOrder,
+          takeTime: (matchedSlot?.takeTime || defaultSlot.takeTime).slice(0, 5),
+        };
+      }),
+    };
+  });
+}
+
 const tabs: { label: string; value: MyPageTab }[] = [
   { label: '기본 정보', value: 'profile' },
   { label: '건강 정보', value: 'health' },
   { label: '알레르기/주의 성분', value: 'caution' },
+  { label: '복약 시간 설정', value: 'timePreset' },
   { label: '처방전', value: 'prescription' },
 ];
 
@@ -289,6 +356,26 @@ function MyPage() {
     isLoading: isMedicationScheduleLoading,
     isError: isMedicationScheduleError,
   } = useMedicationSchedules();
+
+  const {
+    data: medicationTimePresets = [],
+    isLoading: isMedicationTimePresetLoading,
+    isError: isMedicationTimePresetError,
+  } = useMedicationTimePresets();
+
+  const updateMedicationTimePresetsMutation = useUpdateMedicationTimePresets();
+
+  const normalizedMedicationTimePresets = useMemo(
+    () => normalizeMedicationTimePresets(medicationTimePresets),
+    [medicationTimePresets],
+  );
+
+  const [medicationTimePresetDraft, setMedicationTimePresetDraft] = useState<
+    MedicationTimePreset[] | null
+  >(null);
+
+  const medicationTimePresetForm =
+    medicationTimePresetDraft ?? normalizedMedicationTimePresets;
 
   const updateMedicationScheduleMutation = useUpdateMedicationSchedule();
   const deleteMedicationScheduleMutation = useDeleteMedicationSchedule();
@@ -475,6 +562,56 @@ function MyPage() {
         onError: (error) => {
           console.error('건강 정보 저장 실패:', error);
           toast.error('건강 정보 저장에 실패했습니다.');
+        },
+      },
+    );
+  };
+
+  const handleChangeMedicationTimePreset = (
+    timesPerDay: number,
+    sortOrder: number,
+    takeTime: string,
+  ) => {
+    setMedicationTimePresetDraft((prev) => {
+      const currentPresets = prev ?? normalizedMedicationTimePresets;
+
+      return currentPresets.map((preset) => {
+        if (preset.timesPerDay !== timesPerDay) {
+          return preset;
+        }
+
+        return {
+          ...preset,
+          slots: preset.slots.map((slot) =>
+            slot.sortOrder === sortOrder
+              ? {
+                  ...slot,
+                  takeTime,
+                }
+              : slot,
+          ),
+        };
+      });
+    });
+  };
+
+  const handleResetMedicationTimePresets = () => {
+    setMedicationTimePresetDraft(createDefaultMedicationTimePresets());
+  };
+
+  const handleSaveMedicationTimePresets = () => {
+    updateMedicationTimePresetsMutation.mutate(
+      {
+        presets: medicationTimePresetForm,
+      },
+      {
+        onSuccess: () => {
+          toast.success('복약 기본 시간이 저장되었습니다.');
+          setMedicationTimePresetDraft(null);
+        },
+        onError: (error) => {
+          console.error('복약 기본 시간 저장 실패:', error);
+          toast.error('복약 기본 시간 저장에 실패했습니다.');
         },
       },
     );
@@ -1493,6 +1630,103 @@ function MyPage() {
                     );
                   })}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'timePreset' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">복약 시간 설정</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  하루 복용 횟수별 기본 시간을 저장하면 복약 등록과 OCR 등록 시 자동으로 적용됩니다.
+                </p>
+              </div>
+
+              {isMedicationTimePresetLoading && (
+                <div className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-700">
+                  복약 기본 시간을 불러오는 중입니다.
+                </div>
+              )}
+
+              {isMedicationTimePresetError && (
+                <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-700">
+                  복약 기본 시간을 불러오지 못했습니다.
+                </div>
+              )}
+
+              {!isMedicationTimePresetLoading && !isMedicationTimePresetError && (
+                <div className="space-y-4">
+                  {medicationTimePresetForm.map((preset) => (
+                    <div
+                      key={preset.timesPerDay}
+                      className="rounded-2xl border border-slate-200 p-4"
+                    >
+                      <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <h3 className="font-bold text-slate-900">
+                            하루 {preset.timesPerDay}회 복용
+                          </h3>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {preset.timesPerDay}회 복용 약을 등록할 때 사용할 기본 시간입니다.
+                          </p>
+                        </div>
+
+                        <Badge variant="blue">{preset.slots.length}개 시간</Badge>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        {preset.slots.map((slot) => (
+                          <div
+                            key={`${preset.timesPerDay}-${slot.sortOrder}`}
+                            className="rounded-xl bg-slate-50 p-3"
+                          >
+                            <p className="mb-2 text-sm font-medium text-slate-700">
+                              {slot.sortOrder}회차
+                            </p>
+
+                            <Input
+                              type="time"
+                              value={slot.takeTime}
+                              onChange={(event) =>
+                                handleChangeMedicationTimePreset(
+                                  preset.timesPerDay,
+                                  slot.sortOrder,
+                                  event.target.value,
+                                )
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="rounded-2xl bg-blue-50 p-4 text-sm leading-6 text-blue-700">
+                    저장된 기본 시간은 이후 복약 등록 화면에서 하루 복용 횟수를 선택할 때 자동 적용됩니다.
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="border border-slate-200"
+                      onClick={handleResetMedicationTimePresets}
+                    >
+                      기본값으로 되돌리기
+                    </Button>
+
+                    <Button
+                      type="button"
+                      onClick={handleSaveMedicationTimePresets}
+                      disabled={updateMedicationTimePresetsMutation.isPending}
+                    >
+                      {updateMedicationTimePresetsMutation.isPending
+                        ? '저장 중...'
+                        : '복약 시간 저장'}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -6,7 +6,28 @@ import type {
   MedicationScheduleTime,
   CreateMedicationScheduleTimeRequest,
   DailyMedicationScheduleResponse,
+  MedicationTimePreset,
+  UpdateMedicationTimePresetsRequest,
 } from "../types/schedule.types";
+
+export const getMedicationTimePresets = async () => {
+  const response = await medicationInstance.get<MedicationTimePreset[]>(
+    "/api/me/medication-time-presets",
+  );
+
+  return response.data;
+};
+
+export const updateMedicationTimePresets = async (
+  body: UpdateMedicationTimePresetsRequest,
+) => {
+  const response = await medicationInstance.put<MedicationTimePreset[]>(
+    "/api/me/medication-time-presets",
+    body,
+  );
+
+  return response.data;
+};
 
 export const getMedicationSchedules = async () => {
   const response = await medicationInstance.get<MedicationSchedule[]>(
