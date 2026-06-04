@@ -3,7 +3,7 @@ import { getDailyMedicationSchedules } from "../api/schedule.api";
 
 export const useDailyMedicationSchedules = (date: string) => {
   return useQuery({
-    queryKey: ["dailyMedicationSchedules", date],
+    queryKey: ["daily-Medication-Schedules", date],
     queryFn: () => getDailyMedicationSchedules(date),
     enabled: Boolean(date),
   });

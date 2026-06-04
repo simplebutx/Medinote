@@ -137,3 +137,23 @@ export const createMedicationScheduleTime = async (
 
   return response.data;
 };
+
+export const updateMedicationSchedule = async (
+  id: number,
+  body: CreateMedicationScheduleRequest,
+) => {
+  const response = await medicationInstance.put<MedicationSchedule>(
+    `/api/medication-schedules/${id}`,
+    body,
+  );
+
+  return response.data;
+};
+
+export const deleteMedicationSchedule = async (id: number) => {
+  await medicationInstance.delete(`/api/medication-schedules/${id}`);
+};
+
+export const deleteMedicationScheduleTime = async (id: number) => {
+  await medicationInstance.delete(`/api/medication-schedule-times/${id}`);
+};

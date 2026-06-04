@@ -369,7 +369,7 @@ function SchedulePage() {
       return medicationSchedules
         .filter(
           (schedule) =>
-            schedule.isActive &&
+            // schedule.isActive &&
             isDateInScheduleRange(
               dateText,
               getScheduleRange(schedule).startDate,
@@ -420,7 +420,7 @@ function SchedulePage() {
           return scheduleMedicines
             .filter(
               (medicine) =>
-                medicine.isActive !== false &&
+                // medicine.isActive !== false &&
                 isDateInScheduleRange(
                   dateText,
                   medicine.startDate ?? getScheduleRange(schedule).startDate,

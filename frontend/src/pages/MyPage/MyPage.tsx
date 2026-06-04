@@ -18,10 +18,19 @@ import type {
   CautionTargetType,
 } from '../../features/user/types/caution.types';
 import { useDebounce } from '../../hooks/useDebounce';
-import { useMedicationSchedules } from '../../features/schedule/hooks';
+import {
+  useCreateMedicationScheduleTime,
+  useDeleteMedicationScheduleTime,
+  useDeleteMedicationSchedule,
+  useMedicationSchedules,
+  useUpdateMedicationSchedule,
+} from '../../features/schedule/hooks';
+import { getMedicationScheduleTimes } from '../../features/schedule/api/schedule.api';
 import type {
+  DosageUnit,
   MedicationSchedule,
   MedicationScheduleMedicine,
+  MedicationTiming,
 } from '../../features/schedule/types/schedule.types';
 
 type MyPageTab = 'profile' | 'health' | 'caution' | 'prescription';
@@ -50,6 +59,40 @@ interface HealthFormState {
   isSmoking: boolean;
   isDrinking: boolean;
   diseases: DiseaseOption[];
+}
+
+interface PrescriptionEditDoseTimeForm {
+  takeTime: string;
+  timing: MedicationTiming;
+}
+
+interface PrescriptionEditMedicineForm {
+  id: string;
+  medicineId?: number | null;
+  customMedicineName: string;
+  dosageAmount: string;
+  dosageUnit: DosageUnit;
+  timesPerDay: string;
+  durationDays: string;
+  doseTimes: PrescriptionEditDoseTimeForm[];
+}
+
+interface PrescriptionEditForm {
+  hospitalName: string;
+  pharmacyName: string;
+  startDate: string;
+  durationDays: string;
+  medicines: PrescriptionEditMedicineForm[];
+}
+
+function getPrescriptionDurationDays(schedule: MedicationSchedule) {
+  const medicines = getScheduleMedicines(schedule);
+
+  const medicineDuration = medicines.find(
+    (medicine) => medicine.durationDays != null,
+  )?.durationDays;
+
+  return medicineDuration ?? schedule.durationDays ?? 1;
 }
 
 function getReasonLabel(reason: CautionReason) {
@@ -151,6 +194,78 @@ function getDosageText(medicine: MedicationScheduleMedicine) {
   }일`;
 }
 
+const dosageUnitOptions: { label: string; value: DosageUnit }[] = [
+  { label: '정', value: 'TABLET' },
+  { label: '캡슐', value: 'CAPSULE' },
+  { label: '포', value: 'PACK' },
+  { label: 'ml', value: 'ML' },
+  { label: 'mg', value: 'MG' },
+  { label: '방울', value: 'DROP' },
+  { label: '기타', value: 'OTHER' },
+];
+
+const medicationTimingOptions: { label: string; value: MedicationTiming }[] = [
+  { label: '식후', value: 'AFTER_MEAL' },
+  { label: '식전', value: 'BEFORE_MEAL' },
+  { label: '식사 중', value: 'WITH_MEAL' },
+  { label: '공복', value: 'EMPTY_STOMACH' },
+  { label: '취침 전', value: 'BEDTIME' },
+  { label: '상관없음', value: 'ANYTIME' },
+];
+
+function getDefaultEditDoseTimes(
+  timesPerDay: number,
+): PrescriptionEditDoseTimeForm[] {
+  if (timesPerDay <= 1) {
+    return [{ takeTime: '08:00', timing: 'AFTER_MEAL' }];
+  }
+
+  if (timesPerDay === 2) {
+    return [
+      { takeTime: '08:00', timing: 'AFTER_MEAL' },
+      { takeTime: '18:00', timing: 'AFTER_MEAL' },
+    ];
+  }
+
+  if (timesPerDay === 3) {
+    return [
+      { takeTime: '08:00', timing: 'AFTER_MEAL' },
+      { takeTime: '12:00', timing: 'AFTER_MEAL' },
+      { takeTime: '18:00', timing: 'AFTER_MEAL' },
+    ];
+  }
+
+  return [
+    { takeTime: '08:00', timing: 'AFTER_MEAL' },
+    { takeTime: '12:00', timing: 'AFTER_MEAL' },
+    { takeTime: '18:00', timing: 'AFTER_MEAL' },
+    { takeTime: '23:00', timing: 'BEDTIME' },
+  ];
+}
+
+function createEmptyPrescriptionEditMedicine(): PrescriptionEditMedicineForm {
+  return {
+    id: `new-${Date.now()}-${Math.random()}`,
+    medicineId: null,
+    customMedicineName: '',
+    dosageAmount: '1',
+    dosageUnit: 'TABLET',
+    timesPerDay: '3',
+    durationDays: '3',
+    doseTimes: getDefaultEditDoseTimes(3),
+  };
+}
+
+function createEmptyPrescriptionEditForm(): PrescriptionEditForm {
+  return {
+    hospitalName: '',
+    pharmacyName: '',
+    startDate: '',
+    durationDays: '1',
+    medicines: [createEmptyPrescriptionEditMedicine()],
+  };
+}
+
 const tabs: { label: string; value: MyPageTab }[] = [
   { label: '기본 정보', value: 'profile' },
   { label: '건강 정보', value: 'health' },
@@ -174,6 +289,24 @@ function MyPage() {
     isLoading: isMedicationScheduleLoading,
     isError: isMedicationScheduleError,
   } = useMedicationSchedules();
+
+  const updateMedicationScheduleMutation = useUpdateMedicationSchedule();
+  const deleteMedicationScheduleMutation = useDeleteMedicationSchedule();
+  const deleteMedicationScheduleTimeMutation = useDeleteMedicationScheduleTime();
+  const createScheduleTimeMutation = useCreateMedicationScheduleTime();
+
+  const [editingPrescriptionId, setEditingPrescriptionId] = useState<
+    number | null
+  >(null);
+
+  const [editingPrescriptionMedicineId, setEditingPrescriptionMedicineId] =
+    useState<string | null>(null);
+
+  const [isPrescriptionEditLoading, setIsPrescriptionEditLoading] =
+    useState(false);
+
+  const [prescriptionEditForm, setPrescriptionEditForm] =
+    useState<PrescriptionEditForm>(createEmptyPrescriptionEditForm());
 
   const {
     data: cautionList = [],
@@ -347,6 +480,291 @@ function MyPage() {
     );
   };
 
+  const handleCancelEditPrescription = () => {
+    setEditingPrescriptionId(null);
+    setEditingPrescriptionMedicineId(null);
+    setPrescriptionEditForm(createEmptyPrescriptionEditForm());
+  };
+
+  const handleStartEditPrescription = async (schedule: MedicationSchedule) => {
+    setIsPrescriptionEditLoading(true);
+
+    try {
+      const range = getPrescriptionRange(schedule);
+      const durationDays = getPrescriptionDurationDays(schedule);
+      const scheduleTimes = await getMedicationScheduleTimes(schedule.id);
+
+      const medicines = getScheduleMedicines(schedule).map((medicine) => {
+        const matchedTimes = scheduleTimes
+          .filter((time) => time.medicationScheduleMedicineId === medicine.id)
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+
+        const timesPerDay = medicine.timesPerDay ?? matchedTimes.length ?? 1;
+
+        return {
+          id: String(medicine.id),
+          medicineId: medicine.medicineId ?? null,
+          customMedicineName: getMedicineDisplayName(medicine),
+          dosageAmount: String(medicine.dosageAmount ?? 1),
+          dosageUnit: medicine.dosageUnit ?? 'TABLET',
+          timesPerDay: String(timesPerDay),
+          durationDays: String(medicine.durationDays ?? durationDays),
+          doseTimes:
+            matchedTimes.length > 0
+              ? matchedTimes.map((time) => ({
+                  takeTime: time.takeTime.slice(0, 5),
+                  timing: time.timing,
+                }))
+              : getDefaultEditDoseTimes(timesPerDay),
+        };
+      });
+
+      setEditingPrescriptionId(schedule.id);
+      setPrescriptionEditForm({
+        hospitalName: schedule.hospitalName ?? '',
+        pharmacyName: schedule.pharmacyName ?? '',
+        startDate:
+          range.startDate !== '-' ? range.startDate : schedule.startDate ?? '',
+        durationDays: String(durationDays),
+        medicines: medicines.length > 0 ? medicines : [createEmptyPrescriptionEditMedicine()],
+      });
+
+      setEditingPrescriptionMedicineId(null);
+
+    } catch (error) {
+      console.error('처방전 수정 정보 불러오기 실패:', error);
+      toast.error('처방전 수정 정보를 불러오지 못했습니다.');
+    } finally {
+      setIsPrescriptionEditLoading(false);
+    }
+  };
+
+  const handleChangePrescriptionCommonForm = (
+    key: keyof Omit<PrescriptionEditForm, 'medicines'>,
+    value: string,
+  ) => {
+    setPrescriptionEditForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const handleChangePrescriptionMedicine = (
+    medicineIndex: number,
+    key:
+      | 'customMedicineName'
+      | 'dosageAmount'
+      | 'dosageUnit'
+      | 'timesPerDay'
+      | 'durationDays',
+    value: string | DosageUnit,
+  ) => {
+    setPrescriptionEditForm((prev) => ({
+      ...prev,
+      medicines: prev.medicines.map((medicine, index) => {
+        if (index !== medicineIndex) {
+          return medicine;
+        }
+
+        if (key === 'timesPerDay') {
+          const nextTimesPerDay = Number(value);
+
+          return {
+            ...medicine,
+            timesPerDay: value,
+            doseTimes: getDefaultEditDoseTimes(nextTimesPerDay),
+          };
+        }
+
+        return {
+          ...medicine,
+          [key]: value,
+        };
+      }),
+    }));
+  };
+
+  const handleChangePrescriptionDoseTime = (
+    medicineIndex: number,
+    doseTimeIndex: number,
+    key: keyof PrescriptionEditDoseTimeForm,
+    value: string,
+  ) => {
+    setPrescriptionEditForm((prev) => ({
+      ...prev,
+      medicines: prev.medicines.map((medicine, index) => {
+        if (index !== medicineIndex) {
+          return medicine;
+        }
+
+        return {
+          ...medicine,
+          doseTimes: medicine.doseTimes.map((doseTime, timeIndex) =>
+            timeIndex === doseTimeIndex
+              ? {
+                  ...doseTime,
+                  [key]: value,
+                }
+              : doseTime,
+          ),
+        };
+      }),
+    }));
+  };
+
+  const handleAddPrescriptionMedicine = () => {
+    const newMedicine = {
+      ...createEmptyPrescriptionEditMedicine(),
+      durationDays: prescriptionEditForm.durationDays || '1',
+    };
+
+    setPrescriptionEditForm((prev) => ({
+      ...prev,
+      medicines: [...prev.medicines, newMedicine],
+    }));
+
+    setEditingPrescriptionMedicineId(newMedicine.id);
+  };
+
+  const handleRemovePrescriptionMedicine = (medicineIndex: number) => {
+    if (prescriptionEditForm.medicines.length <= 1) {
+      toast.error('약은 최소 1개 이상 필요합니다.');
+      return;
+    }
+
+    const removedMedicine = prescriptionEditForm.medicines[medicineIndex];
+
+    if (editingPrescriptionMedicineId === removedMedicine?.id) {
+      setEditingPrescriptionMedicineId(null);
+    }
+
+    setPrescriptionEditForm((prev) => ({
+      ...prev,
+      medicines: prev.medicines.filter((_, index) => index !== medicineIndex),
+    }));
+  };
+
+  const handleSavePrescription = async (schedule: MedicationSchedule) => {
+    if (!prescriptionEditForm.startDate) {
+      toast.error('복용 시작일을 입력해주세요.');
+      return;
+    }
+
+    const durationDays = Number(prescriptionEditForm.durationDays);
+
+    if (!durationDays || durationDays <= 0) {
+      toast.error('복용 기간을 입력해주세요.');
+      return;
+    }
+
+    if (prescriptionEditForm.medicines.length === 0) {
+      toast.error('약을 최소 1개 이상 등록해주세요.');
+      return;
+    }
+
+    for (const medicine of prescriptionEditForm.medicines) {
+      if (!medicine.customMedicineName.trim()) {
+        toast.error('약 이름을 입력해주세요.');
+        return;
+      }
+
+      if (!Number(medicine.dosageAmount) || Number(medicine.dosageAmount) <= 0) {
+        toast.error('1회 복용량을 입력해주세요.');
+        return;
+      }
+
+      if (!Number(medicine.timesPerDay) || Number(medicine.timesPerDay) <= 0) {
+        toast.error('하루 복용 횟수를 선택해주세요.');
+        return;
+      }
+    }
+
+    try {
+      const updatedSchedule = await updateMedicationScheduleMutation.mutateAsync({
+        id: schedule.id,
+        body: {
+          hospitalName: prescriptionEditForm.hospitalName.trim() || null,
+          pharmacyName: prescriptionEditForm.pharmacyName.trim() || null,
+          dispensedDate: prescriptionEditForm.startDate,
+          startDate: prescriptionEditForm.startDate,
+          durationDays,
+          medicines: prescriptionEditForm.medicines.map((medicine) => ({
+            medicineId: medicine.medicineId ?? null,
+            customMedicineName: medicine.customMedicineName.trim(),
+            dosageAmount: Number(medicine.dosageAmount),
+            dosageUnit: medicine.dosageUnit,
+            timesPerDay: Number(medicine.timesPerDay),
+            durationDays: Number(medicine.durationDays) || durationDays,
+          })),
+        },
+      });
+
+      const updatedMedicines =
+        updatedSchedule.medicines ??
+        updatedSchedule.medicationScheduleMedicines ??
+        [];
+
+      if (updatedMedicines.length !== prescriptionEditForm.medicines.length) {
+        throw new Error('수정된 약 개수가 입력 개수와 일치하지 않습니다.');
+      }
+
+      const existingTimes = await getMedicationScheduleTimes(schedule.id);
+
+      for (const time of existingTimes) {
+        await deleteMedicationScheduleTimeMutation.mutateAsync(time.id);
+      }
+
+      for (const [medicineIndex, medicine] of prescriptionEditForm.medicines.entries()) {
+        const updatedMedicine = updatedMedicines[medicineIndex];
+
+        if (!updatedMedicine?.id) {
+          throw new Error('복약 시간 등록에 필요한 약별 ID가 없습니다.');
+        }
+
+        for (const [doseTimeIndex, doseTime] of medicine.doseTimes.entries()) {
+          await createScheduleTimeMutation.mutateAsync({
+            medicationScheduleMedicineId: updatedMedicine.id,
+            timing: doseTime.timing,
+            takeTime: doseTime.takeTime.slice(0, 5),
+            sortOrder: doseTimeIndex + 1,
+          });
+        }
+      }
+
+      toast.success('처방전 정보가 수정되었습니다.');
+      handleCancelEditPrescription();
+    } catch (error) {
+      console.error('처방전 수정 실패:', error);
+      toast.error('처방전 수정에 실패했습니다.');
+    }
+  };
+
+  const handleDeletePrescription = (schedule: MedicationSchedule) => {
+    const title = getPrescriptionTitle(schedule);
+
+    const isConfirmed = window.confirm(
+      `${title}을(를) 삭제하시겠습니까?\n삭제하면 해당 처방전의 약과 복용 시간도 함께 삭제됩니다.`,
+    );
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    deleteMedicationScheduleMutation.mutate(schedule.id, {
+      onSuccess: () => {
+        toast.success('처방전이 삭제되었습니다.');
+
+        if (editingPrescriptionId === schedule.id) {
+          handleCancelEditPrescription();
+        }
+      },
+      onError: (error) => {
+        console.error('처방전 삭제 실패:', error);
+        toast.error('처방전 삭제에 실패했습니다.');
+      },
+    });
+  };
+
   const resetCautionForm = () => {
     setCautionSourceType('MEDICINE');
     setCautionKeyword('');
@@ -506,9 +924,9 @@ function MyPage() {
             type="button"
             variant="ghost"
             className="border border-slate-200"
-            onClick={() => toast('프로필 수정 기능은 준비 중입니다.')}
+            onClick={() => toast('비밀번호 변경 기능은 준비 중입니다.')}
           >
-            프로필 수정
+            비밀번호 변경
           </Button>
         </div>
       </Card>
@@ -1152,18 +1570,475 @@ function MyPage() {
                           </p>
                         </div>
 
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="border border-slate-200"
-                          onClick={() =>
-                            toast('처방전 수정 기능은 준비 중입니다.')
-                          }
-                        >
-                          수정
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="border border-slate-200"
+                            onClick={() => handleStartEditPrescription(schedule)}
+                            disabled={
+                              isPrescriptionEditLoading ||
+                              deleteMedicationScheduleMutation.isPending
+                            }
+                          >
+                            {isPrescriptionEditLoading && editingPrescriptionId === schedule.id
+                              ? '불러오는 중...'
+                              : '수정'}
+                          </Button>
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="border border-red-200 text-red-600 hover:bg-red-50"
+                            onClick={() => handleDeletePrescription(schedule)}
+                            disabled={
+                              deleteMedicationScheduleMutation.isPending ||
+                              updateMedicationScheduleMutation.isPending
+                            }
+                          >
+                            {deleteMedicationScheduleMutation.isPending ? '삭제 중...' : '삭제'}
+                          </Button>
+                        </div>
                       </div>
+
+                      {editingPrescriptionId === schedule.id && (
+                        <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                          <h3 className="font-bold text-slate-900">처방전 전체 수정</h3>
+
+                          <div className="mt-4 grid gap-4 md:grid-cols-2">
+                            <Input
+                              label="병원명"
+                              value={prescriptionEditForm.hospitalName}
+                              onChange={(event) =>
+                                handleChangePrescriptionCommonForm('hospitalName', event.target.value)
+                              }
+                            />
+
+                            <Input
+                              label="약국명"
+                              value={prescriptionEditForm.pharmacyName}
+                              onChange={(event) =>
+                                handleChangePrescriptionCommonForm('pharmacyName', event.target.value)
+                              }
+                            />
+
+                            <Input
+                              label="복용 시작일"
+                              type="date"
+                              value={prescriptionEditForm.startDate}
+                              onChange={(event) =>
+                                handleChangePrescriptionCommonForm('startDate', event.target.value)
+                              }
+                            />
+
+                            <Input
+                              label="복용 기간"
+                              value={prescriptionEditForm.durationDays}
+                              onChange={(event) =>
+                                handleChangePrescriptionCommonForm('durationDays', event.target.value)
+                              }
+                            />
+                          </div>
+
+                          <div className="mt-5 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-bold text-slate-900">약 목록</h4>
+
+                              <Button type="button" size="sm" onClick={handleAddPrescriptionMedicine}>
+                                약 추가
+                              </Button>
+                            </div>
+
+                            {prescriptionEditForm.medicines.map((medicine, medicineIndex) => {
+                              const isMedicineEditing = editingPrescriptionMedicineId === medicine.id;
+
+                              return (
+                                <div
+                                  key={medicine.id}
+                                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                                >
+                                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                    <div>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <p className="font-bold text-slate-900">
+                                          {medicine.customMedicineName || `약 ${medicineIndex + 1}`}
+                                        </p>
+
+                                        <Badge variant="blue">{medicine.timesPerDay}회/일</Badge>
+                                        <Badge variant="gray">{medicine.durationDays}일분</Badge>
+                                      </div>
+
+                                      <p className="mt-2 text-sm text-slate-500">
+                                        1회 {medicine.dosageAmount}
+                                        {getDosageUnitLabel(medicine.dosageUnit)} ·{' '}
+                                        {medicine.doseTimes.map((time) => time.takeTime).join(', ')}
+                                      </p>
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        className="border border-slate-200"
+                                        onClick={() =>
+                                          setEditingPrescriptionMedicineId(
+                                            isMedicineEditing ? null : medicine.id,
+                                          )
+                                        }
+                                      >
+                                        {isMedicineEditing ? '닫기' : '수정'}
+                                      </Button>
+
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        className="border border-slate-200"
+                                        onClick={() => handleRemovePrescriptionMedicine(medicineIndex)}
+                                      >
+                                        삭제
+                                      </Button>
+                                    </div>
+                                  </div>
+
+                                  {!isMedicineEditing && (
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                      {medicine.doseTimes.map((doseTime, doseTimeIndex) => (
+                                        <span
+                                          key={`${medicine.id}-summary-${doseTimeIndex}`}
+                                          className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600"
+                                        >
+                                          {doseTimeIndex + 1}회차 {doseTime.takeTime} ·{' '}
+                                          {
+                                            medicationTimingOptions.find(
+                                              (option) => option.value === doseTime.timing,
+                                            )?.label
+                                          }
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {isMedicineEditing && (
+                                    <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                        <Input
+                                          label="약 이름"
+                                          value={medicine.customMedicineName}
+                                          onChange={(event) =>
+                                            handleChangePrescriptionMedicine(
+                                              medicineIndex,
+                                              'customMedicineName',
+                                              event.target.value,
+                                            )
+                                          }
+                                        />
+
+                                        <Input
+                                          label="1회 복용량"
+                                          value={medicine.dosageAmount}
+                                          onChange={(event) =>
+                                            handleChangePrescriptionMedicine(
+                                              medicineIndex,
+                                              'dosageAmount',
+                                              event.target.value,
+                                            )
+                                          }
+                                        />
+
+                                        <div>
+                                          <p className="mb-2 text-sm font-medium text-slate-700">
+                                            복용 단위
+                                          </p>
+
+                                          <select
+                                            value={medicine.dosageUnit}
+                                            onChange={(event) =>
+                                              handleChangePrescriptionMedicine(
+                                                medicineIndex,
+                                                'dosageUnit',
+                                                event.target.value as DosageUnit,
+                                              )
+                                            }
+                                            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                          >
+                                            {dosageUnitOptions.map((option) => (
+                                              <option key={option.value} value={option.value}>
+                                                {option.label}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+
+                                        <div>
+                                          <p className="mb-2 text-sm font-medium text-slate-700">
+                                            하루 복용 횟수
+                                          </p>
+
+                                          <div className="grid grid-cols-4 gap-2">
+                                            {[1, 2, 3, 4].map((count) => (
+                                              <button
+                                                key={count}
+                                                type="button"
+                                                onClick={() =>
+                                                  handleChangePrescriptionMedicine(
+                                                    medicineIndex,
+                                                    'timesPerDay',
+                                                    String(count),
+                                                  )
+                                                }
+                                                className={[
+                                                  'rounded-xl border px-4 py-3 text-sm font-semibold transition',
+                                                  medicine.timesPerDay === String(count)
+                                                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                                                ].join(' ')}
+                                              >
+                                                {count}회
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                                        <p className="font-bold text-slate-900">회차별 복용 시간</p>
+
+                                        <div className="mt-3 space-y-3">
+                                          {medicine.doseTimes.map((doseTime, doseTimeIndex) => (
+                                            <div
+                                              key={`${medicine.id}-${doseTimeIndex}`}
+                                              className="grid gap-3 rounded-xl bg-white p-3 md:grid-cols-[100px_1fr_1fr]"
+                                            >
+                                              <div className="flex items-center text-sm font-semibold text-slate-700">
+                                                {doseTimeIndex + 1}회차
+                                              </div>
+
+                                              <Input
+                                                type="time"
+                                                value={doseTime.takeTime}
+                                                onChange={(event) =>
+                                                  handleChangePrescriptionDoseTime(
+                                                    medicineIndex,
+                                                    doseTimeIndex,
+                                                    'timing',
+                                                    event.target.value as MedicationTiming,
+                                                  )
+                                                }
+                                              />
+
+                                              <select
+                                                value={doseTime.timing}
+                                                onChange={(event) =>
+                                                  handleChangePrescriptionDoseTime(
+                                                    medicineIndex,
+                                                    doseTimeIndex,
+                                                    'timing',
+                                                    event.target.value,
+                                                  )
+                                                }
+                                                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                              >
+                                                {medicationTimingOptions.map((option) => (
+                                                  <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+
+                            {/* {prescriptionEditForm.medicines.map((medicine, medicineIndex) => (
+                              <div
+                                key={medicine.id}
+                                className="rounded-2xl border border-slate-200 bg-white p-4"
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <p className="font-bold text-slate-900">
+                                    약 {medicineIndex + 1}
+                                  </p>
+
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="border border-slate-200"
+                                    onClick={() => handleRemovePrescriptionMedicine(medicineIndex)}
+                                  >
+                                    약 삭제
+                                  </Button>
+                                </div>
+
+                                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                  <Input
+                                    label="약 이름"
+                                    value={medicine.customMedicineName}
+                                    onChange={(event) =>
+                                      handleChangePrescriptionMedicine(
+                                        medicineIndex,
+                                        'customMedicineName',
+                                        event.target.value,
+                                      )
+                                    }
+                                  />
+
+                                  <Input
+                                    label="1회 복용량"
+                                    value={medicine.dosageAmount}
+                                    onChange={(event) =>
+                                      handleChangePrescriptionMedicine(
+                                        medicineIndex,
+                                        'dosageAmount',
+                                        event.target.value,
+                                      )
+                                    }
+                                  />
+
+                                  <div>
+                                    <p className="mb-2 text-sm font-medium text-slate-700">
+                                      복용 단위
+                                    </p>
+
+                                    <select
+                                      value={medicine.dosageUnit}
+                                      onChange={(event) =>
+                                        handleChangePrescriptionMedicine(
+                                          medicineIndex,
+                                          'dosageUnit',
+                                          event.target.value as DosageUnit,
+                                        )
+                                      }
+                                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                    >
+                                      {dosageUnitOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+
+                                  <div>
+                                    <p className="mb-2 text-sm font-medium text-slate-700">
+                                      하루 복용 횟수
+                                    </p>
+
+                                    <div className="grid grid-cols-4 gap-2">
+                                      {[1, 2, 3, 4].map((count) => (
+                                        <button
+                                          key={count}
+                                          type="button"
+                                          onClick={() =>
+                                            handleChangePrescriptionMedicine(
+                                              medicineIndex,
+                                              'timesPerDay',
+                                              String(count),
+                                            )
+                                          }
+                                          className={[
+                                            'rounded-xl border px-4 py-3 text-sm font-semibold transition',
+                                            medicine.timesPerDay === String(count)
+                                              ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                                          ].join(' ')}
+                                        >
+                                          {count}회
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                                  <p className="font-bold text-slate-900">회차별 복용 시간</p>
+
+                                  <div className="mt-3 space-y-3">
+                                    {medicine.doseTimes.map((doseTime, doseTimeIndex) => (
+                                      <div
+                                        key={`${medicine.id}-${doseTimeIndex}`}
+                                        className="grid gap-3 rounded-xl bg-white p-3 md:grid-cols-[100px_1fr_1fr]"
+                                      >
+                                        <div className="flex items-center text-sm font-semibold text-slate-700">
+                                          {doseTimeIndex + 1}회차
+                                        </div>
+
+                                        <Input
+                                          type="time"
+                                          value={doseTime.takeTime}
+                                          onChange={(event) =>
+                                            handleChangePrescriptionDoseTime(
+                                              medicineIndex,
+                                              doseTimeIndex,
+                                              'timing',
+                                              event.target.value as MedicationTiming,
+                                            )
+                                          }
+                                        />
+
+                                        <select
+                                          value={doseTime.timing}
+                                          onChange={(event) =>
+                                            handleChangePrescriptionDoseTime(
+                                              medicineIndex,
+                                              doseTimeIndex,
+                                              'timing',
+                                              event.target.value,
+                                            )
+                                          }
+                                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                        >
+                                          {medicationTimingOptions.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                              {option.label}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            ))} */}
+                          </div>
+
+                          <div className="mt-5 flex justify-end gap-2">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="border border-slate-200"
+                              onClick={handleCancelEditPrescription}
+                            >
+                              취소
+                            </Button>
+
+                            <Button
+                              type="button"
+                              onClick={() => handleSavePrescription(schedule)}
+                              disabled={
+                                updateMedicationScheduleMutation.isPending ||
+                                deleteMedicationScheduleTimeMutation.isPending ||
+                                createScheduleTimeMutation.isPending
+                              }
+                            >
+                              {updateMedicationScheduleMutation.isPending ||
+                              deleteMedicationScheduleTimeMutation.isPending ||
+                              createScheduleTimeMutation.isPending
+                                ? '저장 중...'
+                                : '처방전 수정 완료'}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="mt-4 space-y-2">
                         {medicines.length === 0 ? (
