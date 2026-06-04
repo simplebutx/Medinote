@@ -226,4 +226,14 @@ export const deleteMedicationIntakeLog = async (id) => {
   await api.delete(`/medication-intake-logs/${id}`)
 }
 
+export const getMedicationTimePresets = async () => {
+  const response = await api.get('/me/medication-time-presets')
+  return response.data
+}
+
+export const updateMedicationTimePresets = async (payload) => {
+  const response = await api.put('/me/medication-time-presets', payload)
+  return response.data
+}
+
 export default api

@@ -10,8 +10,10 @@ import {
   getAuthSession,
   getCautions,
   getMedicationScheduleTimes,
+  getMedicationTimePresets,
   getMedicationSchedules,
   suggestCautions,
+  updateMedicationTimePresets,
   updateMedicationSchedule,
 } from '../api'
 import { DOSAGE_UNIT_OPTIONS, MAX_TIMES_PER_DAY, TIMING_OPTIONS } from './schedule/constants'
@@ -25,6 +27,7 @@ import {
 } from './schedule/scheduleFormUtils'
 
 const DEFAULT_MEDICATION_TIME_SETTINGS_KEY = 'defaultMedicationTimeSettings'
+const DEFAULT_MEDICATION_TIME_ACTIVE_KEYS_KEY = 'defaultMedicationTimeActiveKeys'
 
 const tabs = [
   { key: 'profile', label: '기본 정보' },
@@ -55,6 +58,7 @@ const DEFAULT_MEDICATION_TIME_SETTINGS = {
   2: ['08:00', '20:00'],
   3: ['08:00', '13:00', '20:00'],
   4: ['08:00', '12:00', '18:00', '22:00'],
+  5: ['08:00', '11:00', '14:00', '17:00', '20:00'],
 }
 
 function createDefaultMedicationTimeSettings() {
@@ -84,6 +88,49 @@ function loadDefaultMedicationTimeSettings() {
     )
   } catch {
     return fallback
+  }
+}
+
+function loadDefaultMedicationTimeActiveKeys() {
+  const raw = localStorage.getItem(DEFAULT_MEDICATION_TIME_ACTIVE_KEYS_KEY)
+
+  if (!raw) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed)
+      ? parsed
+          .map((value) => String(value))
+          .filter((value) => Object.prototype.hasOwnProperty.call(DEFAULT_MEDICATION_TIME_SETTINGS, value))
+      : []
+  } catch {
+    return []
+  }
+}
+
+function applyMedicationTimePresetGroups(groups) {
+  const nextSettings = createDefaultMedicationTimeSettings()
+  const activeKeys = []
+
+  for (const group of Array.isArray(groups) ? groups : []) {
+    const key = String(group?.timesPerDay || '')
+    if (!Object.prototype.hasOwnProperty.call(nextSettings, key)) {
+      continue
+    }
+
+    const slots = Array.isArray(group?.slots) ? group.slots : []
+    nextSettings[key] = nextSettings[key].map((fallbackTime, index) => {
+      const matchedSlot = slots.find((slot) => Number(slot?.sortOrder) === index + 1)
+      return String(matchedSlot?.takeTime || fallbackTime || '')
+    })
+    activeKeys.push(key)
+  }
+
+  return {
+    settings: nextSettings,
+    activeKeys: activeKeys.sort((left, right) => Number(left) - Number(right)),
   }
 }
 
@@ -158,6 +205,9 @@ function MyPage() {
   const [defaultMedicationTimeSettings, setDefaultMedicationTimeSettings] = useState(() =>
     loadDefaultMedicationTimeSettings(),
   )
+  const [activeDefaultMedicationTimeKeys, setActiveDefaultMedicationTimeKeys] = useState(() =>
+    loadDefaultMedicationTimeActiveKeys(),
+  )
 
   const loadPrescriptionRecords = async (preferredId) => {
     const schedules = await getMedicationSchedules()
@@ -191,17 +241,21 @@ function MyPage() {
       }
 
       try {
-        const [profileResponse, cautionResponse] = await Promise.all([
+        const [profileResponse, cautionResponse, presetResponse] = await Promise.all([
           axios.get('/api/auth/me', {
             headers: {
               Authorization: `Bearer ${session.accessToken}`,
             },
           }),
           getCautions(),
+          getMedicationTimePresets(),
         ])
 
         setProfile(profileResponse.data)
         setCautions(cautionResponse)
+        const presetState = applyMedicationTimePresetGroups(presetResponse)
+        setDefaultMedicationTimeSettings(presetState.settings)
+        setActiveDefaultMedicationTimeKeys(presetState.activeKeys)
         await loadPrescriptionRecords()
       } catch (error) {
         setMessage(error.response?.data?.message || '정보를 불러오지 못했습니다.')
@@ -471,19 +525,43 @@ function MyPage() {
     }))
   }
 
+  const handleAddDefaultMedicationPreset = (timesPerDay) => {
+    setActiveDefaultMedicationTimeKeys((prev) => {
+      const key = String(timesPerDay)
+      if (prev.includes(key)) return prev
+      return [...prev, key].sort((left, right) => Number(left) - Number(right))
+    })
+  }
+
+  const handleRemoveDefaultMedicationPreset = (timesPerDay) => {
+    setActiveDefaultMedicationTimeKeys((prev) => prev.filter((key) => key !== String(timesPerDay)))
+  }
+
   const handleResetDefaultMedicationTimeSettings = () => {
     const nextSettings = createDefaultMedicationTimeSettings()
     setDefaultMedicationTimeSettings(nextSettings)
-    localStorage.setItem(DEFAULT_MEDICATION_TIME_SETTINGS_KEY, JSON.stringify(nextSettings))
-    setMessage('기본 복약 시간을 기본값으로 초기화했습니다.')
+    setActiveDefaultMedicationTimeKeys([])
+    setMessage('Default dose times were reset locally. Save to apply.')
   }
 
-  const handleSaveDefaultMedicationTimeSettings = () => {
-    localStorage.setItem(
-      DEFAULT_MEDICATION_TIME_SETTINGS_KEY,
-      JSON.stringify(defaultMedicationTimeSettings),
-    )
-    setMessage('기본 복약 시간이 저장되었습니다.')
+  const handleSaveDefaultMedicationTimeSettings = async () => {
+    try {
+      const presets = activeDefaultMedicationTimeKeys.map((timesPerDay) => ({
+        timesPerDay: Number(timesPerDay),
+        slots: (defaultMedicationTimeSettings[timesPerDay] || []).map((time, index) => ({
+          sortOrder: index + 1,
+          takeTime: time,
+        })),
+      }))
+
+      const response = await updateMedicationTimePresets({ presets })
+      const presetState = applyMedicationTimePresetGroups(response)
+      setDefaultMedicationTimeSettings(presetState.settings)
+      setActiveDefaultMedicationTimeKeys(presetState.activeKeys)
+      setMessage('Default dose time settings were saved.')
+    } catch (error) {
+      setMessage(error.response?.data?.message || error.message || 'Failed to save default dose time settings.')
+    }
   }
 
   if (loading) {
@@ -1003,42 +1081,70 @@ function MyPage() {
           <div className="mypage-section">
             <div className="mypage-section-heading">
               <div>
-                <h2>기본 복용 시간 설정</h2>
+                <h2>Default Dose Time Settings</h2>
+                <p>Add only the schedules you want to keep as user defaults.</p>
+              </div>
+              <div className="register-frequency-options">
+                {Object.keys(DEFAULT_MEDICATION_TIME_SETTINGS)
+                  .filter((timesPerDay) => !activeDefaultMedicationTimeKeys.includes(timesPerDay))
+                  .map((timesPerDay) => (
+                    <button
+                      key={`add-default-${timesPerDay}`}
+                      type="button"
+                      className="register-add-button"
+                      onClick={() => handleAddDefaultMedicationPreset(timesPerDay)}
+                    >
+                      + Add {timesPerDay} / day
+                    </button>
+                  ))}
               </div>
             </div>
 
             {message ? <div className="register-message">{message}</div> : null}
 
-            <div className="register-medicine-list">
-              {Object.entries(defaultMedicationTimeSettings).map(([timesPerDay, times]) => (
-                <section key={timesPerDay} className="register-medicine-card">
-                  <div className="register-medicine-title">
-                    <h3>하루 {timesPerDay}회</h3>
-                  </div>
+            {activeDefaultMedicationTimeKeys.length ? (
+              <div className="register-medicine-list">
+                {activeDefaultMedicationTimeKeys.map((timesPerDay) => (
+                  <section key={timesPerDay} className="register-medicine-card">
+                    <div className="register-medicine-title">
+                      <h3>{timesPerDay} times / day</h3>
+                      <button
+                        type="button"
+                        className="register-remove-button"
+                        onClick={() => handleRemoveDefaultMedicationPreset(timesPerDay)}
+                      >
+                        Remove
+                      </button>
+                    </div>
 
-                  <div className="register-time-grid">
-                    {times.map((time, slotIndex) => (
-                      <div className="register-time-card" key={`default-time-${timesPerDay}-${slotIndex}`}>
-                        <strong>{slotIndex + 1}회차</strong>
-                        <label className="register-field">
-                          <input
-                            type="time"
-                            value={time}
-                            onChange={(event) =>
-                              handleDefaultMedicationTimeChange(
-                                timesPerDay,
-                                slotIndex,
-                                event.target.value,
-                              )
-                            }
-                          />
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
+                    <div className="settings-time-grid">
+                      {(defaultMedicationTimeSettings[timesPerDay] || []).map((time, slotIndex) => (
+                        <div className="register-time-card settings-time-card" key={`default-time-${timesPerDay}-${slotIndex}`}>
+                          <strong>Dose {slotIndex + 1}</strong>
+                          <label className="register-field">
+                            <input
+                              type="time"
+                              value={time}
+                              onChange={(event) =>
+                                handleDefaultMedicationTimeChange(
+                                  timesPerDay,
+                                  slotIndex,
+                                  event.target.value,
+                                )
+                              }
+                            />
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <div className="register-frequency-empty register-frequency-empty-card">
+                <p>No default dose times yet. Add the schedules you want from the buttons above.</p>
+              </div>
+            )}
 
             <div className="register-submit-row">
               <button
@@ -1046,14 +1152,14 @@ function MyPage() {
                 className="register-remove-button"
                 onClick={handleResetDefaultMedicationTimeSettings}
               >
-                기본값으로 초기화
+                Reset to defaults
               </button>
               <button
                 type="button"
                 className="app-primary-button"
                 onClick={handleSaveDefaultMedicationTimeSettings}
               >
-                환경설정 저장
+                Save settings
               </button>
             </div>
           </div>

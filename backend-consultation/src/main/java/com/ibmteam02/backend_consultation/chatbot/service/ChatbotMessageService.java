@@ -8,8 +8,6 @@ import com.ibmteam02.backend_consultation.chatbot.domain.ChatbotRoom;
 import com.ibmteam02.backend_consultation.chatbot.dto.ChatbotMessageRequest;
 import com.ibmteam02.backend_consultation.chatbot.dto.ChatbotMessageResponse;
 import com.ibmteam02.backend_consultation.chatbot.dto.SenderType;
-import com.ibmteam02.backend_consultation.chatbot.extractor.RequestDetailExtractor;
-import com.ibmteam02.backend_consultation.chatbot.extractor.RequestSlotExtractor;
 import com.ibmteam02.backend_consultation.chatbot.filter.MessagePreprocessor;
 import com.ibmteam02.backend_consultation.chatbot.filter.RiskKeywordFilter;
 import com.ibmteam02.backend_consultation.chatbot.repository.ChatbotMessageRepository;
@@ -33,7 +31,6 @@ import org.springframework.web.client.RestClientException;
 @Service
 @RequiredArgsConstructor
 public class ChatbotMessageService {
-    // 사용자가 직접 지정한 약 이름
     private static final Pattern MEDICINE_MENTION_PATTERN = Pattern.compile("@([^\\s,]+)");
 
     private final ChatbotMessageRepository chatbotMessageRepository;
@@ -42,8 +39,6 @@ public class ChatbotMessageService {
     private final MedicationClient medicationClient;
     private final MessagePreprocessor messagePreprocessor;
     private final RiskKeywordFilter riskKeywordFilter;
-    private final RequestSlotExtractor requestSlotExtractor;
-    private final RequestDetailExtractor requestDetailExtractor;
 
     @Transactional
     public ChatbotMessageResponse sendChat(Long userId, ChatbotMessageRequest dto) {
@@ -68,24 +63,11 @@ public class ChatbotMessageService {
             // @로 직접 선택한 약 이름
             List<String> extractedNames = extractMentionedMedicineNames(message);
 
-            // 사용자의 요청 의도를 세부 요청으로 분류
-            List<String> requestSlots = requestSlotExtractor.extract(normalizedMessage);
-            if (requestSlots.isEmpty()) {
-                requestSlots = List.of("general");
-            }
-
-            // 추출된 약 이름과 세부 요청을 기준으로 DB 조회 컨텍스트 생성
-            List<String> requestDetails = requestDetailExtractor.extract(normalizedMessage, requestSlots);
-            String medicineContext = handleDbQuery(userId, extractedNames, requestDetails);
-
             // 원본 질문 + 추출 결과 + DB 조회 결과를 FastAPI로 전달
             AiChatBotRequest aiRequest = new AiChatBotRequest(
                     message,
                     normalizedMessage,
-                    extractedNames,
-                    requestSlots,
-                    requestDetails,
-                    medicineContext
+                    extractedNames
             );
 
             AiChatBotResponse aiResponse = aiChatBotClient.sendChat(aiRequest);  // consultation(8082) -> ai(8000)
@@ -98,11 +80,8 @@ public class ChatbotMessageService {
             }
 
             log.debug(
-                    "추출된 약 이름: {}, 의도: {}, 세부: {}, DB 조회 정보: {}",
-                    extractedNames,
-                    requestSlots,
-                    requestDetails,
-                    medicineContext
+                    "추출된 약 이름: {}",
+                    extractedNames
             );
 
             ChatbotMessage savedBotMessage = chatbotMessageRepository.save(
@@ -133,23 +112,9 @@ public class ChatbotMessageService {
                 names.add(name);
             }
         }
-
         return new ArrayList<>(names);
     }
 
-    // 세부 요청에 맞는 약 정보를 DB에서 조합해 LLM 컨텍스트 문자열로 반환
-    private String handleDbQuery(Long userId, List<String> extractedNames, List<String> requestDetails) {
-        // consultation(8082) -> medication(8081)
-        ChatbotMedicineContextResponse response = medicationClient.getChatbotContext(
-                new ChatbotMedicineContextRequest(userId, extractedNames, requestDetails)
-        );
-
-        if (response == null || response.medicineContext() == null || response.medicineContext().isBlank()) {
-            return "약 정보 컨텍스트를 불러오지 못했어요.";
-        }
-
-        return response.medicineContext();
-    }
 
     // 메시지 목록 조회
     @Transactional(readOnly = true)

@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     llm_api_url: str = ""
     llm_api_key: str = ""
     llm_model: str = ""
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = 1536
     llm_timeout_seconds: int = 30
     google_application_credentials: str = ""
     google_application_credentials_json: str = ""
@@ -14,11 +16,13 @@ class Settings(BaseSettings):
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     aws_s3_endpoint: str = ""
+    qdrant_url: str = "http://qdrant:6333"
+    qdrant_collection_name: str = "medicine_docs"
     llm_system_prompt: str = (
-        "?뱀떊? ?섏빟???뺣낫瑜??ㅻ챸?섎뒗 ?쒓뎅??梨쀫큸?낅땲?? "
-        "?쒓났?????뺣낫? ?ъ슜??吏덈Ц??諛뷀깢?쇰줈留??듬??섍퀬, "
-        "?뺣낫媛 ?녿뒗 ?댁슜? 異붿륫?섏? 留덉꽭?? "
-        "?꾪뿕?섍굅???묎툒??蹂댁씠???곹솴?대㈃ 蹂묒썝 ?먮뒗 ?꾨Ц媛 ?곷떞??沅뚰븯?몄슂."
+        "당신은 의약품 정보를 안내하는 한국어 챗봇입니다. "
+        "제공된 질문과 입력 데이터에 근거해서만 답변하세요. "
+        "없는 정보는 추측하지 마세요. "
+        "의학적 진단이나 확정적 판단은 하지 말고, 위험하거나 응급으로 보이는 상황이면 병원 또는 전문가 상담을 권유하세요."
     )
 
     model_config = SettingsConfigDict(
