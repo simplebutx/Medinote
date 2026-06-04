@@ -39,7 +39,7 @@ def search_relevant_documents(text: str, drug_names: str | None) -> list[dict]:
     client = get_qdrant_client()
 
     query_vector = embed_text(text)  # 질문 원본을 임베딩
-    # inferred_document_type = infer_document_type(text)
+    inferred_document_type = infer_document_type(text)
 
     must_conditions = []
 
@@ -52,13 +52,13 @@ def search_relevant_documents(text: str, drug_names: str | None) -> list[dict]:
             )
         )
 
-    # if inferred_document_type:
-    #     must_conditions.append(
-    #         FieldCondition(
-    #             key="document_type",
-    #             match=MatchValue(value=inferred_document_type),   # document-type을 분류한 값인거로 
-    #         )
-    #     )
+    if inferred_document_type:
+        must_conditions.append(
+            FieldCondition(
+                key="document_type",
+                match=MatchValue(value=inferred_document_type),   # document-type을 분류한 값인거로 
+            )
+        )
 
     query_filter = Filter(must=must_conditions) if must_conditions else None
 
@@ -79,20 +79,20 @@ def search_relevant_documents(text: str, drug_names: str | None) -> list[dict]:
     ]
 
 # 키워드로 문서 타입 추정
-# def infer_document_type(text: str) -> str | None:
-#     normalized = text.replace(" ", "")
+def infer_document_type(text: str) -> str | None:
+    normalized = text.replace(" ", "")
 
-#     efficacy_keywords = ["효능", "효과", "어디에", "무슨약", "무슨 약"]
-#     usage_keywords = ["복용", "복용법", "용법", "용량", "식후", "식전", "언제먹", "어떻게먹"]
-#     precaution_keywords = ["주의", "주의사항", "부작용", "상호작용", "같이먹", "금기", "경고"]
+    efficacy_keywords = ["효능", "효과", "어디에", "무슨약", "무슨 약"]
+    usage_keywords = ["복용", "복용법", "용법", "용량", "식후", "식전", "언제먹", "어떻게먹"]
+    precaution_keywords = ["주의", "주의사항", "부작용", "상호작용", "같이먹", "금기", "경고"]
 
-#     if any(keyword in normalized for keyword in efficacy_keywords):
-#         return "efficacy"
+    if any(keyword in normalized for keyword in efficacy_keywords):
+        return "efficacy"
 
-#     if any(keyword in normalized for keyword in usage_keywords):
-#         return "usage"
+    if any(keyword in normalized for keyword in usage_keywords):
+        return "usage"
 
-#     if any(keyword in normalized for keyword in precaution_keywords):
-#         return "precaution"
+    if any(keyword in normalized for keyword in precaution_keywords):
+        return "precaution"
 
-#     return None
+    return None

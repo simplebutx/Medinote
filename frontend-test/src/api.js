@@ -72,11 +72,39 @@ export const syncMedicines = async () => {
   return response.data
 }
 
-export const sendChatbotMessage = async (message) => {
-  const response = await api.post('/chatbot/message', { message }, {
+export const createChatbotRoom = async (payload = {}) => {
+  const response = await api.post('/chatbot/rooms', payload)
+  return response.data
+}
+
+export const getChatbotRooms = async () => {
+  const response = await api.get('/chatbot/rooms')
+  return response.data
+}
+
+export const updateChatbotRoom = async (roomId, payload) => {
+  const response = await api.patch(`/chatbot/rooms/${roomId}`, payload)
+  return response.data
+}
+
+export const deleteChatbotRoom = async (roomId) => {
+  await api.delete(`/chatbot/rooms/${roomId}`)
+}
+
+export const getChatbotMessages = async (roomId) => {
+  const response = await api.get(`/chatbot/rooms/${roomId}/messages`)
+  return response.data
+}
+
+export const sendChatbotMessage = async (roomId, message) => {
+  const response = await api.post('/chatbot/message', { roomId, message }, {
     timeout: 300000,
   })
   return response.data
+}
+
+export const deleteChatbotMessage = async (messageId) => {
+  await api.delete(`/chatbot/messages/${messageId}`)
 }
 
 export const suggestMedicines = async (keyword) => {
