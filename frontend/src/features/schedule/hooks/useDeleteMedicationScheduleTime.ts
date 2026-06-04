@@ -1,11 +1,11 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createMedicationScheduleTime } from "../api/schedule.api";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { deleteMedicationScheduleTime } from '../api/schedule.api';
 
-export const useCreateMedicationScheduleTime = () => {
+export const useDeleteMedicationScheduleTime = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: createMedicationScheduleTime,
+    mutationFn: deleteMedicationScheduleTime,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['medication-schedules'] });
       queryClient.invalidateQueries({ queryKey: ['medication-schedule-times'] });

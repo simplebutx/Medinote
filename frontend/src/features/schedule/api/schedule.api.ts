@@ -5,11 +5,25 @@ import type {
   MedicationSchedule,
   MedicationScheduleTime,
   CreateMedicationScheduleTimeRequest,
+  DailyMedicationScheduleResponse,
 } from "../types/schedule.types";
 
 export const getMedicationSchedules = async () => {
   const response = await medicationInstance.get<MedicationSchedule[]>(
     "/api/medication-schedules"
+  );
+
+  return response.data;
+};
+
+export const getDailyMedicationSchedules = async (date: string) => {
+  const response = await medicationInstance.get<DailyMedicationScheduleResponse>(
+    "/api/medication-schedules/daily",
+    {
+      params: {
+        date,
+      },
+    },
   );
 
   return response.data;
@@ -122,4 +136,24 @@ export const createMedicationScheduleTime = async (
   );
 
   return response.data;
+};
+
+export const updateMedicationSchedule = async (
+  id: number,
+  body: CreateMedicationScheduleRequest,
+) => {
+  const response = await medicationInstance.put<MedicationSchedule>(
+    `/api/medication-schedules/${id}`,
+    body,
+  );
+
+  return response.data;
+};
+
+export const deleteMedicationSchedule = async (id: number) => {
+  await medicationInstance.delete(`/api/medication-schedules/${id}`);
+};
+
+export const deleteMedicationScheduleTime = async (id: number) => {
+  await medicationInstance.delete(`/api/medication-schedule-times/${id}`);
 };

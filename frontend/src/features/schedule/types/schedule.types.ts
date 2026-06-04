@@ -110,6 +110,35 @@ export interface MedicationIntakeLog {
   createdAt?: string;
 }
 
+export interface DailyMedication {
+  medicationScheduleId?: number;
+  medicationScheduleMedicineId?: number;
+  medicationScheduleTimeId?: number;
+  medicationIntakeLogId?: number | null;
+  medicineId?: number | null;
+  customMedicineName?: string | null;
+  dosageAmount?: number | null;
+  dosageUnit?: DosageUnit | null;
+  timesPerDay?: number | null;
+  timing?: MedicationTiming | null;
+  takeTime?: string | null;
+  intakeStatus?: IntakeStatus | "PENDING" | null;
+  scheduledAt?: string | null;
+  takenAt?: string | null;
+  hospitalName?: string | null;
+  pharmacyName?: string | null;
+}
+
+export interface DailyMedicationScheduleGroup {
+  takeTime: string;
+  medications: DailyMedication[];
+}
+
+export interface DailyMedicationScheduleResponse {
+  date: string;
+  groups: DailyMedicationScheduleGroup[];
+}
+
 /**
  * 최신 복약 일정 등록 request.
  * medication_schedule 1개 + medicines[] 여러 개를 한 번에 생성.
@@ -131,7 +160,6 @@ export interface CreateMedicationScheduleRequest {
   durationDays: number;
   medicines: CreateMedicationScheduleMedicineRequest[];
 }
-
 /**
  * 최신 복약 시간 등록 request.
  * 예전 medicationScheduleId가 아니라 medicationScheduleMedicineId 기준.
@@ -142,3 +170,4 @@ export interface CreateMedicationScheduleTimeRequest {
   takeTime: string;
   sortOrder: number;
 }
+

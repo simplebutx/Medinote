@@ -137,6 +137,10 @@ function buildScheduledAt(dateText: string, takeTime: string) {
   return `${dateText}T${normalizedTime}`;
 }
 
+function getTakeTimeLabel(time: string) {
+  return time.slice(0, 5);
+}
+
 function getMonthDays(baseDate: Date) {
   const year = baseDate.getFullYear();
   const month = baseDate.getMonth();
@@ -233,7 +237,7 @@ function getScheduleRange(schedule?: MedicationSchedule | null) {
   return {
     startDate: startDates[0] ?? schedule?.startDate ?? null,
     endDate: endDates[endDates.length - 1] ?? schedule?.endDate ?? null,
-    durationDays,
+    durationDays: durationDays ?? schedule?.durationDays ?? null,
   };
 }
 
@@ -365,7 +369,7 @@ function SchedulePage() {
       return medicationSchedules
         .filter(
           (schedule) =>
-            schedule.isActive &&
+            // schedule.isActive &&
             isDateInScheduleRange(
               dateText,
               getScheduleRange(schedule).startDate,
@@ -406,7 +410,7 @@ function SchedulePage() {
                 intakeLogId: localLog?.intakeLogId ?? matchedLog?.id,
                 drugName: getScheduleDisplayName(schedule),
                 dosage: getDosageLabel(),
-                time: time.takeTime,
+                time: getTakeTimeLabel(time.takeTime),
                 timing: getTimingLabel(time.timing),
                 status: localLog?.status ?? matchedLog?.status ?? 'PENDING',
               };
@@ -416,7 +420,7 @@ function SchedulePage() {
           return scheduleMedicines
             .filter(
               (medicine) =>
-                medicine.isActive !== false &&
+                // medicine.isActive !== false &&
                 isDateInScheduleRange(
                   dateText,
                   medicine.startDate ?? getScheduleRange(schedule).startDate,
@@ -460,7 +464,7 @@ function SchedulePage() {
                     medicine.dosageAmount,
                     medicine.dosageUnit,
                   ),
-                  time: time.takeTime,
+                  time: getTakeTimeLabel(time.takeTime),
                   timing: getTimingLabel(time.timing),
                   status: localLog?.status ?? matchedLog?.status ?? 'PENDING',
                 };
@@ -1066,7 +1070,9 @@ function SchedulePage() {
             </p>
           </div>
 
-          <Badge variant="blue">오늘</Badge>
+          <Badge variant="blue">
+            {selectedDate === todayText ? '오늘' : '선택일'}
+          </Badge>
         </div>
 
         <div className="space-y-4">
