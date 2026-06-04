@@ -28,6 +28,15 @@ services:
       timeout: 5s
       retries: 10
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: mymedi-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+
   backend-auth:
     build:
       context: ./backend-auth
@@ -148,6 +157,10 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_KEY:-}
       AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-medicine_docs}
     volumes:
       - ${GOOGLE_APPLICATION_CREDENTIALS_HOST_PATH:-./secrets/gcloud-adc.json}:/app/secrets/gcloud-adc.json:ro
     ports:
@@ -232,3 +245,4 @@ services:
 volumes:
   mysql-data:
   redis-data:
+  qdrant-data:

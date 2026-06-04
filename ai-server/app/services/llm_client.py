@@ -3,28 +3,22 @@ from fastapi import HTTPException
 
 from app.core.config import settings
 
-
+# 프롬프트 문장으로 조립
 def build_user_prompt(
     *,
     message: str,
     normalized_message: str,
     extracted_names: list[str],
-    request_slots: list[str],
-    request_details: list[str],
-    medicine_context: str,
 ) -> str:
     return (
         f"사용자 원본 질문:\n{message}\n\n"
-        f"정규화된 질문:\n{normalized_message}\n\n"
+        f"전처리된 질문:\n{normalized_message}\n\n"
         f"추출된 약 이름:\n{extracted_names}\n\n"
-        f"의도 슬롯:\n{request_slots}\n\n"
-        f"세부 요청:\n{request_details}\n\n"
-        f"DB 조회 결과:\n{medicine_context}\n\n"
-        "위 정보를 바탕으로 사용자에게 자연스럽고 이해하기 쉬운 한국어로 답변하세요. "
-        "DB 조회 결과에 없는 내용은 추측하지 마세요."
+        "제공된 질문과 추출된 약 이름을 바탕으로 사용자에게 자연스럽고 이해하기 쉬운 한국어 답변을 작성하세요. "
+        "없는 정보는 추측하지 마세요."
     )
 
-
+# LLM API에 요청 보내고 응답 받기
 def request_chat_completion(user_prompt: str) -> str:
     if not settings.llm_api_url:
         raise HTTPException(status_code=500, detail="LLM_API_URL is not configured.")
