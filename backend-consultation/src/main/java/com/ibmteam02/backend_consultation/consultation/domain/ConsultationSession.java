@@ -31,6 +31,12 @@ public class ConsultationSession {
     @Column(nullable = false)
     private SessionStatus status;
 
+    @Column(columnDefinition = "TEXT")
+    private String chatLog; //AI 답변 가이드를 위한 대화 전체 내용
+
+    @Column(columnDefinition = "TEXT")
+    private String aiAnswerGuide; //AI 답변 가이드
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -65,6 +71,16 @@ public class ConsultationSession {
     //상담 종료
     public void closeSession(){
         this.status = SessionStatus.CLOSED;
+    }
+
+    //대화 전체 내용 업데이트
+    public void updateChatLog(String chatLog){
+        this.chatLog = chatLog;
+    }
+
+    //AI 답변 가이드 업데이트
+    public void updateAiAnswerGuide(String aiAnswerGuide){
+        this.aiAnswerGuide = aiAnswerGuide;
     }
 
 }

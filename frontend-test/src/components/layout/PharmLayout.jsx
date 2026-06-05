@@ -4,6 +4,8 @@ import { clearAuthSession, getAuthSession, logout } from '../../api'
 const PHARM_MENUS = [
   { label: '대시보드', path: '/p/dashboard' },
   { label: '상담 관리', path: '/p/rooms' },
+  { label: '리뷰 조회', path: '/p/reviews' },
+  { label: '약국 재고 관리', path: '/p/inventory' },
   { label: '내 정보 관리', path: '/p/profile' },
 ]
 

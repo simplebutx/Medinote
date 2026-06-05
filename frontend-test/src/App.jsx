@@ -26,6 +26,8 @@ import YunjuTest from './pages/YunjuTest'
 import PharmacistDashboard from './pages/PharmacistDashboard'
 import PharmacistRoomList from './pages/PharmacistRoomList'
 import PharmacistProfile from './pages/PharmacistProfile'
+import PharmacistReviewList from './pages/PharmacistReviewList'
+import PharmacistInventory from './pages/PharmacistInventory'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminPharmacistList from './pages/AdminPharmacistList'
 import AdminUserList from './pages/AdminUserList'
@@ -48,6 +50,8 @@ function App() {
           <Route path="/p/dashboard" element={<PharmacistDashboard />} />
           <Route path="/p/rooms" element={<PharmacistRoomList />} />
           <Route path="/p/profile" element={<PharmacistProfile />} />
+          <Route path="/p/reviews" element={<PharmacistReviewList />} />
+          <Route path="/p/inventory" element={<PharmacistInventory />} />
           <Route path="/p/consultation" element={<Consultation />} />
         </Route>
 
