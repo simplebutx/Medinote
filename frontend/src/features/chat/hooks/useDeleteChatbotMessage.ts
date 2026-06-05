@@ -1,16 +1,21 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { sendChatbotMessage } from "../api/chat.api";
+import { deleteChatbotMessage } from "../api/chat.api";
 
-export const useSendChatbotMessage = () => {
+interface DeleteChatbotMessageParams {
+  messageId: number;
+  roomId: number;
+}
+
+export const useDeleteChatbotMessage = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: sendChatbotMessage,
+    mutationFn: ({ messageId }: DeleteChatbotMessageParams) =>
+      deleteChatbotMessage(messageId),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["chatbot-messages", variables.roomId],
       });
-      queryClient.invalidateQueries({ queryKey: ["chatbot-rooms"] });
     },
   });
 };
