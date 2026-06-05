@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { getAuthSession } from '../api';
 
 const PharmacistRoomList = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const session = getAuthSession();
     
-    const [activeTab, setActiveTab] = useState('PENDING'); // PENDING, MATCHED, CLOSED
+    const [activeTab, setActiveTab] = useState(location.state?.initialTab || 'PENDING'); // PENDING, MATCHED, CLOSED
     const [rooms, setRooms] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -128,8 +129,27 @@ const PharmacistRoomList = () => {
                             </div>
                             <div style={cardBodyStyle}>
                                 <p><strong>방 번호:</strong> {room.roomId}</p>
-                                <p><strong>사용자 ID:</strong> {room.customId}</p>
+                                <p><strong>사용자:</strong> {room.customerName} (ID: {room.customId})</p>
+                                <p><strong>첫 메시지:</strong> {room.firstMessage}</p>
                             </div>
+
+                            {activeTab === 'CLOSED' && room.rating && (
+                                <div style={feedbackBoxStyle}>
+                                    <div style={{ marginBottom: '5px' }}>
+                                        <span style={{ color: '#eab308', fontWeight: 'bold', fontSize: '18px' }}>
+                                            {'★'.repeat(room.rating)}{'☆'.repeat(5 - room.rating)}
+                                        </span>
+                                        <span style={{ marginLeft: '8px', fontSize: '14px', color: '#1e293b', fontWeight: 'bold' }}>
+                                            {room.rating}점
+                                        </span>
+                                    </div>
+                                    {room.comment && (
+                                        <div style={{ fontSize: '14px', color: '#475569', fontStyle: 'italic', backgroundColor: '#fff', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                            "{room.comment}"
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             
                             <div style={actionAreaStyle}>
                                 {activeTab === 'PENDING' && (
@@ -300,6 +320,14 @@ const historyButtonStyle = {
     fontSize: '15px',
     fontWeight: 'bold',
     cursor: 'pointer'
+};
+
+const feedbackBoxStyle = {
+    marginTop: '10px',
+    padding: '15px',
+    backgroundColor: '#fffbeb',
+    borderRadius: '12px',
+    border: '1px solid #fde68a'
 };
 
 export default PharmacistRoomList;

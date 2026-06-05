@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,7 +27,7 @@ public class ConsultationService {
     private final AuthUserClient authUserClient;
 
     // 공통 변환 메서드
-    public ConsultationRoomResponse convertToResponse(ConsultationSession session){
+    public ConsultationRoomResponse convertToResponse(ConsultationSession session) {
         //일반 유저 username 가져오기
         String customerName = authUserClient.getCustomerName(session.getCustomerId());
 
@@ -36,6 +37,9 @@ public class ConsultationService {
                 .map(ConsultationMessage::getContent)
                 .orElse("상담 요청 메시지가 없습니다");
 
+        //피드백 정보 조회
+        ConsultationFeedback feedback = consultationFeedbackRepository.findBySession(session).orElse(null);
+
         return ConsultationRoomResponse.builder()
                 .roomId(session.getId())
                 .customId(session.getCustomerId())
@@ -43,13 +47,15 @@ public class ConsultationService {
                 .createdAt(session.getCreatedAt())
                 .firstMessage(firstMessage)
                 .customerName(customerName)
+                .rating(feedback != null ? feedback.getRating() : null)
+                .feedbackComment(feedback != null ? feedback.getComment() : null)
                 .build();
     }
 
     //일반유저가 상담 신청 -> 대화방 생성
     @Transactional
-    public Long createRoom(Long customerId, String role){
-        if(!"USER".equals(role) && !"ROLE_USER".equals(role)){
+    public Long createRoom(Long customerId, String role) {
+        if (!"USER".equals(role) && !"ROLE_USER".equals(role)) {
             throw new IllegalArgumentException("일반 유저 회원 기능입니다");
         }
         ConsultationSession session = ConsultationSession.createSession(customerId);
@@ -59,25 +65,25 @@ public class ConsultationService {
 
     //약사 상담방 매칭
     @Transactional
-    public void matchPharmacist(Long roomId, Long pharmacistId, String role){
-        if(!"PHARMACIST".equals(role) && !"ROLE_PHARMACIST".equals(role)){
+    public void matchPharmacist(Long roomId, Long pharmacistId, String role) {
+        if (!"PHARMACIST".equals(role) && !"ROLE_PHARMACIST".equals(role)) {
             throw new IllegalArgumentException("약사만 상담 수락이 가능합니다");
         }
 
         ConsultationSession session = consultationSessionRepository.findById(roomId)
-                .orElseThrow(()->new IllegalArgumentException("존재하지 않는 방입니다"));
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 방입니다"));
 
         session.matchPharmacist(pharmacistId);
     }
 
     //메시지 전송 시 DB에 저장
     @Transactional
-    public void saveMessage(ChatMessageDto chatMessageDto){
-        log.info("메시지 저장 시도 - 방번호: {}, 보낸이ID: {}, 타입: {}", 
+    public void saveMessage(ChatMessageDto chatMessageDto) {
+        log.info("메시지 저장 시도 - 방번호: {}, 보낸이ID: {}, 타입: {}",
                 chatMessageDto.getRoomId(), chatMessageDto.getSenderId(), chatMessageDto.getSenderType());
 
         ConsultationSession session = consultationSessionRepository.findById(chatMessageDto.getRoomId())
-                .orElseThrow(()-> new IllegalArgumentException("존재하지 않는 방입니다."));
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 방입니다."));
 
         ConsultationMessage message = ConsultationMessage.createMessage(
                 session,
@@ -91,9 +97,9 @@ public class ConsultationService {
 
     //과거 대화 내역 조회
     @Transactional(readOnly = true)
-    public List<ChatMessageResponse> getHistoryMessage(Long roomId){
+    public List<ChatMessageResponse> getHistoryMessage(Long roomId) {
         ConsultationSession session = consultationSessionRepository.findById(roomId)
-                .orElseThrow(()->new IllegalArgumentException("존재하지 않는 방입니다"));
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 방입니다"));
 
         List<ConsultationMessage> messages = consultationMessageRepository.findBySessionOrderByCreatedAtAsc(session);
 
@@ -110,9 +116,9 @@ public class ConsultationService {
 
     //약사 대기중인 상담 목록 조회
     @Transactional(readOnly = true)
-    public List<ConsultationRoomResponse> getPendingRooms(String role){
-        if(!"PHARMACIST".equals(role) && !"ROLE_PHARMACIST".equals(role)) {
-            throw  new IllegalArgumentException("약사만 조회 가능합니다");
+    public List<ConsultationRoomResponse> getPendingRooms(String role) {
+        if (!"PHARMACIST".equals(role) && !"ROLE_PHARMACIST".equals(role)) {
+            throw new IllegalArgumentException("약사만 조회 가능합니다");
         }
 
         List<ConsultationSession> pendingSessions = consultationSessionRepository.findByStatus(SessionStatus.PENDING);
@@ -121,8 +127,8 @@ public class ConsultationService {
 
     //약사 상담 진행 중 목록
     @Transactional(readOnly = true)
-    public List<ConsultationRoomResponse> getActiveRooms(Long pharmacistId, String role){
-        if(!"PHARMACIST".equals(role) && !"ROLE_PHARMACIST".equals(role)){
+    public List<ConsultationRoomResponse> getActiveRooms(Long pharmacistId, String role) {
+        if (!"PHARMACIST".equals(role) && !"ROLE_PHARMACIST".equals(role)) {
             throw new IllegalArgumentException("약사만 조회 가능합니다");
         }
         return consultationSessionRepository.findByPharmacistIdAndStatus(pharmacistId, SessionStatus.MATCHED)
@@ -131,8 +137,8 @@ public class ConsultationService {
 
     //약사 완료된 상담 목록
     @Transactional(readOnly = true)
-    public List<ConsultationRoomResponse> getCompletedRooms(Long pharmacistId, String role){
-        if(!"PHARMACIST".equals(role) && !"ROLE_PHARMACIST".equals(role)){
+    public List<ConsultationRoomResponse> getCompletedRooms(Long pharmacistId, String role) {
+        if (!"PHARMACIST".equals(role) && !"ROLE_PHARMACIST".equals(role)) {
             throw new IllegalArgumentException("약사만 조회 가능합니다");
         }
         return consultationSessionRepository.findByPharmacistIdAndStatus(pharmacistId, SessionStatus.CLOSED)
@@ -164,26 +170,35 @@ public class ConsultationService {
 
     //상담 종료 처리
     @Transactional
-    public void closeRoom(Long roomId, Long pharmacistId, String role){
-        if(!"PHARMACIST".equals(role) && !"ROLE_PHARMACIST".equals(role)){
-            throw new IllegalArgumentException("약사만 조회 가능합니다");
-        }
+    public void closeRoom(Long roomId, Long requesterId, String role) {
         ConsultationSession session = consultationSessionRepository.findById(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 방입니다"));
-        
-        if(!pharmacistId.equals(session.getPharmacistId())){
-            throw new IllegalArgumentException("본인이 담당한 상담만 종료할 수 있습니다");
+
+        //약사가 상담 종료 요청한 경우
+        if ("PHARMACIST".equals(role) || "ROLE_PHARMACIST".equals(role)) {
+            if (!requesterId.equals(session.getPharmacistId())) {
+                throw new IllegalArgumentException("본인 상담만 종료할 수 있습니다");
+            }
+        }
+
+        //일반 유저가 상담 종료 요청한 경우
+        else if ("USER".equals(role) || "ROLE_USER".equals(role)) {
+            if (!requesterId.equals(session.getCustomerId())) {
+                throw new IllegalArgumentException("본인의 상담만 종료 가능합니다");
+            }
+        } else {
+            throw new IllegalArgumentException("삭제할 권한이 없습니다");
         }
         session.closeSession();
     }
 
     //종료된 상담 피드백 및 별점 등록
     @Transactional
-    public void saveFeedback(Long roomId, ConsultationFeedbackRequest consultationFeedbackRequest){
+    public void saveFeedback(Long roomId, ConsultationFeedbackRequest consultationFeedbackRequest) {
         ConsultationSession session = consultationSessionRepository.findById(roomId)
-                .orElseThrow(()->new IllegalArgumentException("존재하지 않는 상담방입니다"));
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상담방입니다"));
 
-        if(consultationFeedbackRepository.existsBySession(session)){
+        if (consultationFeedbackRepository.existsBySession(session)) {
             throw new IllegalStateException("이미 평가가 완료된 상담입니다");
         }
 
@@ -195,6 +210,63 @@ public class ConsultationService {
         );
 
         consultationFeedbackRepository.save(feedback);
-
     }
+
+    //약사 평점 및 후기 통계 조회
+    @Transactional(readOnly = true)
+    public PharmacistFeedbackStatsResponse getPharmacistFeedbackStats(Long pharmacistId, String role) {
+        if (!"PHARMACIST".equals(role) && !"ROLE_PHARMACIST".equals(role)) {
+            throw new IllegalArgumentException("약사만 조회 가능합니다");
+        }
+
+        //평균 평점 및 리뷰 수 조회
+        Double rawAvgRating = consultationFeedbackRepository.getAverageRatingByPharmacistId(pharmacistId);
+
+        //소수점 첫째자리까지 포맷팅
+        Double averageRating = rawAvgRating != null ? Math.round(rawAvgRating * 10.0) / 10.0 : 0.0;
+        Long totalReviewCount = consultationFeedbackRepository.countByPharmacistId(pharmacistId);
+
+        //가장 최신 완료된 리뷰 3개 조회
+        List<ConsultationRoomResponse> recentFeedbacks = consultationSessionRepository
+                .findByPharmacistIdAndStatus(pharmacistId, SessionStatus.CLOSED)
+                .stream()
+                .map(this::convertToResponse)
+                .filter(res -> res.getRating() != null)
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                .limit(3)
+                .toList();
+
+        return PharmacistFeedbackStatsResponse.builder()
+                .averageRating(averageRating)
+                .totalReviewCount(totalReviewCount)
+                .recentFeedbacks(recentFeedbacks)
+                .build();
+    }
+
+    //약사 상담 중 AI 답변 가이드 요청
+    @Transactional
+    public void aiAnswerGuide(Long roomId) {
+        ConsultationSession session = consultationSessionRepository.findById(roomId)
+                .orElseThrow(() -> new IllegalArgumentException("방을 찾을 수 없습니다"));
+
+        List<ConsultationMessage> messages = consultationMessageRepository.findBySessionOrderByCreatedAtAsc(session);
+
+        String formattedLog = messages.stream()
+                .map(m -> String.format("[%s]: %s", m.getSenderType(), m.getContent()))
+                .collect(Collectors.joining("\n"));
+
+        session.updateChatLog(formattedLog);
+    }
+
+    //약사 상담 AI 답변 가이드 받음
+    @Transactional
+    public void updateAiGuide(Long roomId, String guideText) {
+        ConsultationSession session = consultationSessionRepository.findById(roomId)
+                .orElseThrow(() -> new IllegalArgumentException("방을 찾을 수 없습니다."));
+        session.updateAiAnswerGuide(guideText);
+    }
+
+
+
+
 }

@@ -207,6 +207,7 @@ function PharmacyMap() {
               </div>
             </div>
             <div className="pharmacy-map-canvas" ref={mapElementRef} />
+            <p style={{ fontSize: '13px', color: '#64748b', marginTop: '12px' }}>{status}</p>
           </div>
         </section>
 

@@ -23,6 +23,9 @@ function ChatConsultPage() {
   const [rating, setRating] = useState(5)
   const [feedbackComment, setFeedbackComment] = useState('')
   const [isFeedbackSubmitted, setIsFeedbackSubmitted] = useState(false)
+  
+  // 사이드바 탭 상태 (ONGOING, CLOSED)
+  const [sidebarTab, setSidebarTab] = useState('ONGOING')
 
   const stompClientRef = useRef(null)
   const subscriptionRef = useRef(null)
@@ -203,6 +206,23 @@ function ChatConsultPage() {
     setFeedbackComment('')
   }
 
+  // 상담 종료 함수 (유저용)
+  const handleCloseRoom = async () => {
+    if (!window.confirm('상담을 종료하시겠습니까?\n종료 후에는 약사님께 별점을 남길 수 있습니다.')) return;
+
+    try {
+      await axios.patch(`http://localhost:8082/app/consult/room/${roomId}/close`, {}, {
+        headers: { Authorization: `Bearer ${session.accessToken}` }
+      });
+      alert('상담이 종료되었습니다.');
+      fetchMyRooms(); // 목록 새로고침
+      // 현재 currentRoom 상태는 fetchMyRooms 이후에 업데이트되므로 
+      // 즉시 피드백 화면을 보여주기 위해 목록을 다시 불러오는 동안에도 UI가 반영되도록 함
+    } catch (error) {
+      alert('상담 종료 실패: ' + (error.response?.data || error.message));
+    }
+  };
+
   const handleFeedbackSubmit = async (e) => {
     e.preventDefault()
     if (!window.confirm('평가를 제출하시겠습니까?')) return
@@ -242,12 +262,22 @@ function ChatConsultPage() {
               <div className="chat-scroll-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
                   <span style={{ fontWeight: 'bold' }}>#{roomId}번 상담방</span>
-                  <button 
-                    onClick={() => { setRoomId(null); setMessages([]); disconnect(); }} 
-                    style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
-                  >
-                    새 상담 신청하기
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {currentRoom?.status !== 'CLOSED' && (
+                      <button 
+                        onClick={handleCloseRoom}
+                        style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '4px', border: '1px solid #fee2e2', background: '#fff1f1', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold' }}
+                      >
+                        종료하기
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => { setRoomId(null); setMessages([]); disconnect(); }} 
+                      style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
+                    >
+                      목록으로
+                    </button>
+                  </div>
                 </div>
                 <div style={{ flex: 1, overflowY: 'auto', padding: '10px 0' }}>
                   {messages.map((msg, index) => {
@@ -375,51 +405,84 @@ function ChatConsultPage() {
             </section>
 
             <section className="chat-side-card" style={{ marginTop: '16px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                 <h2 style={{ margin: 0 }}>나의 상담 내역</h2>
                 <button onClick={fetchMyRooms} style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '12px', cursor: 'pointer' }}>새로고침</button>
               </div>
+
+              {/* 사이드바 탭 메뉴 */}
+              <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', marginBottom: '12px' }}>
+                <button 
+                  onClick={() => setSidebarTab('ONGOING')}
+                  style={{ 
+                    flex: 1, padding: '8px', fontSize: '12px', fontWeight: 'bold', background: 'none', border: 'none', cursor: 'pointer',
+                    borderBottom: sidebarTab === 'ONGOING' ? '2px solid #3b82f6' : 'none',
+                    color: sidebarTab === 'ONGOING' ? '#3b82f6' : '#94a3b8'
+                  }}
+                >
+                  진행 중
+                </button>
+                <button 
+                  onClick={() => setSidebarTab('CLOSED')}
+                  style={{ 
+                    flex: 1, padding: '8px', fontSize: '12px', fontWeight: 'bold', background: 'none', border: 'none', cursor: 'pointer',
+                    borderBottom: sidebarTab === 'CLOSED' ? '2px solid #64748b' : 'none',
+                    color: sidebarTab === 'CLOSED' ? '#64748b' : '#94a3b8'
+                  }}
+                >
+                  종료 내역
+                </button>
+              </div>
+
               <div style={{ overflowY: 'auto', flex: 1, maxHeight: '500px' }}>
                 {loadingMyRooms ? (
                   <p style={{ fontSize: '13px', color: '#94a3b8' }}>불러오는 중...</p>
-                ) : myRooms.length === 0 ? (
-                  <p style={{ fontSize: '13px', color: '#94a3b8' }}>신청 내역이 없습니다.</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {myRooms.map((room) => (
-                      <div 
-                        key={room.roomId} 
-                        style={{ ...roomCardSidebarStyle, borderLeft: `4px solid ${room.status === 'MATCHED' ? '#22c55e' : room.status === 'PENDING' ? '#eab308' : '#cbd5e1'}` }} 
-                        onClick={() => handleEnterRoom(room.roomId)}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                          <div style={{ fontWeight: 'bold', fontSize: '13px' }}>#{room.roomId}번 상담</div>
-                          <div style={{ 
-                            fontSize: '10px', 
-                            padding: '2px 6px', 
-                            borderRadius: '4px',
-                            backgroundColor: room.status === 'MATCHED' ? '#dcfce7' : room.status === 'PENDING' ? '#fef08a' : '#f1f5f9',
-                            color: room.status === 'MATCHED' ? '#166534' : room.status === 'PENDING' ? '#854d0e' : '#475569',
-                            fontWeight: '700'
-                          }}>
-                            {room.status === 'PENDING' ? '매칭 대기' : room.status === 'MATCHED' ? '상담 중' : '종료'}
-                          </div>
-                        </div>
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: '#334155', 
-                          overflow: 'hidden', 
-                          textOverflow: 'ellipsis', 
-                          whiteSpace: 'nowrap',
-                          marginBottom: '4px'
-                        }}>
-                          {room.firstMessage || '메시지 없음'}
-                        </div>
-                        <div style={{ fontSize: '10px', color: '#94a3b8', textAlign: 'right' }}>
-                          {new Date(room.createdAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                    ))}
+                    {myRooms
+                      .filter(room => sidebarTab === 'ONGOING' ? room.status !== 'CLOSED' : room.status === 'CLOSED')
+                      .length === 0 ? (
+                        <p style={{ fontSize: '13px', color: '#94a3b8', textAlign: 'center', padding: '20px 0' }}>
+                          {sidebarTab === 'ONGOING' ? '진행 중인 상담이 없습니다.' : '종료된 상담 내역이 없습니다.'}
+                        </p>
+                      ) : (
+                        myRooms
+                          .filter(room => sidebarTab === 'ONGOING' ? room.status !== 'CLOSED' : room.status === 'CLOSED')
+                          .map((room) => (
+                            <div 
+                              key={room.roomId} 
+                              style={{ ...roomCardSidebarStyle, borderLeft: `4px solid ${room.status === 'MATCHED' ? '#22c55e' : room.status === 'PENDING' ? '#eab308' : '#cbd5e1'}` }} 
+                              onClick={() => handleEnterRoom(room.roomId)}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                <div style={{ fontWeight: 'bold', fontSize: '13px' }}>#{room.roomId}번 상담</div>
+                                <div style={{ 
+                                  fontSize: '10px', 
+                                  padding: '2px 6px', 
+                                  borderRadius: '4px',
+                                  backgroundColor: room.status === 'MATCHED' ? '#dcfce7' : room.status === 'PENDING' ? '#fef08a' : '#f1f5f9',
+                                  color: room.status === 'MATCHED' ? '#166534' : room.status === 'PENDING' ? '#854d0e' : '#475569',
+                                  fontWeight: '700'
+                                }}>
+                                  {room.status === 'PENDING' ? '매칭 대기' : room.status === 'MATCHED' ? '상담 중' : '종료'}
+                                </div>
+                              </div>
+                              <div style={{ 
+                                fontSize: '12px', 
+                                color: '#334155', 
+                                overflow: 'hidden', 
+                                textOverflow: 'ellipsis', 
+                                whiteSpace: 'nowrap',
+                                marginBottom: '4px'
+                              }}>
+                                {room.firstMessage || '메시지 없음'}
+                              </div>
+                              <div style={{ fontSize: '10px', color: '#94a3b8', textAlign: 'right' }}>
+                                {new Date(room.createdAt).toLocaleDateString()}
+                              </div>
+                            </div>
+                          ))
+                      )}
                   </div>
                 )}
               </div>

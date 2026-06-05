@@ -15,4 +15,7 @@ public class ConsultationRoomResponse {
 
     private String firstMessage; //첫 메세지
     private String customerName; //상담 신청 유저 이름
+
+    private Integer rating; // 별점
+    private String feedbackComment; //한줄평
 }
