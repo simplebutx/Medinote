@@ -5,6 +5,7 @@ import {
   useChatbotRoomMessages,
   useChatbotRooms,
   useCreateChatbotRoom,
+  useDeleteChatbotMessage,
   useDeleteChatbotRoom,
   useSendChatbotMessage,
   useUpdateChatbotRoom,
@@ -25,6 +26,7 @@ interface DrugOption {
 
 interface ChatMessage {
   id: number;
+  apiMessageId?: number | null;
   sender: MessageSender;
   content: string;
   createdAt: string;
@@ -85,6 +87,7 @@ function mapApiChatbotMessageToChatMessage(
 ): ChatMessage {
   return {
     id: message.messageId ?? index + 1,
+    apiMessageId: message.messageId ?? null,
     sender: message.senderType === 'USER' ? 'USER' : 'AI',
     content:
       message.content ??
@@ -93,7 +96,6 @@ function mapApiChatbotMessageToChatMessage(
     createdAt: formatChatTime(message.createdAt),
   };
 }
-
 function ChatPage() {
   const messageIdRef = useRef(100);
 
@@ -109,6 +111,8 @@ function ChatPage() {
 
   const createChatbotRoomMutation = useCreateChatbotRoom();
 
+  const deleteChatbotMessageMutation = useDeleteChatbotMessage();
+
   const updateChatbotRoomMutation = useUpdateChatbotRoom();
   const deleteChatbotRoomMutation = useDeleteChatbotRoom();
 
@@ -119,8 +123,7 @@ function ChatPage() {
     number | null
   >(null);
 
-  const activeChatbotRoomId =
-    selectedChatbotRoomId ?? chatbotRooms[0]?.roomId ?? null;
+  const activeChatbotRoomId = selectedChatbotRoomId;
 
   const {
     data: chatbotRoomMessages = [],
@@ -128,8 +131,15 @@ function ChatPage() {
   } = useChatbotRoomMessages(activeChatbotRoomId);
 
   const ensureChatbotRoomId = async () => {
-    if (activeChatbotRoomId) {
-      return activeChatbotRoomId;
+    if (selectedChatbotRoomId) {
+      return selectedChatbotRoomId;
+    }
+
+    const firstRoomId = chatbotRooms[0]?.roomId;
+
+    if (firstRoomId) {
+      setSelectedChatbotRoomId(firstRoomId);
+      return firstRoomId;
     }
 
     const createdRoom = await createChatbotRoomMutation.mutateAsync({
@@ -140,7 +150,7 @@ function ChatPage() {
 
     return createdRoom.roomId;
   };
-
+  
   const handleCreateChatbotRoom = async () => {
     try {
       const createdRoom = await createChatbotRoomMutation.mutateAsync({
@@ -205,13 +215,16 @@ function ChatPage() {
       return;
     }
 
+    const nextRoomId =
+      chatbotRooms.find((room) => room.roomId !== roomId)?.roomId ?? null;
+
+    if (selectedChatbotRoomId === roomId) {
+      setSelectedChatbotRoomId(nextRoomId);
+      setAiMessages(initialAiMessages);
+    }
+
     deleteChatbotRoomMutation.mutate(roomId, {
       onSuccess: () => {
-        if (selectedChatbotRoomId === roomId) {
-          setSelectedChatbotRoomId(null);
-          setAiMessages(initialAiMessages);
-        }
-
         setEditingRoomId(null);
         setEditingRoomTitle('');
       },
@@ -219,6 +232,30 @@ function ChatPage() {
         console.error('챗봇 대화방 삭제 실패:', error);
       },
     });
+  };
+
+  const handleDeleteChatbotMessage = (chat: ChatMessage) => {
+    if (!chat.apiMessageId || !activeChatbotRoomId) {
+      return;
+    }
+
+    const isConfirmed = window.confirm('이 메시지를 삭제하시겠습니까?');
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    deleteChatbotMessageMutation.mutate(
+      {
+        messageId: chat.apiMessageId,
+        roomId: activeChatbotRoomId,
+      },
+      {
+        onError: (error) => {
+          console.error('챗봇 메시지 삭제 실패:', error);
+        },
+      },
+    );
   };
 
   const [activeMode, setActiveMode] = useState<ChatMode>('ai');
@@ -236,10 +273,18 @@ function ChatPage() {
     return chatbotRoomMessages.map(mapApiChatbotMessageToChatMessage);
   }, [chatbotRoomMessages]);
 
+  const optimisticAiMessages = useMemo(() => {
+    if (!sendChatbotMessageMutation.isPending) {
+      return [];
+    }
+
+    return aiMessages.filter((chat) => chat.createdAt === '방금');
+  }, [aiMessages, sendChatbotMessageMutation.isPending]);
+
   const activeMessages =
     activeMode === 'ai'
       ? serverAiMessages.length > 0
-        ? serverAiMessages
+        ? [...serverAiMessages, ...optimisticAiMessages]
         : aiMessages
       : pharmacistMessages;
 
@@ -508,6 +553,12 @@ function ChatPage() {
                 </div>
               )}
 
+              {activeMode === 'ai' && !activeChatbotRoomId && chatbotRooms.length > 0 && (
+                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+                  오른쪽 대화방 목록에서 대화방을 선택하거나 새 대화를 시작해주세요.
+                </div>
+              )}
+
               {activeMessages.map((chat) => (
                 <div
                   key={chat.id}
@@ -563,9 +614,34 @@ function ChatPage() {
                     )}
 
                     <p className="text-sm leading-6">{chat.content}</p>
+                      {activeMode === 'ai' && chat.apiMessageId && (
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteChatbotMessage(chat)}
+                            disabled={deleteChatbotMessageMutation.isPending}
+                            className={[
+                              'text-xs font-semibold',
+                              chat.sender === 'USER'
+                                ? 'text-blue-100 hover:text-white'
+                                : 'text-slate-400 hover:text-red-600',
+                            ].join(' ')}
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      )}
                   </div>
                 </div>
               ))}
+
+              {activeMode === 'ai' && sendChatbotMessageMutation.isPending && (
+                <div className="flex justify-start">
+                  <div className="rounded-2xl bg-slate-100 p-4 text-sm text-slate-500">
+                    AI가 답변을 생성하고 있습니다...
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="mt-auto border-t border-slate-100 p-4">
@@ -605,8 +681,12 @@ function ChatPage() {
                     type="button"
                     className="shrink-0"
                     onClick={handleSendMessage}
+                    disabled={
+                      sendChatbotMessageMutation.isPending ||
+                      createChatbotRoomMutation.isPending
+                    }
                   >
-                    전송
+                    {sendChatbotMessageMutation.isPending ? '전송 중...' : '전송'}
                   </Button>
                 </div>
 
