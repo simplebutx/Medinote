@@ -5,10 +5,7 @@ import java.util.List;
 public record AiChatBotRequest(
         String message,
         String normalizedMessage,
-        List<String> extractedNames,
-        List<String> requestSlots,
-        List<String> requestDetails,
-        String medicineContext
+        List<String> extractedNames
 ) {
 }
 

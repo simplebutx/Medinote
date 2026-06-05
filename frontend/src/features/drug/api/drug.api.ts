@@ -20,14 +20,14 @@ export const suggestMedicines = async (keyword: string) => {
 };
 
 export const searchMedicines = async (keyword: string) => {
-  const response = await publicMedicationInstance.get<MedicineSearchItem[]>(
-    "/api/medicines/search",
+  const response = await publicMedicationInstance.get<MedicineSearchItem>(
+    '/api/medicines/search',
     {
       params: {
         keyword,
       },
-    }
+    },
   );
 
-  return response.data;
+  return response.data ? [response.data] : [];
 };

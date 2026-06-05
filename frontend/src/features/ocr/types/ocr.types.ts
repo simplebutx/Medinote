@@ -22,4 +22,5 @@ export interface PrescriptionOcrResponse {
   preprocessedImageDataUrl?: string | null;
   status?: string;
   errorMessage?: string | null;
+  ocrEngine?: string | null;
 }

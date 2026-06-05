@@ -52,6 +52,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/medicines/**", "/api/ai/health", "/api/internal/**").permitAll()
                         .requestMatchers(
+                                "/api/me/medication-time-presets/**",
                                 "/api/me/cautions/**",
                                 "/api/prescriptions/**",
                                 "/api/medication-schedules/**",

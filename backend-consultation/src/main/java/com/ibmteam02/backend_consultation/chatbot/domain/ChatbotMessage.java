@@ -11,16 +11,18 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @NoArgsConstructor
 @Getter
 public class ChatbotMessage {
+    private static final ZoneId CHATBOT_ZONE = ZoneId.of("Asia/Seoul");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,7 +39,6 @@ public class ChatbotMessage {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -53,5 +54,10 @@ public class ChatbotMessage {
 
     public void updateContent(String content) {
         this.content = content;
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now(CHATBOT_ZONE);
     }
 }

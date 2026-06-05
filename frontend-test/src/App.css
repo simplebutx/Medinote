@@ -2358,8 +2358,11 @@ body {
 }
 
 .chatbot-room-item {
-  display: grid;
-  gap: 6px;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   padding: 16px;
   border: 1px solid #d9e2ef;
   border-radius: 18px;
@@ -2367,6 +2370,13 @@ body {
   color: #334155;
   text-align: left;
   cursor: pointer;
+}
+
+.chatbot-room-item-copy {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 6px;
 }
 
 .chatbot-room-item strong {
@@ -2385,6 +2395,71 @@ body {
 .chatbot-room-item.active {
   border-color: #93c5fd;
   background: #eff6ff;
+}
+
+.chatbot-room-menu-shell {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.chatbot-room-menu-trigger {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #d5deea;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.chatbot-room-menu-trigger span {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #475569;
+}
+
+.chatbot-room-menu-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 5;
+  min-width: 140px;
+  padding: 8px;
+  border: 1px solid #d9e2ef;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
+  display: grid;
+  gap: 4px;
+}
+
+.chatbot-room-menu-popover button {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #334155;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chatbot-room-menu-popover button:hover {
+  background: #f8fbff;
+}
+
+.chatbot-room-menu-popover button.danger {
+  color: #dc2626;
+}
+
+.chatbot-room-menu-popover button.danger:hover {
+  background: #fef2f2;
 }
 
 .chat-tab-row,
@@ -2483,11 +2558,75 @@ body {
   gap: 12px;
   margin-bottom: 8px;
   font-size: 13px;
+  position: relative;
 }
 
 .chat-bubble p {
   margin: 0;
   line-height: 1.7;
+}
+
+.chat-message-menu-shell {
+  position: relative;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.chat-message-menu-trigger {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.chat-bubble.mine .chat-message-menu-trigger {
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #fff;
+}
+
+.chat-message-menu-trigger span {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.chat-message-menu-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 6;
+  min-width: 120px;
+  padding: 8px;
+  border: 1px solid #d9e2ef;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
+}
+
+.chat-message-menu-popover button {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #dc2626;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-message-menu-popover button:hover {
+  background: #fef2f2;
 }
 
 .chat-input-area {
@@ -3629,85 +3768,3 @@ body {
     max-width: 100%;
   }
 }
-
-/* --- Pharmacist Green Theme Overrides --- */
-.pharm-theme .app-sidebar-brand h1 {
-  color: #10b981; /* Emerald 500 */
-}
-
-.pharm-theme .app-sidebar-link-active {
-  background: #ecfdf5; /* Emerald 50 */
-  color: #059669; /* Emerald 600 */
-}
-
-.pharm-theme .app-primary-button,
-.pharm-theme .app-sidebar-logout:hover {
-  background: #10b981;
-}
-
-.pharm-theme .app-page-eyebrow {
-  color: #10b981;
-}
-
-.pharm-theme .chat-tab-button.active,
-.pharm-theme .register-tab-button.active,
-.pharm-theme .mypage-tab-button.active {
-  color: #10b981;
-  box-shadow: inset 0 -2px 0 #10b981;
-}
-
-.pharm-theme .chat-bubble.mine {
-  background: #10b981;
-}
-
-.pharm-theme .dose-check-toggle.active {
-  border-color: #10b981;
-  background: #10b981;
-}
-
-.pharm-theme .app-sidebar-logout:hover {
-  color: #fff;
-  border-color: #10b981;
-}
-
-/* --- Administrator Black Theme Overrides --- */
-.admin-theme .app-sidebar-brand h1 {
-  color: #0f172a; /* Slate 900 */
-}
-
-.admin-theme .app-sidebar-link-active {
-  background: #f1f5f9; /* Slate 100 */
-  color: #0f172a; /* Slate 900 */
-}
-
-.admin-theme .app-primary-button,
-.admin-theme .app-sidebar-logout:hover {
-  background: #1f2937; /* Slate 800 */
-}
-
-.admin-theme .app-page-eyebrow {
-  color: #1f2937;
-}
-
-.admin-theme .chat-tab-button.active,
-.admin-theme .register-tab-button.active,
-.admin-theme .mypage-tab-button.active {
-  color: #0f172a;
-  box-shadow: inset 0 -2px 0 #0f172a;
-}
-
-.admin-theme .chat-bubble.mine {
-  background: #1f2937;
-}
-
-.admin-theme .dose-check-toggle.active {
-  border-color: #0f172a;
-  background: #0f172a;
-}
-
-.admin-theme .app-sidebar-logout:hover {
-  color: #fff;
-  border-color: #1f2937;
-}
-
-
