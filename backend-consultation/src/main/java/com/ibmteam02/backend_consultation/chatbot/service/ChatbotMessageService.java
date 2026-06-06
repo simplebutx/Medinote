@@ -3,6 +3,8 @@ package com.ibmteam02.backend_consultation.chatbot.service;
 import com.ibmteam02.backend_consultation.ai.client.AiChatBotClient;
 import com.ibmteam02.backend_consultation.ai.dto.AiChatBotRequest;
 import com.ibmteam02.backend_consultation.ai.dto.AiChatBotResponse;
+import com.ibmteam02.backend_consultation.chatbot.classifier.ChatbotIntentClassifier;
+import com.ibmteam02.backend_consultation.chatbot.classifier.ChatbotIntentResult;
 import com.ibmteam02.backend_consultation.chatbot.domain.ChatbotMessage;
 import com.ibmteam02.backend_consultation.chatbot.domain.ChatbotRoom;
 import com.ibmteam02.backend_consultation.chatbot.dto.ChatbotMessageRequest;
@@ -39,13 +41,14 @@ public class ChatbotMessageService {
     private final MedicationClient medicationClient;
     private final MessagePreprocessor messagePreprocessor;
     private final RiskKeywordFilter riskKeywordFilter;
+    private final ChatbotIntentClassifier chatbotIntentClassifier;
 
     @Transactional
     public ChatbotMessageResponse sendChat(Long userId, ChatbotMessageRequest dto) {
         ChatbotRoom room = getOwnedRoom(userId, dto.getRoomId());
 
         try {
-            // 메시지 전처리와 위험 키워드 확인
+            // 메시지 전처리 + 위험 키워드 확인
             String message = dto.getMessage();
             String normalizedMessage = messagePreprocessor.preprocess(message);
 
@@ -54,7 +57,7 @@ public class ChatbotMessageService {
 
             if (riskKeywordFilter.containsRiskKeyword(normalizedMessage)) {
                 ChatbotMessage savedBotMessage = chatbotMessageRepository.save(
-                        ChatbotMessage.create(room, SenderType.BOT, "응급 시 병원에 가세요.")
+                        ChatbotMessage.create(room, SenderType.BOT, "응급 시 병원에 가셔야 해요.")
                 );
                 room.touch();
                 return toResponse(savedBotMessage);
@@ -62,12 +65,19 @@ public class ChatbotMessageService {
 
             // @로 직접 선택한 약 이름
             List<String> extractedNames = extractMentionedMedicineNames(message);
+            ChatbotIntentResult intentResult = chatbotIntentClassifier.classify(normalizedMessage);  // 스케쥴인지 약인지 판별
+            boolean scheduleQuestion = intentResult.isScheduleQuestion();  // 스케쥴인지
+            List<String> scheduleRequestDetails = intentResult.scheduleRequestDetails();  // 스케쥴이면 스케쥴db 조회
+            String scheduleContext = buildScheduleContext(userId, extractedNames, scheduleRequestDetails);  // llm 한테 넘길 컨텍스트
 
-            // 원본 질문 + 추출 결과 + DB 조회 결과를 FastAPI로 전달
+            // 원본 질문 + 추출 결과를 FastAPI로 전달
             AiChatBotRequest aiRequest = new AiChatBotRequest(
                     message,
                     normalizedMessage,
-                    extractedNames
+                    extractedNames,
+                    userId,
+                    scheduleQuestion ? "schedule" : "drug_info",
+                    scheduleContext  // 스케쥴이면 스케쥴컨텍스트도 포함
             );
 
             AiChatBotResponse aiResponse = aiChatBotClient.sendChat(aiRequest);  // consultation(8082) -> ai(8000)
@@ -80,8 +90,9 @@ public class ChatbotMessageService {
             }
 
             log.debug(
-                    "추출된 약 이름: {}",
-                    extractedNames
+                    "추출된 약 이름: {}, questionType: {}",
+                    extractedNames,
+                    scheduleQuestion ? "schedule" : "drug_info"
             );
 
             ChatbotMessage savedBotMessage = chatbotMessageRepository.save(
@@ -115,6 +126,25 @@ public class ChatbotMessageService {
         return new ArrayList<>(names);
     }
 
+    // medication 서비스에서 복약 일정 컨텍스트 조회
+    private String buildScheduleContext(Long userId, List<String> extractedNames, List<String> requestDetails) {
+        if (requestDetails == null || requestDetails.isEmpty()) {
+            return "";
+        }
+
+        try {
+            ChatbotMedicineContextResponse response = medicationClient.getChatbotContext(
+                    new ChatbotMedicineContextRequest(userId, extractedNames, requestDetails)
+            );
+            if (response == null || response.medicineContext() == null) {
+                return "";
+            }
+            return response.medicineContext().trim();
+        } catch (RestClientException e) {
+            log.warn("복약 일정 컨텍스트 조회 실패", e);
+            return "";
+        }
+    }
 
     // 메시지 목록 조회
     @Transactional(readOnly = true)
@@ -152,7 +182,7 @@ public class ChatbotMessageService {
                 .orElseThrow(() -> new IllegalArgumentException("메시지를 찾을 수 없습니다."));
 
         if (!message.getChatbotRoom().getUserId().equals(userId)) {
-            throw new IllegalArgumentException("본인 메시지만 접근할 수 있습니다.");
+            throw new IllegalArgumentException("본인 메시지만 삭제할 수 있습니다.");
         }
 
         return message;

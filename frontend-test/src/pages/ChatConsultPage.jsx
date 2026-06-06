@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { getAuthSession } from '../api'
 import SockJS from 'sockjs-client'
 import Stomp from 'stompjs'
 
+const CONSULT_PREFILL_STORAGE_KEY = 'chatConsultPrefillMessage'
+
 function ChatConsultPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const session = getAuthSession()
 
   const [message, setMessage] = useState('')
@@ -43,6 +46,16 @@ function ChatConsultPage() {
   useEffect(() => {
     fetchMyRooms()
   }, [])
+
+  useEffect(() => {
+    const prefetchedMessage =
+      location.state?.prefillMessage || sessionStorage.getItem(CONSULT_PREFILL_STORAGE_KEY) || ''
+
+    if (prefetchedMessage) {
+      setMessage(prefetchedMessage)
+      sessionStorage.removeItem(CONSULT_PREFILL_STORAGE_KEY)
+    }
+  }, [location.state])
 
   const disconnect = () => {
     if (subscriptionRef.current) {

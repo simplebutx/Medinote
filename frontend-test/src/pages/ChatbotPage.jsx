@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   createChatbotRoom,
   deleteChatbotRoom,
@@ -10,11 +11,41 @@ import {
   updateChatbotRoom,
 } from '../api'
 
-const quickQuestions = [
-  '타이레놀 식후에 먹어야 해?',
-  '아스피린이랑 같이 먹어도 돼?',
-  '오늘 저녁 약 먹었는지 확인해줘',
-  '속이 불편한데 계속 먹어도 돼?',
+const introExampleQuestions = [
+  '약 복용법 확인',
+  '약 부작용 확인',
+  '내가 복약중인 약 확인',
+  '같이 먹어도 되는지 확인',
+  '임산부 주의사항 확인',
+]
+
+const profileContextSections = [
+  {
+    title: '내 건강상태',
+    items: ['수유 중', '고령자'],
+  },
+  {
+    title: '기저질환',
+    items: ['고혈압', '위장질환'],
+  },
+  {
+    title: '못 먹는 약/성분',
+    items: ['아스피린', '페니실린'],
+  },
+]
+
+const CONSULT_PREFILL_STORAGE_KEY = 'chatConsultPrefillMessage'
+const FALLBACK_DISPLAY_MESSAGE = '현재 제공된 약 문서만으로는 답변하기 어렵습니다. 약사 상담으로 이어서 확인해 주세요.'
+const INCONCLUSIVE_ANSWER_MARKERS = [
+  '확인할 수 없',
+  '확인이 어렵',
+  '답변이 어렵',
+  '확답을 드릴 수 없',
+  '확답을 드리기 어렵',
+  '문서에 포함되어 있지 않',
+  '포함되어 있지 않',
+  '직접 관련된 내용을 찾기 어렵',
+  '근거를 찾기 어렵',
 ]
 
 function renderHighlightedText(message, confirmedMentions) {
@@ -92,7 +123,35 @@ function mapMessage(message) {
   }
 }
 
+function splitChatContent(content) {
+  if (!content) return { body: '', source: '' }
+
+  const sourceMatch = content.match(/(?:\n+|\s+)출처:\s*(.+)$/s)
+  if (!sourceMatch) {
+    return { body: content.trimEnd(), source: '' }
+  }
+
+  const body = content.slice(0, sourceMatch.index).trimEnd()
+  const source = sourceMatch[1].trim()
+  return { body, source }
+}
+
+function isInconclusiveAnswer(content) {
+  if (!content) return false
+  return INCONCLUSIVE_ANSWER_MARKERS.some((marker) => content.includes(marker))
+}
+
+function findPreviousUserQuestion(messages, currentIndex) {
+  for (let index = currentIndex - 1; index >= 0; index -= 1) {
+    if (messages[index]?.sender === 'USER' && messages[index]?.content) {
+      return messages[index].content.trim()
+    }
+  }
+  return ''
+}
+
 function ChatbotPage() {
+  const navigate = useNavigate()
   const [message, setMessage] = useState('')
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -112,7 +171,7 @@ function ChatbotPage() {
   const tempMessageIdRef = useRef(1)
 
   const pageDescription = useMemo(
-    () => 'AI 챗봇으로 복약 정보를 먼저 확인하고, 필요한 경우 상담으로 이어갈 수 있습니다.',
+    () => 'AI 의약품 정보 도우미으로 복약 정보를 먼저 확인하고, 필요한 경우 상담으로 이어갈 수 있습니다.',
     [],
   )
 
@@ -175,6 +234,17 @@ function ChatbotPage() {
 
   const closeMessageMenu = () => {
     setOpenMessageMenuId(null)
+  }
+
+  const handleMoveToConsultation = (question) => {
+    const trimmedQuestion = question.trim()
+    if (!trimmedQuestion) return
+    sessionStorage.setItem(CONSULT_PREFILL_STORAGE_KEY, trimmedQuestion)
+    navigate('/app/chat', {
+      state: {
+        prefillMessage: trimmedQuestion,
+      },
+    })
   }
 
   const createNewRoom = async () => {
@@ -314,10 +384,24 @@ function ChatbotPage() {
     clearSuggestions()
   }
 
+  const handleExampleQuestionClick = (question) => {
+    setMessage(question)
+    clearSuggestions()
+  }
+
+  const handleMessageKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      event.currentTarget.form?.requestSubmit()
+    }
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     const trimmedMessage = message.trim()
     if (!trimmedMessage) return
+
+    const composedMessage = trimmedMessage
 
     let roomId = selectedRoomId
     if (!roomId) {
@@ -337,7 +421,7 @@ function ChatbotPage() {
       id: `temp-${tempMessageIdRef.current++}`,
       sender: 'USER',
       time: '방금',
-      content: trimmedMessage,
+      content: composedMessage,
     }
 
     setMessages((prev) => [...prev, optimisticMessage])
@@ -346,7 +430,7 @@ function ChatbotPage() {
     setLoading(true)
 
     try {
-      const data = await sendChatbotMessage(roomId, trimmedMessage)
+      const data = await sendChatbotMessage(roomId, composedMessage)
       const refreshedMessages = await getChatbotMessages(roomId)
       setMessages((refreshedMessages || []).map(mapMessage))
       setRooms((prev) =>
@@ -380,7 +464,7 @@ function ChatbotPage() {
   }
 
   return (
-    <div className="app-page">
+    <div className="app-page chatbot-page">
       <div className="app-page-header">
         <p className="app-page-eyebrow">AI Chatbot</p>
         <h1 className="app-page-title">챗봇</h1>
@@ -460,26 +544,46 @@ function ChatbotPage() {
         <section className="chat-layout-card">
           <div className="chat-tab-row">
             <button type="button" className="chat-tab-button active">
-              AI 챗봇
+              AI 의약품 정보 도우미
             </button>
           </div>
 
           <div className="chat-body-layout">
             <div className="chat-main-panel">
               <div className="chat-scroll-panel">
+                <div className="chat-intro-block">
+                  <div className="chat-bubble-row">
+                    <div className="chat-message-stack">
+                      <div className="chat-message-label-row">
+                        <div className="chat-message-label">AI 의약품 정보 도우미</div>
+                      </div>
+                      <div className="chat-bubble">
+                        <p>안녕하세요. 복용 중인 약에 대한 질문, 복약 정보 확인, 약 성분 확인을 도와드릴 수 있어요.</p>
+                      </div>
+                      <div className="chat-intro-actions">
+                        {introExampleQuestions.map((question) => (
+                          <span key={question} className="chat-intro-chip">
+                            {question}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {!selectedRoomId ? (
-                  <div className="app-placeholder-card">왼쪽에서 새 대화를 만들어 시작하세요.</div>
+                  <div className="chat-empty-hint">왼쪽에서 새 대화를 만들어 시작하세요.</div>
                 ) : loadingMessages ? (
-                  <div className="app-placeholder-card">대화 내용을 불러오는 중입니다.</div>
+                  <div className="chat-empty-hint">대화 내용을 불러오는 중입니다.</div>
                 ) : messages.length === 0 ? (
-                  <div className="app-placeholder-card">아직 대화 내용이 없습니다.</div>
+                  null
                 ) : (
-                  messages.map((chat) => (
+                  messages.map((chat, index) => (
                     <div key={chat.id} className={chat.sender === 'USER' ? 'chat-bubble-row mine' : 'chat-bubble-row'}>
-                      <div className={chat.sender === 'USER' ? 'chat-bubble mine' : 'chat-bubble'}>
-                        <div className="chat-bubble-meta">
-                          <strong>{chat.sender === 'USER' ? '나' : 'AI'}</strong>
-                          <span>{chat.time}</span>
+                      <div className={chat.sender === 'USER' ? 'chat-message-stack mine' : 'chat-message-stack'}>
+                        <div className={chat.sender === 'USER' ? 'chat-message-label-row mine' : 'chat-message-label-row'}>
+                          <div className="chat-message-label">{chat.sender === 'USER' ? '나' : 'AI 의약품 정보 도우미'}</div>
+                          <span className="chat-message-time">{chat.time}</span>
                           {chat.id != null && (
                             <div className="chat-message-menu-shell">
                               <button
@@ -503,7 +607,29 @@ function ChatbotPage() {
                             </div>
                           )}
                         </div>
-                        <p>{chat.content}</p>
+                        <div className={chat.sender === 'USER' ? 'chat-bubble mine' : 'chat-bubble'}>
+                          {(() => {
+                            const { body, source } = splitChatContent(chat.content)
+                            const previousUserQuestion = chat.sender === 'AI' ? findPreviousUserQuestion(messages, index) : ''
+                            const showConsultAction = chat.sender === 'AI' && isInconclusiveAnswer(body) && Boolean(previousUserQuestion)
+                            const displayBody = showConsultAction ? FALLBACK_DISPLAY_MESSAGE : body
+                            return (
+                              <div className="chat-bubble-body">
+                                <p>{displayBody}</p>
+                                {source && <div className="chat-bubble-source">출처: {source}</div>}
+                                {showConsultAction && (
+                                  <button
+                                    type="button"
+                                    className="chat-consult-link-button"
+                                    onClick={() => handleMoveToConsultation(previousUserQuestion)}
+                                  >
+                                    약사 상담으로 이어가기
+                                  </button>
+                                )}
+                              </div>
+                            )
+                          })()}
+                        </div>
                       </div>
                     </div>
                   ))
@@ -519,7 +645,8 @@ function ChatbotPage() {
                     className="message-input"
                     value={message}
                     onChange={handleMessageChange}
-                    placeholder="@로 약을 검색하거나 질문을 입력하세요."
+                    onKeyDown={handleMessageKeyDown}
+                    placeholder="@로 약을 검색하고 궁금한 점을 입력하세요."
                     rows={2}
                   />
                 </div>
@@ -540,22 +667,30 @@ function ChatbotPage() {
               </form>
             </div>
 
-            <aside className="chat-sidebar">
-              <section className="chat-side-card">
-                <h2>빠른 질문</h2>
-                <div className="chat-quick-list">
-                  {quickQuestions.map((question) => (
-                    <button key={question} type="button" onClick={() => setMessage(question)}>
-                      {question}
-                    </button>
+            <aside className="chat-profile-sidebar" aria-label="개인 상태 정보">
+              <div className="chat-profile-card">
+                <div className="chat-profile-header">
+                  <h2>질문에 반영할 내 상태</h2>
+                  <p>개인 상태와 기저질환, 주의 약 성분을 함께 보고 약 정보를 확인할 수 있어요.</p>
+                </div>
+
+                <div className="chat-profile-section-list">
+                  {profileContextSections.map((section) => (
+                    <section key={section.title} className="chat-profile-section">
+                      <h3>{section.title}</h3>
+                      <div className="chat-profile-tags">
+                        {section.items.map((item) => (
+                          <span key={item} className="chat-profile-tag">
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </section>
                   ))}
                 </div>
-              </section>
-              <section className="chat-side-card warning">
-                <h2>상담 안내</h2>
-                <p>챗봇으로 해결이 어렵다면 상담 메뉴에서 약사 상담을 요청할 수 있습니다.</p>
-              </section>
+              </div>
             </aside>
+
           </div>
         </section>
       </section>

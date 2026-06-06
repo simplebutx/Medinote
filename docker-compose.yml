@@ -161,8 +161,15 @@ services:
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
       QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-medicine_docs}
+      SCHEDULE_DB_HOST: ${MYSQL_HOST:-host.docker.internal}
+      SCHEDULE_DB_PORT: ${MYSQL_PORT:-3306}
+      SCHEDULE_DB_NAME: ${MYSQL_DATABASE:-medic}
+      SCHEDULE_DB_USER: ${MYSQL_USERNAME:-root}
+      SCHEDULE_DB_PASSWORD: ${MYSQL_PASSWORD:-root}
     volumes:
       - ${GOOGLE_APPLICATION_CREDENTIALS_HOST_PATH:-./secrets/gcloud-adc.json}:/app/secrets/gcloud-adc.json:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
 

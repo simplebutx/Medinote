@@ -1,13 +1,8 @@
 from fastapi import APIRouter
 
-from app.services.vector_store import upsert_test_point, search_relevant_documents
+from app.services.chatbot.document_search_service import search_relevant_documents
 
 router = APIRouter()
-
-
-@router.post("/qdrant-test-upsert")
-def qdrant_test_upsert():
-    return upsert_test_point()
 
 
 @router.get("/qdrant-test-search")

@@ -10,15 +10,15 @@ from pathlib import Path
 
 import requests
 from pypdf import PdfReader
-from qdrant_client.models import PointStruct
+from qdrant_client.models import Filter, FilterSelector, PointStruct
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from app.services.embedding_service import embed_texts
-from app.services.vector_store import get_qdrant_client
+from app.services.chatbot.embedding_service import embed_texts
+from app.services.chatbot.document_search_service import get_qdrant_client
 from app.core.config import settings
 
 
@@ -62,6 +62,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=str(ROOT_DIR / "tmp" / "sample_pdfs"),
         help="Directory for downloaded sample PDFs",
     )
+    parser.add_argument(
+        "--names-file",
+        help="Optional text file with one medicine name per line",
+    )
+    parser.add_argument(
+        "--clear-collection",
+        action="store_true",
+        help="Delete all existing points from the target collection before upsert",
+    )
     return parser
 
 
@@ -80,6 +89,26 @@ def sample_rows(rows: list[dict[str, str]], sample_size: int, seed: int) -> list
     if len(valid_rows) <= sample_size:
         return valid_rows
     return random.sample(valid_rows, sample_size)
+
+
+def read_selected_names(names_file: Path) -> list[str]:
+    return [
+        line.strip()
+        for line in names_file.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+def filter_rows_by_names(
+    rows: list[dict[str, str]],
+    name_column: str,
+    selected_names: list[str],
+) -> list[dict[str, str]]:
+    selected_name_set = set(selected_names)
+    return [
+        row for row in rows
+        if (row.get(name_column) or "").strip() in selected_name_set
+    ]
 
 
 def download_pdf(url: str, timeout_seconds: int) -> bytes:
@@ -226,6 +255,16 @@ def upsert_records(records: list[dict]) -> None:
     print(f"[done] Upserted {len(points)} documents into {settings.qdrant_collection_name}")
 
 
+def clear_collection_points() -> None:
+    client = get_qdrant_client()
+    client.delete(
+        collection_name=settings.qdrant_collection_name,
+        points_selector=FilterSelector(filter=Filter()),
+        wait=True,
+    )
+    print(f"[done] Cleared collection: {settings.qdrant_collection_name}")
+
+
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
@@ -235,7 +274,13 @@ def main() -> None:
     download_dir.mkdir(parents=True, exist_ok=True)
 
     rows = read_csv_rows(csv_path)
-    sampled_rows = sample_rows(rows, args.sample_size, args.seed)
+    if args.names_file:
+        names_file = Path(args.names_file)
+        selected_names = read_selected_names(names_file)
+        sampled_rows = filter_rows_by_names(rows, args.name_column, selected_names)
+        print(f"[info] Loaded {len(selected_names)} selected medicine names")
+    else:
+        sampled_rows = sample_rows(rows, args.sample_size, args.seed)
 
     print(f"[info] Loaded {len(rows)} rows from CSV")
     print(f"[info] Sampled {len(sampled_rows)} medicines")
@@ -247,6 +292,9 @@ def main() -> None:
         download_dir=download_dir,
     )
     print(f"[info] Prepared {len(records)} document records")
+
+    if args.clear_collection:
+        clear_collection_points()
 
     upsert_records(records)
 
