@@ -78,8 +78,8 @@ public class ConsultationSession {
         this.chatLog = chatLog;
     }
 
-    //AI 답변 가이드 업데이트
-    public void updateAiAnswerGuide(String aiAnswerGuide){
+    //상담 요약 저장
+    public void updateConsultationSummary(String aiAnswerGuide){
         this.aiAnswerGuide = aiAnswerGuide;
     }
 

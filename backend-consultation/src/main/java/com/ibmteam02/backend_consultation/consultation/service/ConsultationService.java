@@ -1,5 +1,8 @@
 package com.ibmteam02.backend_consultation.consultation.service;
 
+import com.ibmteam02.backend_consultation.ai.client.AiConsultationSummaryClient;
+import com.ibmteam02.backend_consultation.ai.dto.AiConsultationSummaryRequest;
+import com.ibmteam02.backend_consultation.ai.dto.AiConsultationSummaryResponse;
 import com.ibmteam02.backend_consultation.consultation.domain.ConsultationFeedback;
 import com.ibmteam02.backend_consultation.consultation.domain.ConsultationMessage;
 import com.ibmteam02.backend_consultation.consultation.domain.ConsultationSession;
@@ -25,6 +28,7 @@ public class ConsultationService {
     private final ConsultationMessageRepository consultationMessageRepository;
     private final ConsultationFeedbackRepository consultationFeedbackRepository;
     private final AuthUserClient authUserClient;
+    private final AiConsultationSummaryClient aiConsultationSummaryClient;
 
     // 공통 변환 메서드
     public ConsultationRoomResponse convertToResponse(ConsultationSession session) {
@@ -47,6 +51,7 @@ public class ConsultationService {
                 .createdAt(session.getCreatedAt())
                 .firstMessage(firstMessage)
                 .customerName(customerName)
+                .aiConsultationSummary(session.getAiAnswerGuide())
                 .rating(feedback != null ? feedback.getRating() : null)
                 .feedbackComment(feedback != null ? feedback.getComment() : null)
                 .build();
@@ -243,9 +248,9 @@ public class ConsultationService {
                 .build();
     }
 
-    //약사 상담 중 AI 답변 가이드 요청
+    //상담 종료 후 요약 요청 & 답변 저장
     @Transactional
-    public void aiAnswerGuide(Long roomId) {
+    public void aiConsultationSummary(Long roomId) {
         ConsultationSession session = consultationSessionRepository.findById(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("방을 찾을 수 없습니다"));
 
@@ -256,17 +261,12 @@ public class ConsultationService {
                 .collect(Collectors.joining("\n"));
 
         session.updateChatLog(formattedLog);
+
+        AiConsultationSummaryResponse response = aiConsultationSummaryClient.requestSummary(
+                new AiConsultationSummaryRequest(roomId, formattedLog)
+        );
+        if (response != null && response.summary() != null && !response.summary().isBlank()) {
+            session.updateConsultationSummary(response.summary().trim());
+        }
     }
-
-    //약사 상담 AI 답변 가이드 받음
-    @Transactional
-    public void updateAiGuide(Long roomId, String guideText) {
-        ConsultationSession session = consultationSessionRepository.findById(roomId)
-                .orElseThrow(() -> new IllegalArgumentException("방을 찾을 수 없습니다."));
-        session.updateAiAnswerGuide(guideText);
-    }
-
-
-
-
 }
