@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.schemas.chatbot import AiChatBotRequest, AiChatBotResponse
-from app.services.chatbot_service import generate_chatbot_answer
+from app.services.chatbot.chatbot_service import generate_chatbot_answer
 
 router = APIRouter()
 

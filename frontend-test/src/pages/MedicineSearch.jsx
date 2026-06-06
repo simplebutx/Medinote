@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { searchMedicines, suggestMedicines } from '../api'
 
-const EMPTY_RESULTS_TEXT = '검색어를 입력하면 약 이미지와 주요 정보를 바로 확인할 수 있어요.'
+const EMPTY_RESULTS_TEXT = '검색어를 입력하면 이미지와 주요 정보를 바로 확인할 수 있어요.'
 
 function trimText(text) {
   if (!text) {
@@ -12,13 +12,45 @@ function trimText(text) {
   return normalized || '-'
 }
 
+function trimMultilineText(text) {
+  if (!text) {
+    return '-'
+  }
+
+  const normalized = text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n')
+
+  return normalized || '-'
+}
+
 function getMedicineSections(medicine) {
   return [
     { title: '효능', content: trimText(medicine.efficacy) },
     { title: '복용법', content: trimText(medicine.useMethod) },
-    { title: '주의사항', content: trimText(medicine.caution) },
+    { title: '주의사항', content: formatNoticeContent(medicine), preserveLineBreaks: true },
     { title: '부작용', content: trimText(medicine.sideEffect) },
+    { title: '보관방법', content: trimText(medicine.storageMethod) },
+    { title: '성분', content: trimText(medicine.ingredients) },
   ]
+}
+
+function formatNoticeContent(medicine) {
+  const sections = [
+    { title: '사용 전 주의사항', content: trimMultilineText(medicine.warningBeforeUse) },
+    { title: '주의사항', content: trimMultilineText(medicine.caution) },
+    { title: '상호작용', content: trimMultilineText(medicine.interaction) },
+  ]
+    .filter((section) => section.content !== '-')
+    .map((section) => `${section.title}\n${section.content}`)
+
+  if (sections.length === 0) {
+    return '-'
+  }
+
+  return sections.join('\n\n')
 }
 
 function MedicineSearch() {
@@ -109,10 +141,9 @@ function MedicineSearch() {
         <div className="medicine-search-header">
           <div>
             <p className="medicine-search-eyebrow">medicine search</p>
-            <h1>약이나 성분을 한 번에 찾는 검색 페이지</h1>
+            <h1>약을 한 번에 찾는 검색 페이지</h1>
             <p className="medicine-search-subtitle">
-              자동완성은 기존 suggest API를 그대로 사용하고, 검색 결과는 이미지와 효능, 복용법,
-              주의사항까지 함께 보여줍니다.
+              자동완성으로 약을 찾고, 검색 결과에서 필요한 복약 정보를 한 번에 확인할 수 있습니다.
             </p>
           </div>
         </div>
@@ -120,7 +151,7 @@ function MedicineSearch() {
         <section className="medicine-search-hero-card">
           <div className="medicine-search-form">
             <label className="medicine-search-label" htmlFor="medicine-search-input">
-              약 이름 또는 성분명
+              약 이름
             </label>
             <input
               id="medicine-search-input"
@@ -128,7 +159,7 @@ function MedicineSearch() {
               type="text"
               value={keyword}
               onChange={handleKeywordChange}
-              placeholder="예: 타이레놀, 아세트아미노펜"
+              placeholder="예: 타이레놀, 아세트아미노펜정"
             />
 
             {suggestions.length > 0 && (
@@ -149,6 +180,7 @@ function MedicineSearch() {
           </div>
         </section>
 
+        {loading && !message && <div className="medicine-search-message">검색 중입니다.</div>}
         {message && <div className="medicine-search-message">{message}</div>}
 
         {results.length > 0 && (
@@ -183,7 +215,14 @@ function MedicineSearch() {
                         open={index === 0}
                       >
                         <summary>{section.title}</summary>
-                        <div className="medicine-card-section-body">{section.content}</div>
+                        <div
+                          className={[
+                            'medicine-card-section-body',
+                            section.preserveLineBreaks ? 'medicine-card-section-body-prewrap' : '',
+                          ].join(' ').trim()}
+                        >
+                          {section.content}
+                        </div>
                       </details>
                     ))}
                   </div>

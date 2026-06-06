@@ -159,7 +159,7 @@ function Chatbot() {
       <div className="app-two-column">
         <section className="app-card">
           <div className="app-card-header">
-            <h2>AI 챗봇</h2>
+            <h2>AI 의약품 정보 도우미</h2>
             <p>@로 약 이름을 입력하면 자동완성 목록이 열립니다.</p>
           </div>
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.schemas.ocr import AiOcrRequest, AiOcrResponse
-from app.services.ocr_service import analyze_prescription
+from app.services.ocr.ocr_service import analyze_prescription
 
 router = APIRouter()
 
