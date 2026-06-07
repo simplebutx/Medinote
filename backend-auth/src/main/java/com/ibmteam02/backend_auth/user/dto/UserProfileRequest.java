@@ -15,5 +15,7 @@ public class UserProfileRequest {
     private Boolean isBreastfeeding;
     private Boolean isSmoking;
     private Boolean isDrinking;
+    private Boolean isChild;
+    private Boolean isElderly;
     private List<String> diseaseNames;
 }

@@ -65,7 +65,7 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getAllUsers(role));
     }
 
-    //회원 삭제(탈퇴)
+    //관리자용 회원 삭제(탈퇴)
     @DeleteMapping("/users/{userId}")
     public ResponseEntity<String> deleteUser(
             @PathVariable Long userId,

@@ -15,8 +15,10 @@ import {
   getMedicationTimePresets,
   getMedicationSchedules,
   suggestCautions,
+  suggestDiseases,
   updateMedicationTimePresets,
   updateMedicationSchedule,
+  updateMyProfile,
   withdrawAccount,
 } from '../api'
 import { DOSAGE_UNIT_OPTIONS, MAX_TIMES_PER_DAY, TIMING_OPTIONS } from './schedule/constants'
@@ -729,8 +731,15 @@ function MyPage() {
           </div>
         </div>
 
-        <button type="button" className="profile-edit-button">
-          프로필 수정
+        <button 
+          type="button" 
+          className="profile-edit-button"
+          onClick={() => {
+            if (activeTab === 'profile') setIsEditingProfile(!isEditingProfile)
+            if (activeTab === 'health') setIsEditingHealth(!isEditingHealth)
+          }}
+        >
+          {((activeTab === 'profile' && isEditingProfile) || (activeTab === 'health' && isEditingHealth)) ? '수정 취소' : '프로필 수정'}
         </button>
       </section>
 
@@ -750,63 +759,224 @@ function MyPage() {
 
         {activeTab === 'profile' ? (
           <div className="mypage-section">
-            <h2>기본 정보</h2>
-            <div className="mypage-info-grid">
-              <div className="mypage-info-card">
-                <span>이름</span>
-                <strong>{profile.username}</strong>
-              </div>
-              <div className="mypage-info-card">
-                <span>이메일</span>
-                <strong>{profile.email}</strong>
-              </div>
-              <div className="mypage-info-card">
-                <span>생년월일</span>
-                <strong>{profile.birthDate || '-'}</strong>
-              </div>
-              <div className="mypage-info-card">
-                <span>성별</span>
-                <strong>{profile.gender || '-'}</strong>
-              </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0 }}>기본 정보</h2>
+              {!isEditingProfile ? (
+                <button onClick={() => setIsEditingProfile(true)} className="register-add-button" style={{ margin: 0 }}>정보 수정</button>
+              ) : (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => setIsEditingProfile(false)} className="register-remove-button" style={{ margin: 0 }}>취소</button>
+                  <button onClick={handleSaveBasicProfile} className="app-primary-button" style={{ margin: 0 }}>저장하기</button>
+                </div>
+              )}
             </div>
+            
+            {isEditingProfile ? (
+              <div className="register-form-grid">
+                <label className="register-field">
+                  <span>이름</span>
+                  <input 
+                    value={profileForm.username} 
+                    onChange={(e) => setProfileForm({...profileForm, username: e.target.value})}
+                  />
+                </label>
+                <label className="register-field">
+                  <span>이메일</span>
+                  <input value={profile.email} readOnly style={{ backgroundColor: '#f1f5f9' }} />
+                </label>
+                <label className="register-field">
+                  <span>생년월일</span>
+                  <input 
+                    type="date"
+                    value={profileForm.birthDate} 
+                    onChange={(e) => setProfileForm({...profileForm, birthDate: e.target.value})}
+                  />
+                </label>
+                <label className="register-field">
+                  <span>성별</span>
+                  <select 
+                    value={profileForm.gender} 
+                    onChange={(e) => setProfileForm({...profileForm, gender: e.target.value})}
+                  >
+                    <option value="">선택안함</option>
+                    <option value="MALE">남성</option>
+                    <option value="FEMALE">여성</option>
+                  </select>
+                </label>
+              </div>
+            ) : (
+              <div className="mypage-info-grid">
+                <div className="mypage-info-card">
+                  <span>이름</span>
+                  <strong>{profile.username}</strong>
+                </div>
+                <div className="mypage-info-card">
+                  <span>이메일</span>
+                  <strong>{profile.email}</strong>
+                </div>
+                <div className="mypage-info-card">
+                  <span>생년월일</span>
+                  <strong>{profile.birthDate || '-'}</strong>
+                </div>
+                <div className="mypage-info-card">
+                  <span>성별</span>
+                  <strong>{profile.gender === 'MALE' ? '남성' : profile.gender === 'FEMALE' ? '여성' : '-'}</strong>
+                </div>
+              </div>
+            )}
           </div>
         ) : null}
 
         {activeTab === 'health' ? (
           <div className="mypage-section">
-            <h2>건강 정보</h2>
-            <div className="mypage-info-grid">
-              <div className="mypage-info-card">
-                <span>임신 여부</span>
-                <strong>{profile.isPregnant ? '해당' : '없음'}</strong>
-              </div>
-              <div className="mypage-info-card">
-                <span>수유 여부</span>
-                <strong>{profile.isBreastfeeding ? '해당' : '없음'}</strong>
-              </div>
-              <div className="mypage-info-card">
-                <span>흡연</span>
-                <strong>{profile.isSmoking ? '예' : '아니오'}</strong>
-              </div>
-              <div className="mypage-info-card">
-                <span>음주</span>
-                <strong>{profile.isDrinking ? '예' : '아니오'}</strong>
-              </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0 }}>건강 정보</h2>
+              {!isEditingHealth ? (
+                <button onClick={() => setIsEditingHealth(true)} className="register-add-button" style={{ margin: 0 }}>정보 수정</button>
+              ) : (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => setIsEditingHealth(false)} className="register-remove-button" style={{ margin: 0 }}>취소</button>
+                  <button onClick={handleSaveHealth} className="app-primary-button" style={{ margin: 0 }}>저장하기</button>
+                </div>
+              )}
             </div>
-            <div className="mypage-disease-box">
-              <span>기저질환</span>
-              <div className="profile-badge-row">
-                {(profile.chronicDiseases || []).length ? (
-                  profile.chronicDiseases.map((disease) => (
-                    <span key={disease} className="profile-badge blue">
-                      {disease}
-                    </span>
-                  ))
-                ) : (
-                  <strong>등록된 기저질환이 없습니다.</strong>
-                )}
+
+            {isEditingHealth ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+                <div className="register-form-grid">
+                  <label className="register-field">
+                    <span>임신 여부</span>
+                    <select 
+                      value={healthForm.isPregnant} 
+                      onChange={(e) => setHealthForm({...healthForm, isPregnant: e.target.value === 'true'})}
+                    >
+                      <option value="false">해당없음</option>
+                      <option value="true">임신중</option>
+                    </select>
+                  </label>
+                  <label className="register-field">
+                    <span>수유 여부</span>
+                    <select 
+                      value={healthForm.isBreastfeeding} 
+                      onChange={(e) => setHealthForm({...healthForm, isBreastfeeding: e.target.value === 'true'})}
+                    >
+                      <option value="false">해당없음</option>
+                      <option value="true">수유중</option>
+                    </select>
+                  </label>
+                  <label className="register-field">
+                    <span>흡연 여부</span>
+                    <select 
+                      value={healthForm.isSmoking} 
+                      onChange={(e) => setHealthForm({...healthForm, isSmoking: e.target.value === 'true'})}
+                    >
+                      <option value="false">비흡연</option>
+                      <option value="true">흡연</option>
+                    </select>
+                  </label>
+                  <label className="register-field">
+                    <span>음주 여부</span>
+                    <select 
+                      value={healthForm.isDrinking} 
+                      onChange={(e) => setHealthForm({...healthForm, isDrinking: e.target.value === 'true'})}
+                    >
+                      <option value="false">금주</option>
+                      <option value="true">음주</option>
+                    </select>
+                  </label>
+                  <label className="register-field">
+                    <span>소아 여부</span>
+                    <select 
+                      value={healthForm.isChild} 
+                      onChange={(e) => setHealthForm({...healthForm, isChild: e.target.value === 'true'})}
+                    >
+                      <option value="false">해당없음</option>
+                      <option value="true">소아 (12세 미만)</option>
+                    </select>
+                  </label>
+                  <label className="register-field">
+                    <span>고령 여부</span>
+                    <select 
+                      value={healthForm.isElderly} 
+                      onChange={(e) => setHealthForm({...healthForm, isElderly: e.target.value === 'true'})}
+                    >
+                      <option value="false">해당없음</option>
+                      <option value="true">고령 (65세 이상)</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="mypage-disease-box" style={{ border: '1px solid #e2e8f0', padding: '20px', borderRadius: '12px' }}>
+                  <span style={{ fontWeight: 'bold', display: 'block', marginBottom: '15px' }}>기저질환 관리</span>
+                  
+                  <div style={{ marginBottom: '15px' }}>
+                    <input 
+                      className="register-field"
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                      placeholder="질병명을 입력하여 검색 (예: 고혈압, 당뇨)"
+                      value={diseaseKeyword}
+                      onChange={(e) => setDiseaseKeyword(e.target.value)}
+                    />
+                    {diseaseSuggestions.length > 0 && (
+                      <div className="mypage-suggestion-list" style={{ marginTop: '5px' }}>
+                        {diseaseSuggestions.map((name) => (
+                          <button key={name} type="button" onClick={() => { toggleDisease(name); setDiseaseKeyword(''); setDiseaseSuggestions([]); }}>
+                            + {name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="profile-badge-row">
+                    {healthForm.chronicDiseases.length > 0 ? (
+                      healthForm.chronicDiseases.map((disease) => (
+                        <span key={disease} className="profile-badge blue" style={{ cursor: 'pointer' }} onClick={() => toggleDisease(disease)}>
+                          {disease} ✕
+                        </span>
+                      ))
+                    ) : (
+                      <span style={{ color: '#94a3b8', fontSize: '13px' }}>검색하여 질환을 추가해주세요.</span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="mypage-info-grid">
+                  <div className="mypage-info-card">
+                    <span>임신 여부</span>
+                    <strong>{profile.isPregnant ? '해당' : '없음'}</strong>
+                  </div>
+                  <div className="mypage-info-card">
+                    <span>수유 여부</span>
+                    <strong>{profile.isBreastfeeding ? '해당' : '없음'}</strong>
+                  </div>
+                  <div className="mypage-info-card">
+                    <span>흡연</span>
+                    <strong>{profile.isSmoking ? '예' : '아니오'}</strong>
+                  </div>
+                  <div className="mypage-info-card">
+                    <span>음주</span>
+                    <strong>{profile.isDrinking ? '예' : '아니오'}</strong>
+                  </div>
+                </div>
+                <div className="mypage-disease-box">
+                  <span>기저질환</span>
+                  <div className="profile-badge-row">
+                    {(profile.chronicDiseases || []).length ? (
+                      profile.chronicDiseases.map((disease) => (
+                        <span key={disease} className="profile-badge blue">
+                          {disease}
+                        </span>
+                      ))
+                    ) : (
+                      <strong>등록된 기저질환이 없습니다.</strong>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         ) : null}
 
