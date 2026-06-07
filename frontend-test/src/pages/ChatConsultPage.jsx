@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { getAuthSession } from '../api'
 import SockJS from 'sockjs-client'
 import Stomp from 'stompjs'
 
+const CONSULT_PREFILL_STORAGE_KEY = 'chatConsultPrefillMessage'
+
 function ChatConsultPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const session = getAuthSession()
 
   const [message, setMessage] = useState('')
@@ -43,6 +46,16 @@ function ChatConsultPage() {
   useEffect(() => {
     fetchMyRooms()
   }, [])
+
+  useEffect(() => {
+    const prefetchedMessage =
+      location.state?.prefillMessage || sessionStorage.getItem(CONSULT_PREFILL_STORAGE_KEY) || ''
+
+    if (prefetchedMessage) {
+      setMessage(prefetchedMessage)
+      sessionStorage.removeItem(CONSULT_PREFILL_STORAGE_KEY)
+    }
+  }, [location.state])
 
   const disconnect = () => {
     if (subscriptionRef.current) {
@@ -207,15 +220,18 @@ function ChatConsultPage() {
   }
 
   // 상담 종료 함수 (유저용)
-  const handleCloseRoom = async () => {
+const handleCloseRoom = async () => {
     if (!window.confirm('상담을 종료하시겠습니까?\n종료 후에는 약사님께 별점을 남길 수 있습니다.')) return;
 
     try {
       await axios.patch(`http://localhost:8082/app/consult/room/${roomId}/close`, {}, {
         headers: { Authorization: `Bearer ${session.accessToken}` }
       });
+      await axios.post(`http://localhost:8082/app/consult/room/${roomId}/ai-request`, {}, {
+        headers: { Authorization: `Bearer ${session.accessToken}` }
+      });
       alert('상담이 종료되었습니다.');
-      fetchMyRooms(); // 목록 새로고침
+      await fetchMyRooms(); // 목록 새로고침
       // 현재 currentRoom 상태는 fetchMyRooms 이후에 업데이트되므로 
       // 즉시 피드백 화면을 보여주기 위해 목록을 다시 불러오는 동안에도 UI가 반영되도록 함
     } catch (error) {
@@ -337,6 +353,14 @@ function ChatConsultPage() {
             <div className="chat-input-area" style={{ borderTop: '1px solid #e2e8f0', padding: '16px' }}>
               {currentRoom?.status === 'CLOSED' ? (
                 <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                  {currentRoom?.aiConsultationSummary && (
+                    <div style={{ marginBottom: '16px', padding: '14px 16px', borderRadius: '12px', backgroundColor: '#ffffff', border: '1px solid #dbe7ff' }}>
+                      <div style={{ fontSize: '12px', fontWeight: '700', color: '#2563eb', marginBottom: '8px' }}>AI 상담 요약</div>
+                      <div style={{ fontSize: '14px', lineHeight: '1.7', color: '#1e293b', whiteSpace: 'pre-wrap' }}>
+                        {currentRoom.aiConsultationSummary}
+                      </div>
+                    </div>
+                  )}
                   {isFeedbackSubmitted ? (
                     <div style={{ textAlign: 'center', color: '#059669', fontWeight: 'bold' }}>
                       ✅ 소중한 의견 감사합니다! 평가가 완료되었습니다.

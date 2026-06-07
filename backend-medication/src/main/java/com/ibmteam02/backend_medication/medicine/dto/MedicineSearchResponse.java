@@ -4,10 +4,18 @@ public record MedicineSearchResponse(
         Long itemSeq,
         String itemName,
         String companyName,
+        String ingredients,
         String efficacy,
         String useMethod,
+        String warningBeforeUse,
         String caution,
+        String interaction,
         String sideEffect,
-        String imageUrl
+        String storageMethod,
+        String updateDe,
+        String imageUrl,
+        String efficacyDocumentId,
+        String usageDocumentId,
+        String precautionDocumentId
 ) {
 }

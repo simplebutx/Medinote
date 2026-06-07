@@ -17,7 +17,7 @@ from PIL import Image
 
 from app.core.config import settings
 from app.schemas.ocr import AiOcrRequest, AiOcrResponse
-from app.services.image_preprocessing import preprocess_prescription_image
+from app.services.ocr.image_preprocessing import preprocess_prescription_image
 
 OCR_ENGINE_NAME = "google-vision-document-text-detection"
 RECEIPT_REGION_MAX_X = 0.30

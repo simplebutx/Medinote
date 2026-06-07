@@ -1,19 +1,22 @@
 package com.ibmteam02.backend_medication.medicine.service;
 
 import com.ibmteam02.backend_medication.medicine.domain.MedicineInfo;
+import com.ibmteam02.backend_medication.medicine.domain.MedicineIngredient;
 import com.ibmteam02.backend_medication.medicine.dto.MedicineSearchResponse;
 import com.ibmteam02.backend_medication.medicine.repository.MedicineInfoRepository;
+import com.ibmteam02.backend_medication.medicine.repository.MedicineIngredientRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class MedicineSearchService {
 
     private final MedicineInfoRepository medicineInfoRepository;
+    private final MedicineIngredientRepository medicineIngredientRepository;
 
     // 약이름 자동완성
     public List<String> suggestMedicine(String keyword) {
@@ -40,11 +43,49 @@ public class MedicineSearchService {
                 medicine.getItemSeq(),
                 medicine.getItemName(),
                 medicine.getCompanyName(),
+                formatIngredientSummary(medicine.getItemSeq()),
                 medicine.getEfficacy(),
                 medicine.getUseMethod(),
+                medicine.getWarningBeforeUse(),
                 medicine.getCaution(),
+                medicine.getInteraction(),
                 medicine.getSideEffect(),
-                medicine.getImageUrl()
+                medicine.getStorageMethod(),
+                medicine.getUpdateDe(),
+                medicine.getImageUrl(),
+                medicine.getEfficacyDocumentId(),
+                medicine.getUsageDocumentId(),
+                medicine.getPrecautionDocumentId()
         );
+    }
+
+    private String formatIngredientSummary(Long itemSeq) {
+        List<MedicineIngredient> ingredients = medicineIngredientRepository.findByItemSeq(itemSeq);
+        if (ingredients.isEmpty()) {
+            return "성분 정보가 없습니다.";
+        }
+
+        return ingredients.stream()
+                .map(ingredient -> formatIngredient(ingredient.getIngredientName(), ingredient.getQuantity(), ingredient.getUnit()))
+                .filter(text -> !text.isBlank())
+                .collect(Collectors.joining(", "));
+    }
+
+    private String formatIngredient(String ingredientName, String quantity, String unit) {
+        String safeName = ingredientName == null ? "" : ingredientName.trim();
+        String safeQuantity = quantity == null ? "" : quantity.trim();
+        String safeUnit = unit == null ? "" : unit.trim();
+
+        StringBuilder builder = new StringBuilder(safeName);
+        if (!safeQuantity.isBlank()) {
+            if (!builder.isEmpty()) {
+                builder.append(' ');
+            }
+            builder.append(safeQuantity);
+        }
+        if (!safeUnit.isBlank()) {
+            builder.append(safeUnit);
+        }
+        return builder.toString().trim();
     }
 }

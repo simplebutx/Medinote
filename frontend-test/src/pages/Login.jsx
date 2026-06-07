@@ -49,7 +49,7 @@ function Login() {
       <div className="login-card">
         <div className="login-copy">
           <p className="app-page-eyebrow">Welcome Back</p>
-          <h1>AI 복약 도우미</h1>
+          <h1>AI 의약품 정보 도우미</h1>
           <p>
             사용자 페이지 구조에 맞춘 로그인 화면입니다. 로그인 후 바로 내 정보와 복약 화면으로 이동할 수
             있습니다.
