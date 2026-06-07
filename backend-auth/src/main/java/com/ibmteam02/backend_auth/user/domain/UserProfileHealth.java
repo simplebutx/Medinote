@@ -33,6 +33,12 @@ public class UserProfileHealth {
     @Column(nullable = false)
     private Boolean isDrinking = false; //음주 여부
 
+    @Column(nullable = false)
+    private Boolean isChild = false; // 소아 여부
+
+    @Column(nullable = false)
+    private Boolean isElderly = false; // 고령 여부
+
     @CreatedDate
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -41,19 +47,23 @@ public class UserProfileHealth {
     private LocalDateTime updatedAt;
 
     @Builder
-    public UserProfileHealth(User user, Boolean isPregnant, Boolean isBreastfeeding, Boolean isSmoking, Boolean isDrinking){
+    public UserProfileHealth(User user, Boolean isPregnant, Boolean isBreastfeeding, Boolean isSmoking, Boolean isDrinking, Boolean isChild, Boolean isElderly){
         this.user = user;
         this.isPregnant = isPregnant;
         this.isBreastfeeding = isBreastfeeding;
         this.isSmoking = isSmoking;
         this.isDrinking = isDrinking;
+        this.isChild = isChild;
+        this.isElderly = isElderly;
     }
 
-    public void updateHealth(Boolean isPregnant, Boolean isBreastfeeding, Boolean isSmoking, Boolean isDrinking){
+    public void updateHealth(Boolean isPregnant, Boolean isBreastfeeding, Boolean isSmoking, Boolean isDrinking, Boolean isChild, Boolean isElderly){
         this.isPregnant = isPregnant;
         this.isBreastfeeding = isBreastfeeding;
         this.isSmoking = isSmoking;
         this.isDrinking = isDrinking;
+        this.isChild = isChild;
+        this.isElderly = isElderly;
     }
 
 
