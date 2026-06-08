@@ -397,8 +397,8 @@ const handleCloseRoom = async () => {
                   )}
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '12px' }}>
-                  <div className="message-input-shell chat-message-shell" style={{ flex: 1 }}>
+                <form className="consult-input-form" onSubmit={handleSubmit} style={{ display: 'flex', gap: '12px' }}>
+                  <div className="message-input-shell chat-message-shell consult-message-shell" style={{ flex: 1 }}>
                     <textarea
                       className="message-input"
                       value={message}
@@ -414,7 +414,12 @@ const handleCloseRoom = async () => {
                       style={{ position: 'static', color: '#111', background: '#f1f5f9', minHeight: '60px' }}
                     />
                   </div>
-                  <button type="submit" className="chat-send-button" disabled={loading} style={{ height: 'auto', alignSelf: 'stretch' }}>
+                  <button
+                    type="submit"
+                    className="chat-send-button consult-send-button"
+                    disabled={loading}
+                    style={{ height: 'auto', alignSelf: 'stretch' }}
+                  >
                     {loading ? '...' : '전송'}
                   </button>
                 </form>
