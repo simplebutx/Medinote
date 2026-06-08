@@ -75,6 +75,8 @@ public class AuthService {
                 .isBreastfeeding(Boolean.TRUE.equals(userProfileRequest.getIsBreastfeeding()))
                 .isSmoking(Boolean.TRUE.equals(userProfileRequest.getIsSmoking()))
                 .isDrinking(Boolean.TRUE.equals(userProfileRequest.getIsDrinking()))
+                .isChild(Boolean.TRUE.equals(userProfileRequest.getIsChild()))
+                .isElderly(Boolean.TRUE.equals(userProfileRequest.getIsElderly()))
                 .build();
 
         userProfileHealthRepository.save(health);
@@ -241,7 +243,9 @@ public class AuthService {
                     profileUpdateRequest.getIsPregnant(),
                     profileUpdateRequest.getIsBreastfeeding(),
                     profileUpdateRequest.getIsSmoking(),
-                    profileUpdateRequest.getIsDrinking()
+                    profileUpdateRequest.getIsDrinking(),
+                    profileUpdateRequest.getIsChild(),
+                    profileUpdateRequest.getIsElderly()
             );
 
             userChronicDiseaseRepository.deleteByUser(user);

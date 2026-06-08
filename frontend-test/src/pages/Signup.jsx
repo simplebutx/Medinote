@@ -7,47 +7,9 @@ const HEALTH_OPTIONS = [
   { key: 'isBreastfeeding', label: '모유수유 중' },
   { key: 'isSmoking', label: '흡연' },
   { key: 'isDrinking', label: '음주' },
+  { key: 'isChild', label: '소아 (12세 미만)' },
+  { key: 'isElderly', label: '고령 (65세 이상)' },
 ]
-
-const baseCardStyle = {
-  width: '100%',
-  padding: '18px 20px',
-  borderRadius: '18px',
-  border: '1px solid #d7e4ff',
-  backgroundColor: '#ffffff',
-  textAlign: 'left',
-  fontSize: '18px',
-  cursor: 'pointer',
-}
-
-const activeCardStyle = {
-  ...baseCardStyle,
-  border: '2px solid #3b82f6',
-  backgroundColor: '#eff6ff',
-  color: '#1d4ed8',
-  fontWeight: 700,
-}
-
-const suggestionBoxStyle = {
-  marginTop: '8px',
-  padding: 0,
-  listStyle: 'none',
-  border: '1px solid #d7e4ff',
-  borderRadius: '14px',
-  overflow: 'hidden',
-  backgroundColor: '#ffffff',
-  boxShadow: '0 12px 24px rgba(59, 130, 246, 0.08)',
-}
-
-const suggestionButtonStyle = {
-  width: '100%',
-  padding: '12px 16px',
-  border: 'none',
-  background: '#ffffff',
-  textAlign: 'left',
-  cursor: 'pointer',
-  fontSize: '16px',
-}
 
 function Signup() {
   const navigate = useNavigate()
@@ -71,6 +33,8 @@ function Signup() {
     isBreastfeeding: false,
     isSmoking: false,
     isDrinking: false,
+    isChild: false,
+    isElderly: false,
   })
   const [diseaseInput, setDiseaseInput] = useState('')
   const [diseaseNames, setDiseaseNames] = useState([])
@@ -86,21 +50,9 @@ function Signup() {
 
   useEffect(() => {
     if (timeLeft <= 0) return
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => prev - 1)
-    }, 1000)
-
+    const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000)
     return () => clearInterval(timer)
   }, [timeLeft])
-
-  useEffect(() => {
-    return () => {
-      if (diseaseDebounceRef.current) {
-        clearTimeout(diseaseDebounceRef.current)
-      }
-    }
-  }, [])
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60)
@@ -109,97 +61,50 @@ function Signup() {
   }
 
   const showError = (error, fallbackMessage) => {
-    const message =
-      error?.response?.data?.message ||
-      (typeof error?.response?.data === 'string' ? error.response.data : null) ||
-      fallbackMessage
-
+    const message = error?.response?.data?.message || (typeof error?.response?.data === 'string' ? error.response.data : null) || fallbackMessage
     alert(message)
   }
 
   const handleSendVerificationCode = async () => {
-    if (!phoneNumber) {
-      alert('휴대폰 번호를 입력해 주세요.')
-      return
-    }
-
+    if (!phoneNumber) { alert('휴대폰 번호를 입력해 주세요.'); return; }
     try {
-      await axios.post('/api/auth/sms/send', {
-        phoneNumber,
-      })
-
+      await axios.post('/api/auth/sms/send', { phoneNumber })
       setIsCodeSent(true)
       setTimeLeft(180)
       alert('인증번호를 발송했습니다.')
-    } catch (error) {
-      console.error('인증번호 발송 실패:', error)
-      showError(error, '인증번호 발송에 실패했습니다.')
-    }
+    } catch (error) { showError(error, '인증번호 발송에 실패했습니다.') }
   }
 
   const handleVerifyCode = async () => {
-    if (!verificationCode) {
-      alert('인증번호를 입력해 주세요.')
-      return
-    }
-
+    if (!verificationCode) { alert('인증번호를 입력해 주세요.'); return; }
     try {
-      const res = await axios.post('/api/auth/sms/verify', {
-        phoneNumber,
-        code: verificationCode,
-      })
-
+      const res = await axios.post('/api/auth/sms/verify', { phoneNumber, code: verificationCode })
       if (res.data === true) {
         setIsSmsVerified(true)
         setTimeLeft(0)
         alert('휴대폰 인증이 완료되었습니다.')
-      } else {
-        alert('인증번호를 다시 확인해 주세요.')
-      }
-    } catch (error) {
-      console.error('인증번호 확인 실패:', error)
-      showError(error, '인증번호 확인에 실패했습니다.')
-    }
+      } else { alert('인증번호를 다시 확인해 주세요.') }
+    } catch (error) { showError(error, '인증번호 확인에 실패했습니다.') }
   }
 
   const handleStep1Submit = async (event) => {
     event.preventDefault()
-
-    if (!isSmsVerified) {
-      alert('휴대폰 인증을 완료한 뒤 다음 단계로 진행할 수 있습니다.')
-      return
-    }
-
+    if (!isSmsVerified) { alert('휴대폰 인증을 완료해 주세요.'); return; }
     try {
-      await axios.post('/api/auth/signup', {
-        email,
-        password,
-        username,
-        birthDate,
-        gender,
-        role,
-      })
-
+      await axios.post('/api/auth/signup', { email, password, username, birthDate, gender, role })
       localStorage.setItem('tempEmail', email)
       setStep(2)
-    } catch (error) {
-      console.error('1단계 가입 실패:', error)
-      showError(error, '기본 정보 저장에 실패했습니다.')
-    }
+    } catch (error) { showError(error, '1단계 가입 실패') }
   }
 
   const toggleHealthOption = (key) => {
-    setHealthState((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }))
+    setHealthState(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
   const addDisease = (rawName) => {
     const trimmed = rawName.trim().replace(/^@/, '')
     if (!trimmed) return
-
-    setDiseaseNames((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]))
+    setDiseaseNames(prev => (prev.includes(trimmed) ? prev : [...prev, trimmed]))
     setDiseaseInput('')
     setDiseaseSuggestions([])
     setDiseaseLoading(false)
@@ -208,419 +113,192 @@ function Signup() {
 
   const handleDiseaseSuggest = async (keyword) => {
     try {
-      const response = await axios.get('/api/auth/diseases/suggest', {
-        params: { keyword },
-      })
-
-      if (latestDiseaseKeywordRef.current !== keyword) {
-        return
-      }
-
-      setDiseaseSuggestions(response.data.filter((name) => !diseaseNames.includes(name)))
-    } catch (error) {
+      const response = await axios.get('/api/auth/diseases/suggest', { params: { keyword } })
       if (latestDiseaseKeywordRef.current === keyword) {
-        setDiseaseSuggestions([])
+        setDiseaseSuggestions(response.data.filter(name => !diseaseNames.includes(name)))
       }
-    } finally {
-      if (latestDiseaseKeywordRef.current === keyword) {
-        setDiseaseLoading(false)
-      }
-    }
+    } catch { setDiseaseSuggestions([]) } finally { setDiseaseLoading(false) }
   }
 
-  const handleDiseaseChange = (event) => {
-    const value = event.target.value
+  const handleDiseaseChange = (e) => {
+    const value = e.target.value
     setDiseaseInput(value)
-
-    if (diseaseDebounceRef.current) {
-      clearTimeout(diseaseDebounceRef.current)
-    }
-
+    if (diseaseDebounceRef.current) clearTimeout(diseaseDebounceRef.current)
     const trimmed = value.trim().replace(/^@/, '')
     latestDiseaseKeywordRef.current = trimmed
-
-    if (!trimmed) {
-      setDiseaseSuggestions([])
-      setDiseaseLoading(false)
-      return
-    }
-
+    if (!trimmed) { setDiseaseSuggestions([]); return; }
     setDiseaseLoading(true)
-    diseaseDebounceRef.current = setTimeout(() => {
-      void handleDiseaseSuggest(trimmed)
-    }, 220)
+    diseaseDebounceRef.current = setTimeout(() => handleDiseaseSuggest(trimmed), 220)
   }
 
-  const handleDiseaseKeyDown = (event) => {
-    if (event.key === 'Enter' || event.key === ',' || event.key === 'Tab') {
-      event.preventDefault()
-      addDisease(diseaseInput)
-    }
-  }
-
-  const removeDisease = (target) => {
-    setDiseaseNames((prev) => prev.filter((disease) => disease !== target))
-  }
-
-  const handleUserStep2Submit = async (event) => {
-    event.preventDefault()
+  const handleUserStep2Submit = async (e) => {
+    e.preventDefault()
     const tempEmail = localStorage.getItem('tempEmail')
-
-    if (!tempEmail) {
-      alert('1단계 회원가입 정보가 없습니다. 처음부터 다시 진행해 주세요.')
-      return
-    }
-
     try {
-      await axios.post('/api/auth/user/profile', {
-        email: tempEmail,
-        ...healthState,
-        diseaseNames,
-      })
-
-      alert('회원가입이 완료되었습니다. 로그인해 주세요.')
+      await axios.post('/api/auth/user/profile', { email: tempEmail, ...healthState, diseaseNames })
+      alert('회원가입이 완료되었습니다.')
       localStorage.removeItem('tempEmail')
       navigate('/login')
-    } catch (error) {
-      console.error('2단계 등록 실패:', error)
-      showError(error, '추가 정보 입력 중 오류가 발생했습니다.')
-    }
+    } catch (error) { showError(error, '추가 정보 저장 실패') }
   }
 
-  const handlePharmacistStep2Submit = async (event) => {
-    event.preventDefault()
+  const handlePharmacistStep2Submit = async (e) => {
+    e.preventDefault()
     const tempEmail = localStorage.getItem('tempEmail')
-
     const formData = new FormData()
-    const requestData = { docNumber, licenseNumber, email: tempEmail }
-
-    formData.append('data', new Blob([JSON.stringify(requestData)], { type: 'application/json' }))
+    formData.append('data', new Blob([JSON.stringify({ docNumber, licenseNumber, email: tempEmail })], { type: 'application/json' }))
     formData.append('licenseImage', licenseImage)
-
     try {
-      await axios.post('/api/auth/pharmacists/verification', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-
-      alert('약사 면허 인증 및 가입 요청이 완료되었습니다. 관리자 승인 후 로그인 가능합니다.')
+      await axios.post('/api/auth/pharmacists/verification', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+      alert('약사 인증 요청이 완료되었습니다.')
       localStorage.removeItem('tempEmail')
       navigate('/login')
-    } catch (error) {
-      console.error('약사 인증 실패:', error)
-      showError(error, '면허 인증 요청 중 오류가 발생했습니다.')
-    }
+    } catch (error) { showError(error, '인증 요청 실패') }
   }
 
-  if (step === 1) {
-    return (
-      <div style={{ padding: '20px', maxWidth: '480px' }}>
-        <h2>!!!!휴대폰 인증 화면!!!! - 이게 보이면 성공</h2>
-        <form onSubmit={handleStep1Submit}>
-          <input
-            type="email"
-            placeholder="이메일"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-            style={{ width: '100%', marginBottom: '15px' }}
-          />
+  return (
+    <div className="signup-page">
+      <div className="signup-container">
+        <header className="signup-header">
+          <h1>{role === 'USER' ? '일반 유저 가입' : '약사 유저 가입'}</h1>
+          <p>내 손안의 스마트 복약 관리, MyMedi</p>
+        </header>
 
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-            <input
-              type="tel"
-              placeholder="휴대폰 번호 (- 없이 입력)"
-              value={phoneNumber}
-              onChange={(event) => setPhoneNumber(event.target.value)}
-              readOnly={isSmsVerified}
-              required
-              style={{ flex: 1 }}
-            />
-            <button type="button" onClick={handleSendVerificationCode} disabled={isSmsVerified}>
-              {isCodeSent ? '인증번호 재발송' : '인증번호 발송'}
-            </button>
-          </div>
+        <div className="signup-progress">
+          <div className={`signup-progress-step ${step >= 1 ? 'active' : ''}`} />
+          <div className={`signup-progress-step ${step >= 2 ? 'active' : ''}`} />
+        </div>
 
-          {isCodeSent && (
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-              <input
-                type="text"
-                placeholder="인증번호 6자리"
-                value={verificationCode}
-                onChange={(event) => setVerificationCode(event.target.value)}
-                disabled={isSmsVerified}
-                required
-                style={{ flex: 1 }}
-              />
-              <button type="button" onClick={handleVerifyCode} disabled={isSmsVerified}>
-                {isSmsVerified ? '인증 완료' : '인증 확인'}
-              </button>
-              {timeLeft > 0 && (
-                <span style={{ color: 'red', alignSelf: 'center', fontWeight: 'bold' }}>
-                  {formatTime(timeLeft)}
-                </span>
-              )}
-            </div>
-          )}
+        <div className="signup-card">
+          {step === 1 ? (
+            <form onSubmit={handleStep1Submit}>
+              <div className="signup-section-title">Step 1. 기본 정보 입력</div>
+              
+              <div className="signup-form-group">
+                <label className="signup-label">이메일</label>
+                <input type="email" placeholder="example@email.com" value={email} onChange={e => setEmail(e.target.value)} required className="signup-input" />
+              </div>
 
-          <input
-            type="password"
-            placeholder="비밀번호"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            style={{ width: '100%', marginBottom: '15px' }}
-            required
-          />
-          <input
-            type="text"
-            placeholder="이름"
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            style={{ width: '100%', marginBottom: '15px' }}
-            required
-          />
-
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>
-              생년월일
-            </label>
-            <input
-              type="date"
-              value={birthDate}
-              onChange={(event) => setBirthDate(event.target.value)}
-              style={{ width: '100%', padding: '5px' }}
-              required
-            />
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>
-              성별
-            </label>
-            <button
-              type="button"
-              onClick={() => setGender('MALE')}
-              style={{
-                marginRight: '10px',
-                padding: '5px 15px',
-                fontWeight: gender === 'MALE' ? 'bold' : 'normal',
-                border: gender === 'MALE' ? '2px solid black' : '1px solid #ccc',
-              }}
-            >
-              남성
-            </button>
-            <button
-              type="button"
-              onClick={() => setGender('FEMALE')}
-              style={{
-                padding: '5px 15px',
-                fontWeight: gender === 'FEMALE' ? 'bold' : 'normal',
-                border: gender === 'FEMALE' ? '2px solid black' : '1px solid #ccc',
-              }}
-            >
-              여성
-            </button>
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ fontWeight: 'bold', fontSize: '14px' }}>역할 선택: </label>
-            <button
-              type="button"
-              onClick={() => setRole('USER')}
-              style={{ marginRight: '10px', padding: '5px 10px', fontWeight: role === 'USER' ? 'bold' : 'normal' }}
-            >
-              일반 유저
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole('PHARMACIST')}
-              style={{ padding: '5px 10px', fontWeight: role === 'PHARMACIST' ? 'bold' : 'normal' }}
-            >
-              약사 유저
-            </button>
-          </div>
-
-          <button
-            type="submit"
-            style={{
-              backgroundColor: isSmsVerified ? '#4CAF50' : '#ccc',
-              color: 'white',
-              cursor: isSmsVerified ? 'pointer' : 'not-allowed',
-              padding: '10px 20px',
-              border: 'none',
-              borderRadius: '4px',
-              width: '100%',
-            }}
-          >
-            {isSmsVerified ? '다음 단계로 (추가 정보 입력)' : '휴대폰 인증을 완료해 주세요'}
-          </button>
-        </form>
-      </div>
-    )
-  }
-
-  if (step === 2 && role === 'USER') {
-    return (
-      <div style={{ padding: '20px', maxWidth: '660px' }}>
-        <h2>회원가입 2단계: 건강 정보 입력</h2>
-        <p style={{ color: '#64748b', marginBottom: '20px' }}>
-          정확도를 높이기 위해 건강 정보를 입력합니다.
-        </p>
-
-        <form onSubmit={handleUserStep2Submit}>
-          <div style={{ marginBottom: '16px', fontWeight: 'bold', fontSize: '24px' }}>건강 상태</div>
-          <div style={{ display: 'grid', gap: '14px', marginBottom: '28px' }}>
-            {HEALTH_OPTIONS.map((option) => (
-              <button
-                key={option.key}
-                type="button"
-                onClick={() => toggleHealthOption(option.key)}
-                style={healthState[option.key] ? activeCardStyle : baseCardStyle}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ marginBottom: '12px', fontWeight: 'bold', fontSize: '24px' }}>기저질환</div>
-          <input
-            type="text"
-            placeholder="@고혈압 처럼 입력하면 질환을 검색할 수 있습니다."
-            value={diseaseInput}
-            onChange={handleDiseaseChange}
-            onKeyDown={handleDiseaseKeyDown}
-            style={{
-              width: '100%',
-              padding: '16px 18px',
-              borderRadius: '18px',
-              border: '1px solid #d7e4ff',
-              marginBottom: '12px',
-              boxSizing: 'border-box',
-            }}
-          />
-          {diseaseSuggestions.length > 0 && (
-            <ul style={{ ...suggestionBoxStyle, marginBottom: '12px' }}>
-              {diseaseSuggestions.map((disease) => (
-                <li key={disease}>
-                  <button
-                    type="button"
-                    style={suggestionButtonStyle}
-                    onClick={() => addDisease(disease)}
-                  >
-                    {disease}
+              <div className="signup-form-group">
+                <label className="signup-label">휴대폰 번호</label>
+                <div className="signup-input-row">
+                  <input type="tel" placeholder="01012345678" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} readOnly={isSmsVerified} required className="signup-input" />
+                  <button type="button" onClick={handleSendVerificationCode} disabled={isSmsVerified} className="signup-verify-btn">
+                    {isCodeSent ? '재발송' : '인증발송'}
                   </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div style={{ color: '#64748b', marginBottom: '12px' }}>
-            {diseaseInput.trim()
-              ? diseaseLoading
-                ? '질병 자동완성을 불러오는 중입니다...'
-                : '원하는 질병을 클릭하거나 Enter로 추가할 수 있습니다.'
-              : '입력하면 질병 자동완성이 표시됩니다.'}
-          </div>
+                </div>
+              </div>
 
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '18px' }}>
-            {diseaseNames.map((disease) => (
-              <button
-                key={disease}
-                type="button"
-                onClick={() => removeDisease(disease)}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: '999px',
-                  border: '1px solid #bfdbfe',
-                  backgroundColor: '#eff6ff',
-                  color: '#1d4ed8',
-                  cursor: 'pointer',
-                }}
-              >
-                #{disease} ×
+              {isCodeSent && (
+                <div className="signup-form-group">
+                  <label className="signup-label">인증번호</label>
+                  <div className="signup-input-row">
+                    <input type="text" placeholder="6자리 입력" value={verificationCode} onChange={e => setVerificationCode(e.target.value)} disabled={isSmsVerified} required className="signup-input" />
+                    <button type="button" onClick={handleVerifyCode} disabled={isSmsVerified} className="signup-verify-btn">
+                      {isSmsVerified ? '인증완료' : '확인'}
+                    </button>
+                  </div>
+                  {timeLeft > 0 && <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '4px' }}>남은 시간: {formatTime(timeLeft)}</p>}
+                </div>
+              )}
+
+              <div className="signup-form-group">
+                <label className="signup-label">비밀번호</label>
+                <input type="password" placeholder="8자 이상 입력" value={password} onChange={e => setPassword(e.target.value)} required className="signup-input" />
+              </div>
+
+              <div className="signup-form-group">
+                <label className="signup-label">이름</label>
+                <input type="text" placeholder="실명을 입력해주세요" value={username} onChange={e => setUsername(e.target.value)} required className="signup-input" />
+              </div>
+
+              <div className="signup-form-group">
+                <label className="signup-label">생년월일</label>
+                <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} required className="signup-input" />
+              </div>
+
+              <div className="signup-form-group">
+                <label className="signup-label">성별</label>
+                <div className="signup-gender-group">
+                  <button type="button" onClick={() => setGender('MALE')} className={`signup-toggle-btn ${gender === 'MALE' ? 'active' : ''}`}>남성</button>
+                  <button type="button" onClick={() => setGender('FEMALE')} className={`signup-toggle-btn ${gender === 'FEMALE' ? 'active' : ''}`}>여성</button>
+                </div>
+              </div>
+
+              <div className="signup-form-group">
+                <label className="signup-label">가입 유형</label>
+                <div className="signup-gender-group">
+                  <button type="button" onClick={() => setRole('USER')} className={`signup-toggle-btn ${role === 'USER' ? 'active' : ''}`}>일반 유저</button>
+                  <button type="button" onClick={() => setRole('PHARMACIST')} className={`signup-toggle-btn ${role === 'PHARMACIST' ? 'active' : ''}`}>약사 유저</button>
+                </div>
+              </div>
+
+              <button type="submit" disabled={!isSmsVerified} className="signup-submit-btn">
+                다음 단계로
               </button>
-            ))}
-          </div>
+            </form>
+          ) : role === 'USER' ? (
+            <form onSubmit={handleUserStep2Submit}>
+              <div className="signup-section-title">Step 2. 건강 정보 입력</div>
+              <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '24px' }}>맞춤형 복약 가이드를 위해 추가 정보를 입력해 주세요.</p>
+              
+              <label className="signup-label">건강 상태 (해당 사항 선택)</label>
+              <div className="signup-health-grid">
+                {HEALTH_OPTIONS.map(opt => (
+                  <div key={opt.key} onClick={() => toggleHealthOption(opt.key)} className={`health-option-card ${healthState[opt.key] ? 'active' : ''}`}>
+                    {opt.label}
+                  </div>
+                ))}
+              </div>
 
-          <div
-            style={{
-              padding: '18px',
-              borderRadius: '18px',
-              backgroundColor: '#eff6ff',
-              color: '#1d4ed8',
-              lineHeight: 1.7,
-              marginBottom: '24px',
-            }}
-          >
-            입력한 건강 정보는 복약 일정, 약 검색, AI 챗봇, 약사 상담에서 참고 정보로 활용됩니다.
-            알레르기/주의 성분은 가입 후 마이페이지에서 별도로 등록하고 관리합니다.
-          </div>
+              <div className="signup-form-group" style={{ position: 'relative' }}>
+                <label className="signup-label">보유 기저질환</label>
+                <input type="text" placeholder="예: 고혈압, 당뇨 (검색 가능)" value={diseaseInput} onChange={handleDiseaseChange} onKeyDown={e => (e.key === 'Enter' || e.key === ',') && (e.preventDefault(), addDisease(diseaseInput))} className="signup-input" />
+                {diseaseSuggestions.length > 0 && (
+                  <ul className="medicine-search-suggestion-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10 }}>
+                    {diseaseSuggestions.map(s => <li key={s} onClick={() => addDisease(s)} className="medicine-search-suggestion-item">{s}</li>)}
+                  </ul>
+                )}
+              </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              style={{ background: 'none', border: 'none', fontSize: '28px', cursor: 'pointer' }}
-            >
-              이전
-            </button>
-            <button
-              type="submit"
-              style={{
-                backgroundColor: '#2563eb',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '18px',
-                padding: '14px 28px',
-                fontSize: '24px',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              가입 완료
-            </button>
-          </div>
-        </form>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
+                {diseaseNames.map(d => <span key={d} onClick={() => setDiseaseNames(prev => prev.filter(x => x !== d))} className="disease-tag">#{d} ×</span>)}
+              </div>
+
+              <div className="signup-footer-actions">
+                <button type="button" onClick={() => setStep(1)} className="signup-back-btn">이전 단계로</button>
+                <button type="submit" className="signup-submit-btn" style={{ width: 'auto', padding: '14px 40px' }}>가입 완료</button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handlePharmacistStep2Submit}>
+              <div className="signup-section-title">Step 2. 약사 면허 인증</div>
+              
+              <div className="signup-form-group">
+                <label className="signup-label">소속 약국명 (인증용)</label>
+                <input type="text" placeholder="인증 서류상의 약국명을 입력하세요" value={docNumber} onChange={e => setDocNumber(e.target.value)} required className="signup-input" />
+              </div>
+
+              <div className="signup-form-group">
+                <label className="signup-label">약사 면허번호</label>
+                <input type="text" placeholder="면허번호를 입력하세요" value={licenseNumber} onChange={e => setLicenseNumber(e.target.value)} required className="signup-input" />
+              </div>
+
+              <div className="signup-form-group">
+                <label className="signup-label">면허증 이미지 첨부</label>
+                <input type="file" accept="image/*" onChange={e => setLicenseImage(e.target.files[0])} required className="signup-input" style={{ padding: '8px' }} />
+              </div>
+
+              <div className="signup-footer-actions">
+                <button type="button" onClick={() => setStep(1)} className="signup-back-btn">이전 단계로</button>
+                <button type="submit" className="signup-submit-btn" style={{ width: 'auto', padding: '14px 40px' }}>인증 요청 및 완료</button>
+              </div>
+            </form>
+          )}
+        </div>
       </div>
-    )
-  }
-
-  if (step === 2 && role === 'PHARMACIST') {
-    return (
-      <div style={{ padding: '20px' }}>
-        <h2>회원가입 2단계: 약사 면허 인증</h2>
-        <form onSubmit={handlePharmacistStep2Submit}>
-          <input
-            type="text"
-            placeholder="문서 번호"
-            value={docNumber}
-            onChange={(event) => setDocNumber(event.target.value)}
-            required
-          />
-          <br />
-          <br />
-          <input
-            type="text"
-            placeholder="면허 번호"
-            value={licenseNumber}
-            onChange={(event) => setLicenseNumber(event.target.value)}
-            required
-          />
-          <br />
-          <br />
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(event) => setLicenseImage(event.target.files?.[0] ?? null)}
-            required
-          />
-          <br />
-          <br />
-          <button type="submit">면허 인증 및 가입 완료</button>
-        </form>
-      </div>
-    )
-  }
-
-  return null
+    </div>
+  )
 }
 
 export default Signup

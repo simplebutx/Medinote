@@ -1,77 +1,149 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { getAuthSession } from '../api';
+import { getAuthSession, searchMedicines, suggestMedicines } from '../api';
 
 const PharmacistInventory = () => {
     const navigate = useNavigate();
     const session = getAuthSession();
     
-    const [searchTerm, setSearchText] = useState('');
+    const [keyword, setKeyword] = useState('');
     const [searchResults, setSearchResults] = useState([]);
+    const [suggestions, setSuggestions] = useState([]);
     const [myInventory, setMyInventory] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [myPharmacy, setMyPharmacy] = useState(null);
+
+    const debounceTimeoutRef = useRef(null);
+    const latestKeywordRef = useRef('');
 
     useEffect(() => {
-        if (!session || session.role !== 'PHARMACIST') {
+        if (!session || (session.role !== 'PHARMACIST' && session.role !== 'ROLE_PHARMACIST')) {
             alert('약사 전용 페이지입니다.');
             navigate('/');
             return;
         }
+        fetchMyPharmacy();
         fetchInventory();
     }, [navigate]);
 
-    // 내 약국 재고 목록 가져오기 (API 구현 필요)
+    // 내 약국 정보 가져오기 (hpid 확보용)
+    const fetchMyPharmacy = async () => {
+        try {
+            const hpid = `MOCK_${session.userId}`;
+            const res = await axios.get(`/api/pharmacies/${hpid}`);
+            setMyPharmacy(res.data);
+        } catch (error) {
+            console.error('내 약국 정보 조회 실패', error);
+        }
+    };
+
+    // 내 약국 재고 목록 가져오기
     const fetchInventory = async () => {
         try {
-            // TODO: 실제 백엔드 API 주소로 변경 필요
-            // const res = await axios.get('http://localhost:8081/api/pharmacist/inventory', {
-            //     headers: { Authorization: `Bearer ${session.accessToken}` }
-            // });
-            // setMyInventory(res.data);
-            
-            // 테스트용 가상 데이터
-            setMyInventory([
-                { id: 1, name: '타이레놀정 500mg', company: '한국얀센', stock: 100 },
-                { id: 2, name: '게보린정', company: '삼진제약', stock: 50 }
-            ]);
+            const res = await axios.get('/api/pharmacist/inventory', {
+                headers: { Authorization: `Bearer ${session.accessToken}` }
+            });
+            setMyInventory(res.data || []);
         } catch (error) {
             console.error('재고 목록 조회 실패', error);
         }
     };
 
-    // 약품 검색 로직 (기존 검색 API 활용 가능)
-    const handleSearch = async (e) => {
-        e.preventDefault();
-        if (!searchTerm.trim()) return;
+    // 약품 검색 로직
+    const handleSearch = async (targetKeyword) => {
+        const trimmed = targetKeyword.trim();
+        if (!trimmed) return;
         
         setLoading(true);
         try {
-            const res = await axios.get(`http://localhost:8081/api/medication/search?item_name=${searchTerm}`);
-            setSearchResults(res.data || []);
+            const item = await searchMedicines(trimmed);
+            setSearchResults(item ? [item] : []);
+            setSuggestions([]);
         } catch (error) {
             console.error('약품 검색 실패', error);
+            setSearchResults([]);
         } finally {
             setLoading(false);
         }
     };
 
+    const handleKeywordChange = (e) => {
+        const value = e.target.value;
+        setKeyword(value);
+
+        if (debounceTimeoutRef.current) {
+            clearTimeout(debounceTimeoutRef.current);
+        }
+
+        const trimmed = value.trim();
+        latestKeywordRef.current = trimmed;
+
+        if (!trimmed) {
+            setSuggestions([]);
+            return;
+        }
+
+        debounceTimeoutRef.current = setTimeout(async () => {
+            try {
+                const items = await suggestMedicines(trimmed);
+                if (latestKeywordRef.current !== trimmed) return;
+                setSuggestions(items);
+            } catch (error) {
+                if (latestKeywordRef.current === trimmed) setSuggestions([]);
+            }
+        }, 200);
+    };
+
+    const handleSuggestionClick = (s) => {
+        setKeyword(s);
+        handleSearch(s);
+    };
+
     // 재고 등록 함수
     const addToInventory = async (medicine) => {
+        if (!myPharmacy) {
+            alert('먼저 마이페이지에서 약국 정보를 등록해 주세요.');
+            return;
+        }
+
         const stockAmount = prompt(`${medicine.itemName}의 현재 재고량을 입력하세요:`, '100');
         if (stockAmount === null) return;
 
         try {
-            // TODO: 실제 백엔드 등록 API 호출
-            // await axios.post('http://localhost:8081/api/pharmacist/inventory', {
-            //     itemSeq: medicine.itemSeq,
-            //     stock: parseInt(stockAmount)
-            // }, { headers: { Authorization: `Bearer ${session.accessToken}` } });
+            await axios.post('/api/pharmacist/inventory', {
+                pharmacyHpid: myPharmacy.hpid,
+                itemSeq: medicine.itemSeq.toString(),
+                itemName: medicine.itemName,
+                companyName: medicine.companyName,
+                stockQuantity: parseInt(stockAmount)
+            }, { headers: { Authorization: `Bearer ${session.accessToken}` } });
             
             alert('재고가 등록되었습니다.');
             fetchInventory();
         } catch (error) {
-            alert('등록 실패: ' + error.message);
+            alert('등록 실패: ' + (error.response?.data || error.message));
+        }
+    };
+
+    // 재고 수정 함수
+    const updateStock = async (item) => {
+        const newAmount = prompt(`${item.itemName}의 수정할 재고량을 입력하세요:`, item.stockQuantity.toString());
+        if (newAmount === null) return;
+
+        try {
+            await axios.post('/api/pharmacist/inventory', {
+                pharmacyHpid: item.pharmacyHpid,
+                itemSeq: item.itemSeq,
+                itemName: item.itemName,
+                companyName: item.companyName,
+                stockQuantity: parseInt(newAmount)
+            }, { headers: { Authorization: `Bearer ${session.accessToken}` } });
+            
+            alert('재고가 수정되었습니다.');
+            fetchInventory();
+        } catch (error) {
+            alert('수정 실패: ' + (error.response?.data || error.message));
         }
     };
 
@@ -79,62 +151,97 @@ const PharmacistInventory = () => {
         <div style={containerStyle}>
             <header style={headerStyle}>
                 <h2>📦 약국 재고 관리</h2>
-                <p style={{ color: '#64748b' }}>우리 약국에 보유 중인 약품을 등록하고 관리하세요.</p>
+                {myPharmacy ? (
+                    <p style={{ color: '#065f46', fontWeight: '600' }}>📍 {myPharmacy.name} 재고 관리 중</p>
+                ) : (
+                    <p style={{ color: '#ef4444' }}>⚠️ 등록된 약국 정보가 없습니다. 마이페이지에서 먼저 등록해 주세요.</p>
+                )}
             </header>
 
             <div style={layoutStyle}>
                 {/* 왼쪽: 재고 등록 (검색) */}
                 <div style={sectionStyle}>
-                    <h3 style={sectionTitleStyle}>새 약품 등록</h3>
-                    <form onSubmit={handleSearch} style={searchFormStyle}>
-                        <input 
-                            type="text" 
-                            placeholder="약품명 검색..." 
-                            value={searchTerm}
-                            onChange={(e) => setSearchText(e.target.value)}
-                            style={inputStyle}
-                        />
-                        <button type="submit" style={buttonStyle}>검색</button>
-                    </form>
+                    <h3 style={sectionTitleStyle}>새 약품 검색 및 등록</h3>
+                    <div style={{ position: 'relative' }}>
+                        <div style={searchFormStyle}>
+                            <input 
+                                type="text" 
+                                placeholder="약품명 또는 성분명 검색..." 
+                                value={keyword}
+                                onChange={handleKeywordChange}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSearch(keyword)}
+                                style={inputStyle}
+                            />
+                            <button onClick={() => handleSearch(keyword)} style={buttonStyle}>검색</button>
+                        </div>
+                        
+                        {suggestions.length > 0 && (
+                            <ul style={suggestionListStyle}>
+                                {suggestions.map((s) => (
+                                    <li key={s} style={suggestionItemStyle} onClick={() => handleSuggestionClick(s)}>
+                                        {s}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
 
                     <div style={resultListStyle}>
                         {loading ? <p>검색 중...</p> : searchResults.map((med) => (
                             <div key={med.itemSeq} style={medItemStyle}>
-                                <div>
-                                    <div style={{ fontWeight: 'bold' }}>{med.itemName}</div>
-                                    <div style={{ fontSize: '12px', color: '#64748b' }}>{med.entpName}</div>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{med.itemName}</div>
+                                    <div style={{ fontSize: '12px', color: '#64748b' }}>{med.companyName} | #{med.itemSeq}</div>
                                 </div>
-                                <button onClick={() => addToInventory(med)} style={addButtonStyle}>추가</button>
+                                <button onClick={() => addToInventory(med)} style={addButtonStyle}>재고 등록</button>
                             </div>
                         ))}
+                        {!loading && keyword && searchResults.length === 0 && (
+                            <p style={{ fontSize: '13px', color: '#94a3b8', textAlign: 'center', marginTop: '20px' }}>검색 결과가 없습니다.</p>
+                        )}
                     </div>
                 </div>
 
                 {/* 오른쪽: 보유 재고 목록 */}
                 <div style={{ ...sectionStyle, flex: 1.5 }}>
-                    <h3 style={sectionTitleStyle}>현재 보유 목록</h3>
-                    <table style={tableStyle}>
-                        <thead>
-                            <tr style={tableHeaderStyle}>
-                                <th style={thStyle}>약품명</th>
-                                <th style={thStyle}>제조사</th>
-                                <th style={thStyle}>현재 재고</th>
-                                <th style={thStyle}>관리</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {myInventory.map((item) => (
-                                <tr key={item.id} style={trStyle}>
-                                    <td style={tdStyle}>{item.name}</td>
-                                    <td style={tdStyle}>{item.company}</td>
-                                    <td style={tdStyle}>{item.stock}개</td>
-                                    <td style={tdStyle}>
-                                        <button style={editButtonStyle}>수정</button>
-                                    </td>
+                    <h3 style={sectionTitleStyle}>우리 약국 보유 재고 ({myInventory.length})</h3>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={tableStyle}>
+                            <thead>
+                                <tr style={tableHeaderStyle}>
+                                    <th style={thStyle}>약품명</th>
+                                    <th style={thStyle}>제조사</th>
+                                    <th style={thStyle}>현재 재고</th>
+                                    <th style={thStyle}>마지막 수정</th>
+                                    <th style={thStyle}>관리</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {myInventory.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>등록된 재고가 없습니다.</td>
+                                    </tr>
+                                ) : myInventory.map((item) => (
+                                    <tr key={item.id} style={trStyle}>
+                                        <td style={tdStyle}>
+                                            <div style={{ fontWeight: '600' }}>{item.itemName}</div>
+                                            <div style={{ fontSize: '11px', color: '#94a3b8' }}>#{item.itemSeq}</div>
+                                        </td>
+                                        <td style={tdStyle}>{item.companyName}</td>
+                                        <td style={tdStyle}>
+                                            <span style={{ color: item.stockQuantity < 10 ? '#ef4444' : '#1e293b', fontWeight: 'bold' }}>
+                                                {item.stockQuantity}개
+                                            </span>
+                                        </td>
+                                        <td style={tdStyle}>{new Date(item.updatedAt).toLocaleDateString()}</td>
+                                        <td style={tdStyle}>
+                                            <button onClick={() => updateStock(item)} style={editButtonStyle}>수정</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -143,21 +250,23 @@ const PharmacistInventory = () => {
 
 // --- Styles ---
 const containerStyle = { padding: '40px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' };
-const headerStyle = { marginBottom: '30px' };
+const headerStyle = { marginBottom: '30px', borderBottom: '1px solid #e2e8f0', paddingBottom: '20px' };
 const layoutStyle = { display: 'flex', gap: '30px', alignItems: 'flex-start' };
-const sectionStyle = { backgroundColor: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', flex: 1 };
+const sectionStyle = { backgroundColor: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', flex: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' };
 const sectionTitleStyle = { fontSize: '18px', fontWeight: 'bold', marginBottom: '20px', color: '#1e293b' };
-const searchFormStyle = { display: 'flex', gap: '8px', marginBottom: '20px' };
-const inputStyle = { flex: 1, padding: '10px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' };
+const searchFormStyle = { display: 'flex', gap: '8px', marginBottom: '10px' };
+const inputStyle = { flex: 1, padding: '12px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px' };
 const buttonStyle = { padding: '10px 20px', backgroundColor: '#0f172a', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' };
-const resultListStyle = { display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '400px', overflowY: 'auto' };
-const medItemStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', border: '1px solid #f1f5f9', borderRadius: '8px' };
-const addButtonStyle = { padding: '6px 12px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' };
+const suggestionListStyle = { position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 10, listStyle: 'none', padding: 0, margin: 0, maxHeight: '200px', overflowY: 'auto' };
+const suggestionItemStyle = { padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '14px' };
+const resultListStyle = { display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px', maxHeight: '500px', overflowY: 'auto' };
+const medItemStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' };
+const addButtonStyle = { padding: '8px 16px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' };
 const tableStyle = { width: '100%', borderCollapse: 'collapse' };
 const tableHeaderStyle = { borderBottom: '2px solid #f1f5f9', textAlign: 'left' };
-const thStyle = { padding: '12px', color: '#64748b', fontSize: '14px' };
+const thStyle = { padding: '15px 12px', color: '#64748b', fontSize: '13px', fontWeight: '600' };
 const trStyle = { borderBottom: '1px solid #f1f5f9' };
-const tdStyle = { padding: '12px', fontSize: '14px' };
-const editButtonStyle = { padding: '4px 8px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' };
+const tdStyle = { padding: '15px 12px', fontSize: '13px' };
+const editButtonStyle = { padding: '6px 12px', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '500' };
 
 export default PharmacistInventory;

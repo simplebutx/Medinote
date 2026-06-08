@@ -3967,6 +3967,71 @@ body {
   margin-top: 4px;
 }
 
+
+/* --- Pharmacist Green Theme Overrides --- */
+.pharm-theme .app-sidebar-brand h1 {
+  color: #10b981; /* Emerald 500 */
+}
+
+.pharm-theme .app-sidebar-link-active {
+  background: #ecfdf5; /* Emerald 50 */
+  color: #059669; /* Emerald 600 */
+}
+
+.pharm-theme .app-primary-button,
+.pharm-theme .app-sidebar-logout:hover {
+  background: #10b981;
+}
+
+.pharm-theme .app-page-eyebrow {
+  color: #10b981;
+}
+
+.pharm-theme .chat-tab-button.active,
+.pharm-theme .register-tab-button.active,
+.pharm-theme .mypage-tab-button.active {
+  color: #10b981;
+  box-shadow: inset 0 -2px 0 #10b981;
+}
+
+.pharm-theme .chat-bubble.mine {
+  background: #10b981;
+}
+
+.pharm-theme .dose-check-toggle.active {
+  border-color: #10b981;
+  background: #10b981;
+}
+
+.pharm-theme .app-sidebar-logout:hover {
+  color: #fff;
+  border-color: #10b981;
+}
+
+/* --- Administrator Black Theme Overrides --- */
+.admin-theme .app-sidebar-brand h1 {
+  color: #0f172a; /* Slate 900 */
+}
+
+.admin-theme .app-sidebar-link-active {
+  background: #f1f5f9; /* Slate 100 */
+  color: #0f172a; /* Slate 900 */
+}
+
+.admin-theme .app-primary-button,
+.admin-theme .app-sidebar-logout:hover {
+  background: #0f172a;
+}
+
+.admin-theme .app-page-eyebrow {
+  color: #475569;
+}
+
+.admin-theme .app-sidebar-logout:hover {
+  color: #fff;
+  border-color: #0f172a;
+}
+
 @media (min-width: 960px) {
   .chat-body-layout {
     grid-template-columns: minmax(0, 1fr) 320px;
@@ -4073,4 +4138,231 @@ body {
   .chat-message-stack {
     max-width: 100%;
   }
+}
+
+/* --- Signup Page Styles --- */
+.signup-page {
+  min-height: 100vh;
+  padding: 40px 20px 80px;
+  background: 
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 25%),
+    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.signup-container {
+  width: 100%;
+  max-width: 540px;
+}
+
+.signup-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.signup-header h1 {
+  font-size: 32px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 12px;
+}
+
+.signup-header p {
+  color: #64748b;
+  font-size: 16px;
+}
+
+.signup-progress {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.signup-progress-step {
+  flex: 1;
+  height: 6px;
+  border-radius: 99px;
+  background: #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.signup-progress-step.active {
+  background: #2563eb;
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.2);
+}
+
+.signup-card {
+  background: #ffffff;
+  padding: 40px;
+  border-radius: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f1f5f9;
+}
+
+.signup-section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.signup-form-group {
+  margin-bottom: 20px;
+}
+
+.signup-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.signup-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 15px;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.signup-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+
+.signup-input-row {
+  display: flex;
+  gap: 10px;
+}
+
+.signup-verify-btn {
+  padding: 0 16px;
+  border-radius: 12px;
+  background: #0f172a;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+.signup-verify-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.signup-gender-group {
+  display: flex;
+  gap: 10px;
+}
+
+.signup-toggle-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.signup-toggle-btn.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.signup-submit-btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: 16px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: transform 0.1s;
+}
+
+.signup-submit-btn:active {
+  transform: scale(0.98);
+}
+
+.signup-health-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.health-option-card {
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  text-align: center;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.health-option-card.active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+
+.disease-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 99px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.disease-tag:hover {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.signup-footer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 32px;
+}
+
+.signup-back-btn {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }

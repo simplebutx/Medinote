@@ -20,6 +20,8 @@ public class ProfileUpdateRequest {
     private Boolean isBreastfeeding;
     private Boolean isSmoking;
     private Boolean isDrinking;
+    private Boolean isChild;
+    private Boolean isElderly;
 
     //기저질환 리스트
     private List<String> diseases;
