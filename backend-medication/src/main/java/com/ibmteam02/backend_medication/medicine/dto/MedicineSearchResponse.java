@@ -16,6 +16,8 @@ public record MedicineSearchResponse(
         String imageUrl,
         String efficacyDocumentId,
         String usageDocumentId,
-        String precautionDocumentId
+        String precautionDocumentId,
+        boolean warningMedicine,
+        boolean warningIngredient
 ) {
 }

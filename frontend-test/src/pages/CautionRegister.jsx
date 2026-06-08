@@ -185,6 +185,7 @@ function CautionRegister() {
       ingredientCode: null,
       ingredientName: selectedSuggestion.type === 'INGREDIENT' ? selectedSuggestion.name : null,
       reason: form.reason,
+      cautionType: selectedSuggestion.type,
       memo: form.memo.trim() || null,
     }
   }

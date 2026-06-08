@@ -26,6 +26,10 @@ public class UserMedicationCaution {
     @Enumerated(EnumType.STRING)
     private Reason reason;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private CautionType cautionType;
+
     @Column(columnDefinition = "TEXT")
     private String memo;
     private LocalDateTime createdAt;
@@ -38,6 +42,7 @@ public class UserMedicationCaution {
             String ingredientCode,
             String ingredientName,
             Reason reason,
+            CautionType cautionType,
             String memo,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
@@ -48,6 +53,7 @@ public class UserMedicationCaution {
         this.ingredientCode = ingredientCode;
         this.ingredientName = ingredientName;
         this.reason = reason;
+        this.cautionType = cautionType;
         this.memo = memo;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -59,6 +65,7 @@ public class UserMedicationCaution {
             String ingredientCode,
             String ingredientName,
             Reason reason,
+            CautionType cautionType,
             String memo,
             LocalDateTime updatedAt
     ) {
@@ -67,6 +74,7 @@ public class UserMedicationCaution {
         this.ingredientCode = ingredientCode;
         this.ingredientName = ingredientName;
         this.reason = reason;
+        this.cautionType = cautionType;
         this.memo = memo;
         this.updatedAt = updatedAt;
     }
