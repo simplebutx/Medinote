@@ -188,8 +188,21 @@ function MedicineSearch() {
             {results.map((medicine) => (
               <article className="medicine-card" key={medicine.itemSeq}>
                 <div className="medicine-card-title-row">
-                  <h2>{medicine.itemName}</h2>
-                  <span>#{medicine.itemSeq}</span>
+                  <div className="medicine-card-title-main">
+                    <h2>{medicine.itemName}</h2>
+                    {medicine.warningMedicine && (
+                      <span className="medicine-card-warning-badge medicine-card-warning-badge-danger">
+                        주의 약 일치
+                      </span>
+                    )}
+                    {medicine.warningIngredient && (
+                      <span className="medicine-card-warning-badge medicine-card-warning-badge-danger">
+                        주의 성분 포함
+                      </span>
+                    )}
+                  </div>
+                  <div className="medicine-card-title-meta">
+                  </div>
                 </div>
 
                 <p className="medicine-card-company">{trimText(medicine.companyName)}</p>

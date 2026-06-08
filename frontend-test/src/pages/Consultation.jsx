@@ -20,6 +20,8 @@ const Consultation = () => {
     const [senderType, setSenderType] = useState(session?.role || 'USER');
     const [connected, setIsConnected] = useState(false);
     const [patientInfo, setPatientInfo] = useState(null);
+    const [roomStatus, setRoomStatus] = useState('');
+    const [roomSummary, setRoomSummary] = useState('');
     
     // 웹소켓 중복 연결 및 구독 방지를 위한 Refs
     const stompClientRef = useRef(null);
@@ -38,6 +40,7 @@ const Consultation = () => {
         }
         if (initialRoomId && (session?.role === 'PHARMACIST' || session?.role === 'ROLE_PHARMACIST')) {
             fetchPatientInfo(initialRoomId);
+            fetchCompletedRoomSummary(initialRoomId);
         }
         return () => {
             disconnect();
@@ -52,6 +55,20 @@ const Consultation = () => {
             setPatientInfo(res.data);
         } catch (error) {
             console.error("환자 정보 조회 실패:", error);
+        }
+    };
+
+    const fetchCompletedRoomSummary = async (targetRoomId) => {
+        try {
+            const res = await axios.get('http://localhost:8082/app/consult/rooms/completed', {
+                headers: { Authorization: `Bearer ${session.accessToken}` }
+            });
+            const matchedRoom = (res.data || []).find((room) => String(room.roomId) === String(targetRoomId));
+            if (!matchedRoom) return;
+            setRoomStatus(matchedRoom.status || '');
+            setRoomSummary((matchedRoom.aiConsultationSummary || '').trim());
+        } catch (error) {
+            console.error("?꾨즺 ?곷떞 ?붿빟 議고쉶 ?ㅽ뙣:", error);
         }
     };
 
@@ -224,6 +241,12 @@ const Consultation = () => {
                         )}
                     </div>
                 )}
+                {roomStatus === 'CLOSED' && roomSummary && (
+                    <div style={consultationSummaryBoxStyle}>
+                        <div style={consultationSummaryTitleStyle}>AI 상담 요약</div>
+                        <div style={consultationSummaryTextStyle}>{roomSummary}</div>
+                    </div>
+                )}
                 {!connected ? (
                     <div style={loginOverlayStyle}>
                         <div style={loginBoxStyle}>
@@ -343,6 +366,28 @@ const patientInfoBoxStyle = {
     top: 0,
     zIndex: 10,
     boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+};
+
+const consultationSummaryBoxStyle = {
+    margin: '16px 24px 0',
+    padding: '16px 18px',
+    backgroundColor: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: '14px'
+};
+
+const consultationSummaryTitleStyle = {
+    fontSize: '14px',
+    fontWeight: '700',
+    color: '#2563eb',
+    marginBottom: '8px'
+};
+
+const consultationSummaryTextStyle = {
+    fontSize: '14px',
+    lineHeight: '1.7',
+    color: '#334155',
+    whiteSpace: 'pre-wrap'
 };
 
 const labelDimStyle = { color: '#64748b', fontWeight: '500', marginRight: '4px' };

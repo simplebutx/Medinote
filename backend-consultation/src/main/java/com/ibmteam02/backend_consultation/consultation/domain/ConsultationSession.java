@@ -30,7 +30,7 @@ public class ConsultationSession extends BaseTimeEntity {
     private String chatLog; //AI 답변 가이드를 위한 대화 전체 내용
 
     @Column(columnDefinition = "TEXT")
-    private String aiAnswerGuide; //AI 답변 가이드
+    private String aiSummary; //AI 요약
 
     @Builder
     private ConsultationSession(Long id, Long customerId, Long pharmacistId, SessionStatus status){
@@ -66,7 +66,7 @@ public class ConsultationSession extends BaseTimeEntity {
 
     //상담 요약 저장
     public void updateConsultationSummary(String aiAnswerGuide){
-        this.aiAnswerGuide = aiAnswerGuide;
+        this.aiSummary = aiAnswerGuide;
     }
 
 }

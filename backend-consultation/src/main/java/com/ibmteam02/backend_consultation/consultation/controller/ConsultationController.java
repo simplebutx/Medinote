@@ -185,7 +185,7 @@ public class ConsultationController {
     }
 
     //상담 요약 요청
-    @PostMapping("/room/{roomId}/ai-request")
+    @PostMapping("/room/{roomId}/summary")
     public ResponseEntity<?> requestAiGuide(@PathVariable Long roomId){
         try{
             consultationService.aiConsultationSummary(roomId);

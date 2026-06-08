@@ -25,6 +25,10 @@ public class UserMedicationCaution extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     private Reason reason;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private CautionType cautionType;
+
     @Column(columnDefinition = "TEXT")
     private String memo;
 
@@ -35,6 +39,7 @@ public class UserMedicationCaution extends BaseTimeEntity {
             String ingredientCode,
             String ingredientName,
             Reason reason,
+            CautionType cautionType,
             String memo
     ) {
         this.userId = userId;
@@ -43,6 +48,7 @@ public class UserMedicationCaution extends BaseTimeEntity {
         this.ingredientCode = ingredientCode;
         this.ingredientName = ingredientName;
         this.reason = reason;
+        this.cautionType = cautionType;
         this.memo = memo;
     }
 
@@ -52,6 +58,7 @@ public class UserMedicationCaution extends BaseTimeEntity {
             String ingredientCode,
             String ingredientName,
             Reason reason,
+            CautionType cautionType,
             String memo
     ) {
         this.itemSeq = itemSeq;
@@ -59,6 +66,7 @@ public class UserMedicationCaution extends BaseTimeEntity {
         this.ingredientCode = ingredientCode;
         this.ingredientName = ingredientName;
         this.reason = reason;
+        this.cautionType = cautionType;
         this.memo = memo;
     }
 }

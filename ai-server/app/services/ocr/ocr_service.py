@@ -19,45 +19,28 @@ from app.core.config import settings
 from app.schemas.ocr import AiOcrRequest, AiOcrResponse
 from app.services.ocr.image_preprocessing import preprocess_prescription_image
 
+
 OCR_ENGINE_NAME = "google-vision-document-text-detection"
-RECEIPT_REGION_MAX_X = 0.30
-RECEIPT_REGION_MAX_Y = 0.94
-GUIDE_REGION_MIN_X = 0.28
-GUIDE_REGION_MAX_Y = 0.80
-SCHEDULE_REGION_MIN_Y = 0.72
-HOSPITAL_REGION_MIN_X = 0.24
-HOSPITAL_REGION_MAX_X = 0.80
-HOSPITAL_REGION_MAX_Y = 0.22
-PHARMACY_LABELS = ["상호", "상호명", "약국"]
-DISPENSED_DATE_LABELS = ["조제일자"]
-MEDICINE_HEADER_LABELS = ["약품명", "품명"]
-DOSAGE_HEADER_LABELS = ["투약량", "투약"]
-FREQUENCY_HEADER_LABELS = ["횟수"]
-DAYS_HEADER_LABELS = ["일수"]
-RECEIPT_KEYWORDS = ("조제일자", "상호", "약품명", "투약량", "횟수", "일수", "약국", "영수증")
+MEDICINE_HEADER_LABELS = ["약품명", "약명", "품명"]
+DOSAGE_HEADER_LABELS = ["투약량", "투약", "용량"]
+FREQUENCY_HEADER_LABELS = ["횟수", "회수", "회"]
+DAYS_HEADER_LABELS = ["일수", "일분"]
+GUIDE_HEADER_LABELS = ["복약안내"]
+CAUTION_HEADER_LABELS = ["주의사항"]
+PHARMACY_LABELS = ["약국명", "약국", "상호", "상호명"]
+DATE_LABELS = ["조제일자", "처방일자", "교부일자"]
 HOSPITAL_SUFFIXES = ("병원", "의원", "내과", "외과", "이비인후과", "치과", "한의원")
-MEDICINE_NAME_HINTS = ("정", "캡슐", "시럽", "현탁", "서방", "mg", "ml", "mL")
-NOISE_KEYWORDS = (
-    "영수증",
-    "계산서",
-    "약제비",
-    "급여",
-    "비급여",
-    "본인부담",
-    "상한",
-    "차등",
-    "금액",
-    "비용",
-    "규정",
-    "환자정보",
-    "교부번호",
-    "병원정보",
-)
+MEDICINE_NAME_HINTS = ("정", "캡슐", "캅셀", "시럽", "현탁액", "과립", "겔", "크림", "주사", "mg", "ml", "mL")
+NAME_NOISE_KEYWORDS = ("영수증","계산서","약제비","금액","본인부담","보험자","급여","비급여","현금","카드","교부번호",
+    "성명","조제약사","사업장","소재지","발행일","서비스","환자정보","병원정보","복약안내","주의사항","약품사진","식후",
+    "식전","공복","아침","점심","저녁","취침전","보관","밀폐용기","기밀용기","차광보관","원형정제","장방형","필름코팅정",
+    "분말","결정성","항생제","진통제","소염","항염","면역","작용","치료","개선","위장","증상","설사","금주","전문가","복용",)
+BREAK_MARKERS = ("아침", "점심", "저녁", "취침전", "식후", "식전", "공복", "표시대로", "baropharm.com")
 
 _ocr_client: vision.ImageAnnotatorClient | None = None
 _s3_client: Any | None = None
 
-
+# OCR로 읽은 단어 1개의 정보를 담는 자료구조 (텍스트, 좌표)
 @dataclass
 class OcrToken:
     text: str
@@ -74,18 +57,22 @@ class OcrToken:
     def center_y(self) -> float:
         return (self.y_min + self.y_max) / 2
 
-# 이미지 로드 -> 전처리 -> 토큰 추출 -> 구조화 결과 생성 -> JSON 반환
+# 메인
 def analyze_prescription(request: AiOcrRequest) -> AiOcrResponse:
     image_array = _load_image_from_s3(request.imageKey)  # S3에서 이미지 불러오기
     preprocessed_image = preprocess_prescription_image(image_array)  # 이미지 전처리
+    preview_data_url = _to_png_data_url(preprocessed_image)  # 이미지 배열을 브라우저 미리보기용 PNG data URL 문자열로 변환
 
-    preview_data_url = _to_png_data_url(preprocessed_image) # 전처리 이미지 미리보기용 data URL 생성
-    all_tokens = _extract_tokens(preprocessed_image)  # Google Vision OCR로 토큰 추출 (텍스트+위치 추출)
+    all_tokens = _extract_tokens(preprocessed_image) # OCR 호출해서 텍스트를 토큰 단위로 추출
+    structured_result = _build_structured_result(preprocessed_image.shape, all_tokens)  # OCR로 읽은 전체 토큰을 최종 구조화 결과로 변환
+    raw_text = "\n".join(_tokens_to_lines(all_tokens))
 
-    structured_result = _build_structured_result(preprocessed_image.shape, all_tokens)  # OCR 토큰을 구조화된 결과로 변환
-    raw_text = "\n".join(_tokens_to_lines(all_tokens))  # rawText 생성
+    print(
+        f"OCR raw text extracted | ocrResultId={request.ocrResultId} "
+        f"userId={request.userId} imageKey={request.imageKey}\n{raw_text}",
+        flush=True,
+    )
 
-    # 최종 분석 결과를 JSON 문자열로
     result_json = json.dumps(
         {
             "ocrResultId": request.ocrResultId,
@@ -96,7 +83,6 @@ def analyze_prescription(request: AiOcrRequest) -> AiOcrResponse:
         ensure_ascii=False,
     )
 
-    # 최종 응답 반환
     return AiOcrResponse(
         rawText=raw_text,
         resultJson=result_json,
@@ -104,19 +90,16 @@ def analyze_prescription(request: AiOcrRequest) -> AiOcrResponse:
         preprocessedImageDataUrl=preview_data_url,
     )
 
-
-# S3에서 이미지 불러오기
+# S3에 저장된 이미지를 가져와서 OCR용 배열로 변환
 def _load_image_from_s3(image_key: str) -> np.ndarray:
     client = _get_s3_client()
 
-    # .env에 있는 aws 설정값들을 조합해 S3 클라이언트를 만들고 image_key로 실제 이미지 가져오기
     try:
         response = client.get_object(Bucket=settings.aws_s3_bucket, Key=image_key)
         image_bytes = response["Body"].read()
     except (ClientError, BotoCoreError) as exc:
         raise HTTPException(status_code=502, detail=f"Failed to load image from S3: {exc}") from exc
 
-    # S3에서 가져온 이미지 바이트 데이터를 “진짜 이미지 객체”로 열기
     try:
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     except Exception as exc:
@@ -124,42 +107,39 @@ def _load_image_from_s3(image_key: str) -> np.ndarray:
 
     return np.array(image)
 
-# Google Vision OCR로 토큰 추출 (텍스트+위치 추출) - 모든 글자를 전부 추출함
+# OCR 호출해서 텍스트를 토큰 단위로 추출
 def _extract_tokens(image_array: np.ndarray) -> list[OcrToken]:
     client = _get_ocr_client()
-    image = vision.Image(content=_to_png_bytes(image_array))  # 이미지 배열을 Google Vision용 이미지로 변환
-    image_context = vision.ImageContext(language_hints=["ko", "en"])  # OCR 언어 힌트 설정
+    image = vision.Image(content=_to_png_bytes(image_array))
+    image_context = vision.ImageContext(language_hints=["ko", "en"])
 
-    # Google Vision OCR 호출
     try:
-        response = client.document_text_detection(image=image, image_context=image_context) 
+        response = client.document_text_detection(image=image, image_context=image_context)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"OCR extraction failed: {exc}") from exc
 
     if response.error.message:
         raise HTTPException(status_code=502, detail=f"OCR extraction failed: {response.error.message}")
 
-    tokens: list[OcrToken] = []  # 반환할 토큰 리스트 준비
-    annotation = response.full_text_annotation  # full_text_annotation: ocr 전체 결과
+    tokens: list[OcrToken] = []
+    annotation = response.full_text_annotation
     if not annotation:
         return tokens
 
-    # OCR 결과 구조를 순회하면서 모든 단어하나하나 꺼냄
     for page in annotation.pages:
         for block in page.blocks:
             for paragraph in block.paragraphs:
                 for word in paragraph.words:
-                    text = "".join(symbol.text for symbol in word.symbols).strip()  # word 안의 글자들을 합쳐서 텍스트 만들기
+                    text = "".join(symbol.text for symbol in word.symbols).strip()
                     if not text:
                         continue
 
-                    vertices = word.bounding_box.vertices  # 단어 위치 좌표 가져오기
+                    vertices = word.bounding_box.vertices
                     if not vertices:
                         continue
 
                     xs = [vertex.x or 0 for vertex in vertices]
                     ys = [vertex.y or 0 for vertex in vertices]
-                    # OcrToken 생성
                     tokens.append(
                         OcrToken(
                             text=text,
@@ -170,77 +150,46 @@ def _extract_tokens(image_array: np.ndarray) -> list[OcrToken]:
                         )
                     )
 
-    return tokens  # 최종 토큰 리스트 반환
+    return tokens
 
-# OCR로 뽑힌 전체 글자들 중에서 필요한 정보만 골라내는 함수
+# OCR로 읽은 전체 토큰을 최종 구조화 결과로 변환
 def _build_structured_result(image_shape: tuple[int, ...], all_tokens: list[OcrToken]) -> dict[str, Any]:
-    # 이미지 크기 가져오기
-    width = image_shape[1]
-    height = image_shape[0]
-
-    # OCR 토큰을 위치별로 나눔
-    receipt_tokens = [
-        token
-        for token in all_tokens
-        # 왼쪽 영수증 영역으로 보이는 토큰만 따로 모음
-        if token.center_x <= width * RECEIPT_REGION_MAX_X 
-        and token.center_y <= height * RECEIPT_REGION_MAX_Y
-    ]
-
-    # 복약 안내 영역 토큰 분리
-    guide_tokens = [
-        token
-        for token in all_tokens
-        if token.center_x >= width * GUIDE_REGION_MIN_X
-        and token.center_y <= height * GUIDE_REGION_MAX_Y
-    ]
-
-    # 복용 스케줄 영역 토큰 분리
-    schedule_tokens = [
-        token
-        for token in all_tokens
-        if token.center_y >= height * SCHEDULE_REGION_MIN_Y
-    ]
-
-    # 병원명 후보 영역 분리
-    hospital_tokens = [
-        token
-        for token in all_tokens
-        if token.center_x >= width * HOSPITAL_REGION_MIN_X
-        and token.center_x <= width * HOSPITAL_REGION_MAX_X
-        and token.center_y <= height * HOSPITAL_REGION_MAX_Y
-    ]
-
-    # 토큰들을 줄 단위 텍스트로 바꿈
-    receipt_lines = _tokens_to_lines(receipt_tokens)
-    guide_lines = _tokens_to_lines(guide_tokens)
-    schedule_lines = _tokens_to_lines(schedule_tokens)
-    hospital_lines = _tokens_to_lines(hospital_tokens)
+    _ = image_shape
     all_lines = _tokens_to_lines(all_tokens)
 
-    # 약 목록 추출 (순서대로 시도)
-    medicines = (
-        _extract_medicines_from_instruction_text(all_lines)  # 복약 안내 문장형 텍스트에서 약 찾기
-        or _extract_medicines_from_aligned_columns(all_tokens)  # 표의 컬럼 정렬 기준으로 약 찾기
-        or _extract_medicines_from_table_headers(all_tokens)  # 약품명/투약량/횟수/일수 헤더 기준으로 찾기
-        or _extract_receipt_medicines_from_headers(all_tokens)  # 영수증 헤더 기준으로 찾기
-        or _extract_medicines_from_text_table(all_tokens)  # 일반 텍스트 테이블 방식으로 찾기
+    guide_line_medicines = _extract_medicines_from_guide_lines(all_lines)
+    summary_line_medicines = _extract_medicines_from_summary_lines(all_lines)
+    aligned_medicines = _extract_medicines_from_aligned_columns(all_tokens)
+
+    candidates = {
+        "guide_lines": guide_line_medicines,
+        "summary_lines": summary_line_medicines,
+        "aligned": aligned_medicines,
+    }
+    selected_source, medicines = max(
+        candidates.items(),
+        key=lambda item: _score_medicine_candidates(item[1]),
     )
-    if not medicines:
-        medicines = _extract_guide_medicines(guide_lines)
 
-    
-    schedule = _extract_schedule(receipt_lines, schedule_lines, guide_lines, all_lines)  # 복용 스케줄 추출
-    _apply_schedule_defaults(medicines, schedule)  # 약마다 빠진 값 채워주기
+    schedule = _extract_schedule_strict(all_lines)
+    _apply_schedule_defaults(medicines, schedule)
+    medicines = _finalize_medicines(medicines)
 
-    # 조제일자 추출
-    dispensed_date = _extract_date_to_right_of_label(all_tokens) or _extract_date_from_tokens(all_tokens) or _extract_first_date(receipt_lines, guide_lines, hospital_lines, all_lines)
-    # 약국명 추출
-    pharmacy_name = _extract_text_to_right_of_label(all_tokens, PHARMACY_LABELS) or _extract_pharmacy_name_from_tokens(all_tokens) or _extract_pharmacy_name(receipt_lines, all_lines)
-    # 병원명 추출
-    hospital_name = _extract_hospital_name(hospital_lines, guide_lines, all_lines)
+    print(
+        "OCR extractor debug | "
+        f"guide_lines={guide_line_medicines} | "
+        f"summary_lines={summary_line_medicines} | "
+        f"aligned={aligned_medicines} | "
+        f"schedule={schedule} | "
+        f"selected_source={selected_source} | "
+        f"selected={medicines}",
+        flush=True,
+    )
 
-    # 최종결과 반환
+    dispensed_date = _extract_dispensed_date(all_tokens, all_lines)
+    pharmacy_name = _extract_pharmacy_name(all_tokens, all_lines)
+    hospital_name = _extract_hospital_name(all_lines)
+
     return {
         "dispensedDate": dispensed_date,
         "hospitalName": hospital_name,
@@ -248,285 +197,88 @@ def _build_structured_result(image_shape: tuple[int, ...], all_tokens: list[OcrT
         "medicines": medicines,
     }
 
-# 영수증/표처럼 생긴 영역에서 약 정보를 뽑는 기본 함수
-def _extract_receipt_medicines(tokens: list[OcrToken]) -> list[dict[str, str | None]]:
-    if not tokens:
-        return []
-
-    width = max(token.x_max for token in tokens)
-    height = max(token.y_max for token in tokens)
-    text_lookup = {token.text: token for token in tokens}
-
-    header_y = text_lookup.get("약품명").center_y if text_lookup.get("약품명") else height * 0.58
-    dose_x = text_lookup.get("투약량").center_x if text_lookup.get("투약량") else width * 0.68
-    count_x = text_lookup.get("횟수").center_x if text_lookup.get("횟수") else width * 0.82
-    day_x = text_lookup.get("일수").center_x if text_lookup.get("일수") else width * 0.92
-
-    content_tokens = [
-        token
-        for token in tokens
-        if token.center_y >= max(header_y + 8, height * 0.66)
-        and token.center_x <= day_x + 30
-        and token.text not in {"약품명", "투약량", "횟수", "일수"}
-    ]
-
-    rows = _cluster_rows(content_tokens, y_tolerance=18)
+# 큰표에서 약 정보 읽기
+def _extract_medicines_from_guide_lines(lines: list[str]) -> list[dict[str, str | None]]:
     medicines: list[dict[str, str | None]] = []
 
-    for row in rows:
-        row.sort(key=lambda token: token.center_x)
-        name_parts: list[str] = []
-        dosage = None
-        frequency = None
-        days = None
-
-        for token in row:
-            text = token.text.strip()
-            if not text:
-                continue
-
-            if token.center_x < dose_x - 20:
-                name_parts.append(text)
-            elif token.center_x < count_x - 12:
-                dosage = dosage or _extract_small_number(text, 9)
-            elif token.center_x < day_x - 8:
-                frequency = frequency or _extract_small_number(text, 12)
-            else:
-                days = days or _extract_small_number(text, 31)
-
-        name = " ".join(name_parts).strip()
-        if not name or not _looks_like_medicine_name(name):
+    for line in lines:
+        stripped = line.strip()
+        if "[" not in stripped:
             continue
 
-        medicines.append(
-            {
-                "name": name,
-                "dosage": dosage,
-                "frequency": frequency,
-                "days": days,
-            }
-        )
+        name = _extract_name_before_bracket(stripped)
+        if name is None:
+            continue
+
+        dosage = _extract_dosage_from_bracket_line(stripped)
+        frequency = _extract_pattern_value(stripped, r"(\d+)\s*회")
+        days = _extract_pattern_value(stripped, r"(\d+)\s*일분")
+        _append_medicine(medicines, name, dosage, frequency, days)
 
     return medicines
 
-# “약품명/투약량/횟수/일수” 헤더를 먼저 찾아서, 그 아래 표를 읽는 함수
-def _extract_receipt_medicines_from_headers(tokens: list[OcrToken]) -> list[dict[str, str | None]]:
-    if not tokens:
-        return []
-
-    width = max(token.x_max for token in tokens)
-    name_header = _find_anchor_token(tokens, ["약품명", "약품"])
-    dose_header = _find_anchor_token(tokens, ["투약량", "투약"])
-    count_header = _find_anchor_token(tokens, ["횟수", "횟"])
-    day_header = _find_anchor_token(tokens, ["일수", "일분"])
-
-    if name_header is None:
-        return _extract_receipt_medicines(tokens)
-
-    header_y = name_header.center_y
-    dose_x = dose_header.center_x if dose_header else width * 0.62
-    count_x = count_header.center_x if count_header else width * 0.77
-    day_x = day_header.center_x if day_header else width * 0.90
-    table_left_x = max(name_header.x_min - 16, 0)
-    table_right_x = day_header.x_max + 28 if day_header else width
-
-    content_tokens = [
-        token
-        for token in tokens
-        if token.center_y >= header_y + 8
-        and token.center_x >= table_left_x
-        and token.center_x <= table_right_x
-        and not _contains_any_label(token.text, ["약품명", "투약량", "횟수", "일수"])
-    ]
-
-    rows = _cluster_rows(content_tokens, y_tolerance=18)
+# 작은표에서 약 정보 읽기 (줄 텍스트 기반 - 같은 y축끼리 묶어서 한줄로 )
+def _extract_medicines_from_summary_lines(lines: list[str]) -> list[dict[str, str | None]]:
     medicines: list[dict[str, str | None]] = []
-
-    for row in rows:
-        row.sort(key=lambda token: token.center_x)
-        name_parts: list[str] = []
-        dosage = None
-        frequency = None
-        days = None
-
-        for token in row:
-            text = token.text.strip()
-            if not text:
-                continue
-
-            if token.center_x < dose_x - 20:
-                name_parts.append(text)
-            elif token.center_x < count_x - 12:
-                dosage = dosage or _extract_small_number(text, 9)
-            elif token.center_x < day_x - 8:
-                frequency = frequency or _extract_small_number(text, 12)
-            else:
-                days = days or _extract_small_number(text, 31)
-
-        name = " ".join(name_parts).strip()
-        if _contains_any_label(name, ["급여", "본인", "금액", "조제", "병원", "상호"]):
-            continue
-        if not _looks_like_medicine_name(name):
-            continue
-
-        medicines.append(
-            {
-                "name": name,
-                "dosage": dosage,
-                "frequency": frequency,
-                "days": days,
-            }
+    header_indexes = [
+        index
+        for index, line in enumerate(lines)
+        if _contains_all_labels(line, DOSAGE_HEADER_LABELS)
+        and _contains_all_labels(line, FREQUENCY_HEADER_LABELS)
+        and _contains_all_labels(line, DAYS_HEADER_LABELS)
+        and (
+            _contains_all_labels(line, MEDICINE_HEADER_LABELS)
+            or index == 0
+            or index > 0 and _contains_any_label(lines[index - 1], MEDICINE_HEADER_LABELS)
+            or index + 1 < len(lines) and _contains_any_label(lines[index + 1], MEDICINE_HEADER_LABELS)
+            or _has_medicine_like_summary_lines(lines, index + 1, index + 6)
         )
-
-    return medicines
-
-# 표 기반 추출
-def _extract_medicines_from_table_headers(tokens: list[OcrToken]) -> list[dict[str, str | None]]:
-    name_header = _find_anchor_token(tokens, MEDICINE_HEADER_LABELS)
-    if name_header is None:
-        return []
-
-    dose_header = _find_anchor_token(tokens, DOSAGE_HEADER_LABELS)
-    count_header = _find_anchor_token(tokens, FREQUENCY_HEADER_LABELS)
-    day_header = _find_anchor_token(tokens, DAYS_HEADER_LABELS)
-
-    width = max(token.x_max for token in tokens)
-    dose_x = dose_header.center_x if dose_header else width * 0.62
-    count_x = count_header.center_x if count_header else width * 0.77
-    day_x = day_header.center_x if day_header else width * 0.90
-    header_bottom_y = max(
-        header.y_max
-        for header in [name_header, dose_header, count_header, day_header]
-        if header is not None
-    )
-
-    table_tokens = [
-        token
-        for token in tokens
-        if token.center_y >= header_bottom_y + 8
-        and token.center_x >= max(name_header.x_min - 24, 0)
-        and token.center_x <= min(day_x + 36, width)
-        and not _contains_any_label(token.text, MEDICINE_HEADER_LABELS + DOSAGE_HEADER_LABELS + FREQUENCY_HEADER_LABELS + DAYS_HEADER_LABELS)
     ]
+    if not header_indexes:
+        return medicines
 
-    rows = _cluster_rows(table_tokens, y_tolerance=18)
-    medicines: list[dict[str, str | None]] = []
-
-    for row in rows:
-        row.sort(key=lambda token: token.center_x)
-        name_parts: list[str] = []
-        dosage = None
-        frequency = None
-        days = None
-
-        for token in row:
-            text = token.text.strip()
-            if not text:
-                continue
-
-            if token.center_x < dose_x - 20:
-                name_parts.append(text)
-            elif token.center_x < count_x - 12:
-                dosage = dosage or _extract_small_number(text, 9)
-            elif token.center_x < day_x - 8:
-                frequency = frequency or _extract_small_number(text, 12)
-            else:
-                days = days or _extract_small_number(text, 31)
-
-        name = " ".join(name_parts).strip()
-        if not name or _contains_any_label(name, ["상호", "조제", "급여", "금액", "병원"]):
+    header_index = header_indexes[-1]
+    block: list[str] = []
+    for line in lines[header_index + 1 : header_index + 12]:
+        stripped = line.strip()
+        compact = stripped.replace(" ", "")
+        if not stripped:
             continue
-        if not _looks_like_medicine_name(name):
+        if any(marker in compact for marker in BREAK_MARKERS):
+            break
+        if compact.startswith(("※", "*", "•", "-", "baropharm.com")):
+            continue
+        block.append(stripped)
+
+    pending_counts: tuple[str | None, str | None, str | None] | None = None
+    for index, line in enumerate(block):
+        if _is_summary_count_only_line(line):
+            pending_counts = _extract_counts_from_count_line(line)
             continue
 
-        medicines.append(
-            {
-                "name": name,
-                "dosage": dosage,
-                "frequency": frequency,
-                "days": days,
-            }
-        )
+        name = _extract_name_from_summary_line(line)
+        if name is None:
+            continue
+
+        dosage, frequency, days = _extract_summary_counts(line)
+        if pending_counts is not None:
+            dosage = dosage or pending_counts[0]
+            frequency = frequency or pending_counts[1]
+            days = days or pending_counts[2]
+            pending_counts = None
+
+        if index + 1 < len(block) and _is_summary_count_only_line(block[index + 1]):
+            next_counts = _extract_counts_from_count_line(block[index + 1])
+            dosage = dosage or next_counts[0]
+            frequency = frequency or next_counts[1]
+            days = days or next_counts[2]
+
+        _append_medicine(medicines, name, dosage, frequency, days)
 
     return medicines
 
 
-def _extract_medicines_from_text_table(tokens: list[OcrToken]) -> list[dict[str, str | None]]:
-    return _extract_medicines_from_lower_text_table(tokens)
-
-# 이미지 아래쪽/중간 이후에 있는 표에서 약 정보를 뽑으려는 함수
-def _extract_medicines_from_lower_text_table(tokens: list[OcrToken]) -> list[dict[str, str | None]]:
-    name_header = _find_anchor_token(tokens, MEDICINE_HEADER_LABELS)
-    if name_header is None or not tokens:
-        return []
-
-    width = max(token.x_max for token in tokens)
-    height = max(token.y_max for token in tokens)
-    dose_header = _find_anchor_token(tokens, DOSAGE_HEADER_LABELS)
-    count_header = _find_anchor_token(tokens, FREQUENCY_HEADER_LABELS)
-    day_header = _find_anchor_token(tokens, DAYS_HEADER_LABELS)
-
-    dose_x = dose_header.center_x if dose_header else width * 0.62
-    count_x = count_header.center_x if count_header else width * 0.77
-    day_x = day_header.center_x if day_header else width * 0.90
-    header_bottom_y = max(
-        header.y_max
-        for header in [name_header, dose_header, count_header, day_header]
-        if header is not None
-    )
-
-    table_tokens = [
-        token
-        for token in tokens
-        if token.center_y >= max(header_bottom_y + 8, height * 0.45)
-        and token.center_x >= max(name_header.x_min - 24, 0)
-        and token.center_x <= min(day_x + 36, width)
-        and not _contains_any_label(
-            token.text,
-            MEDICINE_HEADER_LABELS + DOSAGE_HEADER_LABELS + FREQUENCY_HEADER_LABELS + DAYS_HEADER_LABELS,
-        )
-    ]
-
-    rows = _cluster_rows(table_tokens, y_tolerance=18)
-    medicines: list[dict[str, str | None]] = []
-
-    for row in rows:
-        row.sort(key=lambda token: token.center_x)
-        name_parts: list[str] = []
-        dosage = None
-        frequency = None
-        days = None
-
-        for token in row:
-            text = token.text.strip()
-            if not text:
-                continue
-
-            if token.center_x < dose_x - 20:
-                name_parts.append(text)
-            elif token.center_x < count_x - 12:
-                dosage = dosage or _extract_small_number(text, 9)
-            elif token.center_x < day_x - 8:
-                frequency = frequency or _extract_small_number(text, 12)
-            else:
-                days = days or _extract_small_number(text, 31)
-
-        name = " ".join(name_parts).strip()
-        if not name or not _looks_like_medicine_name(name):
-            continue
-
-        medicines.append(
-            {
-                "name": name,
-                "dosage": dosage,
-                "frequency": frequency,
-                "days": days,
-            }
-        )
-
-    return medicines
-
-# 행 단위로 통째로 읽는 게 아니라, 컬럼별로 먼저 나눈 다음 같은 y좌표 근처 숫자를 붙이는 방식
+# 작은표의 열 정렬을 기준으로 약 정보 (좌표 정렬 기반 - 단어 조각들의 좌표를 직접 보는 방식)
 def _extract_medicines_from_aligned_columns(tokens: list[OcrToken]) -> list[dict[str, str | None]]:
     if not tokens:
         return []
@@ -570,116 +322,58 @@ def _extract_medicines_from_aligned_columns(tokens: list[OcrToken]) -> list[dict
     for row in name_rows:
         row.sort(key=lambda token: token.center_x)
         row_y = sum(token.center_y for token in row) / len(row)
-        name = " ".join(token.text.strip() for token in row if token.text.strip()).strip()
+        name = _clean_medicine_name(" ".join(token.text.strip() for token in row if token.text.strip()))
         dosage = _pick_nearest_small_number(dose_tokens, row_y, 9)
         frequency = _pick_nearest_small_number(frequency_tokens, row_y, 12)
         days = _pick_nearest_small_number(day_tokens, row_y, 31)
-
-        if not name or not _looks_like_medicine_name(name):
-            continue
-
-        medicines.append(
-            {
-                "name": name,
-                "dosage": dosage,
-                "frequency": frequency,
-                "days": days,
-            }
-        )
+        _append_medicine(medicines, name, dosage, frequency, days)
 
     return medicines
 
-# 문장형 복약 안내문에서 약 정보를 뽑는 함수
-def _extract_medicines_from_instruction_text(lines: list[str]) -> list[dict[str, str | None]]:
-    medicines: list[dict[str, str | None]] = []
-    current_name: str | None = None
+# 스케쥴 정보칸에서 투약량/횟수/일수 읽기 (공통 복약 규칙)
+def _extract_schedule_strict(lines: list[str]) -> dict[str, str | None]:
+    dosage = None
+    frequency = None
+    days = None
 
-    for raw_line in lines:
-        line = raw_line.strip()
-        if not line:
-            continue
+    compact_lines = [line.replace(" ", "") for line in lines if line.strip()]
+    windows: list[str] = []
+    for index in range(len(compact_lines)):
+        windows.append(compact_lines[index])
+        if index + 1 < len(compact_lines):
+            windows.append(compact_lines[index] + compact_lines[index + 1])
+        if index + 2 < len(compact_lines):
+            windows.append(compact_lines[index] + compact_lines[index + 1] + compact_lines[index + 2])
 
-        medicine_name = _extract_medicine_name_from_line(line)
-        dosage_info = _extract_dosage_instruction(line)
+    for compact in reversed(windows):
+        if frequency is None:
+            match = re.search(r"1일(\d+)회", compact)
+            if not match:
+                match = re.search(r"(\d+)회.*1일", compact)
+            if match:
+                frequency = match.group(1)
+        if days is None:
+            match = re.search(r"투약일수(\d+)", compact)
+            if not match:
+                match = re.search(r"(\d+)일분", compact)
+            if match:
+                days = match.group(1)
+        if dosage is None:
+            match = re.search(r"1(?:정|캡슐|포|봉|스푼)", compact)
+            if match:
+                dosage = "1"
 
-        if medicine_name:
-            current_name = medicine_name
-
-            if dosage_info:
-                medicines.append(
-                    {
-                        "name": medicine_name,
-                        "dosage": dosage_info["dosage"],
-                        "frequency": dosage_info["frequency"],
-                        "days": dosage_info["days"],
-                    }
-                )
-                current_name = None
-
-            continue
-
-        if current_name and dosage_info:
-            medicines.append(
-                {
-                    "name": current_name,
-                    "dosage": dosage_info["dosage"],
-                    "frequency": dosage_info["frequency"],
-                    "days": dosage_info["days"],
-                }
-            )
-            current_name = None
-
-    return medicines
-
-# 최후 함수: 복약 안내 영역 텍스트에서 약 이름처럼 보이는 것만이라도 찾는 함수
-def _extract_guide_medicines(lines: list[str]) -> list[dict[str, str | None]]:
-    medicines: list[dict[str, str | None]] = []
-
-    for line in lines:
-        normalized = line.replace(" ", "")
-        if not _looks_like_medicine_name(normalized):
-            continue
-
-        name_match = re.search(r"([가-힣A-Za-z0-9]+(?:정|캡슐|시럽|현탁|서방)[A-Za-z0-9가-힣]*)", normalized)
-        if not name_match:
-            continue
-
-        name = name_match.group(1)
-        if any(medicine["name"] == name for medicine in medicines):
-            continue
-
-        medicines.append(
-            {
-                "name": name,
-                "dosage": _extract_pattern_value(normalized, r"(\d+)(?:정|캡슐|포|ml|mg)"),
-                "frequency": _extract_pattern_value(normalized, r"(\d+)회"),
-                "days": _extract_pattern_value(normalized, r"(\d+)일"),
-            }
-        )
-
-    return medicines
-
-# 전체 OCR 문장 안에서 공통 복용법을 찾는 함수
-def _extract_schedule(*line_groups: list[str]) -> dict[str, str | None]:
-    joined = "\n".join("\n".join(lines) for lines in line_groups if lines)
-
-    daily = _extract_pattern_value(joined, r"1일\s*(\d+)\s*회")
-    days = _extract_pattern_value(joined, r"(\d+)\s*일분")
-    dose = _extract_pattern_value(joined, r"(\d+)\s*(?:정|캡슐|포)\s*(?:씩)?\s*\d+\s*회")
-    if dose is None:
-        dose = _extract_pattern_value(joined, r"(\d+)\s*(?:정|캡슐|포)")
+        if dosage is not None and frequency is not None and days is not None:
+            break
 
     return {
-        "dosage": dose,
-        "frequency": daily,
+        "dosage": dosage,
+        "frequency": frequency,
         "days": days,
     }
 
-# 약 정보에 빠진 복용값을 공통 스케줄로 채워주는 함수
+# 공통 복약 규칙을 각 약 정보 칸에 채워넣기
 def _apply_schedule_defaults(medicines: list[dict[str, str | None]], schedule: dict[str, str | None]) -> None:
-    if not medicines:
-        return
-
     for medicine in medicines:
         if medicine.get("dosage") is None:
             medicine["dosage"] = schedule.get("dosage")
@@ -687,22 +381,106 @@ def _apply_schedule_defaults(medicines: list[dict[str, str | None]], schedule: d
             medicine["frequency"] = schedule.get("frequency")
         if medicine.get("days") is None:
             medicine["days"] = schedule.get("days")
+        if (
+            medicine.get("frequency") == "1"
+            and medicine.get("days")
+            and schedule.get("frequency")
+            and schedule.get("days")
+        ):
+            try:
+                if int(medicine["days"]) > int(schedule["days"]):
+                    medicine["frequency"] = schedule["frequency"]
+                    medicine["days"] = schedule["days"]
+            except ValueError:
+                pass
 
-# 특정 라벨 오른쪽에 있는 값을 뽑는 함수
+# 최종 약 리스트 정리
+def _finalize_medicines(medicines: list[dict[str, str | None]]) -> list[dict[str, str | None]]:
+    finalized: list[dict[str, str | None]] = []
+    seen: set[str] = set()
+
+    for medicine in medicines:
+        name = _finalize_name(medicine.get("name"))
+        if name is None or name in seen:
+            continue
+
+        finalized.append(
+            {
+                "name": name,
+                "dosage": medicine.get("dosage"),
+                "frequency": medicine.get("frequency"),
+                "days": medicine.get("days"),
+            }
+        )
+        seen.add(name)
+
+    return finalized
+
+# =====================================================================================
+
+# 제조일자
+def _extract_dispensed_date(tokens: list[OcrToken], lines: list[str]) -> str | None:
+    value = _extract_text_to_right_of_label(tokens, DATE_LABELS)
+    normalized = _normalize_date(value) if value else None
+    if normalized:
+        return normalized
+
+    for line in lines:
+        normalized = _normalize_date(line)
+        if normalized:
+            return normalized
+    return None
+
+# 약국명
+def _extract_pharmacy_name(tokens: list[OcrToken], lines: list[str]) -> str | None:
+    value = _extract_text_to_right_of_label(tokens, PHARMACY_LABELS)
+    cleaned = _sanitize_metadata_value(value)
+    if cleaned and "약국" in cleaned:
+        return _trim_to_pharmacy_name(cleaned)
+
+    for line in lines:
+        compact = line.replace(" ", "")
+        if "약국" not in compact:
+            continue
+        if any(keyword in compact for keyword in ("사업장", "병원", "환자", "상성", "성명")):
+            continue
+        trimmed = _trim_to_pharmacy_name(line.replace(" ", "").strip())
+        if trimmed:
+            return trimmed
+
+    return None
+
+# 병원명
+def _extract_hospital_name(lines: list[str]) -> str | None:
+    for index, line in enumerate(lines):
+        compact = line.replace(" ", "")
+        if any(keyword in compact for keyword in ("병원정보", "발행기관")):
+            joined = compact + "".join(item.replace(" ", "") for item in lines[index + 1 : index + 3])
+            trimmed = _extract_hospital_name_after_label(joined)
+            if trimmed:
+                return trimmed
+
+    for line in lines:
+        compact = line.replace(" ", "")
+        trimmed = _extract_line_ending_with_suffix(compact)
+        if trimmed:
+            return trimmed
+    return None
+
+# 라벨 오른쪽에 붙은 값 읽기
 def _extract_text_to_right_of_label(tokens: list[OcrToken], labels: list[str]) -> str | None:
     anchor = _find_anchor_token(tokens, labels)
     if anchor is None:
         return None
 
-    right_tokens = [
+    same_row_tokens = [
         token
         for token in tokens
-        if token.center_x > anchor.x_max
-        and abs(token.center_y - anchor.center_y) <= 20
+        if token.center_x > anchor.x_max and abs(token.center_y - anchor.center_y) <= 20
     ]
-    if right_tokens:
-        right_tokens.sort(key=lambda token: token.center_x)
-        return _join_token_text(right_tokens)
+    if same_row_tokens:
+        same_row_tokens.sort(key=lambda token: token.center_x)
+        return _join_token_text(same_row_tokens)
 
     next_row_tokens = [
         token
@@ -717,143 +495,309 @@ def _extract_text_to_right_of_label(tokens: list[OcrToken], labels: list[str]) -
 
     return None
 
-# 조제일자/처방일자/교부일자 오른쪽의 날짜를 찾는 함수
-def _extract_date_to_right_of_label(tokens: list[OcrToken]) -> str | None:
-    value = _extract_text_to_right_of_label(tokens, DISPENSED_DATE_LABELS)
+# =====================================보조 함수================================================
+
+# 날짜 문자열 정규화
+def _normalize_date(text: str | None) -> str | None:
+    if not text:
+        return None
+
+    match = re.search(r"(20\d{2})[-./년 ]\s*(\d{1,2})[-./월 ]\s*(\d{1,2})", text)
+    if not match:
+        return None
+
+    return f"{match.group(1)}-{int(match.group(2)):02d}-{int(match.group(3)):02d}"
+
+# 약 리스트에 추가/병합
+def _append_medicine(
+    medicines: list[dict[str, str | None]],
+    name: str | None,
+    dosage: str | None,
+    frequency: str | None,
+    days: str | None,
+) -> None:
+    cleaned_name = _finalize_name(name)
+    if cleaned_name is None:
+        return
+
+    existing = next((medicine for medicine in medicines if medicine["name"] == cleaned_name), None)
+    if existing is None:
+        medicines.append(
+            {
+                "name": cleaned_name,
+                "dosage": dosage,
+                "frequency": frequency,
+                "days": days,
+            }
+        )
+        return
+
+    if existing.get("dosage") is None and dosage is not None:
+        existing["dosage"] = dosage
+    if existing.get("frequency") is None and frequency is not None:
+        existing["frequency"] = frequency
+    if existing.get("days") is None and days is not None:
+        existing["days"] = days
+
+# [ ] 대괄호 제거
+def _extract_name_before_bracket(line: str) -> str | None:
+    prefix = line.split("[", 1)[0]
+    prefix = re.sub(r"^(?:금계|현금계|합계|합|원|카드|현금)\s*\d[\d,]*\s*", "", prefix).strip()
+    return _finalize_name(prefix)
+
+# 대괄호가 있는 한 줄에서 1회 복용량만 뽑는 함수
+def _extract_dosage_from_bracket_line(line: str) -> str | None:
+    compact = line.replace(" ", "")
+    match = re.search(r"/(\d+)(?:정|캡슐|포|봉)", compact)
+    if match:
+        return match.group(1)
+
+    match = re.search(r"(\d+)(?:정|캡슐|포|봉)씩", compact)
+    if match:
+        return match.group(1)
+
+    return None
+
+# 작은표 한줄에서 약이름 부분만 제거
+def _extract_name_from_summary_line(line: str) -> str | None:
+    name = line
+    name = re.sub(r"^[▶•*xX]+\s*", "", name)
+    name = re.sub(r"(먹는\s*약.*)$", "", name)
+    name = re.sub(r"\[[^\]]*\]", "", name)
+    name = re.sub(r"(?:\d+\s*\.\.\.\s*\d+|\d+\s+\d+\s+\d+|\d+\s+\d+|\d+\.\d+\d*)$", "", name).strip()
+    return _finalize_name(name)
+
+# 작은표 한줄에서 dosage / frequency / days를 추출
+def _extract_summary_counts(line: str) -> tuple[str | None, str | None, str | None]:
+    dosage = _extract_dosage_from_bracket_line(line)
+    frequency = None
+    days = None
+
+    tail = _extract_summary_tail(line)
+    decoded = _decode_compact_count_blob(tail)
+    if decoded:
+        if dosage is None and len(decoded) > 0:
+            dosage = decoded[0]
+        if len(decoded) > 1:
+            frequency = decoded[-2] if dosage is not None and len(decoded) >= 2 else decoded[1]
+        if len(decoded) > 2:
+            days = decoded[-1]
+        elif len(decoded) == 2 and dosage is None:
+            days = decoded[1] if len(decoded[1]) > 1 else None
+
+    return dosage, frequency, days
+
+# 이 줄이 약이름없이 숫자정보만 있는 줄인지 판별
+def _is_summary_count_only_line(line: str) -> bool:
+    compact = line.replace(" ", "")
+    if not compact:
+        return False
+    if _finalize_name(line) is not None:
+        return False
+    if any(hint in compact for hint in MEDICINE_NAME_HINTS):
+        return False
+    return bool(re.search(r"\d", compact))
+
+# 숫자만 있는 줄에서 dosage / frequency / days를 분리
+def _extract_counts_from_count_line(line: str) -> tuple[str | None, str | None, str | None]:
+    compact = line.replace(" ", "")
+    if match := re.search(r"1일(\d+)회(\d+)일분", compact):
+        return None, match.group(1), match.group(2)
+    if match := re.search(r"(\d+)회(\d+)일분", compact):
+        return None, match.group(1), match.group(2)
+    if match := re.search(r"투약일수(\d+)", compact):
+        return None, None, match.group(1)
+
+    decoded = _decode_compact_count_blob(compact)
+    dosage = decoded[0] if len(decoded) > 0 else None
+    frequency = decoded[1] if len(decoded) > 1 else None
+    days = decoded[2] if len(decoded) > 2 else None
+    return dosage, frequency, days
+
+# 붙은 숫자들을 dosage / frequency / days 후보로 (114, 127)
+def _decode_compact_count_blob(text: str) -> list[str]:
+    compact = re.sub(r"[^0-9.]", "", text)
+    if not compact:
+        return []
+    if match := re.fullmatch(r"0\.(\d)(\d)(\d{2})", compact):
+        return [f"0.{match.group(1)}", match.group(2), match.group(3)]
+    if match := re.fullmatch(r"0\.(\d)(\d)(\d)", compact):
+        return [f"0.{match.group(1)}", match.group(2), match.group(3)]
+    if match := re.fullmatch(r"(\d)(\d)(\d)(\d)", compact):
+        tail = match.group(3) + match.group(4)
+        if 10 <= int(tail) <= 31:
+            return [match.group(1), match.group(2), tail]
+        return [match.group(1), match.group(2), match.group(3), match.group(4)]
+    if match := re.fullmatch(r"(\d)(\d)(\d)", compact):
+        if match.group(1) == match.group(2) and 10 <= int(match.group(2) + match.group(3)) <= 31:
+            return [match.group(1), match.group(2), match.group(2) + match.group(3)]
+        return [match.group(1), match.group(2), match.group(3)]
+    if match := re.fullmatch(r"(\d)(\d{2})", compact):
+        if 10 <= int(match.group(2)) <= 31:
+            return [match.group(1), match.group(1), match.group(2)]
+        return [match.group(1), match.group(2)]
+    return re.findall(r"\d+(?:\.\d+)?", compact)
+
+# 요약표 한 줄에서 약 이름 뒤에 붙은 숫자 꼬리 부분만 떼어내는 함수
+def _extract_summary_tail(line: str) -> str:
+    cleaned = re.sub(r"^[▶•*xX]+\s*", "", line).strip()
+    if "]" in cleaned:
+        return cleaned.split("]", 1)[1]
+
+    strength_matches = list(re.finditer(r"\d+(?:\.\d+)?m[g]?\b", cleaned, flags=re.IGNORECASE))
+    if strength_matches:
+        return cleaned[strength_matches[-1].end() :]
+
+    match = re.search(r"(?:정|캡슐|시럽|겔|산|과립|밀리그램|mg|ml|mL)(.*)$", cleaned)
+    if match:
+        return match.group(1)
+
+    return cleaned
+
+# 날짜/병원명/약국명 같은 메타데이터 문자열에서 불필요한 기호와 잡문자를 정리
+def _sanitize_metadata_value(value: str | None) -> str | None:
     if not value:
         return None
+    cleaned = value.strip()
+    compact = cleaned.replace(" ", "")
+    if len(compact) > 24:
+        return None
+    if any(keyword in compact for keyword in NAME_NOISE_KEYWORDS):
+        return None
+    return cleaned
 
-    match = re.search(r"(20\d{2})[-./년 ]\s*(\d{1,2})[-./월 ]\s*(\d{1,2})", value)
-    if not match:
+# 약국명 후보 문자열을 ~약국까지만 잘라서 약국명처럼 보이게 정리하는 함수
+def _trim_to_pharmacy_name(text: str | None) -> str | None:
+    if not text:
+        return None
+    compact = text.replace(" ", "")
+    compact = re.sub(r"^(?:상호|호|현금계|금계|합계|\d+원)+", "", compact)
+    match = re.search(r"([가-힣A-Za-z][가-힣A-Za-z0-9]*약국(?:서비스)?)", compact)
+    if match:
+        return re.sub(r"^원+", "", match.group(1))
+    return None
+
+# 붙여쓴 긴 문자열에서 병원, 의원, 약국 같은 접미사로 끝나는 이름 줄을 찾아내는 함수
+def _extract_line_ending_with_suffix(compact: str) -> str | None:
+    for suffix in HOSPITAL_SUFFIXES:
+        match = re.search(rf"([가-힣A-Za-z0-9]+{suffix})", compact)
+        if match:
+            candidate = re.sub(r"^\d+(?:,\d+)?원?", "", match.group(1))
+            if re.search(r"\d{{2,}}", candidate):
+                continue
+            if candidate in {"병원", "의원"}:
+                continue
+            return candidate
+    return None
+
+# 병원정보, 발행기관 같은 라벨 뒤쪽에서 병원명 후보를 뽑는 함수
+def _extract_hospital_name_after_label(compact: str) -> str | None:
+    compact = re.sub(r".*?(?:병원정보|발행기관)[:：]?", "", compact)
+    return _extract_line_ending_with_suffix(compact)
+
+# 특정 줄 구간 안에 요약표처럼 보이는 약 이름 줄이 실제로 있는지 확인하는 함수
+def _has_medicine_like_summary_lines(lines: list[str], start: int, end: int) -> bool:
+    for line in lines[start:end]:
+        if _extract_name_from_summary_line(line) is not None:
+            return True
+    return False
+
+# 추출된 약 목록이 얼마나 그럴듯한지 점수로 계산해서 최종 후보 선택에 쓰는 함수
+def _score_medicine_candidates(medicines: list[dict[str, str | None]]) -> int:
+    score = 0
+    for medicine in medicines:
+        name = medicine.get("name") or ""
+        score += 3 if _looks_like_medicine_name(name) else -5
+        score += 1 if medicine.get("dosage") else 0
+        score += 1 if medicine.get("frequency") else 0
+        score += 1 if medicine.get("days") else 0
+    return score
+
+# 약 이름 후보를 마지막으로 정리해서 공백, 특수문자, 이상한 꼬리를 제거
+def _finalize_name(name: str | None) -> str | None:
+    if not name:
         return None
 
-    return f"{match.group(1)}-{int(match.group(2)):02d}-{int(match.group(3)):02d}"
-
-# 전체 OCR 텍스트에서 날짜처럼 생긴 걸 찾는 함수
-def _extract_date_from_tokens(tokens: list[OcrToken]) -> str | None:
-    joined = "\n".join(_tokens_to_lines(tokens))
-    match = re.search(r"(20\d{2})[-./년 ]\s*(\d{1,2})[-./월 ]\s*(\d{1,2})", joined)
-    if not match:
+    cleaned = _clean_medicine_name(name)
+    cleaned = cleaned.replace(" ", "")
+    cleaned = re.sub(r"\[(.*?)$", "", cleaned)
+    cleaned = re.sub(r"(약효>|효능>).*", "", cleaned)
+    cleaned = re.sub(r"(?:정|캡슐|시럽|겔|산|과립)(?:\d+)$", lambda m: m.group(0).rstrip("0123456789"), cleaned)
+    cleaned = re.sub(r"(mg|ml|mL)\d+$", r"\1", cleaned)
+    cleaned = re.sub(r"(\d+)m$", r"\1mg", cleaned)
+    cleaned = re.sub(r"(?<!mg)(?<!ml)(?<!mL)\d{1,2}$", "", cleaned)
+    cleaned = re.sub(r"^[▶•*xX]+", "", cleaned)
+    cleaned = cleaned.strip("·-:,.")
+    if len(cleaned) > 20 and any(keyword in cleaned for keyword in ("면역", "항염", "작용", "증상", "치료", "보관", "개선")):
+        return None
+    if any(color in cleaned for color in ("흰색", "백색", "황색", "분홍색", "초록", "연녹색")) and (
+        "정제" in cleaned or "캡슐" in cleaned
+    ):
         return None
 
-    return f"{match.group(1)}-{int(match.group(2)):02d}-{int(match.group(3)):02d}"
-
-# 최후: 줄 단위 텍스트에서 처음 발견되는 날짜를 가져오는 함수
-def _extract_first_date(*line_groups: list[str]) -> str | None:
-    for lines in line_groups:
-        for line in lines:
-            match = re.search(r"(20\d{2})[-./](\d{2})[-./](\d{2})", line)
-            if match:
-                return f"{match.group(1)}-{match.group(2)}-{match.group(3)}"
-    return None
-
-# 약국 이름을 줄 단위 텍스트에서 찾는 함수
-def _extract_pharmacy_name(*line_groups: list[str]) -> str | None:
-    for lines in line_groups:
-        for index, line in enumerate(lines):
-            compact = line.replace(" ", "")
-            if "약국" in compact and "병원" not in compact:
-                if compact in {"약국", "상호", "상호명", "약국명"} and index + 1 < len(lines):
-                    return lines[index + 1].strip()
-
-                cleaned = re.sub(r"^(상호명|상호|약국명)\s*[:：]?\s*", "", line).strip()
-                return cleaned
-    return None
-
-# 좌표 기반으로 약국명을 찾는 함수
-def _extract_pharmacy_name_from_tokens(tokens: list[OcrToken]) -> str | None:
-    anchor = _find_anchor_token(tokens, ["상호", "상호명"])
-    if anchor is None:
+    if not _looks_like_medicine_name(cleaned):
         return None
+    return cleaned
 
-    same_row_tokens = [
-        token
-        for token in tokens
-        if token.center_x > anchor.x_max
-        and abs(token.center_y - anchor.center_y) <= 18
-    ]
-    if same_row_tokens:
-        same_row_tokens.sort(key=lambda token: token.center_x)
-        value = " ".join(token.text.strip() for token in same_row_tokens if token.text.strip()).strip()
-        return value or None
+# 약 이름 문자열을 더 기본적인 수준에서 정리
+def _clean_medicine_name(text: str) -> str:
+    value = re.sub(r"\[[^\]]*\]", " ", text)
+    value = re.sub(r"\([^)]*\)", " ", value)
+    value = re.sub(r"^[▶•*xX]+\s*", "", value)
+    value = re.sub(r"\s+", " ", value).strip(" :-")
+    return value
 
-    next_row_tokens = [
-        token
-        for token in tokens
-        if token.center_y > anchor.center_y
-        and token.center_y <= anchor.center_y + 40
-        and token.center_x >= anchor.x_min
-    ]
-    if next_row_tokens:
-        next_row_tokens.sort(key=lambda token: (token.center_y, token.center_x))
-        value = " ".join(token.text.strip() for token in next_row_tokens if token.text.strip()).strip()
-        return value or None
+# 어떤 문자열이 실제 약 이름처럼 보이는지 규칙 기반으로 판별
+def _looks_like_medicine_name(text: str) -> bool:
+    compact = text.replace(" ", "")
+    if len(compact) < 2:
+        return False
+    if any(keyword in compact for keyword in NAME_NOISE_KEYWORDS):
+        return False
+    return any(hint in compact for hint in MEDICINE_NAME_HINTS)
 
-    return None
+# 문자열 안에 특정 라벨 목록이 전부 들어 있는지 확인
+def _contains_all_labels(text: str, labels: list[str]) -> bool:
+    normalized = _normalize_anchor_text(text)
+    return any(_normalize_anchor_text(label) in normalized for label in labels)
 
-# 병원명 찾는 함수
-def _extract_hospital_name(*line_groups: list[str]) -> str | None:
-    for lines in line_groups:
-        joined = "\n".join(lines)
-        for suffix in HOSPITAL_SUFFIXES:
-            match = re.search(rf"([가-힣A-Za-z0-9]+{suffix})", joined)
-            if match:
-                return match.group(1)
-    return None
-
-# 토큰 여러 개를 공백으로 이어붙이는 함수
-def _join_token_text(tokens: list[OcrToken]) -> str | None:
-    value = " ".join(token.text.strip() for token in tokens if token.text.strip()).strip()
-    return value or None
-
-# 특수문자 제거하고 소문자로 바꿈
-def _normalize_anchor_text(text: str) -> str:
-    return re.sub(r"[^0-9A-Za-z가-힣]", "", text).lower()
-
-# 어떤 텍스트 안에 라벨 목록 중 하나가 들어있는지 확인
+# 문자열 안에 특정 라벨 목록 중 하나라도 들어 있는지 확인
 def _contains_any_label(text: str, labels: list[str]) -> bool:
     normalized = _normalize_anchor_text(text)
     return any(_normalize_anchor_text(label) in normalized for label in labels)
 
-# 라벨 토큰을 찾는 함수
+# OCR 토큰들 중에서 특정 기준 글자(anchor)에 해당하는 토큰을 찾아주는 함수
 def _find_anchor_token(tokens: list[OcrToken], labels: list[str]) -> OcrToken | None:
     candidates = [token for token in tokens if _contains_any_label(token.text, labels)]
     if not candidates:
         return None
-
     candidates.sort(key=lambda token: (token.center_y, token.center_x))
     return candidates[0]
 
-# OCR 토큰들을 줄 단위 문자열로 묶는 함수
+# anchor 탐색 전에 텍스트를 비교하기 쉽게 정규화
+def _normalize_anchor_text(text: str) -> str:
+    return re.sub(r"[^0-9A-Za-z가-힣]", "", text).lower()
+
+# 여러 OCR 토큰의 텍스트를 하나의 문자열로 이어붙이는 함수
+def _join_token_text(tokens: list[OcrToken]) -> str | None:
+    value = " ".join(token.text.strip() for token in tokens if token.text.strip()).strip()
+    return value or None
+
+# OCR 토큰들을 y좌표 기준으로 묶어서 줄 단위 문자열 목록으로 바꾸는 함수
 def _tokens_to_lines(tokens: list[OcrToken], y_tolerance: float = 18) -> list[str]:
     if not tokens:
         return []
 
-    sorted_tokens = sorted(tokens, key=lambda token: (token.center_y, token.center_x))
-    rows: list[list[OcrToken]] = []
-
-    for token in sorted_tokens:
-        if not rows:
-            rows.append([token])
-            continue
-
-        current = rows[-1]
-        current_y = sum(item.center_y for item in current) / len(current)
-        if abs(token.center_y - current_y) <= y_tolerance:
-            current.append(token)
-        else:
-            rows.append([token])
-
+    rows = _cluster_rows(tokens, y_tolerance=y_tolerance)
     lines: list[str] = []
     for row in rows:
         row.sort(key=lambda token: token.center_x)
         text = " ".join(token.text for token in row).strip()
         if text:
             lines.append(text)
-
     return lines
 
-# 줄 묶기 함수인데, 반환이 문자열이 아니라 토큰 행 리스트
+# OCR 토큰들을 같은 행(row)끼리 묶어주는 좌표 기반 유틸 함수
 def _cluster_rows(tokens: list[OcrToken], y_tolerance: float) -> list[list[OcrToken]]:
     sorted_tokens = sorted(tokens, key=lambda token: (token.center_y, token.center_x))
     rows: list[list[OcrToken]] = []
@@ -872,32 +816,12 @@ def _cluster_rows(tokens: list[OcrToken], y_tolerance: float) -> list[list[OcrTo
 
     return rows
 
-# 이 문자열이 약 이름처럼 보이는지 검사하는 함수
-def _looks_like_medicine_name(text: str) -> bool:
-    compact = text.replace(" ", "")
-    if len(compact) < 3:
-        return False
+# 정규식 패턴으로 문자열에서 원하는 값 하나를 뽑아내는 공용 함수
+def _extract_pattern_value(text: str, pattern: str) -> str | None:
+    match = re.search(pattern, text.replace(" ", ""))
+    return match.group(1) if match else None
 
-    if any(keyword in compact for keyword in NOISE_KEYWORDS):
-        return False
-
-    return any(hint in compact for hint in MEDICINE_NAME_HINTS)
-
-# 약 이름 후보 판단 함수
-def _looks_like_generic_table_medicine_name(text: str) -> bool:
-    compact = text.replace(" ", "")
-    if len(compact) < 2:
-        return False
-
-    if any(keyword in compact for keyword in NOISE_KEYWORDS):
-        return False
-
-    if re.search(r"(약품명|투약량|횟수|일수|복약안내|주의사항|영수증|환자정보|병원정보)", compact):
-        return False
-
-    return bool(re.search(r"[가-힣A-Za-z]", compact))
-
-# 텍스트에서 숫자를 뽑되, 너무 큰 숫자는 제외
+# 문자열 안에서 너무 크지 않은 숫자만 안전하게 뽑는 함수
 def _extract_small_number(text: str, max_value: int) -> str | None:
     for match in re.findall(r"\d+(?:\.\d+)?", text):
         value = float(match)
@@ -905,15 +829,13 @@ def _extract_small_number(text: str, max_value: int) -> str | None:
             return match
     return None
 
-# 특정 약 이름 줄과 y좌표가 가장 가까운 숫자를 고르는 함수
+# 특정 y위치 근처 토큰들 중 가장 가까운 작은 숫자를 골라내는 함수
 def _pick_nearest_small_number(tokens: list[OcrToken], target_y: float, max_value: int) -> str | None:
     candidates: list[tuple[float, str]] = []
-
     for token in tokens:
         value = _extract_small_number(token.text, max_value)
         if value is None:
             continue
-
         distance = abs(token.center_y - target_y)
         if distance <= 28:
             candidates.append((distance, value))
@@ -924,50 +846,19 @@ def _pick_nearest_small_number(tokens: list[OcrToken], target_y: float, max_valu
     candidates.sort(key=lambda item: item[0])
     return candidates[0][1]
 
-# 문장 한 줄에서 약 이름만 뽑는 함수
-def _extract_medicine_name_from_line(text: str) -> str | None:
-    compact = text.replace(" ", "")
-    match = re.search(r"([가-힣A-Za-z0-9]+(?:정|캡슐|서방정|산|시럽)\d*(?:mg|ml)?)", compact)
-    if not match:
-        match = re.search(r"([가-힣A-Za-z0-9]+(?:정|캡슐|서방정|산|시럽))", compact)
-
-    if not match:
-        return None
-
-    candidate = match.group(1).strip()
-    return candidate if _looks_like_medicine_name(candidate) else None
-
-# 복용법 문장에서 dosage/frequency/days를 한 번에 뽑는 함수
-def _extract_dosage_instruction(text: str) -> dict[str, str] | None:
-    compact = text.replace(" ", "")
-    match = re.search(r"(\d+)(정|캡슐|포|ml)(?:씩)?(\d+)회(\d+)일분", compact)
-    if not match:
-        return None
-
-    return {
-        "dosage": match.group(1),
-        "frequency": match.group(3),
-        "days": match.group(4),
-    }
-
-# 정규식으로 첫 번째 그룹만 뽑아주는 공용 함수
-def _extract_pattern_value(text: str, pattern: str) -> str | None:
-    match = re.search(pattern, text)
-    return match.group(1) if match else None
-
-# 이미지를 프론트에서 바로 보여줄 수 있는 base64 문자열로 바꾸는 함수
+# 이미지 배열을 브라우저 미리보기용 PNG data URL 문자열로 바꾸는 함수
 def _to_png_data_url(image_array: np.ndarray) -> str:
     encoded = base64.b64encode(_to_png_bytes(image_array)).decode("ascii")
     return f"data:image/png;base64,{encoded}"
 
-# numpy 이미지 배열을 PNG 바이트로 바꾸는 함수
+# 이미지 배열을 PNG 바이트 데이터로 변환하는 함수
 def _to_png_bytes(image_array: np.ndarray) -> bytes:
     image = Image.fromarray(image_array.astype(np.uint8))
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     return buffer.getvalue()
 
-# Google Vision OCR 클라이언트를 만드는 함수
+
 def _get_ocr_client() -> vision.ImageAnnotatorClient:
     global _ocr_client
 
@@ -998,7 +889,7 @@ def _get_ocr_client() -> vision.ImageAnnotatorClient:
 
     return _ocr_client
 
-# AWS S3 클라이언트를 만드는 함수
+
 def _get_s3_client():
     global _s3_client
 
