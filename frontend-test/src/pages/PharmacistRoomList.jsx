@@ -150,6 +150,13 @@ const PharmacistRoomList = () => {
                                     )}
                                 </div>
                             )}
+
+                            {activeTab === 'CLOSED' && room.aiConsultationSummary && (
+                                <div style={summaryBoxStyle}>
+                                    <div style={summaryTitleStyle}>AI 상담 요약</div>
+                                    <div style={summaryTextStyle}>{room.aiConsultationSummary}</div>
+                                </div>
+                            )}
                             
                             <div style={actionAreaStyle}>
                                 {activeTab === 'PENDING' && (
@@ -328,6 +335,28 @@ const feedbackBoxStyle = {
     backgroundColor: '#fffbeb',
     borderRadius: '12px',
     border: '1px solid #fde68a'
+};
+
+const summaryBoxStyle = {
+    marginTop: '10px',
+    padding: '14px 15px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0'
+};
+
+const summaryTitleStyle = {
+    fontSize: '13px',
+    fontWeight: '700',
+    color: '#2563eb',
+    marginBottom: '8px'
+};
+
+const summaryTextStyle = {
+    fontSize: '14px',
+    color: '#334155',
+    lineHeight: '1.6',
+    whiteSpace: 'pre-wrap'
 };
 
 export default PharmacistRoomList;
