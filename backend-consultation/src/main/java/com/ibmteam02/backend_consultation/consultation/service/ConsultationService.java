@@ -51,7 +51,7 @@ public class ConsultationService {
                 .createdAt(session.getCreatedAt())
                 .firstMessage(firstMessage)
                 .customerName(customerName)
-                .aiConsultationSummary(session.getAiAnswerGuide())
+                .aiConsultationSummary(session.getAiSummary())
                 .rating(feedback != null ? feedback.getRating() : null)
                 .feedbackComment(feedback != null ? feedback.getComment() : null)
                 .build();
