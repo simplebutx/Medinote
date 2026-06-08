@@ -1,21 +1,17 @@
 package com.ibmteam02.backend_consultation.consultation.domain;
 
+import com.ibmteam02.backend_consultation.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EntityListeners(AuditingEntityListener.class)
 @Table(name = "consultation_messages")
-public class ConsultationMessage {
+public class ConsultationMessage extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,10 +30,6 @@ public class ConsultationMessage {
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content; // 메세지 내용
-
-    @CreatedDate
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
 
     @Builder
     private ConsultationMessage(ConsultationSession session, Long senderId, SenderType senderType, String content){

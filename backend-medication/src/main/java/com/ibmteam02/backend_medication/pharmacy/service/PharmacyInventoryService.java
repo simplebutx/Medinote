@@ -16,7 +16,7 @@ public class PharmacyInventoryService {
 
     private final PharmacyInventoryRepository pharmacyInventoryRepository;
 
-    //약사 약국 재고 저장
+    //약사 약국 재고 저장 , 수정
     @Transactional
     public void savePharmacyInventory(Long pharmacistId, PharmacyInventoryRequest pharmacyInventoryRequest){
         //itemSeq
@@ -49,5 +49,18 @@ public class PharmacyInventoryService {
     @Transactional(readOnly = true)
     public List<PharmacyInventory> getMyInventory(Long pharmacistId){
         return pharmacyInventoryRepository.findByPharmacistId(pharmacistId);
+    }
+
+    //약사 재고 삭제
+    @Transactional
+    public void deleteInventory(Long pharmacistId, Long inventoryId){
+        PharmacyInventory inventory = pharmacyInventoryRepository.findById(inventoryId)
+                .orElseThrow(()-> new IllegalArgumentException("재고 정보를 찾을 수 없습니다"));
+
+        if (inventory.getPharmacistId() == null || !inventory.getPharmacistId().equals(pharmacistId)){
+            throw new IllegalStateException("삭제 권한이 없습니다");
+        }
+
+        pharmacyInventoryRepository.delete(inventory);
     }
 }

@@ -1,5 +1,6 @@
 package com.ibmteam02.backend_medication.prescription.domain;
 
+import com.ibmteam02.backend_medication.global.common.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -8,9 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,7 +19,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "ocr_result")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class OcrResult {
+public class OcrResult extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,12 +46,6 @@ public class OcrResult {
 
     @Column(name = "ocr_engine", length = 100)
     private String ocrEngine;  // 디버깅용
-
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
 
     @Builder
     public OcrResult(
@@ -103,18 +96,9 @@ public class OcrResult {
     }
 
     @PrePersist
-    void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        this.createdAt = now;
-        this.updatedAt = now;
-
+    void onPrePersist() {
         if (this.status == null) {
             this.status = OcrResultStatus.PRESIGNED_ISSUED;
         }
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
     }
 }

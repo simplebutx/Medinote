@@ -27,7 +27,6 @@ const PharmacistInventory = () => {
         fetchInventory();
     }, [navigate]);
 
-    // 내 약국 정보 가져오기 (hpid 확보용)
     const fetchMyPharmacy = async () => {
         try {
             const hpid = `MOCK_${session.userId}`;
@@ -38,7 +37,6 @@ const PharmacistInventory = () => {
         }
     };
 
-    // 내 약국 재고 목록 가져오기
     const fetchInventory = async () => {
         try {
             const res = await axios.get('/api/pharmacist/inventory', {
@@ -50,7 +48,6 @@ const PharmacistInventory = () => {
         }
     };
 
-    // 약품 검색 로직
     const handleSearch = async (targetKeyword) => {
         const trimmed = targetKeyword.trim();
         if (!trimmed) return;
@@ -72,26 +69,18 @@ const PharmacistInventory = () => {
         const value = e.target.value;
         setKeyword(value);
 
-        if (debounceTimeoutRef.current) {
-            clearTimeout(debounceTimeoutRef.current);
-        }
+        if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
 
         const trimmed = value.trim();
-        latestKeywordRef.current = trimmed;
+        latestKeywordRef.current = trimmed
 
-        if (!trimmed) {
-            setSuggestions([]);
-            return;
-        }
+        if (!trimmed) { setSuggestions([]); return; }
 
         debounceTimeoutRef.current = setTimeout(async () => {
             try {
                 const items = await suggestMedicines(trimmed);
-                if (latestKeywordRef.current !== trimmed) return;
-                setSuggestions(items);
-            } catch (error) {
-                if (latestKeywordRef.current === trimmed) setSuggestions([]);
-            }
+                if (latestKeywordRef.current === trimmed) setSuggestions(items);
+            } catch { setSuggestions([]); }
         }, 200);
     };
 
@@ -100,13 +89,11 @@ const PharmacistInventory = () => {
         handleSearch(s);
     };
 
-    // 재고 등록 함수
     const addToInventory = async (medicine) => {
         if (!myPharmacy) {
             alert('먼저 마이페이지에서 약국 정보를 등록해 주세요.');
             return;
         }
-
         const stockAmount = prompt(`${medicine.itemName}의 현재 재고량을 입력하세요:`, '100');
         if (stockAmount === null) return;
 
@@ -126,7 +113,6 @@ const PharmacistInventory = () => {
         }
     };
 
-    // 재고 수정 함수
     const updateStock = async (item) => {
         const newAmount = prompt(`${item.itemName}의 수정할 재고량을 입력하세요:`, item.stockQuantity.toString());
         if (newAmount === null) return;
@@ -147,6 +133,36 @@ const PharmacistInventory = () => {
         }
     };
 
+    const deleteInventory = async (item) => {
+        if (!item || !item.id) return;
+        if (!window.confirm(`[${item.itemName}] 재고 정보를 정말로 삭제하시겠습니까?`)) return;
+
+        try {
+            await axios.delete(`/api/pharmacist/inventory/${item.id}`, {
+                headers: { Authorization: `Bearer ${session.accessToken}` }
+            });
+            alert('삭제되었습니다.');
+            fetchInventory();
+        } catch (error) {
+            alert('삭제 실패: ' + (error.response?.data?.message || error.message));
+        }
+    };
+
+    const formatDate = (dateStr) => {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        
+        const pad = (n) => n.toString().padStart(2, '0');
+        const year = d.getFullYear();
+        const month = pad(d.getMonth() + 1);
+        const day = pad(d.getDate());
+        const hours = pad(d.getHours());
+        const minutes = pad(d.getMinutes());
+
+        return `${year}-${month}-${day} ${hours}:${minutes}`;
+    };
+
     return (
         <div style={containerStyle}>
             <header style={headerStyle}>
@@ -158,11 +174,11 @@ const PharmacistInventory = () => {
                 )}
             </header>
 
-            <div style={layoutStyle}>
-                {/* 왼쪽: 재고 등록 (검색) */}
+            <div style={verticalLayoutStyle}>
+                {/* 상단: 새 약품 검색 및 등록 */}
                 <div style={sectionStyle}>
                     <h3 style={sectionTitleStyle}>새 약품 검색 및 등록</h3>
-                    <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'relative', maxWidth: '600px' }}>
                         <div style={searchFormStyle}>
                             <input 
                                 type="text" 
@@ -174,36 +190,28 @@ const PharmacistInventory = () => {
                             />
                             <button onClick={() => handleSearch(keyword)} style={buttonStyle}>검색</button>
                         </div>
-                        
                         {suggestions.length > 0 && (
                             <ul style={suggestionListStyle}>
-                                {suggestions.map((s) => (
-                                    <li key={s} style={suggestionItemStyle} onClick={() => handleSuggestionClick(s)}>
-                                        {s}
-                                    </li>
-                                ))}
+                                {suggestions.map((s) => <li key={s} style={suggestionItemStyle} onClick={() => handleSuggestionClick(s)}>{s}</li>)}
                             </ul>
                         )}
                     </div>
 
-                    <div style={resultListStyle}>
+                    <div style={resultRowStyle}>
                         {loading ? <p>검색 중...</p> : searchResults.map((med) => (
                             <div key={med.itemSeq} style={medItemStyle}>
                                 <div style={{ flex: 1 }}>
-                                    <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{med.itemName}</div>
+                                    <div style={{ fontWeight: 'bold' }}>{med.itemName}</div>
                                     <div style={{ fontSize: '12px', color: '#64748b' }}>{med.companyName} | #{med.itemSeq}</div>
                                 </div>
                                 <button onClick={() => addToInventory(med)} style={addButtonStyle}>재고 등록</button>
                             </div>
                         ))}
-                        {!loading && keyword && searchResults.length === 0 && (
-                            <p style={{ fontSize: '13px', color: '#94a3b8', textAlign: 'center', marginTop: '20px' }}>검색 결과가 없습니다.</p>
-                        )}
                     </div>
                 </div>
 
-                {/* 오른쪽: 보유 재고 목록 */}
-                <div style={{ ...sectionStyle, flex: 1.5 }}>
+                {/* 하단: 우리 약국 보유 재고 목록 */}
+                <div style={sectionStyle}>
                     <h3 style={sectionTitleStyle}>우리 약국 보유 재고 ({myInventory.length})</h3>
                     <div style={{ overflowX: 'auto' }}>
                         <table style={tableStyle}>
@@ -212,15 +220,14 @@ const PharmacistInventory = () => {
                                     <th style={thStyle}>약품명</th>
                                     <th style={thStyle}>제조사</th>
                                     <th style={thStyle}>현재 재고</th>
-                                    <th style={thStyle}>마지막 수정</th>
+                                    <th style={thStyle}>최초 등록일</th>
+                                    <th style={thStyle}>마지막 수정일</th>
                                     <th style={thStyle}>관리</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {myInventory.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>등록된 재고가 없습니다.</td>
-                                    </tr>
+                                    <tr><td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>등록된 재고가 없습니다.</td></tr>
                                 ) : myInventory.map((item) => (
                                     <tr key={item.id} style={trStyle}>
                                         <td style={tdStyle}>
@@ -233,9 +240,13 @@ const PharmacistInventory = () => {
                                                 {item.stockQuantity}개
                                             </span>
                                         </td>
-                                        <td style={tdStyle}>{new Date(item.updatedAt).toLocaleDateString()}</td>
+                                        <td style={tdStyle}>{formatDate(item.createdAt)}</td>
+                                        <td style={tdStyle}>{formatDate(item.updatedAt)}</td>
                                         <td style={tdStyle}>
-                                            <button onClick={() => updateStock(item)} style={editButtonStyle}>수정</button>
+                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                                <button onClick={() => updateStock(item)} style={editButtonStyle}>수정</button>
+                                                <button onClick={() => deleteInventory(item)} style={deleteButtonStyle}>삭제</button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -251,22 +262,23 @@ const PharmacistInventory = () => {
 // --- Styles ---
 const containerStyle = { padding: '40px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' };
 const headerStyle = { marginBottom: '30px', borderBottom: '1px solid #e2e8f0', paddingBottom: '20px' };
-const layoutStyle = { display: 'flex', gap: '30px', alignItems: 'flex-start' };
-const sectionStyle = { backgroundColor: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', flex: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' };
+const verticalLayoutStyle = { display: 'flex', flexDirection: 'column', gap: '30px' };
+const sectionStyle = { backgroundColor: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' };
 const sectionTitleStyle = { fontSize: '18px', fontWeight: 'bold', marginBottom: '20px', color: '#1e293b' };
 const searchFormStyle = { display: 'flex', gap: '8px', marginBottom: '10px' };
 const inputStyle = { flex: 1, padding: '12px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px' };
 const buttonStyle = { padding: '10px 20px', backgroundColor: '#0f172a', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' };
-const suggestionListStyle = { position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 10, listStyle: 'none', padding: 0, margin: 0, maxHeight: '200px', overflowY: 'auto' };
+const suggestionListStyle = { position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 10, listStyle: 'none', padding: 0, margin: 0, maxHeight: '200px', overflowY: 'auto' };
 const suggestionItemStyle = { padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '14px' };
-const resultListStyle = { display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px', maxHeight: '500px', overflowY: 'auto' };
-const medItemStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' };
+const resultRowStyle = { display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '10px' };
+const medItemStyle = { display: 'flex', gap: '15px', alignItems: 'center', padding: '12px 20px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9', minWidth: '300px' };
 const addButtonStyle = { padding: '8px 16px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' };
 const tableStyle = { width: '100%', borderCollapse: 'collapse' };
 const tableHeaderStyle = { borderBottom: '2px solid #f1f5f9', textAlign: 'left' };
 const thStyle = { padding: '15px 12px', color: '#64748b', fontSize: '13px', fontWeight: '600' };
 const trStyle = { borderBottom: '1px solid #f1f5f9' };
 const tdStyle = { padding: '15px 12px', fontSize: '13px' };
-const editButtonStyle = { padding: '6px 12px', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '500' };
+const editButtonStyle = { padding: '6px 12px', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' };
+const deleteButtonStyle = { padding: '6px 12px', backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' };
 
 export default PharmacistInventory;

@@ -1,20 +1,18 @@
 package com.ibmteam02.backend_medication.pharmacy.domain;
 
+import com.ibmteam02.backend_medication.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.LastModifiedDate;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "pharmacist_inventory")
-public class PharmacyInventory {
+public class PharmacyInventory extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,9 +34,6 @@ public class PharmacyInventory {
 
     @Column(nullable = false)
     private Integer stockQuantity; //재고 수량
-
-    @LastModifiedDate
-    private LocalDateTime updatedAt; // 마지막 수정 날짜
 
     @Builder
     public PharmacyInventory(Long pharmacistId, String pharmacyHpid, String itemSeq,

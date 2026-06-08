@@ -1,23 +1,18 @@
 package com.ibmteam02.backend_consultation.chatbot.domain;
 
+import com.ibmteam02.backend_consultation.global.common.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 
 @Entity
 @NoArgsConstructor
 @Getter
-public class ChatbotRoom {
-    private static final ZoneId CHATBOT_ZONE = ZoneId.of("Asia/Seoul");
+public class ChatbotRoom extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,12 +23,6 @@ public class ChatbotRoom {
 
     @Column(nullable = false)
     private String title;  // 채팅방 이름
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
 
     private ChatbotRoom(Long userId, String title) {
         this.userId = userId;
@@ -49,18 +38,6 @@ public class ChatbotRoom {
     }
 
     public void touch() {
-        this.updatedAt = LocalDateTime.now(CHATBOT_ZONE);
-    }
-
-    @PrePersist
-    protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now(CHATBOT_ZONE);
-        this.createdAt = now;
-        this.updatedAt = now;
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now(CHATBOT_ZONE);
+        super.preUpdate();
     }
 }

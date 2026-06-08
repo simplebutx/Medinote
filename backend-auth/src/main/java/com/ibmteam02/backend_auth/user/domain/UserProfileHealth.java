@@ -1,18 +1,14 @@
 package com.ibmteam02.backend_auth.user.domain;
 
+import com.ibmteam02.backend_auth.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @Table(name = "user_profile_health")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class UserProfileHealth {
+public class UserProfileHealth extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -38,13 +34,6 @@ public class UserProfileHealth {
 
     @Column(nullable = false)
     private Boolean isElderly = false; // 고령 여부
-
-    @CreatedDate
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    private LocalDateTime updatedAt;
 
     @Builder
     public UserProfileHealth(User user, Boolean isPregnant, Boolean isBreastfeeding, Boolean isSmoking, Boolean isDrinking, Boolean isChild, Boolean isElderly){

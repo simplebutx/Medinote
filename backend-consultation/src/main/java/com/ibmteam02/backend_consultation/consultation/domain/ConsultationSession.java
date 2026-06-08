@@ -1,22 +1,17 @@
 package com.ibmteam02.backend_consultation.consultation.domain;
 
+import com.ibmteam02.backend_consultation.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EntityListeners(AuditingEntityListener.class)
 @Table(name = "consultation_session") //약사 상담 대화방
-public class ConsultationSession {
+public class ConsultationSession extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,21 +32,12 @@ public class ConsultationSession {
     @Column(columnDefinition = "TEXT")
     private String aiAnswerGuide; //AI 답변 가이드
 
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    private LocalDateTime updatedAt;
-
     @Builder
-    private ConsultationSession(Long id, Long customerId, Long pharmacistId, SessionStatus status,LocalDateTime createdAt,LocalDateTime updatedAt){
+    private ConsultationSession(Long id, Long customerId, Long pharmacistId, SessionStatus status){
         this.id = id;
         this.customerId = customerId;
         this.pharmacistId = pharmacistId;
         this.status = status != null ? status : SessionStatus.PENDING; //약사 매칭 전 상태값
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
     }
 
     // 대화방 session 생성

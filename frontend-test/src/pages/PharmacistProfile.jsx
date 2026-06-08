@@ -242,7 +242,15 @@ const PharmacistProfile = () => {
                         <div style={infoItemVerticalStyle}><span style={labelStyle}>소속 약국명</span><strong>{profile.docNumber || '미등록'}</strong></div>
                         <div style={infoItemVerticalStyle}><span style={labelStyle}>약사 면허번호</span><strong>{profile.licenseNumber || '미등록'}</strong></div>
                         <div style={imageContainerStyle}>
-                            {profile.licenseImage ? <img src={profile.licenseImage} alt="License" style={{ maxWidth: '100%', borderRadius: '8px' }} /> : '등록된 이미지 없음'}
+                            {profile.licenseImage && profile.licenseImage !== 'DELETED_DUE_TO_PRIVACY' ? (
+                                <img src={profile.licenseImage} alt="License" style={{ maxWidth: '100%', borderRadius: '8px' }} />
+                            ) : profile.licenseImage === 'DELETED_DUE_TO_PRIVACY' ? (
+                                <div style={{ padding: '30px', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', color: '#059669', fontWeight: 'bold' }}>
+                                    ✅ 인증 승인이 완료되어, 개인정보 보호를 위해 이미지가 안전하게 파기되었습니다.
+                                </div>
+                            ) : (
+                                <div style={{ padding: '30px', color: '#94a3b8' }}>등록된 이미지가 없습니다.</div>
+                            )}
                         </div>
                     </div>
                 </div>
