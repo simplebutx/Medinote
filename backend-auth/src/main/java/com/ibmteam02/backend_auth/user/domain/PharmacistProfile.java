@@ -52,4 +52,8 @@ public class PharmacistProfile {
             this.licenseImage = licenseImage;
         }
     }
+
+    public void clearLicenseImage(){
+        this.licenseImage = "DELETED_DUE_TO_PRIVACY";
+    }
 }

@@ -1,18 +1,17 @@
 package com.ibmteam02.backend_auth.user.domain;
 
+import com.ibmteam02.backend_auth.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @Table(name = "users")
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class User {
+public class User extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,12 +38,6 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(length = 50)
     private UserStatus status; // WAITING_APPROVAL, ACTIVE
-
-    @CreationTimestamp
-    @Column(updatable = false)
-    private LocalDateTime createdAt; // 가입일
-
-    private LocalDateTime updatedAt;
 
     @Builder
     public User(String email, String password, String username, LocalDate birthDate, Gender gender, Role role) {

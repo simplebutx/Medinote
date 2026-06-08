@@ -1,6 +1,7 @@
 package com.ibmteam02.backend_consultation.chatbot.domain;
 
 import com.ibmteam02.backend_consultation.chatbot.dto.SenderType;
+import com.ibmteam02.backend_consultation.global.common.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,18 +12,13 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 
 @Entity
 @NoArgsConstructor
 @Getter
-public class ChatbotMessage {
-    private static final ZoneId CHATBOT_ZONE = ZoneId.of("Asia/Seoul");
+public class ChatbotMessage extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,9 +35,6 @@ public class ChatbotMessage {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
     private ChatbotMessage(ChatbotRoom chatbotRoom, SenderType senderType, String content) {
         this.chatbotRoom = chatbotRoom;
         this.senderType = senderType;
@@ -54,10 +47,5 @@ public class ChatbotMessage {
 
     public void updateContent(String content) {
         this.content = content;
-    }
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now(CHATBOT_ZONE);
     }
 }

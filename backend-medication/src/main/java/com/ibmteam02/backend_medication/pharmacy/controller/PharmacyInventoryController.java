@@ -42,4 +42,17 @@ public class PharmacyInventoryController {
         List<PharmacyInventory> inventory = pharmacyInventoryService.getMyInventory(pharmacistId);
         return ResponseEntity.ok(inventory);
     }
+
+    //약사 재고 삭제
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteInventory(
+            @RequestHeader("Authorization") String bearerToken,
+            @PathVariable Long id
+    ){
+        String token = bearerToken.substring(7);
+        Long pharmacistId = jwtProvider.getUserIdFromToken(token);
+
+        pharmacyInventoryService.deleteInventory(pharmacistId,id);
+        return ResponseEntity.ok("재고 삭제 완료");
+    }
 }

@@ -1,16 +1,13 @@
 package com.ibmteam02.backend_medication.schedule.domain;
 
+import com.ibmteam02.backend_medication.global.common.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,9 +17,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "medication_schedule")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class MedicationSchedule {
-
-    private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
+public class MedicationSchedule extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,12 +37,6 @@ public class MedicationSchedule {
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
-
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
 
     @Builder
     public MedicationSchedule(
@@ -76,17 +65,5 @@ public class MedicationSchedule {
         this.pharmacyName = pharmacyName;
         this.dispensedDate = dispensedDate;
         this.isActive = isActive;
-    }
-
-    @PrePersist
-    void onCreate() {
-        LocalDateTime now = LocalDateTime.now(SCHEDULE_ZONE);
-        this.createdAt = now;
-        this.updatedAt = now;
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        this.updatedAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
 }

@@ -1,20 +1,17 @@
 package com.ibmteam02.backend_consultation.consultation.domain;
 
+import com.ibmteam02.backend_consultation.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-
-import java.time.LocalDateTime;
 
 @Getter
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EntityListeners(AutoCloseable.class)
 @Table(name = "consultation_feedbacks")
-public class ConsultationFeedback {
+public class ConsultationFeedback extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,10 +28,6 @@ public class ConsultationFeedback {
     private Integer rating; //별점
 
     private String comment; //한줄평
-
-    @CreatedDate
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
 
     @Builder
     private ConsultationFeedback(ConsultationSession session, Long pharmacistId, Integer rating, String comment) {
