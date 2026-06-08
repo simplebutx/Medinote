@@ -2,50 +2,43 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   createChatbotRoom,
-  deleteChatbotRoom,
   deleteChatbotMessage,
+  deleteChatbotRoom,
+  getCautions,
   getChatbotMessages,
   getChatbotRooms,
+  getMyProfile,
   sendChatbotMessage,
   suggestMedicines,
   updateChatbotRoom,
 } from '../api'
 
 const introExampleQuestions = [
-  '약 복용법 확인',
-  '약 부작용 확인',
-  '내가 복약중인 약 확인',
+  '복용법 확인',
+  '부작용 확인',
+  '내가 복용 중인 약인지 확인',
   '같이 먹어도 되는지 확인',
   '임산부 주의사항 확인',
 ]
 
-const profileContextSections = [
-  {
-    title: '내 건강상태',
-    items: ['수유 중', '고령자'],
-  },
-  {
-    title: '기저질환',
-    items: ['고혈압', '위장질환'],
-  },
-  {
-    title: '못 먹는 약/성분',
-    items: ['아스피린', '페니실린'],
-  },
+const healthContextLabels = [
+  { key: 'isPregnant', label: '임신 중' },
+  { key: 'isBreastfeeding', label: '수유 중' },
+  { key: 'isSmoking', label: '흡연 중' },
+  { key: 'isDrinking', label: '음주 중' },
 ]
 
 const CONSULT_PREFILL_STORAGE_KEY = 'chatConsultPrefillMessage'
-const FALLBACK_DISPLAY_MESSAGE = '현재 제공된 약 문서만으로는 답변하기 어렵습니다. 약사 상담으로 이어서 확인해 주세요.'
+const DEFAULT_ROOM_TITLE = '새 대화'
+const FALLBACK_DISPLAY_MESSAGE =
+  '입력하신 내용은 전문가의 확인이 필요해요. 약사 상담을 통해 자세히 확인해 주세요.'
 const INCONCLUSIVE_ANSWER_MARKERS = [
   '확인할 수 없',
-  '확인이 어렵',
-  '답변이 어렵',
-  '확답을 드릴 수 없',
-  '확답을 드리기 어렵',
+  '확인이 어려',
+  '답변이 어려',
+  '정답을 드릴 수 없',
   '문서에 포함되어 있지 않',
-  '포함되어 있지 않',
-  '직접 관련된 내용을 찾기 어렵',
-  '근거를 찾기 어렵',
+  '직접 관련된 내용을 찾기 어려',
 ]
 
 function renderHighlightedText(message, confirmedMentions) {
@@ -109,7 +102,7 @@ function formatMessageTime(value) {
 function mapRoom(room) {
   return {
     id: room.roomId,
-    title: room.title || '새 대화',
+    title: room.title || DEFAULT_ROOM_TITLE,
     updatedAt: formatRoomTime(room.updatedAt ?? room.createdAt),
   }
 }
@@ -138,7 +131,10 @@ function splitChatContent(content) {
 
 function isInconclusiveAnswer(content) {
   if (!content) return false
-  return INCONCLUSIVE_ANSWER_MARKERS.some((marker) => content.includes(marker))
+  return (
+    content.includes('답변드리기 어렵습니다') ||
+    INCONCLUSIVE_ANSWER_MARKERS.some((marker) => content.includes(marker))
+  )
 }
 
 function findPreviousUserQuestion(messages, currentIndex) {
@@ -148,6 +144,59 @@ function findPreviousUserQuestion(messages, currentIndex) {
     }
   }
   return ''
+}
+
+function isSeniorUser(birthDate) {
+  if (!birthDate) return false
+
+  const date = new Date(birthDate)
+  if (Number.isNaN(date.getTime())) return false
+
+  const today = new Date()
+  let age = today.getFullYear() - date.getFullYear()
+  const birthdayPassed =
+    today.getMonth() > date.getMonth() ||
+    (today.getMonth() === date.getMonth() && today.getDate() >= date.getDate())
+
+  if (!birthdayPassed) {
+    age -= 1
+  }
+
+  return age >= 65
+}
+
+function uniqueValues(items) {
+  return [...new Set(items.filter(Boolean))]
+}
+
+function buildProfileSections(profile, cautions) {
+  const healthItems = uniqueValues([
+    ...healthContextLabels.filter((item) => profile?.[item.key]).map((item) => item.label),
+    isSeniorUser(profile?.birthDate) ? '고령자' : null,
+  ])
+
+  const diseaseItems = uniqueValues(profile?.chronicDiseases ?? [])
+  const cautionItems = uniqueValues(
+    (cautions ?? []).map((item) => item.itemName || item.ingredientName || null),
+  )
+
+  return [
+    {
+      title: '내 건강상태',
+      items: healthItems,
+      emptyLabel: '등록된 건강상태 없음',
+    },
+    {
+      title: '기저질환',
+      items: diseaseItems,
+      emptyLabel: '등록된 기저질환 없음',
+    },
+    {
+      title: '못 먹는 약/성분',
+      items: cautionItems,
+      emptyLabel: '등록된 주의 약/성분 없음',
+    },
+  ]
 }
 
 function ChatbotPage() {
@@ -164,6 +213,10 @@ function ChatbotPage() {
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [openMenuRoomId, setOpenMenuRoomId] = useState(null)
   const [openMessageMenuId, setOpenMessageMenuId] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [cautions, setCautions] = useState([])
+  const [loadingProfileContext, setLoadingProfileContext] = useState(false)
+  const [profileContextError, setProfileContextError] = useState('')
 
   const debounceTimeoutRef = useRef(null)
   const latestRequestIdRef = useRef(0)
@@ -171,8 +224,14 @@ function ChatbotPage() {
   const tempMessageIdRef = useRef(1)
 
   const pageDescription = useMemo(
-    () => 'AI 의약품 정보 도우미으로 복약 정보를 먼저 확인하고, 필요한 경우 상담으로 이어갈 수 있습니다.',
+    () =>
+      'AI 의약품 정보 도우미로 복약 정보를 먼저 확인하고, 필요하면 약사 상담으로 이어갈 수 있습니다.',
     [],
+  )
+
+  const profileSections = useMemo(
+    () => buildProfileSections(profile, cautions),
+    [profile, cautions],
   )
 
   useEffect(() => {
@@ -186,29 +245,64 @@ function ChatbotPage() {
   useEffect(() => {
     const fetchRooms = async () => {
       setLoadingRooms(true)
+
       try {
         const data = await getChatbotRooms()
         const mappedRooms = (data || []).map(mapRoom)
         setRooms(mappedRooms)
         setSelectedRoomId((prev) => prev ?? mappedRooms[0]?.id ?? null)
       } catch (error) {
-        console.error('챗봇 대화방 목록 조회 실패:', error)
+        console.error('챗봇 대화 목록 조회 실패:', error)
       } finally {
         setLoadingRooms(false)
       }
     }
 
-    fetchRooms()
+    void fetchRooms()
+  }, [])
+
+  useEffect(() => {
+    const fetchProfileContext = async () => {
+      setLoadingProfileContext(true)
+      setProfileContextError('')
+
+      const [profileResult, cautionResult] = await Promise.allSettled([
+        getMyProfile(),
+        getCautions(),
+      ])
+
+      if (profileResult.status === 'fulfilled') {
+        setProfile(profileResult.value)
+      } else {
+        console.error('사용자 프로필 조회 실패:', profileResult.reason)
+        setProfile(null)
+      }
+
+      if (cautionResult.status === 'fulfilled') {
+        setCautions(cautionResult.value || [])
+      } else {
+        console.error('주의 약/성분 조회 실패:', cautionResult.reason)
+        setCautions([])
+      }
+
+      if (profileResult.status === 'rejected' && cautionResult.status === 'rejected') {
+        setProfileContextError('건강상태 정보를 불러오지 못했습니다.')
+      }
+
+      setLoadingProfileContext(false)
+    }
+
+    void fetchProfileContext()
   }, [])
 
   useEffect(() => {
     if (!selectedRoomId) {
-      setMessages([])
       return
     }
 
     const fetchMessages = async () => {
       setLoadingMessages(true)
+
       try {
         const data = await getChatbotMessages(selectedRoomId)
         setMessages((data || []).map(mapMessage))
@@ -220,7 +314,7 @@ function ChatbotPage() {
       }
     }
 
-    fetchMessages()
+    void fetchMessages()
   }, [selectedRoomId])
 
   const clearSuggestions = () => {
@@ -239,6 +333,7 @@ function ChatbotPage() {
   const handleMoveToConsultation = (question) => {
     const trimmedQuestion = question.trim()
     if (!trimmedQuestion) return
+
     sessionStorage.setItem(CONSULT_PREFILL_STORAGE_KEY, trimmedQuestion)
     navigate('/app/chat', {
       state: {
@@ -260,8 +355,8 @@ function ChatbotPage() {
       closeMessageMenu()
       clearSuggestions()
     } catch (error) {
-      console.error('챗봇 대화방 생성 실패:', error)
-      alert('대화방 생성에 실패했습니다.')
+      console.error('챗봇 대화 생성 실패:', error)
+      alert('대화를 생성하지 못했습니다.')
     }
   }
 
@@ -272,12 +367,12 @@ function ChatbotPage() {
 
   const handleRenameRoom = async (event, room) => {
     event.stopPropagation()
-    const nextTitle = window.prompt('대화방 이름을 입력하세요.', room.title)
+    const nextTitle = window.prompt('대화 이름을 입력해 주세요.', room.title)
     if (nextTitle == null) return
 
     const trimmedTitle = nextTitle.trim()
     if (!trimmedTitle) {
-      alert('대화방 이름은 비워둘 수 없습니다.')
+      alert('대화 이름은 비워둘 수 없습니다.')
       return
     }
 
@@ -296,29 +391,31 @@ function ChatbotPage() {
       )
       closeRoomMenu()
     } catch (error) {
-      console.error('챗봇 대화방 이름 수정 실패:', error)
-      alert('대화방 이름 수정에 실패했습니다.')
+      console.error('챗봇 대화 이름 수정 실패:', error)
+      alert('대화 이름을 수정하지 못했습니다.')
     }
   }
 
   const handleDeleteRoom = async (event, room) => {
     event.stopPropagation()
-    if (!window.confirm(`"${room.title}" 대화방을 삭제할까요?`)) return
+    if (!window.confirm(`"${room.title}" 대화를 삭제할까요?`)) return
 
     try {
       await deleteChatbotRoom(room.id)
       const nextRooms = rooms.filter((item) => item.id !== room.id)
       setRooms(nextRooms)
+
       if (selectedRoomId === room.id) {
         setSelectedRoomId(nextRooms[0]?.id ?? null)
         if (nextRooms.length === 0) {
           setMessages([])
         }
       }
+
       closeRoomMenu()
     } catch (error) {
-      console.error('챗봇 대화방 삭제 실패:', error)
-      alert('대화방 삭제에 실패했습니다.')
+      console.error('챗봇 대화 삭제 실패:', error)
+      alert('대화를 삭제하지 못했습니다.')
     }
   }
 
@@ -338,7 +435,7 @@ function ChatbotPage() {
       closeMessageMenu()
     } catch (error) {
       console.error('챗봇 메시지 삭제 실패:', error)
-      alert('메시지 삭제에 실패했습니다.')
+      alert('메시지를 삭제하지 못했습니다.')
     }
   }
 
@@ -347,7 +444,11 @@ function ChatbotPage() {
     setMessage(value)
 
     const mentionMatch = value.match(/@([^\s@]*)$/)
-    if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current)
+
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current)
+    }
+
     if (!mentionMatch) {
       clearSuggestions()
       return
@@ -369,14 +470,19 @@ function ChatbotPage() {
         if (latestKeywordRef.current !== keyword || latestRequestIdRef.current !== requestId) return
         setSuggestions(items)
         setShowSuggestions(items.length > 0)
-      } catch (error) {
-        if (latestRequestIdRef.current === requestId) clearSuggestions()
+      } catch {
+        if (latestRequestIdRef.current === requestId) {
+          clearSuggestions()
+        }
       }
     }, 220)
   }
 
   const handleSuggestionClick = (selectedName) => {
-    if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current)
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current)
+    }
+
     latestKeywordRef.current = ''
     latestRequestIdRef.current += 1
     setMessage((prev) => prev.replace(/@([^\s@]*)$/, `@${selectedName} `))
@@ -401,8 +507,6 @@ function ChatbotPage() {
     const trimmedMessage = message.trim()
     if (!trimmedMessage) return
 
-    const composedMessage = trimmedMessage
-
     let roomId = selectedRoomId
     if (!roomId) {
       try {
@@ -411,8 +515,8 @@ function ChatbotPage() {
         setRooms((prev) => [mappedRoom, ...prev])
         setSelectedRoomId(mappedRoom.id)
         roomId = mappedRoom.id
-      } catch (error) {
-        alert('대화방 생성에 실패했습니다.')
+      } catch {
+        alert('대화를 생성하지 못했습니다.')
         return
       }
     }
@@ -421,7 +525,7 @@ function ChatbotPage() {
       id: `temp-${tempMessageIdRef.current++}`,
       sender: 'USER',
       time: '방금',
-      content: composedMessage,
+      content: trimmedMessage,
     }
 
     setMessages((prev) => [...prev, optimisticMessage])
@@ -430,7 +534,7 @@ function ChatbotPage() {
     setLoading(true)
 
     try {
-      const data = await sendChatbotMessage(roomId, composedMessage)
+      const data = await sendChatbotMessage(roomId, trimmedMessage)
       const refreshedMessages = await getChatbotMessages(roomId)
       setMessages((refreshedMessages || []).map(mapMessage))
       setRooms((prev) =>
@@ -439,10 +543,10 @@ function ChatbotPage() {
             ? {
                 ...room,
                 title:
-                  room.title === '새 대화' || !room.title
-                    ? trimmedMessage.slice(0, 14) || '새 대화'
+                  room.title === DEFAULT_ROOM_TITLE || !room.title
+                    ? trimmedMessage.slice(0, 14) || DEFAULT_ROOM_TITLE
                     : room.title,
-                updatedAt: formatMessageTime(data.createdAt) || '방금',
+                updatedAt: formatRoomTime(data.createdAt),
               }
             : room,
         ),
@@ -530,7 +634,7 @@ function ChatbotPage() {
                           이름 바꾸기
                         </button>
                         <button type="button" className="danger" onClick={(event) => handleDeleteRoom(event, room)}>
-                          대화방 삭제
+                          대화 삭제
                         </button>
                       </div>
                     )}
@@ -558,13 +662,18 @@ function ChatbotPage() {
                         <div className="chat-message-label">AI 의약품 정보 도우미</div>
                       </div>
                       <div className="chat-bubble">
-                        <p>안녕하세요. 복용 중인 약에 대한 질문, 복약 정보 확인, 약 성분 확인을 도와드릴 수 있어요.</p>
+                        <p>복용 중인 약에 대한 질문, 복약 정보 확인, 주의 성분 확인까지 도와드릴게요.</p>
                       </div>
                       <div className="chat-intro-actions">
                         {introExampleQuestions.map((question) => (
-                          <span key={question} className="chat-intro-chip">
+                          <button
+                            key={question}
+                            type="button"
+                            className="chat-intro-chip chat-intro-chip-button"
+                            onClick={() => handleExampleQuestionClick(question)}
+                          >
                             {question}
-                          </span>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -572,12 +681,10 @@ function ChatbotPage() {
                 </div>
 
                 {!selectedRoomId ? (
-                  <div className="chat-empty-hint">왼쪽에서 새 대화를 만들어 시작하세요.</div>
+                  <div className="chat-empty-hint">왼쪽에서 새 대화를 만들어 시작해 주세요.</div>
                 ) : loadingMessages ? (
                   <div className="chat-empty-hint">대화 내용을 불러오는 중입니다.</div>
-                ) : messages.length === 0 ? (
-                  null
-                ) : (
+                ) : messages.length === 0 ? null : (
                   messages.map((chat, index) => (
                     <div key={chat.id} className={chat.sender === 'USER' ? 'chat-bubble-row mine' : 'chat-bubble-row'}>
                       <div className={chat.sender === 'USER' ? 'chat-message-stack mine' : 'chat-message-stack'}>
@@ -607,12 +714,15 @@ function ChatbotPage() {
                             </div>
                           )}
                         </div>
+
                         <div className={chat.sender === 'USER' ? 'chat-bubble mine' : 'chat-bubble'}>
                           {(() => {
                             const { body, source } = splitChatContent(chat.content)
                             const previousUserQuestion = chat.sender === 'AI' ? findPreviousUserQuestion(messages, index) : ''
-                            const showConsultAction = chat.sender === 'AI' && isInconclusiveAnswer(body) && Boolean(previousUserQuestion)
+                            const showConsultAction =
+                              chat.sender === 'AI' && isInconclusiveAnswer(body) && Boolean(previousUserQuestion)
                             const displayBody = showConsultAction ? FALLBACK_DISPLAY_MESSAGE : body
+
                             return (
                               <div className="chat-bubble-body">
                                 <p>{displayBody}</p>
@@ -646,7 +756,7 @@ function ChatbotPage() {
                     value={message}
                     onChange={handleMessageChange}
                     onKeyDown={handleMessageKeyDown}
-                    placeholder="@로 약을 검색하고 궁금한 점을 입력하세요."
+                    placeholder="@로 약 이름을 검색하고 궁금한 점을 입력해 주세요."
                     rows={2}
                   />
                 </div>
@@ -662,7 +772,7 @@ function ChatbotPage() {
                   </ul>
                 )}
                 <button type="submit" className="chat-send-button" disabled={loading}>
-                  {loading ? '전송 중' : '전송'}
+                  {loading ? '전송 중...' : '전송'}
                 </button>
               </form>
             </div>
@@ -670,27 +780,36 @@ function ChatbotPage() {
             <aside className="chat-profile-sidebar" aria-label="개인 상태 정보">
               <div className="chat-profile-card">
                 <div className="chat-profile-header">
-                  <h2>질문에 반영할 내 상태</h2>
-                  <p>개인 상태와 기저질환, 주의 약 성분을 함께 보고 약 정보를 확인할 수 있어요.</p>
+                  <h2>질문에 반영되는 내 정보</h2>
+                  <p>건강상태, 기저질환, 주의 약/성분을 챗봇 화면에서 바로 확인할 수 있어요.</p>
                 </div>
 
-                <div className="chat-profile-section-list">
-                  {profileContextSections.map((section) => (
-                    <section key={section.title} className="chat-profile-section">
-                      <h3>{section.title}</h3>
-                      <div className="chat-profile-tags">
-                        {section.items.map((item) => (
-                          <span key={item} className="chat-profile-tag">
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </section>
-                  ))}
-                </div>
+                {loadingProfileContext ? (
+                  <div className="chat-profile-empty">건강상태 정보를 불러오는 중입니다.</div>
+                ) : profileContextError ? (
+                  <div className="chat-profile-empty">{profileContextError}</div>
+                ) : (
+                  <div className="chat-profile-section-list">
+                    {profileSections.map((section) => (
+                      <section key={section.title} className="chat-profile-section">
+                        <h3>{section.title}</h3>
+                        <div className="chat-profile-tags">
+                          {section.items.length > 0 ? (
+                            section.items.map((item) => (
+                              <span key={item} className="chat-profile-tag">
+                                {item}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="chat-profile-tag chat-profile-tag-muted">{section.emptyLabel}</span>
+                          )}
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                )}
               </div>
             </aside>
-
           </div>
         </section>
       </section>

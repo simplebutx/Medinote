@@ -2797,6 +2797,15 @@ body {
   pointer-events: none;
 }
 
+.chat-intro-chip-button {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.chat-intro-chip-button:hover {
+  color: #2563eb;
+}
+
 .chat-message-shell {
   position: static;
   width: 100%;
@@ -2833,6 +2842,23 @@ body {
   color: #fff;
   font-weight: 700;
   cursor: pointer;
+}
+
+.consult-input-form {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+}
+
+.consult-message-shell {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.consult-send-button {
+  flex: 0 0 108px;
+  width: 108px;
 }
 
 .chat-empty-hint {
@@ -2924,6 +2950,21 @@ body {
   color: #475569;
   font-size: 12px;
   font-weight: 600;
+}
+
+.chat-profile-tag-muted {
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
+.chat-profile-empty {
+  padding: 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+  background: #fff;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .chat-side-card {

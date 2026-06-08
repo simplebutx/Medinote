@@ -48,7 +48,7 @@ function Sync() {
 
       {syncStatus && (
         <div>
-          <p>마지막 반영 날짜: {syncStatus.lastSyncedPublicUpdateDe || '없음'}</p>
+          <p>마지막 동기화 완료 날짜: {syncStatus.lastSyncedPublicUpdateDe || '없음'}</p>
           <p>공공데이터 최신 날짜: {syncStatus.latestPublicUpdateDe || '없음'}</p>
         </div>
       )}
