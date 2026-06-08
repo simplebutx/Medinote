@@ -1,6 +1,5 @@
 package com.ibmteam02.backend_medication.schedule.domain;
 
-import com.ibmteam02.backend_medication.global.common.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,8 +10,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -22,7 +23,9 @@ import lombok.NoArgsConstructor;
 @Table(name = "medication_intake_log")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class MedicationIntakeLog extends BaseTimeEntity {
+public class MedicationIntakeLog {
+
+    private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,6 +48,9 @@ public class MedicationIntakeLog extends BaseTimeEntity {
 
     @Column(name = "taken_at")
     private LocalDateTime takenAt;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
 
     @Builder
     public MedicationIntakeLog(
@@ -73,5 +79,10 @@ public class MedicationIntakeLog extends BaseTimeEntity {
         this.status = status;
         this.scheduledAt = scheduledAt;
         this.takenAt = takenAt;
+    }
+
+    @PrePersist
+    void onCreate() {
+        this.createdAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
 }

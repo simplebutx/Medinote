@@ -1,6 +1,5 @@
 package com.ibmteam02.backend_medication.pharmacy.domain;
 
-import com.ibmteam02.backend_medication.global.common.BaseTimeEntity;
 import com.ibmteam02.backend_medication.pharmacy.dto.PharmacyRegisterRequest;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -27,7 +26,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Getter
 @Builder
-public class Pharmacy extends BaseTimeEntity {
+public class Pharmacy {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -55,7 +54,7 @@ public class Pharmacy extends BaseTimeEntity {
     private Double longitude;
 
     @Column(name = "pharmacist_id")
-    private Long pharmacistId; // 약국 등록한 약사 id(수동 등록)
+    private Long pharmacistId;
 
     @Column(length = 4)
     private String mondayOpen;
@@ -177,7 +176,6 @@ public class Pharmacy extends BaseTimeEntity {
         this.homepageUrl = homepageUrl;
     }
 
-    //약국 정보 수정
     public void updatePharmacy(PharmacyRegisterRequest request){
         this.address = request.getAddress();
         this.phone = request.getPhone();
@@ -200,6 +198,4 @@ public class Pharmacy extends BaseTimeEntity {
         this.holidayOpen = request.getHolidayOpen();
         this.holidayClose = request.getHolidayClose();
     }
-
-
 }

@@ -1,14 +1,31 @@
 package com.ibmteam02.backend_auth.user.domain;
 
-import com.ibmteam02.backend_auth.global.common.BaseTimeEntity;
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
 @Table(name = "user_profile_health")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class UserProfileHealth extends BaseTimeEntity {
+public class UserProfileHealth {
+
+    private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -18,22 +35,28 @@ public class UserProfileHealth extends BaseTimeEntity {
     private User user;
 
     @Column(nullable = false)
-    private Boolean isPregnant = false; // 임산부
+    private Boolean isPregnant = false;
 
     @Column(nullable = false)
-    private Boolean isBreastfeeding = false; //모유수유 여부
+    private Boolean isBreastfeeding = false;
 
     @Column(nullable = false)
-    private Boolean isSmoking = false; //흡연 여부
+    private Boolean isSmoking = false;
 
     @Column(nullable = false)
-    private Boolean isDrinking = false; //음주 여부
+    private Boolean isDrinking = false;
 
     @Column(nullable = false)
-    private Boolean isChild = false; // 소아 여부
+    private Boolean isChild = false;
 
     @Column(nullable = false)
-    private Boolean isElderly = false; // 고령 여부
+    private Boolean isElderly = false;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @Builder
     public UserProfileHealth(User user, Boolean isPregnant, Boolean isBreastfeeding, Boolean isSmoking, Boolean isDrinking, Boolean isChild, Boolean isElderly){
@@ -55,5 +78,15 @@ public class UserProfileHealth extends BaseTimeEntity {
         this.isElderly = isElderly;
     }
 
+    @PrePersist
+    void onCreate() {
+        LocalDateTime now = LocalDateTime.now(SCHEDULE_ZONE);
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
 
+    @PreUpdate
+    void onUpdate() {
+        this.updatedAt = LocalDateTime.now(SCHEDULE_ZONE);
+    }
 }

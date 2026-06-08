@@ -1,14 +1,25 @@
 package com.ibmteam02.backend_medication.caution.domain;
 
-import com.ibmteam02.backend_medication.global.common.BaseTimeEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
 @NoArgsConstructor
 @Getter
-public class UserMedicationCaution extends BaseTimeEntity {
+public class UserMedicationCaution {
+
+    private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,6 +42,12 @@ public class UserMedicationCaution extends BaseTimeEntity {
 
     @Column(columnDefinition = "TEXT")
     private String memo;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 
     public UserMedicationCaution(
             Long userId,
@@ -68,5 +85,17 @@ public class UserMedicationCaution extends BaseTimeEntity {
         this.reason = reason;
         this.cautionType = cautionType;
         this.memo = memo;
+    }
+
+    @PrePersist
+    void onCreate() {
+        LocalDateTime now = LocalDateTime.now(SCHEDULE_ZONE);
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        this.updatedAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
 }
