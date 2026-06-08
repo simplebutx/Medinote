@@ -58,6 +58,7 @@ public class UserMedicationCautionService {
                 request.ingredientCode(),
                 request.ingredientName(),
                 request.reason(),
+                request.cautionType(),
                 request.memo(),
                 now,
                 now
@@ -101,6 +102,7 @@ public class UserMedicationCautionService {
                 request.ingredientCode(),
                 request.ingredientName(),
                 request.reason(),
+                request.cautionType(),
                 request.memo(),
                 LocalDateTime.now()
         );
@@ -134,6 +136,7 @@ public class UserMedicationCautionService {
                 caution.getIngredientCode(),
                 caution.getIngredientName(),
                 caution.getReason(),
+                caution.getCautionType(),
                 caution.getMemo(),
                 caution.getCreatedAt(),
                 caution.getUpdatedAt()

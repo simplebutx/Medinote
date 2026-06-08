@@ -52,6 +52,10 @@ const cautionReasonOptions = [
   { value: 'OTHER', label: '기타' },
 ]
 
+const cautionReasonLabelMap = Object.fromEntries(
+  cautionReasonOptions.map((option) => [option.value, option.label]),
+)
+
 const intakeHistory = [
   { name: '아스피린 100mg', rate: 92 },
   { name: '암로디핀 5mg', rate: 86 },
@@ -422,6 +426,7 @@ function MyPage() {
         ingredientCode: null,
         ingredientName: selectedSuggestion.type === 'INGREDIENT' ? selectedSuggestion.name : null,
         reason,
+        cautionType: selectedSuggestion.type,
         memo: memo.trim() || null,
       })
 
@@ -1076,14 +1081,19 @@ function MyPage() {
                 cautions.map((item) => (
                   <article key={item.id} className="mypage-caution-card">
                     <div className="mypage-caution-card-main">
+                      <div className="profile-badge-row">
+                        <span className={item.cautionType === 'INGREDIENT' ? 'profile-badge yellow' : 'profile-badge blue'}>
+                          {item.cautionType === 'INGREDIENT' ? '성분' : '약'}
+                        </span>
+                      </div>
                       <div className="mypage-caution-inline-grid">
                         <div className="mypage-caution-inline-item">
-                          <span>약검색</span>
+                          <span>{item.cautionType === 'INGREDIENT' ? '성분명' : '약 이름'}</span>
                           <strong>{item.itemName || item.ingredientName}</strong>
                         </div>
                         <div className="mypage-caution-inline-item">
                           <span>사유</span>
-                          <strong>{item.reason}</strong>
+                          <strong>{cautionReasonLabelMap[item.reason] || item.reason}</strong>
                         </div>
                         <div className="mypage-caution-inline-item">
                           <span>메모</span>
