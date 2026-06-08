@@ -1,15 +1,14 @@
 package com.ibmteam02.backend_medication.caution.domain;
 
+import com.ibmteam02.backend_medication.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Entity
 @NoArgsConstructor
 @Getter
-public class UserMedicationCaution {
+public class UserMedicationCaution extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,8 +31,6 @@ public class UserMedicationCaution {
 
     @Column(columnDefinition = "TEXT")
     private String memo;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 
     public UserMedicationCaution(
             Long userId,
@@ -43,9 +40,7 @@ public class UserMedicationCaution {
             String ingredientName,
             Reason reason,
             CautionType cautionType,
-            String memo,
-            LocalDateTime createdAt,
-            LocalDateTime updatedAt
+            String memo
     ) {
         this.userId = userId;
         this.itemSeq = itemSeq;
@@ -55,8 +50,6 @@ public class UserMedicationCaution {
         this.reason = reason;
         this.cautionType = cautionType;
         this.memo = memo;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
     }
 
     public void update(
@@ -66,8 +59,7 @@ public class UserMedicationCaution {
             String ingredientName,
             Reason reason,
             CautionType cautionType,
-            String memo,
-            LocalDateTime updatedAt
+            String memo
     ) {
         this.itemSeq = itemSeq;
         this.itemName = itemName;
@@ -76,6 +68,5 @@ public class UserMedicationCaution {
         this.reason = reason;
         this.cautionType = cautionType;
         this.memo = memo;
-        this.updatedAt = updatedAt;
     }
 }

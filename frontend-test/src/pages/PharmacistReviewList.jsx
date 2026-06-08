@@ -73,7 +73,7 @@ const PharmacistReviewList = () => {
                             
                             <div style={cardBodyStyle}>
                                 <div style={commentBoxStyle}>
-                                    "{room.comment || '별점만 남겨주셨습니다.'}"
+                                    "{room.feedbackComment || '별점만 남겨주셨습니다.'}"
                                 </div>
                                 <p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#64748b' }}>
                                     <strong>상담 환자:</strong> {room.customerName} | <strong>방 번호:</strong> #{room.roomId}

@@ -68,6 +68,15 @@ public class AdminService {
         }
 
         user.activateGeneralUser();
+
+        pharmacistProfileRepository.findByUser(user).ifPresent(profile->{
+            String imageKey = profile.getLicenseImage();
+
+            if(imageKey != null && !imageKey.equals("DELETE_DUE_TO_PRIVACY")){
+                s3Service.deleteFile(imageKey);
+                profile.clearLicenseImage();
+            }
+        });
     }
 
     //약사 승인 거절

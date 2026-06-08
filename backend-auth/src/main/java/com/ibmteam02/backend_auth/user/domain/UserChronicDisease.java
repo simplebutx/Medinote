@@ -1,23 +1,18 @@
 package com.ibmteam02.backend_auth.user.domain;
 
+import com.ibmteam02.backend_auth.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
 
 //기저질환 엔티티
 @Entity
 @Getter
 @Table(name = "user_chronic_disease")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EntityListeners(AuditingEntityListener.class)
-public class UserChronicDisease {
+public class UserChronicDisease extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,13 +28,6 @@ public class UserChronicDisease {
 
     @Column(nullable = false)
     private String diseaseName;
-
-    @CreatedDate
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    private LocalDateTime updatedAt;
 
     @Builder
     public UserChronicDisease(User user,DiseaseMaster diseaseMaster,String diseaseName) {

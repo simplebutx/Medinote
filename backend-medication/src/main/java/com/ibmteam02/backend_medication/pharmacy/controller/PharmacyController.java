@@ -4,6 +4,7 @@ import com.ibmteam02.backend_medication.global.auth.JwtProvider;
 import com.ibmteam02.backend_medication.pharmacy.dto.PharmacyDetailResponse;
 import com.ibmteam02.backend_medication.pharmacy.dto.PharmacyMapResponse;
 import com.ibmteam02.backend_medication.pharmacy.dto.PharmacyRegisterRequest;
+import com.ibmteam02.backend_medication.pharmacy.service.PharmacyInventoryService;
 import com.ibmteam02.backend_medication.pharmacy.service.PharmacyService;
 
 import java.util.List;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class PharmacyController {
 
     private final PharmacyService pharmacyService;
+    private final PharmacyInventoryService pharmacyInventoryService;
     private final JwtProvider jwtProvider;
 
     // 현재 지도 범위 내에 약국 표시
@@ -62,7 +64,7 @@ public class PharmacyController {
         return ResponseEntity.noContent().build();
     }
 
-    //일반 유저 약 재고 검색
+    //일반 유저 약 검색 기반 약국 조회
     @GetMapping("/search/medicine")
     public ResponseEntity<List<PharmacyMapResponse>> searchByMedicine(
             @RequestParam String itemName,
@@ -76,8 +78,6 @@ public class PharmacyController {
         );
         return ResponseEntity.ok(results);
     }
-
-
 
 
 }
