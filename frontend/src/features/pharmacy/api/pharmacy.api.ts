@@ -57,3 +57,11 @@ export const deletePharmacyInventory = async (id: number) => {
 
   return response.data;
 };
+
+export const getPharmacyDetail = async (hpid: string) => {
+  const response = await medicationInstance.get<Pharmacy>(
+    `/api/pharmacies/${hpid}`,
+  );
+
+  return response.data;
+};

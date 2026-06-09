@@ -13,8 +13,9 @@ export type UserDisease =
     };
 
 export interface UserProfile {
-  id?: number;
-  userId?: number;
+  id?: number | string | null;
+  userId?: number | string | null;
+  user_id?: number | string | null;
 
   email?: string | null;
   username?: string | null;
