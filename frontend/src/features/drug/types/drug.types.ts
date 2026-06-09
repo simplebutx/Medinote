@@ -1,6 +1,6 @@
 export interface MedicineSearchItem {
-  itemSeq?: number;
-  item_seq?: number;
+  itemSeq?: number | string;
+  item_seq?: number | string;
   itemName?: string;
   item_name?: string;
   companyName?: string;
@@ -20,6 +20,10 @@ export interface MedicineSearchItem {
   update_de?: string;
   imageUrl?: string;
   image_url?: string;
+  medicineName?: string | null;
+  drugName?: string | null;
+  entpName?: string | null;
+  entp_name?: string | null;
 }
 
 export type MedicineSuggestResponse = string[];

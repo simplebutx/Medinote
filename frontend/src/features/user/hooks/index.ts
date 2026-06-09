@@ -6,3 +6,5 @@ export * from './useUpdateMyCaution';
 export * from './useMyProfile';
 export * from './useUpdateMyProfile';
 export * from './useDiseaseSuggest';
+export * from './useUpdateMyPharmacistProfile';
+

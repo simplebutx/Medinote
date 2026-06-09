@@ -24,7 +24,7 @@ const pharmacistMenus: MenuItem[] = [
   { label: '상담 관리', path: '/pharmacist/consults' },
   { label: '환자 조회', path: '/pharmacist/patients' },
   { label: '약 검색', path: '/pharmacist/drugs' },
-  { label: 'FAQ 관리', path: '/pharmacist/faqs' },
+  { label: '재고 관리', path: '/pharmacist/inventory' },
   { label: '약사 마이페이지', path: '/pharmacist/my' },
 ];
 

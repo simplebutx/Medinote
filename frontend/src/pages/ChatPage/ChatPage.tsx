@@ -1,10 +1,18 @@
 import { useMemo, useRef, useState } from 'react';
 
 import { Badge, Button, Card, Input } from '../../components/ui';
-import { useSendChatbotMessage } from "../../features/chat/hooks";
+import {
+  useChatbotRoomMessages,
+  useChatbotRooms,
+  useCreateChatbotRoom,
+  useDeleteChatbotMessage,
+  useDeleteChatbotRoom,
+  useSendChatbotMessage,
+  useUpdateChatbotRoom,
+} from '../../features/chat/hooks';
+import type { ChatbotMessage as ApiChatbotMessage } from '../../features/chat/types/chat.types';
 import { useMedicineSuggest } from '../../features/drug/hooks';
 import { useDebounce } from '../../hooks/useDebounce';
-
 
 type ChatMode = 'ai' | 'pharmacist';
 type MessageSender = 'USER' | 'AI' | 'PHARMACIST' | 'SYSTEM';
@@ -18,6 +26,7 @@ interface DrugOption {
 
 interface ChatMessage {
   id: number;
+  apiMessageId?: number | null;
   sender: MessageSender;
   content: string;
   createdAt: string;
@@ -64,6 +73,29 @@ function getDrugOptionId(name: string) {
   }, 0);
 }
 
+function formatChatTime(createdAt?: string | null) {
+  if (!createdAt) {
+    return '방금';
+  }
+
+  return createdAt.slice(11, 16);
+}
+
+function mapApiChatbotMessageToChatMessage(
+  message: ApiChatbotMessage,
+  index: number,
+): ChatMessage {
+  return {
+    id: message.messageId ?? index + 1,
+    apiMessageId: message.messageId ?? null,
+    sender: message.senderType === 'USER' ? 'USER' : 'AI',
+    content:
+      message.content ??
+      message.answer ??
+      '메시지 내용을 불러오지 못했습니다.',
+    createdAt: formatChatTime(message.createdAt),
+  };
+}
 function ChatPage() {
   const messageIdRef = useRef(100);
 
@@ -73,6 +105,158 @@ function ChatPage() {
   };
 
   const sendChatbotMessageMutation = useSendChatbotMessage();
+
+  const { data: chatbotRooms = [], isLoading: isChatbotRoomsLoading } =
+    useChatbotRooms();
+
+  const createChatbotRoomMutation = useCreateChatbotRoom();
+
+  const deleteChatbotMessageMutation = useDeleteChatbotMessage();
+
+  const updateChatbotRoomMutation = useUpdateChatbotRoom();
+  const deleteChatbotRoomMutation = useDeleteChatbotRoom();
+
+  const [editingRoomId, setEditingRoomId] = useState<number | null>(null);
+  const [editingRoomTitle, setEditingRoomTitle] = useState('');
+
+  const [selectedChatbotRoomId, setSelectedChatbotRoomId] = useState<
+    number | null
+  >(null);
+
+  const activeChatbotRoomId = selectedChatbotRoomId;
+
+  const {
+    data: chatbotRoomMessages = [],
+    isLoading: isChatbotRoomMessagesLoading,
+  } = useChatbotRoomMessages(activeChatbotRoomId);
+
+  const ensureChatbotRoomId = async () => {
+    if (selectedChatbotRoomId) {
+      return selectedChatbotRoomId;
+    }
+
+    const firstRoomId = chatbotRooms[0]?.roomId;
+
+    if (firstRoomId) {
+      setSelectedChatbotRoomId(firstRoomId);
+      return firstRoomId;
+    }
+
+    const createdRoom = await createChatbotRoomMutation.mutateAsync({
+      title: '새 대화',
+    });
+
+    setSelectedChatbotRoomId(createdRoom.roomId);
+
+    return createdRoom.roomId;
+  };
+  
+  const handleCreateChatbotRoom = async () => {
+    try {
+      const createdRoom = await createChatbotRoomMutation.mutateAsync({
+        title: '새 대화',
+      });
+
+      setSelectedChatbotRoomId(createdRoom.roomId);
+      setAiMessages(initialAiMessages);
+    } catch (error) {
+      console.error('챗봇 대화방 생성 실패:', error);
+    }
+  };
+
+  const handleSelectChatbotRoom = (roomId: number) => {
+    setSelectedChatbotRoomId(roomId);
+    setEditingRoomId(null);
+    setEditingRoomTitle('');
+  };
+
+  const handleStartEditRoomTitle = (roomId: number, title: string) => {
+    setEditingRoomId(roomId);
+    setEditingRoomTitle(title);
+  };
+
+  const handleCancelEditRoomTitle = () => {
+    setEditingRoomId(null);
+    setEditingRoomTitle('');
+  };
+
+  const handleSaveRoomTitle = (roomId: number) => {
+    const nextTitle = editingRoomTitle.trim();
+
+    if (!nextTitle) {
+      return;
+    }
+
+    updateChatbotRoomMutation.mutate(
+      {
+        roomId,
+        body: {
+          title: nextTitle,
+        },
+      },
+      {
+        onSuccess: () => {
+          setEditingRoomId(null);
+          setEditingRoomTitle('');
+        },
+        onError: (error) => {
+          console.error('챗봇 대화방 이름 수정 실패:', error);
+        },
+      },
+    );
+  };
+
+  const handleDeleteChatbotRoom = (roomId: number) => {
+    const isConfirmed = window.confirm(
+      '이 대화방을 삭제하시겠습니까?\n삭제하면 이 방의 메시지도 함께 삭제됩니다.',
+    );
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    const nextRoomId =
+      chatbotRooms.find((room) => room.roomId !== roomId)?.roomId ?? null;
+
+    if (selectedChatbotRoomId === roomId) {
+      setSelectedChatbotRoomId(nextRoomId);
+      setAiMessages(initialAiMessages);
+    }
+
+    deleteChatbotRoomMutation.mutate(roomId, {
+      onSuccess: () => {
+        setEditingRoomId(null);
+        setEditingRoomTitle('');
+      },
+      onError: (error) => {
+        console.error('챗봇 대화방 삭제 실패:', error);
+      },
+    });
+  };
+
+  const handleDeleteChatbotMessage = (chat: ChatMessage) => {
+    if (!chat.apiMessageId || !activeChatbotRoomId) {
+      return;
+    }
+
+    const isConfirmed = window.confirm('이 메시지를 삭제하시겠습니까?');
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    deleteChatbotMessageMutation.mutate(
+      {
+        messageId: chat.apiMessageId,
+        roomId: activeChatbotRoomId,
+      },
+      {
+        onError: (error) => {
+          console.error('챗봇 메시지 삭제 실패:', error);
+        },
+      },
+    );
+  };
 
   const [activeMode, setActiveMode] = useState<ChatMode>('ai');
   const [aiMessages, setAiMessages] =
@@ -85,7 +269,24 @@ function ChatPage() {
   const [selectedDrugs, setSelectedDrugs] = useState<DrugOption[]>([]);
   const [isDrugSearchOpen, setIsDrugSearchOpen] = useState(false);
 
-  const activeMessages = activeMode === 'ai' ? aiMessages : pharmacistMessages;
+  const serverAiMessages = useMemo(() => {
+    return chatbotRoomMessages.map(mapApiChatbotMessageToChatMessage);
+  }, [chatbotRoomMessages]);
+
+  const optimisticAiMessages = useMemo(() => {
+    if (!sendChatbotMessageMutation.isPending) {
+      return [];
+    }
+
+    return aiMessages.filter((chat) => chat.createdAt === '방금');
+  }, [aiMessages, sendChatbotMessageMutation.isPending]);
+
+  const activeMessages =
+    activeMode === 'ai'
+      ? serverAiMessages.length > 0
+        ? [...serverAiMessages, ...optimisticAiMessages]
+        : aiMessages
+      : pharmacistMessages;
 
   const drugSearchKeyword = useMemo(() => {
     const atIndex = message.lastIndexOf('@');
@@ -102,12 +303,10 @@ function ChatPage() {
   const isDrugSuggestEnabled =
     isDrugSearchOpen && debouncedDrugSearchKeyword.trim().length >= 2;
 
-  const {
-    data: drugSuggestions = [],
-    isLoading: isDrugSuggestLoading,
-  } = useMedicineSuggest(
-    isDrugSuggestEnabled ? debouncedDrugSearchKeyword.trim() : '',
-  );
+  const { data: drugSuggestions = [], isLoading: isDrugSuggestLoading } =
+    useMedicineSuggest(
+      isDrugSuggestEnabled ? debouncedDrugSearchKeyword.trim() : '',
+    );
 
   const filteredDrugs = useMemo<DrugOption[]>(() => {
     if (!isDrugSearchOpen || !isDrugSuggestEnabled) {
@@ -157,7 +356,79 @@ function ChatPage() {
     setSelectedDrugs((prev) => prev.filter((drug) => drug.id !== drugId));
   };
 
-  const handleSendMessage = () => {
+  const sendAiQuestion = async (
+    question: string,
+    drugs: DrugOption[] = [],
+  ) => {
+    if (isChatbotRoomsLoading) {
+      return;
+    }
+
+    const userMessage: ChatMessage = {
+      id: createMessageId(),
+      sender: 'USER',
+      content: question || '선택한 약에 대해 상담하고 싶어요.',
+      createdAt: '방금',
+      drugs,
+    };
+
+    let roomId: number;
+
+    try {
+      roomId = await ensureChatbotRoomId();
+    } catch (error) {
+      console.error('챗봇 대화방 생성 실패:', error);
+
+      const errorMessage: ChatMessage = {
+        id: createMessageId(),
+        sender: 'SYSTEM',
+        content: '챗봇 대화방을 준비하지 못했습니다. 잠시 후 다시 시도해주세요.',
+        createdAt: '방금',
+      };
+
+      setAiMessages((prev) => [...prev, errorMessage]);
+      return;
+    }
+
+    setAiMessages((prev) => [...prev, userMessage]);
+
+    sendChatbotMessageMutation.mutate(
+      {
+        roomId,
+        message: question || drugs.map((drug) => drug.name).join(', '),
+      },
+      {
+        onSuccess: (data) => {
+          const aiMessage: ChatMessage = {
+            id: data.messageId ?? createMessageId(),
+            sender: 'AI',
+            content:
+              data.answer ??
+              data.content ??
+              '응답 내용을 불러오지 못했습니다.',
+            createdAt: data.createdAt ? data.createdAt.slice(11, 16) : '방금',
+          };
+
+          setAiMessages((prev) => [...prev, aiMessage]);
+        },
+        onError: (error) => {
+          console.error('챗봇 메시지 전송 실패:', error);
+
+          const errorMessage: ChatMessage = {
+            id: createMessageId(),
+            sender: 'SYSTEM',
+            content:
+              '현재 챗봇 응답을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.',
+            createdAt: '방금',
+          };
+
+          setAiMessages((prev) => [...prev, errorMessage]);
+        },
+      },
+    );
+  };
+
+  const handleSendMessage = async () => {
     const trimmedMessage = message.trim();
 
     if (!trimmedMessage && selectedDrugs.length === 0) {
@@ -172,38 +443,10 @@ function ChatPage() {
       drugs: selectedDrugs,
     };
 
-    if (activeMode === "ai") {
-      setAiMessages((prev) => [...prev, userMessage]);
-
-      sendChatbotMessageMutation.mutate(
-        {
-          message: trimmedMessage || selectedDrugs.map((drug) => drug.name).join(", "),
-        },
-        {
-          onSuccess: (data) => {
-            const aiMessage: ChatMessage = {
-              id: createMessageId(),
-              sender: "AI",
-              content: data.answer,
-              createdAt: "방금",
-            };
-
-            setAiMessages((prev) => [...prev, aiMessage]);
-          },
-          onError: (error) => {
-            console.error("챗봇 메시지 전송 실패:", error);
-
-            const errorMessage: ChatMessage = {
-              id: createMessageId(),
-              sender: "SYSTEM",
-              content:
-                "현재 챗봇 응답을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
-              createdAt: "방금",
-            };
-
-            setAiMessages((prev) => [...prev, errorMessage]);
-          },
-        }
+    if (activeMode === 'ai') {
+      await sendAiQuestion(
+        trimmedMessage || selectedDrugs.map((drug) => drug.name).join(', '),
+        selectedDrugs,
       );
     } else {
       setPharmacistMessages((prev) => [...prev, userMessage]);
@@ -226,31 +469,18 @@ function ChatPage() {
     setIsDrugSearchOpen(false);
   };
 
-  const handleQuickQuestion = (question: string) => {
+  const handleQuickQuestion = async (question: string) => {
+    if (activeMode === 'ai') {
+      await sendAiQuestion(question);
+      return;
+    }
+
     const quickMessage: ChatMessage = {
       id: createMessageId(),
       sender: 'USER',
       content: question,
       createdAt: '방금',
     };
-
-    if (activeMode === 'ai') {
-      setAiMessages((prev) => [...prev, quickMessage]);
-
-      window.setTimeout(() => {
-        const aiMessage: ChatMessage = {
-          id: createMessageId(),
-          sender: 'AI',
-          content:
-            '질문을 확인했어요. 현재는 Mock 응답이며, 추후 약 정보 DB와 AI 서버를 연결해 복용법과 주의사항을 안내합니다.',
-          createdAt: '방금',
-        };
-
-        setAiMessages((prev) => [...prev, aiMessage]);
-      }, 500);
-
-      return;
-    }
 
     setPharmacistMessages((prev) => [...prev, quickMessage]);
   };
@@ -317,6 +547,18 @@ function ChatPage() {
                 </div>
               )}
 
+              {activeMode === 'ai' && isChatbotRoomMessagesLoading && (
+                <div className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-700">
+                  대화 내용을 불러오는 중입니다.
+                </div>
+              )}
+
+              {activeMode === 'ai' && !activeChatbotRoomId && chatbotRooms.length > 0 && (
+                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+                  오른쪽 대화방 목록에서 대화방을 선택하거나 새 대화를 시작해주세요.
+                </div>
+              )}
+
               {activeMessages.map((chat) => (
                 <div
                   key={chat.id}
@@ -372,9 +614,34 @@ function ChatPage() {
                     )}
 
                     <p className="text-sm leading-6">{chat.content}</p>
+                      {activeMode === 'ai' && chat.apiMessageId && (
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteChatbotMessage(chat)}
+                            disabled={deleteChatbotMessageMutation.isPending}
+                            className={[
+                              'text-xs font-semibold',
+                              chat.sender === 'USER'
+                                ? 'text-blue-100 hover:text-white'
+                                : 'text-slate-400 hover:text-red-600',
+                            ].join(' ')}
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      )}
                   </div>
                 </div>
               ))}
+
+              {activeMode === 'ai' && sendChatbotMessageMutation.isPending && (
+                <div className="flex justify-start">
+                  <div className="rounded-2xl bg-slate-100 p-4 text-sm text-slate-500">
+                    AI가 답변을 생성하고 있습니다...
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="mt-auto border-t border-slate-100 p-4">
@@ -414,8 +681,12 @@ function ChatPage() {
                     type="button"
                     className="shrink-0"
                     onClick={handleSendMessage}
+                    disabled={
+                      sendChatbotMessageMutation.isPending ||
+                      createChatbotRoomMutation.isPending
+                    }
                   >
-                    전송
+                    {sendChatbotMessageMutation.isPending ? '전송 중...' : '전송'}
                   </Button>
                 </div>
 
@@ -432,11 +703,12 @@ function ChatPage() {
                         </div>
                       )}
 
-                      {drugSearchKeyword.trim().length >= 2 && isDrugSuggestLoading && (
-                        <div className="px-3 py-4 text-sm text-slate-500">
-                          약 이름을 검색하고 있습니다.
-                        </div>
-                      )}
+                      {drugSearchKeyword.trim().length >= 2 &&
+                        isDrugSuggestLoading && (
+                          <div className="px-3 py-4 text-sm text-slate-500">
+                            약 이름을 검색하고 있습니다.
+                          </div>
+                        )}
 
                       {drugSearchKeyword.trim().length >= 2 &&
                         !isDrugSuggestLoading &&
@@ -454,7 +726,9 @@ function ChatPage() {
                           className="w-full rounded-xl px-3 py-3 text-left hover:bg-slate-50"
                         >
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-semibold text-slate-900">{drug.name}</p>
+                            <p className="font-semibold text-slate-900">
+                              {drug.name}
+                            </p>
                           </div>
                         </button>
                       ))}
@@ -466,6 +740,138 @@ function ChatPage() {
           </div>
 
           <aside className="space-y-4 bg-slate-50 p-5">
+            {activeMode === 'ai' && (
+              <Card>
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-lg font-bold text-slate-900">대화방</h2>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCreateChatbotRoom}
+                    disabled={createChatbotRoomMutation.isPending}
+                  >
+                    새 대화
+                  </Button>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  {isChatbotRoomsLoading && (
+                    <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
+                      대화방을 불러오는 중입니다.
+                    </div>
+                  )}
+
+                  {!isChatbotRoomsLoading && chatbotRooms.length === 0 && (
+                    <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
+                      아직 생성된 대화방이 없습니다.
+                    </div>
+                  )}
+
+                  {!isChatbotRoomsLoading &&
+                    chatbotRooms.map((room) => {
+                      const isSelected = activeChatbotRoomId === room.roomId;
+                      const isEditing = editingRoomId === room.roomId;
+
+                      return (
+                        <div
+                          key={room.roomId}
+                          className={[
+                            'rounded-xl border p-3',
+                            isSelected
+                              ? 'border-blue-200 bg-blue-50'
+                              : 'border-slate-200 bg-white',
+                          ].join(' ')}
+                        >
+                          {isEditing ? (
+                            <div className="space-y-2">
+                              <Input
+                                value={editingRoomTitle}
+                                onChange={(event) =>
+                                  setEditingRoomTitle(event.target.value)
+                                }
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter') {
+                                    handleSaveRoomTitle(room.roomId);
+                                  }
+                                }}
+                              />
+
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="border border-slate-200"
+                                  onClick={handleCancelEditRoomTitle}
+                                >
+                                  취소
+                                </Button>
+
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => handleSaveRoomTitle(room.roomId)}
+                                  disabled={updateChatbotRoomMutation.isPending}
+                                >
+                                  저장
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectChatbotRoom(room.roomId)}
+                                className="w-full text-left"
+                              >
+                                <p className="font-semibold text-slate-900">
+                                  {room.title || '새 대화'}
+                                </p>
+
+                                <p className="mt-1 text-xs text-slate-500">
+                                  {room.updatedAt
+                                    ? room.updatedAt.slice(0, 16).replace('T', ' ')
+                                    : '최근 대화 시간 없음'}
+                                </p>
+                              </button>
+
+                              <div className="mt-3 flex gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="border border-slate-200"
+                                  onClick={() =>
+                                    handleStartEditRoomTitle(
+                                      room.roomId,
+                                      room.title || '새 대화',
+                                    )
+                                  }
+                                >
+                                  이름 수정
+                                </Button>
+
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="border border-red-200 text-red-600 hover:bg-red-50"
+                                  onClick={() => handleDeleteChatbotRoom(room.roomId)}
+                                  disabled={deleteChatbotRoomMutation.isPending}
+                                >
+                                  삭제
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </Card>
+            )}
+
             <Card>
               <h2 className="text-lg font-bold text-slate-900">빠른 질문</h2>
 

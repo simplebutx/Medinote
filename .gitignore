@@ -5,3 +5,4 @@ schedule-test.json
 .env.local
 secrets/
 secrets/gcloud-adc.json
+.local-notes/
