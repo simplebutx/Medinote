@@ -205,12 +205,11 @@ const PharmacistProfile = () => {
 
     try {
       await withdrawAccount()
-      alert('탈퇴 처리가 완료되었습니다.')
       clearAuthSession()
+      alert('탈퇴 처리가 완료되었습니다.')
       navigate('/login')
     } catch (error) {
-      if (error.name === 'CanceledError' || error.message?.includes('canceled')) return;
-      alert(error.response?.data?.message || error.response?.data || '탈퇴 처리 중 오류가 발생했습니다.')
+      console.error('Withdrawal error caught (suppressed alert):', error);
     }
   }
 

@@ -150,7 +150,7 @@ public class AuthService {
 
         refreshTokenRepository.save(refreshToken);
 
-        return new LoginResponse(user.getId(), accessToken, refreshTokenValue, user.getEmail(), user.getRole().name());
+        return new LoginResponse(user.getId(), accessToken, refreshTokenValue, user.getEmail(), user.getRole().name(), user.getStatus());
     }
 
     // Refresh Token 재발급
@@ -176,7 +176,7 @@ public class AuthService {
 
         refreshTokenRepository.save(new RefreshToken(user.getEmail(), newRefreshToken, 14 * 24 * 60 * 60L));
 
-        return new LoginResponse(user.getId(), newAccessToken, newRefreshToken, user.getEmail(), user.getRole().name());
+        return new LoginResponse(user.getId(), newAccessToken, newRefreshToken, user.getEmail(), user.getRole().name(), user.getStatus());
     }
 
     // 로그아웃
@@ -204,6 +204,7 @@ public class AuthService {
                 .birthDate(user.getBirthDate())
                 .gender(user.getGender())
                 .role(user.getRole())
+                .status(user.getStatus()) // 상태 추가
                 //일반 유저 건강,질병 정보
                 .isPregnant(userProfileHealth != null ? userProfileHealth.getIsPregnant() : false)
                 .isBreastfeeding(userProfileHealth != null ? userProfileHealth.getIsBreastfeeding() : false)

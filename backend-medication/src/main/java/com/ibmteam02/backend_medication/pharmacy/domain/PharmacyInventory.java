@@ -1,12 +1,19 @@
 package com.ibmteam02.backend_medication.pharmacy.domain;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 
 @Entity
 @Getter
@@ -36,13 +43,10 @@ public class PharmacyInventory {
     private String companyName; //제조사 이름
 
     @Column(nullable = false)
-    private Integer stockQuantity; //재고 수량
+    private Integer stockQuantity;
 
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt; //처음 등록 날짜
-
-    @Column(nullable = false)
-    private LocalDateTime updatedAt; // 마지막 수정 날짜
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @Builder
     public PharmacyInventory(Long pharmacistId, String pharmacyHpid, String itemSeq,
@@ -61,9 +65,7 @@ public class PharmacyInventory {
 
     @PrePersist
     void onCreate() {
-        LocalDateTime now = LocalDateTime.now(SCHEDULE_ZONE);
-        this.createdAt = now;
-        this.updatedAt = now;
+        this.updatedAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
 
     @PreUpdate

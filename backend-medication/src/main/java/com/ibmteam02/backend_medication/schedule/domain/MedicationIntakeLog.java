@@ -11,7 +11,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -50,11 +49,8 @@ public class MedicationIntakeLog {
     @Column(name = "taken_at")
     private LocalDateTime takenAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
 
     @Builder
     public MedicationIntakeLog(
@@ -87,13 +83,6 @@ public class MedicationIntakeLog {
 
     @PrePersist
     void onCreate() {
-        LocalDateTime now = LocalDateTime.now(SCHEDULE_ZONE);
-        this.createdAt = now;
-        this.updatedAt = now;
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        this.updatedAt = LocalDateTime.now(SCHEDULE_ZONE);
+        this.createdAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
 }

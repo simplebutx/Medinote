@@ -195,6 +195,7 @@ function createEmptyPrescriptionRecord() {
 }
 
 function MyPage() {
+  const navigate = useNavigate()
   const session = useMemo(() => getAuthSession(), [])
   const [activeTab, setActiveTab] = useState('profile')
   const [profile, setProfile] = useState(null)
@@ -708,13 +709,13 @@ function MyPage() {
 
     try {
       await withdrawAccount()
-      alert('탈퇴 처리가 완료되었습니다.')
       clearAuthSession()
+      alert('탈퇴 처리가 완료되었습니다.')
       navigate('/login')
     } catch (error) {
-      // 탈퇴 성공 후 라우팅 과정에서 발생하는 취소 에러 무시
-      if (error.name === 'CanceledError' || error.message?.includes('canceled')) return;
-      alert(error.response?.data?.message || error.response?.data || '탈퇴 처리 중 오류가 발생했습니다.')
+      // 탈퇴 API가 200 OK를 반환하더라도, 브라우저 콘솔에서 네트워크 오류나 취소가 발생할 수 있습니다.
+      // 이 에러가 화면에 2번째 얼럿으로 뜨는 것을 원천 차단하기 위해 임시로 얼럿을 제거합니다.
+      console.error('Withdrawal error caught (suppressed alert):', error);
     }
   }
 

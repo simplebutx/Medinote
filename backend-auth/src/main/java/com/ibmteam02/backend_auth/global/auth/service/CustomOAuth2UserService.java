@@ -20,19 +20,25 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         OAuth2User oAuth2User = super.loadUser(userRequest);
 
-        String registrationId = userRequest.getClientRegistration().getRegistrationId();
+        try {
+            System.out.println("OAuth2 User Attributes: " + oAuth2User.getAttributes());
 
-        String userNameAttributeName = userRequest.getClientRegistration()
-                .getProviderDetails().getUserInfoEndpoint().getUserNameAttributeName();
+            String registrationId = userRequest.getClientRegistration().getRegistrationId();
 
-        OAuthAttributes attributes = OAuthAttributes.of(registrationId, userNameAttributeName,
-                oAuth2User.getAttributes());
+            String userNameAttributeName = userRequest.getClientRegistration()
+                    .getProviderDetails().getUserInfoEndpoint().getUserNameAttributeName();
 
-        User user = saveOrUpdate(attributes);
+            OAuthAttributes attributes = OAuthAttributes.of(registrationId, userNameAttributeName,
+                    oAuth2User.getAttributes());
 
-        return new CustomUserDetails(user, oAuth2User.getAttributes());
+            User user = saveOrUpdate(attributes);
 
-
+            return new CustomUserDetails(user, oAuth2User.getAttributes());
+        } catch (Exception e) {
+            System.err.println("OAuth2 Login Error: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     private User saveOrUpdate(OAuthAttributes attributes) {

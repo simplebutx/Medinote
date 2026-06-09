@@ -21,7 +21,44 @@ public class OAuthAttributes {
         if ("naver".equals(registrationId)) {
             return ofNaver(registrationId, "id", attributes);
         }
+        if ("kakao".equals(registrationId)) {
+            return ofKakao(registrationId, userNameAttributeName, attributes);
+        }
         return ofGoogle(registrationId, userNameAttributeName, attributes);
+    }
+
+    private static OAuthAttributes ofKakao(String registrationId, String userNameAttributeName, Map<String, Object> attributes) {
+        // null safe 처리
+        Map<String, Object> kakaoAccount = attributes.containsKey("kakao_account") 
+                ? (Map<String, Object>) attributes.get("kakao_account") 
+                : Map.of();
+        
+        Map<String, Object> profile = kakaoAccount.containsKey("profile") 
+                ? (Map<String, Object>) kakaoAccount.get("profile") 
+                : Map.of();
+
+        String socialId = String.valueOf(attributes.get("id"));
+        String email = (String) kakaoAccount.get("email");
+        String nickname = (String) profile.get("nickname");
+        
+        // 카카오에서 이메일을 주지 않은 경우
+        if (email == null || email.isBlank()) {
+            email = socialId + "@kakao.local";
+        }
+        
+        // 닉네임이 없는 경우 임시 닉네임
+        if (nickname == null || nickname.isBlank()) {
+            nickname = "카카오유저" + socialId.substring(0, Math.min(4, socialId.length()));
+        }
+
+        return OAuthAttributes.builder()
+                .registrationId(registrationId)
+                .name(nickname)
+                .email(email)
+                .socialId(socialId)
+                .attributes(attributes)
+                .nameAttributeKey(userNameAttributeName)
+                .build();
     }
 
     private static OAuthAttributes ofGoogle(String registrationId, String userNameAttributeName, Map<String, Object> attributes) {
@@ -47,6 +84,7 @@ public class OAuthAttributes {
                 .nameAttributeKey(userNameAttributeName)
                 .build();
     }
+    
 
     public User toEntity() {
         return User.builder()

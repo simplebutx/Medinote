@@ -108,7 +108,11 @@ function Login() {
             >
               네이버로 계속하기
             </button>
-            <button type="button" className="login-social-button kakao">
+            <button 
+              type="button" 
+              className="login-social-button kakao"
+              onClick={() => window.location.href = 'http://localhost:8080/oauth2/authorization/kakao'}
+            >
               카카오로 계속하기
             </button>
           </div>

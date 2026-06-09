@@ -2,6 +2,7 @@ package com.ibmteam02.backend_auth.user.dto;
 
 import com.ibmteam02.backend_auth.user.domain.Gender;
 import com.ibmteam02.backend_auth.user.domain.Role;
+import com.ibmteam02.backend_auth.user.domain.UserStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,6 +21,7 @@ public class UserProfileResponse {
     private LocalDate birthDate;
     private Gender gender;
     private Role role;
+    private UserStatus status; // 승인 상태
 
     //일반 유저 건강 정보
     private Boolean isPregnant;

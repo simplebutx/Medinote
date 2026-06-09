@@ -1,19 +1,29 @@
 package com.ibmteam02.backend_auth.user.domain;
 
-import com.ibmteam02.backend_auth.global.common.BaseTimeEntity;
-import jakarta.persistence.*;
-import lombok.*;
-
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
 @Table(name = "users")
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class User extends BaseTimeEntity {
+public class User {
 
     private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
 
@@ -22,8 +32,9 @@ public class User extends BaseTimeEntity {
     private Long id;
 
     @Column(unique = true, nullable = false)
-    private String email; // 이메일
+    private String email;
 
+    @Column
     private String password; // 소셜 로그인 시 null 가능
 
     @Enumerated(EnumType.STRING)
@@ -32,7 +43,7 @@ public class User extends BaseTimeEntity {
     private String socialId; // 소셜 서버의 고유 ID
 
     @Column(nullable = false)
-    private String username; //사용자 닉네임
+    private String username;
 
     @Column
     private LocalDate birthDate; //생년월일
@@ -45,13 +56,10 @@ public class User extends BaseTimeEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(length = 50)
-    private UserStatus status; // WAITING_APPROVAL, ACTIVE
+    private UserStatus status;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
 
     @Builder
     public User(String email, String password, SocialType socialType, String socialId, String username, LocalDate birthDate, Gender gender, Role role) {
@@ -101,13 +109,6 @@ public class User extends BaseTimeEntity {
 
     @PrePersist
     void onCreate() {
-        LocalDateTime now = LocalDateTime.now(SCHEDULE_ZONE);
-        this.createdAt = now;
-        this.updatedAt = now;
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        this.updatedAt = LocalDateTime.now(SCHEDULE_ZONE);
+        this.createdAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
 }
