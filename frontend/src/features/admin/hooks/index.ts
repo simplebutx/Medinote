@@ -4,3 +4,5 @@ export * from './useApprovePharmacist';
 export * from './useRejectPharmacist';
 export * from './useAdminUsers';
 export * from './useDeleteAdminUser';
+export * from './useMedicineSyncStatus';
+export * from './useSyncMedicines';

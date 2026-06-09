@@ -1,7 +1,12 @@
-import { authInstance } from '../../../api/axiosInstance';
+import {
+  authInstance,
+  medicationInstance,
+} from '../../../api/axiosInstance';
 import type {
   AdminStats,
   AdminUser,
+  MedicineSyncResult,
+  MedicineSyncStatus,
   PendingPharmacist,
 } from '../types/admin.types';
 
@@ -44,6 +49,22 @@ export const getAdminUsers = async () => {
 export const deleteAdminUser = async (userId: number) => {
   const response = await authInstance.delete<string>(
     `/api/admin/users/${userId}`,
+  );
+
+  return response.data;
+};
+
+export const getMedicineSyncStatus = async () => {
+  const response = await medicationInstance.get<MedicineSyncStatus>(
+    '/api/medicines/sync-status',
+  );
+
+  return response.data;
+};
+
+export const syncMedicines = async () => {
+  const response = await medicationInstance.post<MedicineSyncResult | string>(
+    '/api/medicines/sync',
   );
 
   return response.data;

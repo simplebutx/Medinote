@@ -1,6 +1,6 @@
 export interface MedicineSearchItem {
-  itemSeq?: number;
-  item_seq?: number;
+  itemSeq?: number | string;
+  item_seq?: number | string;
   itemName?: string;
   item_name?: string;
   companyName?: string;

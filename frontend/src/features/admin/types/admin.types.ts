@@ -38,4 +38,32 @@ export interface AdminUser {
   isSmoking?: boolean | null;
   isDrinking?: boolean | null;
   chronicDiseases?: string[];
+
+  docNumber?: string | null;
+  licenseNumber?: string | null;
+  licenseImage?: string | null;
+}
+
+export interface MedicineSyncStatus {
+  checkedCount?: number;
+  insertedCount?: number;
+  updatedCount?: number;
+  syncedIngredientItemCount?: number;
+  lastSyncedPublicUpdateDe?: string | null;
+  latestPublicUpdateDe?: string | null;
+  requestedDateCount?: number;
+  savedIngredientRowCount?: number;
+  message?: string | null;
+}
+
+export interface MedicineSyncResult {
+  checkedCount?: number;
+  insertedCount?: number;
+  updatedCount?: number;
+  syncedIngredientItemCount?: number;
+  lastSyncedPublicUpdateDe?: string | null;
+  latestPublicUpdateDe?: string | null;
+  requestedDateCount?: number;
+  savedIngredientRowCount?: number;
+  message?: string | null;
 }

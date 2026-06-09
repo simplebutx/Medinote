@@ -24,6 +24,12 @@ export interface UserProfile {
   birth_date?: string | null;
   gender?: UserGender | string | null;
   role?: UserRole | string | null;
+  status?: string | null;
+
+  createdAt?: string | null;
+  created_at?: string | null;
+  updatedAt?: string | null;
+  updated_at?: string | null;
 
   isPregnant?: boolean | null;
   is_pregnant?: boolean | null;
@@ -51,4 +57,10 @@ export interface UpdateMyProfileRequest {
   isSmoking?: boolean;
   isDrinking?: boolean;
   diseases?: string[];
+}
+
+export interface UpdateMyPharmacistProfileRequest {
+  docNumber: string;
+  licenseNumber: string;
+  licenseImage?: File | null;
 }
