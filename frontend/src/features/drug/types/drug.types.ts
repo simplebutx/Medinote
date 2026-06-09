@@ -20,6 +20,10 @@ export interface MedicineSearchItem {
   update_de?: string;
   imageUrl?: string;
   image_url?: string;
+  medicineName?: string | null;
+  drugName?: string | null;
+  entpName?: string | null;
+  entp_name?: string | null;
 }
 
 export type MedicineSuggestResponse = string[];

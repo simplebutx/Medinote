@@ -55,15 +55,32 @@ export interface PharmacyRegisterRequest {
 }
 
 export interface PharmacyInventory {
-  id: number;
+  id?: number;
+  inventoryId?: number;
+
   pharmacistId?: number;
-  pharmacyHpid: string;
-  itemSeq: string;
-  itemName: string;
+  pharmacist_id?: number;
+
+  pharmacyHpid?: string;
+  pharmacy_hpid?: string;
+
+  itemSeq?: string;
+  item_seq?: string;
+
+  itemName?: string;
+  item_name?: string;
+
   companyName?: string | null;
-  stockQuantity: number;
+  company_name?: string | null;
+
+  stockQuantity?: number;
+  stock_quantity?: number;
+
   createdAt?: string | null;
+  created_at?: string | null;
+
   updatedAt?: string | null;
+  updated_at?: string | null;
 }
 
 export interface PharmacyInventoryRequest {

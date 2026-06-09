@@ -33,7 +33,7 @@ export const updatePharmacy = async ({
 
 export const getMyPharmacyInventory = async () => {
   const response = await medicationInstance.get<PharmacyInventory[]>(
-    '/api/pharmacies/inventory',
+    '/api/pharmacist/inventory',
   );
 
   return response.data;
@@ -43,7 +43,7 @@ export const upsertPharmacyInventory = async (
   body: PharmacyInventoryRequest,
 ) => {
   const response = await medicationInstance.post<PharmacyInventory>(
-    '/api/pharmacies/inventory',
+    '/api/pharmacist/inventory',
     body,
   );
 
@@ -52,7 +52,7 @@ export const upsertPharmacyInventory = async (
 
 export const deletePharmacyInventory = async (id: number) => {
   const response = await medicationInstance.delete(
-    `/api/pharmacies/inventory/${id}`,
+    `/api/pharmacist/inventory/${id}`,
   );
 
   return response.data;

@@ -25,7 +25,7 @@ import PharmDashboardPage from '../../pages/PharmDashboardPage/PharmDashboardPag
 import ConsultPage from '../../pages/ConsultPage/ConsultPage';
 import PatientPage from '../../pages/PatientPage/PatientPage';
 import PharmDrugSearchPage from '../../pages/PharmDrugSearchPage/PharmDrugSearchPage';
-import PharmPharmacyPage from '../../pages/PharmPharmacyPage/PharmPharmacyPage';
+import PharmInventoryPage from '../../pages/PharmInventoryPage/PharmInventoryPage';
 import PharmMyPage from '../../pages/PharmMyPage/PharmMyPage';
 
 import AdminDashboardPage from '../../pages/AdminDashboardPage/AdminDashboardPage';
@@ -138,8 +138,8 @@ export const router = createBrowserRouter([
                 element: <PharmDrugSearchPage />,
               },
               {
-                path: '/pharmacist/pharmacy',
-                element: <PharmPharmacyPage />,
+                path: '/pharmacist/inventory',
+                element: <PharmInventoryPage />,
               },
               {
                 path: '/pharmacist/my',

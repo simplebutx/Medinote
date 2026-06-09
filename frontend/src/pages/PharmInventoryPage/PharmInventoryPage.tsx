@@ -1,40 +1,20 @@
 import { useMemo, useState } from 'react';
 
 import { Badge, Card, Input } from '../../components/ui';
+import { useDebounce } from '../../hooks/useDebounce';
+import {
+  useMedicineSearch,
+  useMedicineSuggest,
+} from '../../features/drug/hooks';
+import type { MedicineSearchItem } from '../../features/drug/types/drug.types';
 import {
   useDeletePharmacyInventory,
   useMyPharmacyInventory,
-  useRegisterPharmacy,
   useUpsertPharmacyInventory,
 } from '../../features/pharmacy/hooks';
 import type {
   PharmacyInventory,
-  PharmacyRegisterRequest,
 } from '../../features/pharmacy/types';
-
-const defaultPharmacyForm: PharmacyRegisterRequest = {
-  pharmacyName: '',
-  address: '',
-  phone: '',
-  latitude: 37.5665,
-  longitude: 126.978,
-  mondayOpen: '09:00',
-  mondayClose: '18:00',
-  tuesdayOpen: '09:00',
-  tuesdayClose: '18:00',
-  wednesdayOpen: '09:00',
-  wednesdayClose: '18:00',
-  thursdayOpen: '09:00',
-  thursdayClose: '18:00',
-  fridayOpen: '09:00',
-  fridayClose: '18:00',
-  saturdayOpen: '09:00',
-  saturdayClose: '13:00',
-  sundayOpen: '',
-  sundayClose: '',
-  holidayOpen: '',
-  holidayClose: '',
-};
 
 const defaultInventoryForm = {
   pharmacyHpid: '',
@@ -44,99 +24,112 @@ const defaultInventoryForm = {
   stockQuantity: 0,
 };
 
-const businessDays = [
-  {
-    label: '월요일',
-    openKey: 'mondayOpen',
-    closeKey: 'mondayClose',
-  },
-  {
-    label: '화요일',
-    openKey: 'tuesdayOpen',
-    closeKey: 'tuesdayClose',
-  },
-  {
-    label: '수요일',
-    openKey: 'wednesdayOpen',
-    closeKey: 'wednesdayClose',
-  },
-  {
-    label: '목요일',
-    openKey: 'thursdayOpen',
-    closeKey: 'thursdayClose',
-  },
-  {
-    label: '금요일',
-    openKey: 'fridayOpen',
-    closeKey: 'fridayClose',
-  },
-  {
-    label: '토요일',
-    openKey: 'saturdayOpen',
-    closeKey: 'saturdayClose',
-  },
-  {
-    label: '일요일',
-    openKey: 'sundayOpen',
-    closeKey: 'sundayClose',
-  },
-  {
-    label: '공휴일',
-    openKey: 'holidayOpen',
-    closeKey: 'holidayClose',
-  },
-] as const;
-
-function getPharmacyName(pharmacyName?: string | null, name?: string | null) {
-  return pharmacyName || name || '등록된 약국';
+function getInventoryId(inventory: PharmacyInventory) {
+  return inventory.id ?? inventory.inventoryId ?? 0;
 }
 
-function PharmPharmacyPage() {
-  const [pharmacyForm, setPharmacyForm] =
-    useState<PharmacyRegisterRequest>(defaultPharmacyForm);
+function getInventoryPharmacyHpid(inventory: PharmacyInventory) {
+  return inventory.pharmacyHpid ?? inventory.pharmacy_hpid ?? '';
+}
+
+function getInventoryItemSeq(inventory: PharmacyInventory) {
+  return inventory.itemSeq ?? inventory.item_seq ?? '';
+}
+
+function getInventoryItemName(inventory: PharmacyInventory) {
+  return inventory.itemName ?? inventory.item_name ?? '약 이름 없음';
+}
+
+function getInventoryCompanyName(inventory: PharmacyInventory) {
+  return inventory.companyName ?? inventory.company_name ?? '';
+}
+
+function getInventoryStockQuantity(inventory: PharmacyInventory) {
+  return inventory.stockQuantity ?? inventory.stock_quantity ?? 0;
+}
+
+function getMedicineId(medicine: MedicineSearchItem) {
+  return String(medicine.itemSeq ?? medicine.item_seq ?? '');
+}
+
+function getMedicineName(medicine: MedicineSearchItem) {
+  return (
+    medicine.itemName ??
+    medicine.item_name ??
+    medicine.medicineName ??
+    medicine.drugName ??
+    '약 이름 없음'
+  );
+}
+
+function getMedicineCompanyName(medicine: MedicineSearchItem) {
+  return (
+    medicine.entpName ??
+    medicine.entp_name ??
+    medicine.companyName ??
+    medicine.company_name ??
+    ''
+  );
+}
+
+function PharmInventoryPage() {
 
   const [inventoryForm, setInventoryForm] = useState(defaultInventoryForm);
+
+  const [medicineKeyword, setMedicineKeyword] = useState('');
+  const [committedMedicineKeyword, setCommittedMedicineKeyword] = useState('');
+
+  const debouncedMedicineKeyword = useDebounce(medicineKeyword, 300);
+
+  const isMedicineSuggestEnabled =
+    debouncedMedicineKeyword.trim().length >= 2 &&
+    !committedMedicineKeyword;
+
+  const isMedicineSearchEnabled = committedMedicineKeyword.trim().length >= 2;
+
+  const {
+    data: medicineSuggestions = [],
+    isLoading: isMedicineSuggestLoading,
+  } = useMedicineSuggest(
+    isMedicineSuggestEnabled ? debouncedMedicineKeyword : '',
+  );
+
+  const {
+    data: medicineResults = [],
+    isLoading: isMedicineSearchLoading,
+    isError: isMedicineSearchError,
+  } = useMedicineSearch(
+    isMedicineSearchEnabled ? committedMedicineKeyword : '',
+  );
+
+  const shouldShowMedicineDropdown =
+    medicineKeyword.trim().length >= 2 &&
+    !inventoryForm.itemSeq;
+
   const [message, setMessage] = useState('');
-
-  const [registeredPharmacyHpid, setRegisteredPharmacyHpid] = useState('');
-
+  
   const {
     data: inventories = [],
     isLoading: isInventoryLoading,
     isError: isInventoryError,
   } = useMyPharmacyInventory();
 
-  const registerPharmacyMutation = useRegisterPharmacy();
   const upsertInventoryMutation = useUpsertPharmacyInventory();
   const deleteInventoryMutation = useDeletePharmacyInventory();
 
   const currentPharmacyHpid = useMemo(() => {
     return (
-      registeredPharmacyHpid ||
       inventoryForm.pharmacyHpid ||
-      inventories[0]?.pharmacyHpid ||
+      (inventories[0] ? getInventoryPharmacyHpid(inventories[0]) : '') ||
       ''
     );
-  }, [registeredPharmacyHpid, inventoryForm.pharmacyHpid, inventories]);
+  }, [inventoryForm.pharmacyHpid, inventories]);
 
   const totalStockQuantity = useMemo(() => {
     return inventories.reduce((sum, inventory) => {
-      return sum + Number(inventory.stockQuantity || 0);
+      return sum + Number(getInventoryStockQuantity(inventory));
     }, 0);
   }, [inventories]);
-
-  const handleChangePharmacyForm = (
-    key: keyof PharmacyRegisterRequest,
-    value: string,
-  ) => {
-    setPharmacyForm((prev) => ({
-      ...prev,
-      [key]:
-        key === 'latitude' || key === 'longitude'
-          ? Number(value || 0)
-          : value,
-    }));
-  };
 
   const handleChangeInventoryForm = (
     key: keyof typeof defaultInventoryForm,
@@ -148,35 +141,25 @@ function PharmPharmacyPage() {
     }));
   };
 
-  const handleRegisterPharmacy = async () => {
-    setMessage('');
+  const handleSelectMedicineKeyword = (keyword: string) => {
+    setMedicineKeyword(keyword);
+    setCommittedMedicineKeyword(keyword);
+  };
 
-    if (!pharmacyForm.pharmacyName.trim()) {
-      setMessage('약국명을 입력해주세요.');
-      return;
-    }
+  const handleSelectMedicine = (medicine: MedicineSearchItem) => {
+    const itemSeq = getMedicineId(medicine);
+    const itemName = getMedicineName(medicine);
+    const companyName = getMedicineCompanyName(medicine);
 
-    if (!pharmacyForm.address.trim()) {
-      setMessage('약국 주소를 입력해주세요.');
-      return;
-    }
+    setInventoryForm((prev) => ({
+      ...prev,
+      itemSeq,
+      itemName,
+      companyName,
+    }));
 
-    if (!pharmacyForm.phone.trim()) {
-      setMessage('약국 전화번호를 입력해주세요.');
-      return;
-    }
-
-    const result = await registerPharmacyMutation.mutateAsync(pharmacyForm);
-
-    if (result.hpid) {
-      setRegisteredPharmacyHpid(result.hpid);
-      setInventoryForm((prev) => ({
-        ...prev,
-        pharmacyHpid: result.hpid,
-      }));
-    }
-
-    setMessage(`${getPharmacyName(result.pharmacyName, result.name)} 정보가 등록되었습니다.`);
+    setMedicineKeyword(itemName);
+    setCommittedMedicineKeyword('');
   };
 
   const handleSubmitInventory = async () => {
@@ -189,13 +172,8 @@ function PharmPharmacyPage() {
       return;
     }
 
-    if (!inventoryForm.itemSeq.trim()) {
-      setMessage('약 품목코드(itemSeq)를 입력해주세요.');
-      return;
-    }
-
-    if (!inventoryForm.itemName.trim()) {
-      setMessage('약 이름을 입력해주세요.');
+    if (!inventoryForm.itemSeq.trim() || !inventoryForm.itemName.trim()) {
+      setMessage('약 검색 결과에서 재고로 등록할 약을 선택해주세요.');
       return;
     }
 
@@ -212,23 +190,34 @@ function PharmPharmacyPage() {
       pharmacyHpid,
     });
 
+    setMedicineKeyword('');
+    setCommittedMedicineKeyword('');
+
     setMessage('약국 재고가 저장되었습니다.');
   };
 
   const handleEditInventory = (inventory: PharmacyInventory) => {
     setInventoryForm({
-      pharmacyHpid: inventory.pharmacyHpid,
-      itemSeq: inventory.itemSeq,
-      itemName: inventory.itemName,
-      companyName: inventory.companyName ?? '',
-      stockQuantity: inventory.stockQuantity,
+      pharmacyHpid: getInventoryPharmacyHpid(inventory),
+      itemSeq: getInventoryItemSeq(inventory),
+      itemName: getInventoryItemName(inventory),
+      companyName: getInventoryCompanyName(inventory),
+      stockQuantity: getInventoryStockQuantity(inventory),
     });
+
+    setMedicineKeyword(getInventoryItemName(inventory));
+    setCommittedMedicineKeyword('');
 
     setMessage('선택한 재고 정보를 수정할 수 있습니다.');
   };
 
   const handleDeleteInventory = async (inventoryId: number) => {
     setMessage('');
+
+    if (!inventoryId) {
+      setMessage('삭제할 재고 ID를 확인할 수 없습니다.');
+      return;
+    }
 
     await deleteInventoryMutation.mutateAsync(inventoryId);
 
@@ -239,13 +228,13 @@ function PharmPharmacyPage() {
     <div className="space-y-6">
       <div>
         <p className="text-sm font-semibold text-blue-600">
-          Pharmacist Pharmacy
+          Pharmacist Inventory
         </p>
 
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">약국 관리</h1>
+        <h1 className="mt-2 text-3xl font-bold text-slate-900">재고 관리</h1>
 
         <p className="mt-2 text-slate-500">
-          약국 정보를 등록하고 보유 의약품 재고를 관리합니다.
+          약국에서 보유 중인 의약품 재고를 조회하고 관리합니다.
         </p>
       </div>
 
@@ -278,7 +267,7 @@ function PharmPharmacyPage() {
         </Card>
       </div>
 
-      <Card>
+      {/* <Card>
         <div>
           <h2 className="text-xl font-bold text-slate-900">약국 정보 등록</h2>
 
@@ -399,7 +388,7 @@ function PharmPharmacyPage() {
               : '약국 정보 등록'}
           </button>
         </div>
-      </Card>
+      </Card> */}
 
       <div className="grid gap-4 lg:grid-cols-[420px_1fr]">
         <Card>
@@ -427,14 +416,117 @@ function PharmPharmacyPage() {
 
             <div>
               <label className="text-sm font-semibold text-slate-600">
+                약 검색
+              </label>
+
+              <Input
+                value={medicineKeyword}
+                onChange={(event) => {
+                  setMedicineKeyword(event.target.value);
+                  setCommittedMedicineKeyword('');
+                  setInventoryForm((prev) => ({
+                    ...prev,
+                    itemSeq: '',
+                    itemName: '',
+                    companyName: '',
+                  }));
+                }}
+                placeholder="약 이름을 검색하세요"
+              />
+
+              {shouldShowMedicineDropdown && (
+                <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <div className="px-4 pt-2 pb-1">
+                    <p className="text-xs font-semibold text-slate-500">
+                      약 검색 결과
+                    </p>
+                  </div>
+
+                  <div className="max-h-56 overflow-y-auto py-2">
+                    {isMedicineSuggestLoading && !committedMedicineKeyword && (
+                      <div className="px-4 py-4 text-sm text-blue-700">
+                        약 검색 결과를 불러오는 중입니다.
+                      </div>
+                    )}
+
+                    {!committedMedicineKeyword &&
+                      !isMedicineSuggestLoading &&
+                      medicineSuggestions.length === 0 && (
+                        <div className="px-4 py-4 text-sm text-slate-500">
+                          검색 결과가 없습니다.
+                        </div>
+                      )}
+
+                    {!committedMedicineKeyword &&
+                      !isMedicineSuggestLoading &&
+                      medicineSuggestions.map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          type="button"
+                          onClick={() => handleSelectMedicineKeyword(suggestion)}
+                          className="block w-full px-4 py-3 text-left transition hover:bg-blue-50"
+                        >
+                          <p className="font-semibold text-slate-900">{suggestion}</p>
+                          <p className="mt-1 text-xs text-slate-500">약</p>
+                        </button>
+                      ))}
+
+                    {isMedicineSearchLoading && (
+                      <div className="px-4 py-4 text-sm text-blue-700">
+                        약 정보를 검색하고 있습니다.
+                      </div>
+                    )}
+
+                    {isMedicineSearchError && (
+                      <div className="px-4 py-4 text-sm text-red-700">
+                        약 검색 결과를 불러오지 못했습니다.
+                      </div>
+                    )}
+
+                    {!isMedicineSearchLoading &&
+                      !isMedicineSearchError &&
+                      committedMedicineKeyword &&
+                      medicineResults.length === 0 && (
+                        <div className="px-4 py-4 text-sm text-slate-500">
+                          검색 결과가 없습니다.
+                        </div>
+                      )}
+
+                    {!isMedicineSearchLoading &&
+                      !isMedicineSearchError &&
+                      medicineResults.map((medicine, index) => {
+                        const itemSeq = getMedicineId(medicine) || String(index + 1);
+                        const itemName = getMedicineName(medicine);
+                        const companyName = getMedicineCompanyName(medicine);
+
+                        return (
+                          <button
+                            key={`${itemSeq}-${itemName}`}
+                            type="button"
+                            onClick={() => handleSelectMedicine(medicine)}
+                            className="block w-full px-4 py-3 text-left transition hover:bg-blue-50"
+                          >
+                            <p className="font-semibold text-slate-900">{itemName}</p>
+
+                            <p className="mt-1 text-xs text-slate-500">
+                              {companyName || '제조사 정보 없음'}
+                            </p>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-600">
                 품목코드 itemSeq
               </label>
               <Input
                 value={inventoryForm.itemSeq}
-                onChange={(event) =>
-                  handleChangeInventoryForm('itemSeq', event.target.value)
-                }
-                placeholder="예: 200001234"
+                readOnly
+                placeholder="약 선택 시 자동 입력됩니다"
               />
             </div>
 
@@ -444,10 +536,8 @@ function PharmPharmacyPage() {
               </label>
               <Input
                 value={inventoryForm.itemName}
-                onChange={(event) =>
-                  handleChangeInventoryForm('itemName', event.target.value)
-                }
-                placeholder="예: 타이레놀정500mg"
+                readOnly
+                placeholder="약 선택 시 자동 입력됩니다"
               />
             </div>
 
@@ -457,10 +547,8 @@ function PharmPharmacyPage() {
               </label>
               <Input
                 value={inventoryForm.companyName}
-                onChange={(event) =>
-                  handleChangeInventoryForm('companyName', event.target.value)
-                }
-                placeholder="예: 한국얀센"
+                readOnly
+                placeholder="약 선택 시 자동 입력됩니다"
               />
             </div>
 
@@ -519,54 +607,60 @@ function PharmPharmacyPage() {
                 등록된 재고가 없습니다.
               </div>
             ) : (
-              inventories.map((inventory) => (
-                <div
-                  key={inventory.id}
-                  className="rounded-2xl border border-slate-200 p-4"
-                >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-bold text-slate-900">
-                          {inventory.itemName}
+              inventories.map((inventory) => {
+                const inventoryId = getInventoryId(inventory);
+                const itemName = getInventoryItemName(inventory);
+                const itemSeq = getInventoryItemSeq(inventory);
+                const companyName = getInventoryCompanyName(inventory);
+                const stockQuantity = getInventoryStockQuantity(inventory);
+                const pharmacyHpid = getInventoryPharmacyHpid(inventory);
+
+                return (
+                  <div
+                    key={`${inventoryId}-${itemSeq}`}
+                    className="rounded-2xl border border-slate-200 p-4"
+                  >
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-bold text-slate-900">{itemName}</p>
+
+                          <Badge variant="green">{stockQuantity}개</Badge>
+                        </div>
+
+                        <p className="mt-2 text-sm text-slate-500">
+                          {companyName || '제조사 미등록'}
                         </p>
 
-                        <Badge variant="green">
-                          {inventory.stockQuantity}개
-                        </Badge>
+                        <p className="mt-1 text-xs text-slate-400">
+                          itemSeq: {itemSeq || '-'} · HPID: {pharmacyHpid || '-'}
+                        </p>
                       </div>
 
-                      <p className="mt-2 text-sm text-slate-500">
-                        {inventory.companyName || '제조사 미등록'}
-                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleEditInventory(inventory)}
+                          className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                        >
+                          수정
+                        </button>
 
-                      <p className="mt-1 text-xs text-slate-400">
-                        itemSeq: {inventory.itemSeq} · HPID:{' '}
-                        {inventory.pharmacyHpid}
-                      </p>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleEditInventory(inventory)}
-                        className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                      >
-                        수정
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteInventory(inventory.id)}
-                        disabled={deleteInventoryMutation.isPending}
-                        className="rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        삭제
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteInventory(inventoryId)}
+                          disabled={
+                            deleteInventoryMutation.isPending || inventoryId === 0
+                          }
+                          className="rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          삭제
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </Card>
@@ -575,4 +669,4 @@ function PharmPharmacyPage() {
   );
 }
 
-export default PharmPharmacyPage;
+export default PharmInventoryPage;

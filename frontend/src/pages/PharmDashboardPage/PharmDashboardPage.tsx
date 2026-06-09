@@ -316,10 +316,10 @@ function PharmDashboardPage() {
 
             <button
               type="button"
-              onClick={() => navigate('/pharmacist/pharmacy')}
+              onClick={() => navigate('/pharmacist/inventory')}
               className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              약국 관리
+              재고 관리
             </button>
           </div>
         </div>

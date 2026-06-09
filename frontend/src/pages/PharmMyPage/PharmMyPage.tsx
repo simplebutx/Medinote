@@ -5,6 +5,32 @@ import {
   useMyProfile,
   useUpdateMyPharmacistProfile,
 } from '../../features/user/hooks';
+import { useRegisterPharmacy } from '../../features/pharmacy/hooks';
+import type { PharmacyRegisterRequest } from '../../features/pharmacy/types';
+
+const defaultPharmacyForm: PharmacyRegisterRequest = {
+  pharmacyName: '',
+  address: '',
+  phone: '',
+  latitude: 37.5665,
+  longitude: 126.978,
+  mondayOpen: '09:00',
+  mondayClose: '18:00',
+  tuesdayOpen: '09:00',
+  tuesdayClose: '18:00',
+  wednesdayOpen: '09:00',
+  wednesdayClose: '18:00',
+  thursdayOpen: '09:00',
+  thursdayClose: '18:00',
+  fridayOpen: '09:00',
+  fridayClose: '18:00',
+  saturdayOpen: '09:00',
+  saturdayClose: '13:00',
+  sundayOpen: '',
+  sundayClose: '',
+  holidayOpen: '',
+  holidayClose: '',
+};
 
 function getApprovalStatusLabel(status?: string | null, role?: string | null) {
   if (status === 'ACTIVE') return '승인 완료';
@@ -35,6 +61,55 @@ function getGenderLabel(gender?: string | null) {
 }
 
 function PharmMyPage() {
+  const registerPharmacyMutation = useRegisterPharmacy();
+
+  const [pharmacyForm, setPharmacyForm] =
+    useState<PharmacyRegisterRequest>(defaultPharmacyForm);
+
+  const [pharmacyMessage, setPharmacyMessage] = useState('');
+
+  const handleChangePharmacyForm = (
+    key: keyof PharmacyRegisterRequest,
+    value: string,
+  ) => {
+    setPharmacyForm((prev) => ({
+      ...prev,
+      [key]:
+        key === 'latitude' || key === 'longitude'
+          ? Number(value || 0)
+          : value,
+    }));
+  };
+
+  const handleRegisterPharmacy = async () => {
+    setPharmacyMessage('');
+
+    try {
+      if (!pharmacyForm.pharmacyName.trim()) {
+        setPharmacyMessage('약국명을 입력해주세요.');
+        return;
+      }
+
+      if (!pharmacyForm.address.trim()) {
+        setPharmacyMessage('약국 주소를 입력해주세요.');
+        return;
+      }
+
+      if (!pharmacyForm.phone.trim()) {
+        setPharmacyMessage('약국 전화번호를 입력해주세요.');
+        return;
+      }
+
+      await registerPharmacyMutation.mutateAsync(pharmacyForm);
+
+      setPharmacyMessage('약국 정보가 등록되었습니다.');
+    } catch {
+      setPharmacyMessage(
+        '약국 정보 등록에 실패했습니다. 백엔드 DB 초기화 또는 약국 등록 조건을 확인해주세요.',
+      );
+    }
+  };
+  
   const { data: profile, isLoading, isError } = useMyProfile();
   const updatePharmacistProfileMutation = useUpdateMyPharmacistProfile();
 
@@ -257,6 +332,95 @@ function PharmMyPage() {
                       : '정보 수정 요청'}
                   </button>
                 </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">약국 정보</h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  약사가 운영하거나 소속된 약국 정보를 등록합니다.
+                </p>
+              </div>
+
+              {pharmacyMessage && (
+                <div className="mt-4 rounded-2xl bg-blue-50 p-4 text-sm font-semibold text-blue-700">
+                  {pharmacyMessage}
+                </div>
+              )}
+
+              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                <div>
+                  <label className="text-sm font-semibold text-slate-600">약국명</label>
+                  <Input
+                    value={pharmacyForm.pharmacyName}
+                    onChange={(event) =>
+                      handleChangePharmacyForm('pharmacyName', event.target.value)
+                    }
+                    placeholder="예: 메디노트 약국"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-600">전화번호</label>
+                  <Input
+                    value={pharmacyForm.phone}
+                    onChange={(event) =>
+                      handleChangePharmacyForm('phone', event.target.value)
+                    }
+                    placeholder="예: 02-1234-5678"
+                  />
+                </div>
+
+                <div className="lg:col-span-2">
+                  <label className="text-sm font-semibold text-slate-600">주소</label>
+                  <Input
+                    value={pharmacyForm.address}
+                    onChange={(event) =>
+                      handleChangePharmacyForm('address', event.target.value)
+                    }
+                    placeholder="약국 상세 주소"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-600">위도</label>
+                  <Input
+                    type="number"
+                    value={pharmacyForm.latitude}
+                    onChange={(event) =>
+                      handleChangePharmacyForm('latitude', event.target.value)
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-slate-600">경도</label>
+                  <Input
+                    type="number"
+                    value={pharmacyForm.longitude}
+                    onChange={(event) =>
+                      handleChangePharmacyForm('longitude', event.target.value)
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                약국 정보 등록 API는 현재 서버/DB 상태에 따라 실패할 수 있습니다. POST
+                500이 발생하면 백엔드 DB 초기화 또는 약국 등록 로직을 확인해야 합니다.
+              </div>
+
+              <div className="mt-5 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleRegisterPharmacy}
+                  disabled={registerPharmacyMutation.isPending}
+                  className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {registerPharmacyMutation.isPending ? '등록 중' : '약국 정보 등록'}
+                </button>
               </div>
             </Card>
           </div>
