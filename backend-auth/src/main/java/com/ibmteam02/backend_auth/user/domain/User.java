@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Getter
@@ -13,6 +15,8 @@ import java.time.LocalDate;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User extends BaseTimeEntity {
 
+    private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -20,13 +24,17 @@ public class User extends BaseTimeEntity {
     @Column(unique = true, nullable = false)
     private String email; // 이메일
 
-    @Column(nullable = false)
-    private String password; //패스워드
+    private String password; // 소셜 로그인 시 null 가능
+
+    @Enumerated(EnumType.STRING)
+    private SocialType socialType; // KAKAO, GOOGLE, NAVER
+
+    private String socialId; // 소셜 서버의 고유 ID
 
     @Column(nullable = false)
     private String username; //사용자 닉네임
 
-    @Column(nullable = false)
+    @Column
     private LocalDate birthDate; //생년월일
 
     @Enumerated(EnumType.STRING)
@@ -39,10 +47,18 @@ public class User extends BaseTimeEntity {
     @Column(length = 50)
     private UserStatus status; // WAITING_APPROVAL, ACTIVE
 
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
     @Builder
-    public User(String email, String password, String username, LocalDate birthDate, Gender gender, Role role) {
+    public User(String email, String password, SocialType socialType, String socialId, String username, LocalDate birthDate, Gender gender, Role role) {
         this.email = email;
         this.password = password;
+        this.socialId = socialId;
+        this.socialType = socialType;
         this.username = username;
         this.birthDate = birthDate;
         this.gender = gender;
@@ -60,9 +76,14 @@ public class User extends BaseTimeEntity {
         this.status = UserStatus.WAITING_APPROVAL;
     }
 
-    //약사 승인 거절 시 REJECTED 상태로 변경
+    //역사 승인 거절 시 REJECTED 상태로 변경
     public void rejectPharmacist(){
         this.status = UserStatus.REJECTED;
+    }
+
+    //역할 업데이트
+    public void updateRole(Role role) {
+        this.role = role;
     }
 
     //기본 정보 수정
@@ -76,5 +97,17 @@ public class User extends BaseTimeEntity {
         if (gender != null) {
             this.gender = gender;
         }
+    }
+
+    @PrePersist
+    void onCreate() {
+        LocalDateTime now = LocalDateTime.now(SCHEDULE_ZONE);
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        this.updatedAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
 }

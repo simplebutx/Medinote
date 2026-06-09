@@ -1,6 +1,5 @@
 package com.ibmteam02.backend_medication.medicine.domain;
 
-import com.ibmteam02.backend_medication.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -8,7 +7,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @NoArgsConstructor
 @Getter
-public class MedicineIngredient extends BaseTimeEntity {
+public class MedicineIngredient {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -27,6 +27,8 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtProvider jwtProvider;
+    private final com.ibmteam02.backend_auth.global.auth.service.CustomOAuth2UserService customOAuth2UserService;
+    private final com.ibmteam02.backend_auth.global.auth.handler.OAuth2SuccessHandler oAuth2SuccessHandler;
 
     @Bean
     public PasswordEncoder passwordEncoder(){
@@ -81,8 +83,12 @@ public class SecurityConfig {
                                 "/webjars/**" , "/api/auth/diseases/suggest").permitAll()
                         .anyRequest().authenticated()
                 )
-                        .addFilterBefore(new JwtAuthenticationFilter(jwtProvider),
-                                UsernamePasswordAuthenticationFilter.class);
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
+                        .successHandler(oAuth2SuccessHandler)
+                )
+                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider),
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -1,11 +1,11 @@
 package com.ibmteam02.backend_auth.user.dto;
 
 import com.ibmteam02.backend_auth.user.domain.Gender;
+import com.ibmteam02.backend_auth.user.domain.Role;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
@@ -14,6 +14,7 @@ public class ProfileUpdateRequest {
     private String username;
     private LocalDate birthDate;
     private Gender gender;
+    private Role role; // 추가: USER or PHARMACIST
 
     //건강정보
     private Boolean isPregnant;

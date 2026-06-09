@@ -1,6 +1,5 @@
 package com.ibmteam02.backend_medication.pharmacy.domain;
 
-import com.ibmteam02.backend_medication.global.common.BaseTimeEntity;
 import com.ibmteam02.backend_medication.pharmacy.dto.PharmacyRegisterRequest;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -27,7 +26,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Getter
 @Builder
-public class Pharmacy extends BaseTimeEntity {
+public class Pharmacy {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

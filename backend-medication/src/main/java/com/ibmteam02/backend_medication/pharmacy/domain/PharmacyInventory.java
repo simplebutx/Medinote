@@ -1,18 +1,21 @@
 package com.ibmteam02.backend_medication.pharmacy.domain;
 
-import com.ibmteam02.backend_medication.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "pharmacist_inventory")
-public class PharmacyInventory extends BaseTimeEntity {
+public class PharmacyInventory {
+
+    private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,6 +38,12 @@ public class PharmacyInventory extends BaseTimeEntity {
     @Column(nullable = false)
     private Integer stockQuantity; //재고 수량
 
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt; //처음 등록 날짜
+
+    @Column(nullable = false)
+    private LocalDateTime updatedAt; // 마지막 수정 날짜
+
     @Builder
     public PharmacyInventory(Long pharmacistId, String pharmacyHpid, String itemSeq,
                              String itemName, String companyName, Integer stockQuantity){
@@ -48,5 +57,17 @@ public class PharmacyInventory extends BaseTimeEntity {
 
     public void updateStock(Integer quantity){
         this.stockQuantity = quantity;
+    }
+
+    @PrePersist
+    void onCreate() {
+        LocalDateTime now = LocalDateTime.now(SCHEDULE_ZONE);
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        this.updatedAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
 }

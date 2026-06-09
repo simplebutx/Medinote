@@ -20,6 +20,8 @@ import ScheduleEditPage from './pages/schedule/ScheduleEditPage'
 import ScheduleListPage from './pages/schedule/ScheduleListPage'
 import ScheduleOcrPage from './pages/schedule/ScheduleOcrPage'
 import Signup from './pages/Signup'
+import ExtraInfo from './pages/ExtraInfo'
+import OAuth2Redirect from './pages/OAuth2Redirect'
 import SimplePlaceholderPage from './pages/SimplePlaceholderPage'
 import Sync from './pages/Sync'
 import YunjuTest from './pages/YunjuTest'
@@ -39,6 +41,8 @@ function App() {
         <Route path="/" element={<Navigate to="/app/schedule" replace />} />
 
         <Route path="/signup" element={<Signup />} />
+        <Route path="/signup/extra-info" element={<ExtraInfo />} />
+        <Route path="/oauth2/redirect" element={<OAuth2Redirect />} />
         <Route path="/login" element={<Login />} />
         <Route path="/yunjutest" element={<YunjuTest />} />
         <Route path="/sync" element={<Sync />} />

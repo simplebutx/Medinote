@@ -94,10 +94,18 @@ function Login() {
           </div>
 
           <div className="login-social-buttons">
-            <button type="button" className="login-social-button google">
+            <button 
+              type="button" 
+              className="login-social-button google"
+              onClick={() => window.location.href = 'http://localhost:8080/oauth2/authorization/google'}
+            >
               Google로 계속하기
             </button>
-            <button type="button" className="login-social-button naver">
+            <button 
+              type="button" 
+              className="login-social-button naver"
+              onClick={() => window.location.href = 'http://localhost:8080/oauth2/authorization/naver'}
+            >
               네이버로 계속하기
             </button>
             <button type="button" className="login-social-button kakao">

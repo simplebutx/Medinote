@@ -1,6 +1,5 @@
 package com.ibmteam02.backend_medication.medicine.domain;
 
-import com.ibmteam02.backend_medication.global.common.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -10,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @NoArgsConstructor
 @Getter
-public class MedicineInfo extends BaseTimeEntity {
+public class MedicineInfo {
 
     @Id
     private Long itemSeq;

@@ -198,6 +198,22 @@ const PharmacistProfile = () => {
     }
   }
 
+  const handleWithdraw = async () => {
+    if (!window.confirm('정말로 탈퇴하시겠습니까? 약국 및 재고 정보가 삭제되며 복구할 수 없습니다.')) {
+      return
+    }
+
+    try {
+      await withdrawAccount()
+      alert('탈퇴 처리가 완료되었습니다.')
+      clearAuthSession()
+      navigate('/login')
+    } catch (error) {
+      if (error.name === 'CanceledError' || error.message?.includes('canceled')) return;
+      alert(error.response?.data?.message || error.response?.data || '탈퇴 처리 중 오류가 발생했습니다.')
+    }
+  }
+
   if (loading) {
     return <div style={{ padding: '20px' }}>로딩 중...</div>
   }
