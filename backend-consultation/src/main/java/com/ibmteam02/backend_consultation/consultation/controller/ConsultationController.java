@@ -1,9 +1,7 @@
 package com.ibmteam02.backend_consultation.consultation.controller;
 
-import com.ibmteam02.backend_consultation.consultation.dto.ChatMessageResponse;
-import com.ibmteam02.backend_consultation.consultation.dto.ConsultationFeedbackRequest;
-import com.ibmteam02.backend_consultation.consultation.dto.ConsultationRoomResponse;
-import com.ibmteam02.backend_consultation.consultation.dto.PatientInfoResponse;
+import com.ibmteam02.backend_consultation.ai.dto.AiConsultationSummaryRequest;
+import com.ibmteam02.backend_consultation.consultation.dto.*;
 import com.ibmteam02.backend_consultation.consultation.service.ConsultationService;
 import com.ibmteam02.backend_consultation.global.auth.JwtProvider;
 import lombok.RequiredArgsConstructor;
@@ -167,6 +165,34 @@ public class ConsultationController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("평가 등록 실패" + e.getMessage());
+        }
+    }
+
+    // 약사 평점 및 피드백 통계 조회
+    @GetMapping("/rooms/feedback-stats")
+    public ResponseEntity<?> getPharmacistFeedbackStats(@RequestHeader("Authorization") String bearerToken){
+        try{
+            String token = bearerToken.substring(7);
+            Long userId = jwtProvider.getUserIdFromToken(token);
+            String role = jwtProvider.getRoleFromToken(token);
+
+            PharmacistFeedbackStatsResponse stats = consultationService.getPharmacistFeedbackStats(userId,role);
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("통계 조회 실패:" + e.getMessage());
+        }
+    }
+
+    //상담 요약 요청
+    @PostMapping("/room/{roomId}/summary")
+    public ResponseEntity<?> requestAiGuide(@PathVariable Long roomId){
+        try{
+            consultationService.aiConsultationSummary(roomId);
+            return ResponseEntity.ok("AI 분석을 위해 대화 전체 수집 완료");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("요청 실패"+e.getMessage());
         }
     }
 }

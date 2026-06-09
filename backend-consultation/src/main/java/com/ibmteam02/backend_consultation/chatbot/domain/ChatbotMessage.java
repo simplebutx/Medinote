@@ -12,17 +12,17 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @NoArgsConstructor
 @Getter
 public class ChatbotMessage {
-    private static final ZoneId CHATBOT_ZONE = ZoneId.of("Asia/Seoul");
+
+    private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,7 +34,7 @@ public class ChatbotMessage {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "sender_type", nullable = false)
-    private SenderType senderType;   // 사용자인지 챗봇인지
+    private SenderType senderType;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
@@ -57,7 +57,7 @@ public class ChatbotMessage {
     }
 
     @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now(CHATBOT_ZONE);
+    void onCreate() {
+        this.createdAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
 }

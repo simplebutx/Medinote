@@ -1,20 +1,29 @@
 package com.ibmteam02.backend_consultation.consultation.domain;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-
-import java.time.LocalDateTime;
 
 @Getter
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EntityListeners(AutoCloseable.class)
 @Table(name = "consultation_feedbacks")
 public class ConsultationFeedback {
+
+    private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,18 +31,17 @@ public class ConsultationFeedback {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "session_id", nullable = false)
-    private ConsultationSession session; // 상담방 ID
+    private ConsultationSession session;
 
     @Column(nullable = false)
-    private Long pharmacistId; //약사 ID
+    private Long pharmacistId;
 
     @Column(nullable = false)
-    private Integer rating; //별점
+    private Integer rating;
 
-    private String comment; //한줄평
+    private String comment;
 
-    @CreatedDate
-    @Column(updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @Builder
@@ -44,7 +52,6 @@ public class ConsultationFeedback {
         this.comment = comment;
     }
 
-    //피드백 생성
     public static ConsultationFeedback createFeedback(ConsultationSession session, Long pharmacistId, Integer rating, String comment) {
         return ConsultationFeedback.builder()
                 .session(session)
@@ -54,4 +61,8 @@ public class ConsultationFeedback {
                 .build();
     }
 
+    @PrePersist
+    void onCreate() {
+        this.createdAt = LocalDateTime.now(SCHEDULE_ZONE);
+    }
 }

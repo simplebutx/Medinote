@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { getAuthSession } from '../api';
@@ -7,6 +7,11 @@ const PharmacistDashboard = () => {
     const navigate = useNavigate();
     const session = getAuthSession();
     const [stats, setStats] = useState({ pending: 0, active: 0, completed: 0 });
+    const [feedbackStats, setFeedbackStats] = useState({
+        averageRating: 0.0,
+        totalReviewCount: 0,
+        recentFeedbacks: []
+    });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -16,27 +21,31 @@ const PharmacistDashboard = () => {
             return;
         }
 
-        const fetchStats = async () => {
+        const fetchDashboardData = async () => {
             try {
-                // 병렬로 현황 데이터 가져오기
-                const [p, a, c] = await Promise.all([
+                // 현황 데이터 및 피드백 통계 병렬로 가져오기
+                const [p, a, c, f] = await Promise.all([
                     axios.get('http://localhost:8082/app/consult/rooms/pending', { headers: { Authorization: `Bearer ${session.accessToken}` } }),
                     axios.get('http://localhost:8082/app/consult/rooms/active', { headers: { Authorization: `Bearer ${session.accessToken}` } }),
-                    axios.get('http://localhost:8082/app/consult/rooms/completed', { headers: { Authorization: `Bearer ${session.accessToken}` } })
+                    axios.get('http://localhost:8082/app/consult/rooms/completed', { headers: { Authorization: `Bearer ${session.accessToken}` } }),
+                    axios.get('http://localhost:8082/app/consult/rooms/feedback-stats', { headers: { Authorization: `Bearer ${session.accessToken}` } })
                 ]);
+                
                 setStats({
                     pending: p.data.length,
                     active: a.data.length,
                     completed: c.data.length
                 });
+
+                setFeedbackStats(f.data);
             } catch (error) {
-                console.error("통계 조회 실패", error);
+                console.error("데이터 조회 실패", error);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchStats();
+        fetchDashboardData();
     }, [navigate]);
 
     return (
@@ -53,19 +62,19 @@ const PharmacistDashboard = () => {
             </div>
 
             <div style={gridStyle}>
-                <div style={{...cardStyle, borderLeft: '6px solid #f59e0b'}} onClick={() => navigate('/pharmacist/rooms')}>
+                <div style={{...cardStyle, borderLeft: '6px solid #f59e0b'}} onClick={() => navigate('/p/rooms', { state: { initialTab: 'PENDING' } })}>
                     <div style={cardLabelStyle}>🔔 대기 중</div>
                     <div style={cardValueStyle}>{stats.pending}건</div>
                     <div style={cardActionStyle}>수락하러 가기 〉</div>
                 </div>
 
-                <div style={{...cardStyle, borderLeft: '6px solid #10b981'}} onClick={() => navigate('/pharmacist/rooms')}>
+                <div style={{...cardStyle, borderLeft: '6px solid #10b981'}} onClick={() => navigate('/p/rooms', { state: { initialTab: 'MATCHED' } })}>
                     <div style={cardLabelStyle}>💬 진행 중</div>
                     <div style={cardValueStyle}>{stats.active}건</div>
                     <div style={cardActionStyle}>채팅방 입장하기 〉</div>
                 </div>
 
-                <div style={{...cardStyle, borderLeft: '6px solid #64748b'}} onClick={() => navigate('/pharmacist/rooms')}>
+                <div style={{...cardStyle, borderLeft: '6px solid #64748b'}} onClick={() => navigate('/p/rooms', { state: { initialTab: 'CLOSED' } })}>
                     <div style={cardLabelStyle}>✅ 상담 완료</div>
                     <div style={cardValueStyle}>{stats.completed}건</div>
                     <div style={cardActionStyle}>전체 내역 보기 〉</div>
@@ -73,24 +82,48 @@ const PharmacistDashboard = () => {
             </div>
 
             <div style={{marginTop: '40px'}}>
-                <h2 style={sectionTitleStyle}>업무 도구</h2>
-                <div style={menuListStyle}>
-                    <button style={menuButtonStyle} onClick={() => navigate('/pharmacist/rooms')}>
-                        <span style={menuIconStyle}>📱</span>
-                        <div style={menuContentStyle}>
-                            <div style={menuTitleStyle}>상담 관리 센터</div>
-                            <div style={menuDescStyle}>실시간 환자 상담 및 매칭을 관리합니다.</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '20px' }}>
+                    <h2 style={sectionTitleStyle}>🌟 최근 환자 피드백</h2>
+                    <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#eab308' }}>
+                            평균 평점: {feedbackStats.averageRating} / 5.0
                         </div>
-                    </button>
-                    
-                    <button style={menuButtonStyle} onClick={() => alert('프로필 관리 페이지는 준비 중입니다.')}>
-                        <span style={menuIconStyle}>⚙️</span>
-                        <div style={menuContentStyle}>
-                            <div style={menuTitleStyle}>내 면허/약국 정보</div>
-                            <div style={menuDescStyle}>소속 약국 및 인증 상태를 확인합니다.</div>
+                        <div style={{ fontSize: '13px', color: '#64748b' }}>
+                            총 {feedbackStats.totalReviewCount}개의 후기
                         </div>
-                    </button>
+                    </div>
                 </div>
+
+                {feedbackStats.recentFeedbacks.length === 0 ? (
+                    <div style={{ padding: '40px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '16px', color: '#94a3b8' }}>
+                        아직 등록된 후기가 없습니다.
+                    </div>
+                ) : (
+                    <div style={feedbackListStyle}>
+                        {feedbackStats.recentFeedbacks.map((fb, idx) => (
+                            <div key={idx} style={feedbackCardStyle}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                    <span style={{ color: '#eab308', fontWeight: 'bold' }}>
+                                        {'★'.repeat(fb.rating)}{'☆'.repeat(5 - fb.rating)}
+                                    </span>
+                                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>{new Date(fb.createdAt).toLocaleDateString()}</span>
+                                </div>
+                                <div style={{ fontSize: '15px', color: '#1e293b', fontWeight: '500', marginBottom: '8px' }}>
+                                    "{fb.comment || '별점만 남겨주셨습니다.'}"
+                                </div>
+                                <div style={{ fontSize: '12px', color: '#64748b' }}>
+                                    상담환자: {fb.customerName} (방 번호: #{fb.roomId})
+                                </div>
+                            </div>
+                        ))}
+                        <button 
+                            onClick={() => navigate('/p/reviews')}
+                            style={{ width: '100%', padding: '12px', background: 'none', border: '1px dashed #cbd5e1', borderRadius: '12px', color: '#64748b', cursor: 'pointer', fontWeight: '600' }}
+                        >
+                            모든 후기 상세 조회하기 〉
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -108,12 +141,8 @@ const cardStyle = { backgroundColor: '#fff', padding: '24px', borderRadius: '16p
 const cardLabelStyle = { fontSize: '14px', fontWeight: '700', color: '#64748b', marginBottom: '12px' };
 const cardValueStyle = { fontSize: '36px', fontWeight: '800', color: '#1e293b', marginBottom: '8px' };
 const cardActionStyle = { fontSize: '13px', color: '#007AFF', fontWeight: '600' };
-const sectionTitleStyle = { fontSize: '20px', fontWeight: '700', color: '#1e293b', marginBottom: '20px' };
-const menuListStyle = { display: 'flex', flexDirection: 'column', gap: '12px' };
-const menuButtonStyle = { display: 'flex', alignItems: 'center', width: '100%', padding: '24px', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', textAlign: 'left', cursor: 'pointer', gap: '20px' };
-const menuIconStyle = { fontSize: '28px', backgroundColor: '#f1f5f9', width: '60px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '14px' };
-const menuContentStyle = { flex: 1 };
-const menuTitleStyle = { fontSize: '18px', fontWeight: '700', color: '#1e293b', marginBottom: '4px' };
-const menuDescStyle = { fontSize: '14px', color: '#64748b' };
+const sectionTitleStyle = { fontSize: '20px', fontWeight: '700', color: '#1e293b', margin: 0 };
+const feedbackListStyle = { display: 'flex', flexDirection: 'column', gap: '16px' };
+const feedbackCardStyle = { backgroundColor: '#fff', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' };
 
 export default PharmacistDashboard;

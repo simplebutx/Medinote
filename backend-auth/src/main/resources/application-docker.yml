@@ -5,7 +5,7 @@ spring:
       - io.awspring.cloud.autoconfigure.core.AwsClientDefaultsAutoConfiguration
 
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:mysql}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:medic}
+    url: jdbc:mysql://${MYSQL_HOST:mysql}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:medic}?zeroDateTimeBehavior=convertToNull
     username: ${MYSQL_USERNAME:}
     password: ${MYSQL_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -37,6 +37,11 @@ spring:
     redis:
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
+
+  servlet:
+    multipart:
+    max-file-size: 10MB
+    max-request-size: 10MB
 
   cloud:
     aws:

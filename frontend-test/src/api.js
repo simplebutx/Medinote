@@ -26,6 +26,18 @@ export const updateMyProfile = async (payload) => {
   return response.data
 }
 
+export const getMyProfile = async () => {
+  const response = await api.get('/auth/me')
+  return response.data
+}
+
+export const suggestDiseases = async (keyword) => {
+  const response = await api.get('/auth/diseases/suggest', {
+    params: { keyword }
+  })
+  return response.data
+}
+
 export const withdrawAccount = async () => {
   const response = await api.delete('/auth/me')
   return response.data

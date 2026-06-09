@@ -5,6 +5,7 @@ import com.ibmteam02.backend_medication.medicine.service.MedicineInfoService;
 import com.ibmteam02.backend_medication.medicine.service.MedicineSearchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -40,7 +41,7 @@ public class MedicineInfoController {
 
     // 약 검색
     @GetMapping("/search")
-    public MedicineSearchResponse searchMedicine(@RequestParam String keyword) {
-        return medicineSearchService.searchMedicine(keyword);
+    public MedicineSearchResponse searchMedicine(@AuthenticationPrincipal Long userId, @RequestParam String keyword) {
+        return medicineSearchService.searchMedicine(userId, keyword);
     }
 }

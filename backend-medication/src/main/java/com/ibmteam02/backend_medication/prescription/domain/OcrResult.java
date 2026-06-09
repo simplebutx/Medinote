@@ -11,6 +11,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,6 +22,8 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class OcrResult {
+
+    private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -46,7 +49,7 @@ public class OcrResult {
     private String errorMessage;
 
     @Column(name = "ocr_engine", length = 100)
-    private String ocrEngine;  // 디버깅용
+    private String ocrEngine;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -73,14 +76,12 @@ public class OcrResult {
         this.ocrEngine = ocrEngine;
     }
 
-    // 상태 변경용 함수
     public void markProcessing(String ocrEngine) {
         this.status = OcrResultStatus.OCR_PROCESSING;
         this.ocrEngine = ocrEngine;
         this.errorMessage = null;
     }
 
-    // 상태 변경용 함수
     public void markSuccess(String rawText, String resultJson, String ocrEngine) {
         this.status = OcrResultStatus.OCR_DONE;
         this.rawText = rawText;
@@ -89,7 +90,6 @@ public class OcrResult {
         this.errorMessage = null;
     }
 
-    // 상태 변경용 함수
     public void markFailed(String errorMessage, String ocrEngine) {
         this.status = OcrResultStatus.OCR_FAILED;
         this.errorMessage = errorMessage;
@@ -103,11 +103,10 @@ public class OcrResult {
     }
 
     @PrePersist
-    void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
+    void onPrePersist() {
+        LocalDateTime now = LocalDateTime.now(SCHEDULE_ZONE);
         this.createdAt = now;
         this.updatedAt = now;
-
         if (this.status == null) {
             this.status = OcrResultStatus.PRESIGNED_ISSUED;
         }
@@ -115,6 +114,6 @@ public class OcrResult {
 
     @PreUpdate
     void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
 }

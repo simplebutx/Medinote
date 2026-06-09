@@ -1,15 +1,25 @@
 package com.ibmteam02.backend_medication.caution.domain;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 @Entity
 @NoArgsConstructor
 @Getter
 public class UserMedicationCaution {
+
+    private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,9 +36,17 @@ public class UserMedicationCaution {
     @Enumerated(EnumType.STRING)
     private Reason reason;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private CautionType cautionType;
+
     @Column(columnDefinition = "TEXT")
     private String memo;
+
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     public UserMedicationCaution(
@@ -38,9 +56,8 @@ public class UserMedicationCaution {
             String ingredientCode,
             String ingredientName,
             Reason reason,
-            String memo,
-            LocalDateTime createdAt,
-            LocalDateTime updatedAt
+            CautionType cautionType,
+            String memo
     ) {
         this.userId = userId;
         this.itemSeq = itemSeq;
@@ -48,9 +65,8 @@ public class UserMedicationCaution {
         this.ingredientCode = ingredientCode;
         this.ingredientName = ingredientName;
         this.reason = reason;
+        this.cautionType = cautionType;
         this.memo = memo;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
     }
 
     public void update(
@@ -59,15 +75,27 @@ public class UserMedicationCaution {
             String ingredientCode,
             String ingredientName,
             Reason reason,
-            String memo,
-            LocalDateTime updatedAt
+            CautionType cautionType,
+            String memo
     ) {
         this.itemSeq = itemSeq;
         this.itemName = itemName;
         this.ingredientCode = ingredientCode;
         this.ingredientName = ingredientName;
         this.reason = reason;
+        this.cautionType = cautionType;
         this.memo = memo;
-        this.updatedAt = updatedAt;
+    }
+
+    @PrePersist
+    void onCreate() {
+        LocalDateTime now = LocalDateTime.now(SCHEDULE_ZONE);
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        this.updatedAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
 }

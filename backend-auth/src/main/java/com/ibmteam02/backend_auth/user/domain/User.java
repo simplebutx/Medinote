@@ -1,11 +1,22 @@
 package com.ibmteam02.backend_auth.user.domain;
 
-import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
@@ -14,37 +25,36 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User {
 
+    private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(unique = true, nullable = false)
-    private String email; // 이메일
+    private String email;
 
     @Column(nullable = false)
-    private String password; //패스워드
+    private String password;
 
     @Column(nullable = false)
-    private String username; //사용자 닉네임
+    private String username;
 
     @Column(nullable = false)
-    private LocalDate birthDate; //생년월일
+    private LocalDate birthDate;
 
     @Enumerated(EnumType.STRING)
-    private Gender gender; // MALE, FEMALE
+    private Gender gender;
 
     @Enumerated(EnumType.STRING)
-    private Role role; //USER, PHARMACIST, ADMIN
+    private Role role;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 50)
-    private UserStatus status; // WAITING_APPROVAL, ACTIVE
+    private UserStatus status;
 
-    @CreationTimestamp
-    @Column(updatable = false)
-    private LocalDateTime createdAt; // 가입일
-
-    private LocalDateTime updatedAt;
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 
     @Builder
     public User(String email, String password, String username, LocalDate birthDate, Gender gender, Role role) {
@@ -54,26 +64,22 @@ public class User {
         this.birthDate = birthDate;
         this.gender = gender;
         this.role = role;
-        this.status = UserStatus.PENDING; //1단계 공통 가입 시 PENDING
+        this.status = UserStatus.PENDING;
     }
 
-    //일반 유저 ACTIVE 상태 변경
     public void activateGeneralUser() {
         this.status = UserStatus.ACTIVE;
     }
 
-    //약사 2단계 완료 시 승인 대기 상태로 변경
     public void setWaitingForApproval() {
         this.status = UserStatus.WAITING_APPROVAL;
     }
 
-    //약사 승인 거절 시 REJECTED 상태로 변경
     public void rejectPharmacist(){
         this.status = UserStatus.REJECTED;
     }
 
-    //기본 정보 수정
-    public void updateBasicProfile(String username,LocalDate birthDate, Gender gender) {
+    public void updateBasicProfile(String username, LocalDate birthDate, Gender gender) {
         if (username != null && username.trim().isEmpty()) {
             this.username = username;
         }
@@ -83,5 +89,10 @@ public class User {
         if (gender != null) {
             this.gender = gender;
         }
+    }
+
+    @PrePersist
+    void onCreate() {
+        this.createdAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
 }

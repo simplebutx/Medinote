@@ -5,6 +5,7 @@ import com.ibmteam02.backend_medication.ai.dto.AiOcrRequest;
 import com.ibmteam02.backend_medication.ai.dto.AiOcrResponse;
 import com.ibmteam02.backend_medication.global.exception.ForbiddenException;
 import com.ibmteam02.backend_medication.global.exception.ResourceNotFoundException;
+import com.ibmteam02.backend_medication.prescription.config.S3StorageProperties;
 import com.ibmteam02.backend_medication.prescription.domain.OcrResult;
 import com.ibmteam02.backend_medication.prescription.dto.PrescriptionOcrResponse;
 import com.ibmteam02.backend_medication.prescription.repository.OcrResultRepository;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClientException;
+import software.amazon.awssdk.services.s3.S3Client;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -25,6 +27,8 @@ public class PrescriptionOcrService {
     private final AiOcrClient aiOcrClient;
     private final MedicineNameMatchService medicineMatchService;
     private final ObjectMapper objectMapper;
+    private final S3Client s3Client;
+    private final S3StorageProperties s3StorageProperties;
 
     // 업로드한 사진에 대해 ocr 실행
     @Transactional
@@ -47,6 +51,14 @@ public class PrescriptionOcrService {
 
             // 상태값 바꾸고 결과 ocrResult에 저장
             ocrResult.markSuccess(aiResponse.rawText(), updatedResultJson, aiResponse.ocrEngine());
+
+            // ocr 성공 시 s3에 저장된 이미지 삭제 (개인정보)
+            if (ocrResult.getImageKey() != null && !ocrResult.getImageKey().isBlank()) {
+                s3Client.deleteObject(builder -> builder
+                        .bucket(s3StorageProperties.bucket())
+                        .key(ocrResult.getImageKey()));
+            }
+
 
             return toResponse(ocrResult, aiResponse.preprocessedImageDataUrl());
         } catch (RestClientException exception) {

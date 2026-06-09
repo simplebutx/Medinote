@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     aws_s3_endpoint: str = ""
     qdrant_url: str = "http://qdrant:6333"
     qdrant_collection_name: str = "medicine_docs"
+    schedule_db_host: str = "mysql"
+    schedule_db_port: int = 3306
+    schedule_db_name: str = "medic"
+    schedule_db_user: str = "root"
+    schedule_db_password: str = "root"
+    schedule_db_charset: str = "utf8mb4"
     llm_system_prompt: str = (
         "당신은 의약품 정보를 안내하는 한국어 챗봇입니다. "
         "제공된 질문과 입력 데이터에 근거해서만 답변하세요. "

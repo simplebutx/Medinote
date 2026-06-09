@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -68,6 +69,21 @@ public class S3Service {
                 .build();
 
         return s3Presigner.presignGetObject(presignRequest).url().toString();
+    }
+
+    //S3에서 이미지 파일 삭제
+    public void deleteFile(String key){
+        if(key == null || key.isEmpty()) return;
+
+        try{
+            DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(key)
+                    .build();
+        } catch (Exception e) {
+            System.err.println("S3 이미지 삭제 실패 (수동 삭제 필요): " + e.getMessage());
+        }
+
     }
 
 }

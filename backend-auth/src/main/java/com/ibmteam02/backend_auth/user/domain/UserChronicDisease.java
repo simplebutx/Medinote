@@ -1,23 +1,30 @@
 package com.ibmteam02.backend_auth.user.domain;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.LocalDateTime;
-
-//기저질환 엔티티
 @Entity
 @Getter
 @Table(name = "user_chronic_disease")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EntityListeners(AuditingEntityListener.class)
 public class UserChronicDisease {
+
+    private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,17 +41,28 @@ public class UserChronicDisease {
     @Column(nullable = false)
     private String diseaseName;
 
-    @CreatedDate
-    @Column(updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @LastModifiedDate
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     @Builder
-    public UserChronicDisease(User user,DiseaseMaster diseaseMaster,String diseaseName) {
+    public UserChronicDisease(User user, DiseaseMaster diseaseMaster, String diseaseName) {
         this.user = user;
         this.diseaseMaster = diseaseMaster;
         this.diseaseName = diseaseName;
+    }
+
+    @PrePersist
+    void onCreate() {
+        LocalDateTime now = LocalDateTime.now(SCHEDULE_ZONE);
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        this.updatedAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
 }

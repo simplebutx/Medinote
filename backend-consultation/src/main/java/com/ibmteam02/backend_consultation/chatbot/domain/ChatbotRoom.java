@@ -7,17 +7,17 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @NoArgsConstructor
 @Getter
 public class ChatbotRoom {
-    private static final ZoneId CHATBOT_ZONE = ZoneId.of("Asia/Seoul");
+
+    private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,7 +27,7 @@ public class ChatbotRoom {
     private Long userId;
 
     @Column(nullable = false)
-    private String title;  // 채팅방 이름
+    private String title;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -49,18 +49,18 @@ public class ChatbotRoom {
     }
 
     public void touch() {
-        this.updatedAt = LocalDateTime.now(CHATBOT_ZONE);
+        this.updatedAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
 
     @PrePersist
-    protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now(CHATBOT_ZONE);
+    void onCreate() {
+        LocalDateTime now = LocalDateTime.now(SCHEDULE_ZONE);
         this.createdAt = now;
         this.updatedAt = now;
     }
 
     @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now(CHATBOT_ZONE);
+    void onUpdate() {
+        this.updatedAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
 }

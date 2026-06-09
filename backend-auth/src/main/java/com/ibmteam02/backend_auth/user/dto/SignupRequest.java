@@ -29,6 +29,8 @@ public class SignupRequest {
     private Boolean isBreastfeeding; // 모유 수유 여부
     private Boolean isSmoking; // 흡연 여부
     private Boolean isDrinking; // 음주 여부
+    private Boolean isChild; // 소아 여부
+    private Boolean isElderly; // 고령 여부
     private String diseaseName; // 사용자 질병명
 
     //약사 추가 정보

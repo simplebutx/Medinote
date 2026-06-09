@@ -50,7 +50,6 @@ public class UserMedicationCautionService {
     // 내 주의 약·성분 등록
     @Transactional
     public UserMedicationCautionResponse create(Long userId, UserMedicationCautionRequest request) {
-        LocalDateTime now = LocalDateTime.now();
         UserMedicationCaution caution = new UserMedicationCaution(
                 userId,
                 request.itemSeq(),
@@ -58,9 +57,8 @@ public class UserMedicationCautionService {
                 request.ingredientCode(),
                 request.ingredientName(),
                 request.reason(),
-                request.memo(),
-                now,
-                now
+                request.cautionType(),
+                request.memo()
         );
 
         return toResponse(userMedicationCautionRepository.save(caution));
@@ -101,8 +99,8 @@ public class UserMedicationCautionService {
                 request.ingredientCode(),
                 request.ingredientName(),
                 request.reason(),
-                request.memo(),
-                LocalDateTime.now()
+                request.cautionType(),
+                request.memo()
         );
 
         return toResponse(caution);
@@ -134,6 +132,7 @@ public class UserMedicationCautionService {
                 caution.getIngredientCode(),
                 caution.getIngredientName(),
                 caution.getReason(),
+                caution.getCautionType(),
                 caution.getMemo(),
                 caution.getCreatedAt(),
                 caution.getUpdatedAt()

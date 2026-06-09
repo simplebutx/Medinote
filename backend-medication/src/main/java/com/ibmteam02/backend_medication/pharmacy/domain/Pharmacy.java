@@ -1,5 +1,6 @@
 package com.ibmteam02.backend_medication.pharmacy.domain;
 
+import com.ibmteam02.backend_medication.pharmacy.dto.PharmacyRegisterRequest;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -7,6 +8,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -20,7 +23,9 @@ import lombok.NoArgsConstructor;
         }
 )
 @NoArgsConstructor
+@AllArgsConstructor
 @Getter
+@Builder
 public class Pharmacy {
 
     @Id
@@ -47,6 +52,9 @@ public class Pharmacy {
 
     @Column(nullable = false)
     private Double longitude;
+
+    @Column(name = "pharmacist_id")
+    private Long pharmacistId;
 
     @Column(length = 4)
     private String mondayOpen;
@@ -116,6 +124,7 @@ public class Pharmacy {
             String postalCode,
             Double latitude,
             Double longitude,
+            Long pharmacistId,
             String mondayOpen,
             String mondayClose,
             String tuesdayOpen,
@@ -144,6 +153,7 @@ public class Pharmacy {
         this.postalCode = postalCode;
         this.latitude = latitude;
         this.longitude = longitude;
+        this.pharmacistId = pharmacistId;
         this.mondayOpen = mondayOpen;
         this.mondayClose = mondayClose;
         this.tuesdayOpen = tuesdayOpen;
@@ -164,5 +174,28 @@ public class Pharmacy {
         this.extraInfo = extraInfo;
         this.mapImageUrl = mapImageUrl;
         this.homepageUrl = homepageUrl;
+    }
+
+    public void updatePharmacy(PharmacyRegisterRequest request){
+        this.address = request.getAddress();
+        this.phone = request.getPhone();
+        this.latitude = request.getLatitude();
+        this.longitude = request.getLongitude();
+        this.mondayOpen = request.getMondayOpen();
+        this.mondayClose = request.getMondayClose();
+        this.tuesdayOpen = request.getTuesdayOpen();
+        this.tuesdayClose = request.getTuesdayClose();
+        this.wednesdayOpen = request.getWednesdayOpen();
+        this.wednesdayClose = request.getWednesdayClose();
+        this.thursdayOpen = request.getThursdayOpen();
+        this.thursdayClose = request.getThursdayClose();
+        this.fridayOpen = request.getFridayOpen();
+        this.fridayClose = request.getFridayClose();
+        this.saturdayOpen = request.getSaturdayOpen();
+        this.saturdayClose = request.getSaturdayClose();
+        this.sundayOpen = request.getSundayOpen();
+        this.sundayClose = request.getSundayClose();
+        this.holidayOpen = request.getHolidayOpen();
+        this.holidayClose = request.getHolidayClose();
     }
 }
