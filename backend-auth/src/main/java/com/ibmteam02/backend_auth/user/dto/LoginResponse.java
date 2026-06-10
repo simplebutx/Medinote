@@ -1,5 +1,6 @@
 package com.ibmteam02.backend_auth.user.dto;
 
+import com.ibmteam02.backend_auth.user.domain.UserStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -11,4 +12,5 @@ public class LoginResponse {
     private String refreshToken;
     private String email;
     private String role;
+    private UserStatus status; // 승인 상태
 }

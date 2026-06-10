@@ -29,18 +29,18 @@ public class PharmacyInventory {
     private Long id;
 
     @Column(nullable = false)
-    private Long pharmacistId;
+    private Long pharmacistId; //약사 ID
 
     @Column(nullable = false)
-    private String pharmacyHpid;
+    private String pharmacyHpid; // 약국 고유 코드
 
     @Column(nullable = false)
-    private String itemSeq;
+    private String itemSeq; //공공데이터 번호(없을 수도 있음)
 
     @Column(nullable = false)
-    private String itemName;
+    private String itemName; //약 이름
 
-    private String companyName;
+    private String companyName; //제조사 이름
 
     @Column(nullable = false)
     private Integer stockQuantity;

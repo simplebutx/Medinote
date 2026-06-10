@@ -34,20 +34,25 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
-    @Column(nullable = false)
-    private String password;
+    @Column
+    private String password; // 소셜 로그인 시 null 가능
+
+    @Enumerated(EnumType.STRING)
+    private SocialType socialType; // KAKAO, GOOGLE, NAVER
+
+    private String socialId; // 소셜 서버의 고유 ID
 
     @Column(nullable = false)
     private String username;
 
-    @Column(nullable = false)
-    private LocalDate birthDate;
+    @Column
+    private LocalDate birthDate; //생년월일
 
     @Enumerated(EnumType.STRING)
-    private Gender gender;
+    private Gender gender; // MALE, FEMALE
 
     @Enumerated(EnumType.STRING)
-    private Role role;
+    private Role role; //USER, PHARMACIST, ADMIN
 
     @Enumerated(EnumType.STRING)
     @Column(length = 50)
@@ -57,29 +62,40 @@ public class User {
     private LocalDateTime createdAt;
 
     @Builder
-    public User(String email, String password, String username, LocalDate birthDate, Gender gender, Role role) {
+    public User(String email, String password, SocialType socialType, String socialId, String username, LocalDate birthDate, Gender gender, Role role) {
         this.email = email;
         this.password = password;
+        this.socialId = socialId;
+        this.socialType = socialType;
         this.username = username;
         this.birthDate = birthDate;
         this.gender = gender;
         this.role = role;
-        this.status = UserStatus.PENDING;
+        this.status = UserStatus.PENDING; //1단계 공통 가입 시 PENDING
     }
 
+    //일반 유저 ACTIVE 상태 변경
     public void activateGeneralUser() {
         this.status = UserStatus.ACTIVE;
     }
 
+    //약사 2단계 완료 시 승인 대기 상태로 변경
     public void setWaitingForApproval() {
         this.status = UserStatus.WAITING_APPROVAL;
     }
 
+    //역사 승인 거절 시 REJECTED 상태로 변경
     public void rejectPharmacist(){
         this.status = UserStatus.REJECTED;
     }
 
-    public void updateBasicProfile(String username, LocalDate birthDate, Gender gender) {
+    //역할 업데이트
+    public void updateRole(Role role) {
+        this.role = role;
+    }
+
+    //기본 정보 수정
+    public void updateBasicProfile(String username,LocalDate birthDate, Gender gender) {
         if (username != null && username.trim().isEmpty()) {
             this.username = username;
         }

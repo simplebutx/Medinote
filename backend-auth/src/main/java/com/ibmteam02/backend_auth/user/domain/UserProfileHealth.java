@@ -35,19 +35,19 @@ public class UserProfileHealth {
     private User user;
 
     @Column(nullable = false)
-    private Boolean isPregnant = false;
+    private Boolean isPregnant = false; // 임산부
 
     @Column(nullable = false)
-    private Boolean isBreastfeeding = false;
+    private Boolean isBreastfeeding = false; //모유수유 여부
 
     @Column(nullable = false)
-    private Boolean isSmoking = false;
+    private Boolean isSmoking = false; //흡연 여부
 
     @Column(nullable = false)
-    private Boolean isDrinking = false;
+    private Boolean isDrinking = false; //음주 여부
 
     @Column(nullable = false)
-    private Boolean isChild = false;
+    private Boolean isChild = false; // 소아 여부
 
     @Column(nullable = false)
     private Boolean isElderly = false;

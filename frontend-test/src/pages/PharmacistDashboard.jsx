@@ -109,7 +109,7 @@ const PharmacistDashboard = () => {
                                     <span style={{ fontSize: '12px', color: '#94a3b8' }}>{new Date(fb.createdAt).toLocaleDateString()}</span>
                                 </div>
                                 <div style={{ fontSize: '15px', color: '#1e293b', fontWeight: '500', marginBottom: '8px' }}>
-                                    "{fb.comment || '별점만 남겨주셨습니다.'}"
+                                    "{fb.feedbackComment || '별점만 남겨주셨습니다.'}"
                                 </div>
                                 <div style={{ fontSize: '12px', color: '#64748b' }}>
                                     상담환자: {fb.customerName} (방 번호: #{fb.roomId})
