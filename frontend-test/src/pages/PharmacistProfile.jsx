@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { getAuthSession, getMyProfile, updateMyProfile } from '../api'
+import { getAuthSession, getMyProfile, updateMyProfile, withdrawAccount, clearAuthSession } from '../api'
 import { useNavigate } from 'react-router-dom'
 
 const DAYS = [
@@ -387,6 +387,17 @@ const PharmacistProfile = () => {
           )}
         </div>
       )}
+
+      {/* 탈퇴 섹션 추가 */}
+      <section className="app-card app-danger-zone" style={{ marginTop: '30px' }}>
+        <div className="danger-header">
+          <h2>약사 회원 탈퇴</h2>
+          <p>탈퇴 시 약사 프로필, 약국 정보, 상담 내역 등 모든 계정 관련 정보가 삭제되며 복구할 수 없습니다.</p>
+        </div>
+        <button type="button" onClick={handleWithdraw} style={{ padding: '10px 20px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+          약사 회원 탈퇴
+        </button>
+      </section>
     </div>
   )
 }

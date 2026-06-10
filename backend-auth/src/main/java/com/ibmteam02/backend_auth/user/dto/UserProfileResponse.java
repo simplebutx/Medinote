@@ -16,6 +16,7 @@ import java.util.List;
 @Builder
 @AllArgsConstructor
 public class UserProfileResponse {
+    private Long id;
     private String email;
     private String username;
     private LocalDate birthDate;

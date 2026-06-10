@@ -199,6 +199,7 @@ public class AuthService {
         PharmacistProfile pharmacistProfile = pharmacistProfileRepository.findByUser(user).orElse(null);
 
         return UserProfileResponse.builder()
+                .id(user.getId())
                 .email(user.getEmail())
                 .username(user.getUsername())
                 .birthDate(user.getBirthDate())
