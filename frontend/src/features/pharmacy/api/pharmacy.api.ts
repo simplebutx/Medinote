@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 import { medicationInstance } from '../../../api/axiosInstance';
 
 import type {
@@ -5,7 +7,13 @@ import type {
   PharmacyInventory,
   PharmacyInventoryRequest,
   PharmacyRegisterRequest,
+  PharmacyBoundsParams,
+  PharmacyMedicineSearchParams,
 } from '../types';
+
+function isOptionalPharmacySearchError(error: unknown) {
+  return axios.isAxiosError(error) && error.response?.status === 500;
+}
 
 export const registerPharmacy = async (body: PharmacyRegisterRequest) => {
   const response = await medicationInstance.post<Pharmacy>(
@@ -42,7 +50,7 @@ export const getMyPharmacyInventory = async () => {
 export const upsertPharmacyInventory = async (
   body: PharmacyInventoryRequest,
 ) => {
-  const response = await medicationInstance.post<PharmacyInventory>(
+  const response = await medicationInstance.post<string>(
     '/api/pharmacist/inventory',
     body,
   );
@@ -51,7 +59,7 @@ export const upsertPharmacyInventory = async (
 };
 
 export const deletePharmacyInventory = async (id: number) => {
-  const response = await medicationInstance.delete(
+  const response = await medicationInstance.delete<string>(
     `/api/pharmacist/inventory/${id}`,
   );
 
@@ -64,4 +72,57 @@ export const getPharmacyDetail = async (hpid: string) => {
   );
 
   return response.data;
+};
+
+export const getPharmaciesInBounds = async ({
+  southLat,
+  northLat,
+  westLng,
+  eastLng,
+  limit = 30,
+}: PharmacyBoundsParams) => {
+  const response = await medicationInstance.get<Pharmacy[]>('/api/pharmacies', {
+    params: {
+      southLat,
+      northLat,
+      westLng,
+      eastLng,
+      limit,
+    },
+  });
+
+  return response.data;
+};
+
+export const searchPharmaciesByMedicine = async ({
+  keyword,
+  southLat,
+  northLat,
+  westLng,
+  eastLng,
+  limit = 30,
+}: PharmacyMedicineSearchParams) => {
+  try {
+    const response = await medicationInstance.get<Pharmacy[]>(
+      '/api/pharmacies/search/medicine',
+      {
+        params: {
+          keyword,
+          southLat,
+          northLat,
+          westLng,
+          eastLng,
+          limit,
+        },
+      },
+    );
+
+    return response.data;
+  } catch (error) {
+    if (isOptionalPharmacySearchError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
 };
