@@ -3,7 +3,7 @@ import re
 from collections.abc import Iterable
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import FieldCondition, Filter, MatchAny, PointStruct
+from qdrant_client.models import Distance, FieldCondition, Filter, MatchAny, VectorParams
 
 from app.core.config import settings
 from app.services.chatbot.embedding_service import embed_text, embed_texts
@@ -39,9 +39,29 @@ def get_qdrant_client() -> QdrantClient:
     return QdrantClient(url=settings.qdrant_url)
 
 
+def ensure_qdrant_collection(client: QdrantClient) -> None:
+    if hasattr(client, "collection_exists"):
+        exists = client.collection_exists(settings.qdrant_collection_name)
+    else:
+        collections = client.get_collections().collections
+        exists = any(collection.name == settings.qdrant_collection_name for collection in collections)
+
+    if exists:
+        return
+
+    client.create_collection(
+        collection_name=settings.qdrant_collection_name,
+        vectors_config=VectorParams(
+            size=settings.embedding_dimensions,
+            distance=Distance.COSINE,
+        ),
+    )
+
+
 # 검색 메인 함수
 def search_relevant_documents(text: str, drug_names: list[str] | None, debug_info: dict | None = None,) -> list[dict]:
     client = get_qdrant_client()
+    ensure_qdrant_collection(client)
     query_filter = build_drug_name_filter(drug_names)
 
     if drug_names:
