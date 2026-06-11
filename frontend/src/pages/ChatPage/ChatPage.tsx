@@ -208,17 +208,35 @@ function buildChatbotMessageText(text: string, drugs: DrugOption[]) {
     return trimmedText;
   }
 
+  let questionText = trimmedText;
+
+  drugs.forEach((drug) => {
+    questionText = questionText.replaceAll(`@${drug.name}`, '');
+  });
+
+  questionText = questionText.replace(/\s+/g, ' ').trim();
+
   const drugMentionText = drugs
     .map((drug) => {
       return `@${drug.name}`;
     })
     .join('\n');
 
-  if (!trimmedText) {
-    return `선택한 약에 대해 확인해주세요.\n\n[선택한 약]\n${drugMentionText}`;
+  if (!questionText) {
+    return drugMentionText;
   }
 
-  return `${trimmedText}\n\n[선택한 약]\n${drugMentionText}`;
+  return `${questionText}\n\n${drugMentionText}`;
+}
+
+function buildChatbotDisplayText(text: string, drugs: DrugOption[]) {
+  let displayText = text.trim();
+
+  drugs.forEach((drug) => {
+    displayText = displayText.replaceAll(`@${drug.name}`, '');
+  });
+
+  return displayText.replace(/\s+/g, ' ').trim();
 }
 
 function removeDuplicateChatMessages(messages: ChatMessage[]) {
@@ -252,6 +270,59 @@ function removeDuplicateChatMessages(messages: ChatMessage[]) {
     seen.add(key);
     return true;
   });
+}
+
+function getChatDisplayParts(chat: ChatMessage) {
+  if (chat.sender !== 'USER') {
+    return {
+      drugNames: [],
+      content: chat.content,
+    };
+  }
+
+  const drugNamesFromState = chat.drugs?.map((drug) => drug.name) ?? [];
+
+  const drugNamesFromMention = Array.from(
+    chat.content.matchAll(/@([^\n]+)/g),
+  )
+    .map((match) => match[1]?.trim())
+    .filter(Boolean) as string[];
+
+  const drugNamesFromConsultBlock = Array.from(
+    chat.content.matchAll(/^- (.+?)(?: \/ 성분:.*)?$/gm),
+  )
+    .map((match) => match[1]?.trim())
+    .filter(Boolean) as string[];
+
+  const drugNames = Array.from(
+    new Set([
+      ...drugNamesFromState,
+      ...drugNamesFromMention,
+      ...drugNamesFromConsultBlock,
+    ]),
+  );
+
+  let displayContent = chat.content;
+
+  drugNames.forEach((drugName) => {
+    displayContent = displayContent.replaceAll(`@${drugName}`, '');
+    displayContent = displayContent.replaceAll(`- ${drugName}`, '');
+    displayContent = displayContent.replaceAll(drugName, '');
+  });
+
+  displayContent = displayContent
+    .replace(/\[선택한 약\]/g, '')
+    .replace(/^- .*$/gm, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  return {
+    drugNames,
+    content: displayContent,
+  };
 }
 
 function ChatPage() {
@@ -488,29 +559,38 @@ function ChatPage() {
     setAiMessagesByRoomId((prev) => {
       const currentMessages = prev[activeChatbotRoomId] ?? [];
 
-      const onlySystemMessages = currentMessages.filter((chat) => {
-        return chat.sender === 'SYSTEM';
+      const messagesToKeep = currentMessages.filter((chat) => {
+        if (chat.sender === 'SYSTEM') {
+          return true;
+        }
+
+        // messageId가 없는 AI 응답은 서버에 저장되지 않은 임시 응답이므로 유지
+        if (chat.sender === 'AI' && !chat.apiMessageId) {
+          return true;
+        }
+
+        return false;
       });
 
-      if (onlySystemMessages.length === currentMessages.length) {
+      if (messagesToKeep.length === currentMessages.length) {
         return prev;
       }
 
       return {
         ...prev,
-        [activeChatbotRoomId]: onlySystemMessages,
+        [activeChatbotRoomId]: messagesToKeep,
       };
     });
   }, [activeChatbotRoomId, serverAiMessages.length]);
 
   const drugSearchKeyword = useMemo(() => {
-    const atIndex = message.lastIndexOf('@');
+    const match = message.match(/@([^\s@]*)$/);
 
-    if (atIndex === -1) {
+    if (!match) {
       return '';
     }
 
-    return message.slice(atIndex + 1).trim();
+    return match[1].trim();
   }, [message]);
 
   const activeConsultRooms = myConsultRooms
@@ -690,12 +770,9 @@ function ChatPage() {
   const handleChangeMessage = (value: string) => {
     setMessage(value);
 
-    if (value.includes('@')) {
-      setIsDrugSearchOpen(true);
-      return;
-    }
+    const isTypingDrugMention = /@([^\s@]*)$/.test(value);
 
-    setIsDrugSearchOpen(false);
+    setIsDrugSearchOpen(isTypingDrugMention);
   };
 
   const handleSelectDrug = (drug: DrugOption) => {
@@ -709,11 +786,13 @@ function ChatPage() {
       return [...prev, drug];
     });
 
-    const atIndex = message.lastIndexOf('@');
+    setMessage((prevMessage) => {
+      if (/@[^\s@]*$/.test(prevMessage)) {
+        return prevMessage.replace(/@[^\s@]*$/, `@${drug.name} `);
+      }
 
-    if (atIndex >= 0) {
-      setMessage(message.slice(0, atIndex).trim());
-    }
+      return `${prevMessage.trim()} @${drug.name} `.trimStart();
+    });
 
     setIsDrugSearchOpen(false);
   };
@@ -806,11 +885,11 @@ function ChatPage() {
     if (activeMode === 'ai') {
       const aiQuestion = buildChatbotMessageText(trimmedMessage, selectedDrugs);
 
-      await sendAiQuestion(
-        aiQuestion,
-        selectedDrugs,
-        trimmedMessage || '선택한 약에 대해 확인해주세요.',
-      );
+      const displayQuestion =
+        buildChatbotDisplayText(trimmedMessage, selectedDrugs) ||
+        '선택한 약에 대해 확인해주세요.';
+
+      await sendAiQuestion(aiQuestion, selectedDrugs, displayQuestion);
     } else {
       if (!activeConsultRoom) {
         const systemMessage: ChatMessage = {
@@ -888,9 +967,17 @@ function ChatPage() {
   };
 
   const handleQuickQuestion = async (question: string) => {
-    const aiQuestion = buildChatbotMessageText(question, selectedDrugs);
+    try {
+      const aiQuestion = buildChatbotMessageText(question, selectedDrugs);
 
-    await sendAiQuestion(aiQuestion, selectedDrugs, question);
+      await sendAiQuestion(aiQuestion, selectedDrugs, question);
+
+      setMessage('');
+      setSelectedDrugs([]);
+      setIsDrugSearchOpen(false);
+    } catch (error) {
+      console.error('빠른 질문 전송 실패:', error);
+    }
   };
 
   const handleMoveToPharmacist = () => {
@@ -1447,14 +1534,17 @@ function ChatPage() {
                     </div>
                   )}
 
-                {activeMessages.map((chat) => (
-                  <div
-                    key={chat.id}
-                    className={[
-                      'flex',
-                      chat.sender === 'USER' ? 'justify-end' : 'justify-start',
-                    ].join(' ')}
-                  >
+                {activeMessages.map((chat) => {
+                  const displayParts = getChatDisplayParts(chat);
+
+                  return (
+                    <div
+                      key={chat.id}
+                      className={[
+                        'flex',
+                        chat.sender === 'USER' ? 'justify-end' : 'justify-start',
+                      ].join(' ')}
+                    >
                     <div
                       className={[
                         'max-w-[80%] rounded-2xl p-4',
@@ -1480,30 +1570,24 @@ function ChatPage() {
                         </span>
                       </div>
 
-                      {chat.drugs && chat.drugs.length > 0 && (
-                        <div className="mb-3 space-y-2">
-                          {chat.drugs.map((drug) => (
-                            <div
-                              key={drug.id}
-                              className={[
-                                'rounded-xl p-3 text-sm',
-                                chat.sender === 'USER'
-                                  ? 'bg-white/15 text-white'
-                                  : 'bg-white text-slate-700',
-                              ].join(' ')}
+                      {displayParts.drugNames.length > 0 && (
+                        <div className="mb-3 space-y-1">
+                          {displayParts.drugNames.map((drugName) => (
+                            <p
+                              key={drugName}
+                              className="text-sm font-bold leading-6"
                             >
-                              <p className="font-bold">{drug.name}</p>
-                              <p className="mt-1 text-xs opacity-80">
-                                성분: {drug.ingredient}
-                              </p>
-                            </div>
+                              {drugName}
+                            </p>
                           ))}
                         </div>
                       )}
 
-                      <p className="whitespace-pre-line text-sm leading-6">
-                        {chat.content}
-                      </p>
+                      {displayParts.content && (
+                        <p className="whitespace-pre-line text-sm leading-6">
+                          {displayParts.content}
+                        </p>
+                      )}
                       {activeMode === 'ai' && chat.apiMessageId && (
                         <div className="mt-3 flex justify-end">
                           <button
@@ -1522,8 +1606,9 @@ function ChatPage() {
                         </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
 
                 {activeMode === 'ai' &&
                   sendChatbotMessageMutation.isPending && (
@@ -1605,7 +1690,7 @@ function ChatPage() {
             )}
 
             <div className="mt-auto border-t border-slate-100 p-4">
-              {selectedDrugs.length > 0 && (
+              {activeMode === 'pharmacist' && selectedDrugs.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2">
                   {selectedDrugs.map((drug) => (
                     <button
