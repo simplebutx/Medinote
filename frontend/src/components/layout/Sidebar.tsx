@@ -12,7 +12,7 @@ const userMenus: MenuItem[] = [
   { label: '복약 등록', path: '/app/ocr' },
   { label: '챗봇 & 상담', path: '/app/chat' },
   { label: '약 검색', path: '/app/drugs' },
-  { label: 'FAQ', path: '/app/faq' },
+  // { label: 'FAQ', path: '/app/faq' },
   { label: '근처 약국', path: '/app/pharmacies' },
   { label: '알림', path: '/app/notifications' },
   { label: '스마트 약통', path: '/app/iot' },
@@ -25,6 +25,7 @@ const pharmacistMenus: MenuItem[] = [
   { label: '환자 조회', path: '/pharmacist/patients' },
   { label: '약 검색', path: '/pharmacist/drugs' },
   { label: '재고 관리', path: '/pharmacist/inventory' },
+  { label: '알림', path: '/pharmacist/notifications' },
   { label: '약사 마이페이지', path: '/pharmacist/my' },
 ];
 

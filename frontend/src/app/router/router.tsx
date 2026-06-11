@@ -15,7 +15,7 @@ import SchedulePage from '../../pages/SchedulePage/SchedulePage';
 import OcrPage from '../../pages/OcrPage/OcrPage';
 import ChatPage from '../../pages/ChatPage/ChatPage';
 import DrugSearchPage from '../../pages/DrugSearchPage/DrugSearchPage';
-import FaqPage from '../../pages/FaqPage/FaqPage';
+// import FaqPage from '../../pages/FaqPage/FaqPage';
 import MapPage from '../../pages/MapPage/MapPage';
 import NotifPage from '../../pages/NotifPage/NotifPage';
 import IotPage from '../../pages/IotPage/IotPage';
@@ -86,10 +86,10 @@ export const router = createBrowserRouter([
                 path: '/app/drugs',
                 element: <DrugSearchPage />,
               },
-              {
-                path: '/app/faq',
-                element: <FaqPage />,
-              },
+              // {
+              //   path: '/app/faq',
+              //   element: <FaqPage />,
+              // },
               {
                 path: '/app/pharmacies',
                 element: <MapPage />,
@@ -140,6 +140,10 @@ export const router = createBrowserRouter([
               {
                 path: '/pharmacist/inventory',
                 element: <PharmInventoryPage />,
+              },
+              {
+                path: '/pharmacist/notifications',
+                element: <NotifPage />,
               },
               {
                 path: '/pharmacist/my',
