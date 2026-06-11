@@ -23,6 +23,7 @@ import Signup from './pages/Signup'
 import ExtraInfo from './pages/ExtraInfo'
 import OAuth2Redirect from './pages/OAuth2Redirect'
 import SimplePlaceholderPage from './pages/SimplePlaceholderPage'
+import NotificationsPage from './pages/NotificationsPage'
 import Sync from './pages/Sync'
 import YunjuTest from './pages/YunjuTest'
 import PharmacistDashboard from './pages/PharmacistDashboard'
@@ -33,10 +34,12 @@ import PharmacistInventory from './pages/PharmacistInventory'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminPharmacistList from './pages/AdminPharmacistList'
 import AdminUserList from './pages/AdminUserList'
+import MedicationNotificationWatcher from './components/MedicationNotificationWatcher'
 
 function App() {
   return (
     <BrowserRouter>
+      <MedicationNotificationWatcher />
       <Routes>
         <Route path="/" element={<Navigate to="/app/schedule" replace />} />
 
@@ -57,6 +60,7 @@ function App() {
           <Route path="/p/reviews" element={<PharmacistReviewList />} />
           <Route path="/p/inventory" element={<PharmacistInventory />} />
           <Route path="/p/consultation" element={<Consultation />} />
+          <Route path="/p/notifications" element={<NotificationsPage />} />
         </Route>
 
         {/* ⚙️ 관리자 전용 (/a) */}
@@ -80,8 +84,9 @@ function App() {
           <Route path="/app/drugs" element={<MedicineSearch />} />
           <Route path="/app/pharmacies" element={<PharmacyMap />} />
           <Route path="/app/faq" element={<Navigate to="/app/schedule" replace />} />
+          <Route path="/app/notifications" element={<NotificationsPage />} />
           <Route
-            path="/app/notifications"
+            path="/app/notifications-placeholder"
             element={
               <SimplePlaceholderPage
                 eyebrow="Notifications"

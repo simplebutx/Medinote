@@ -5,6 +5,11 @@ const api = axios.create({
   timeout: 300000,
 })
 
+const consultationApi = axios.create({
+  baseURL: 'http://localhost:8082/api',
+  timeout: 300000,
+})
+
 const AUTH_STORAGE_KEY = 'authSession'
 
 export const login = async (payload) => {
@@ -64,6 +69,17 @@ export const clearAuthSession = () => {
 }
 
 api.interceptors.request.use((config) => {
+  const session = getAuthSession()
+
+  if (session?.accessToken) {
+    config.headers = config.headers ?? {}
+    config.headers.Authorization = `Bearer ${session.accessToken}`
+  }
+
+  return config
+})
+
+consultationApi.interceptors.request.use((config) => {
   const session = getAuthSession()
 
   if (session?.accessToken) {
@@ -256,6 +272,53 @@ export const getMedicationTimePresets = async () => {
 export const updateMedicationTimePresets = async (payload) => {
   const response = await api.put('/me/medication-time-presets', payload)
   return response.data
+}
+
+export const getNotifications = async () => {
+  const response = await api.get('/medication-notifications')
+  return response.data
+}
+
+export const markNotificationRead = async (id) => {
+  const response = await api.patch(`/medication-notifications/${id}/read`)
+  return response.data
+}
+
+export const sendTestNotification = async (payload = {}) => {
+  const response = await api.post('/medication-notifications/test', payload)
+  return response.data
+}
+
+export const deleteNotification = async (id) => {
+  await api.delete(`/medication-notifications/${id}`)
+}
+
+export const deleteAllNotifications = async () => {
+  await api.delete('/medication-notifications')
+}
+
+export const getMedicationNotifications = getNotifications
+export const markMedicationNotificationRead = markNotificationRead
+export const sendTestMedicationNotification = sendTestNotification
+export const deleteMedicationNotification = deleteNotification
+export const deleteAllMedicationNotifications = deleteAllNotifications
+
+export const getConsultationNotifications = async () => {
+  const response = await consultationApi.get('/consultation-notifications')
+  return response.data
+}
+
+export const markConsultationNotificationRead = async (id) => {
+  const response = await consultationApi.patch(`/consultation-notifications/${id}/read`)
+  return response.data
+}
+
+export const deleteConsultationNotification = async (id) => {
+  await consultationApi.delete(`/consultation-notifications/${id}`)
+}
+
+export const deleteAllConsultationNotifications = async () => {
+  await consultationApi.delete('/consultation-notifications')
 }
 
 export default api

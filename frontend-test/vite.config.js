@@ -36,6 +36,10 @@ export default defineConfig({
         target: consultationTarget,
         changeOrigin: true,
       },
+      '/api/consultation-notifications': {
+        target: consultationTarget,
+        changeOrigin: true,
+      },
       '/api/medicines': {
         target: medicationTarget,
         changeOrigin: true,

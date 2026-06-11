@@ -2,6 +2,7 @@ package com.ibmteam02.backend_medication.schedule.service;
 
 import com.ibmteam02.backend_medication.global.exception.ForbiddenException;
 import com.ibmteam02.backend_medication.global.exception.ResourceNotFoundException;
+import com.ibmteam02.backend_medication.notification.service.MedicationNotificationService;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationSchedule;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationScheduleMedicine;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationScheduleTime;
@@ -24,6 +25,7 @@ public class MedicationScheduleTimeService {
     private final MedicationScheduleRepository medicationScheduleRepository;
     private final MedicationScheduleMedicineRepository medicationScheduleMedicineRepository;
     private final MedicationScheduleWindowService medicationScheduleWindowService;
+    private final MedicationNotificationService medicationNotificationService;
 
 
     public MedicationScheduleTimeResponse create(Long userId, MedicationScheduleTimeRequest request) {
@@ -38,6 +40,7 @@ public class MedicationScheduleTimeService {
 
         MedicationScheduleTime savedScheduleTime = medicationScheduleTimeRepository.save(scheduleTime);
         medicationScheduleWindowService.recalculateMedicine(scheduleMedicine);
+        medicationNotificationService.syncMedicationReminders(scheduleMedicine.getMedicationSchedule());
         return toResponse(savedScheduleTime);
     }
 
@@ -79,6 +82,7 @@ public class MedicationScheduleTimeService {
         if (!previousMedicine.getId().equals(scheduleMedicine.getId())) {
             medicationScheduleWindowService.recalculateMedicine(previousMedicine);
         }
+        syncChangedSchedules(scheduleMedicine, previousMedicine);
 
         return toResponse(scheduleTime);
     }
@@ -88,6 +92,20 @@ public class MedicationScheduleTimeService {
         MedicationScheduleMedicine scheduleMedicine = scheduleTime.getMedicationScheduleMedicine();
         medicationScheduleTimeRepository.delete(scheduleTime);
         medicationScheduleWindowService.recalculateMedicine(scheduleMedicine);
+        medicationNotificationService.syncMedicationReminders(scheduleMedicine.getMedicationSchedule());
+    }
+
+    private void syncChangedSchedules(
+            MedicationScheduleMedicine scheduleMedicine,
+            MedicationScheduleMedicine previousMedicine
+    ) {
+        MedicationSchedule schedule = scheduleMedicine.getMedicationSchedule();
+        MedicationSchedule previousSchedule = previousMedicine.getMedicationSchedule();
+
+        medicationNotificationService.syncMedicationReminders(schedule);
+        if (!previousSchedule.getId().equals(schedule.getId())) {
+            medicationNotificationService.syncMedicationReminders(previousSchedule);
+        }
     }
 
     private MedicationScheduleMedicine findOwnedScheduleMedicine(Long userId, Long id) {

@@ -9,6 +9,7 @@ import com.ibmteam02.backend_medication.schedule.repository.MedicationScheduleTi
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -72,22 +73,22 @@ public class MedicationScheduleWindowService {
             MedicationSchedule schedule,
             MedicationScheduleMedicine medicine
     ) {
+        LocalDateTime now = LocalDateTime.now(SCHEDULE_ZONE).truncatedTo(ChronoUnit.MINUTES);
         LocalDateTime createdAt = medicine.getCreatedAt() != null
                 ? medicine.getCreatedAt()
                 : schedule.getCreatedAt() != null
                 ? schedule.getCreatedAt()
-                : LocalDateTime.now(SCHEDULE_ZONE);
+                : now;
+        createdAt = createdAt.truncatedTo(ChronoUnit.MINUTES);
 
-        LocalDate anchorDate = schedule.getDispensedDate() != null
-                ? schedule.getDispensedDate()
-                : medicine.getStartDate();
+        if (medicine.getStartDate() != null && medicine.getStartDate().isAfter(now.toLocalDate())) {
+            return now;
+        }
+
+        LocalDate anchorDate = schedule.getDispensedDate();
 
         if (anchorDate != null && !anchorDate.isEqual(createdAt.toLocalDate())) {
             return anchorDate.atStartOfDay();
-        }
-
-        if (medicine.getStartDate() != null && medicine.getStartDate().isAfter(createdAt.toLocalDate())) {
-            return medicine.getStartDate().atStartOfDay();
         }
 
         return createdAt;

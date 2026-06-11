@@ -2,6 +2,7 @@ package com.ibmteam02.backend_medication.schedule.service;
 
 import com.ibmteam02.backend_medication.global.exception.ForbiddenException;
 import com.ibmteam02.backend_medication.global.exception.ResourceNotFoundException;
+import com.ibmteam02.backend_medication.notification.service.MedicationNotificationService;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationIntakeLog;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationSchedule;
 import com.ibmteam02.backend_medication.schedule.domain.MedicationScheduleMedicine;
@@ -42,6 +43,7 @@ public class MedicationScheduleService {
     private final MedicationScheduleTimeRepository medicationScheduleTimeRepository;
     private final MedicationIntakeLogRepository medicationIntakeLogRepository;
     private final MedicationScheduleWindowService medicationScheduleWindowService;
+    private final MedicationNotificationService medicationNotificationService;
 
     // 복약 일정 등록
     public MedicationScheduleResponse create(Long userId, MedicationScheduleRequest request) {
@@ -55,6 +57,7 @@ public class MedicationScheduleService {
 
         List<MedicationScheduleMedicine> medicines = saveMedicines(schedule, request);
         medicines = medicationScheduleWindowService.recalculateSchedule(schedule);
+        medicationNotificationService.syncMedicationReminders(schedule);
 
         return toResponse(schedule, medicines);
     }
@@ -158,6 +161,7 @@ public class MedicationScheduleService {
 
         List<MedicationScheduleMedicine> medicines = saveMedicines(schedule, request);
         medicines = medicationScheduleWindowService.recalculateSchedule(schedule);
+        medicationNotificationService.syncMedicationReminders(schedule);
 
         return toResponse(schedule, medicines);
     }
@@ -170,6 +174,7 @@ public class MedicationScheduleService {
         medicationScheduleTimeRepository.findByMedicationScheduleMedicine_MedicationSchedule_IdOrderBySortOrderAsc(id)
                 .forEach(medicationScheduleTimeRepository::delete);
         medicationScheduleMedicineRepository.deleteByMedicationScheduleId(id);
+        medicationNotificationService.cancelMedicationReminders(id);
         medicationScheduleRepository.delete(schedule);
     }
 
