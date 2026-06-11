@@ -1,0 +1,38 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'frontend/**'
+      - 'frontend-test/**'
+      - 'mobile-expo/**'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch: # 수동 실행 버튼
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            echo "Starting Backend Deployment..."
+            cd ~/ibmteam02
+            
+            # 최신 코드 가져오기
+            git pull origin main
+            
+            # 백엔드 서버 재빌드 및 실행
+            docker compose -f docker-compose.prod.yml up -d --build backend-auth backend-medication backend-consultation ai-server api-gateway qdrant redis
+            
+            # 불필요한 이미지 찌꺼기 정리
+            docker image prune -f
+            echo "Deployment Completed!"
