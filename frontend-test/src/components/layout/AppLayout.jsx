@@ -7,7 +7,6 @@ const USER_MENUS = [
   { label: 'AI 의약품 정보 도우미', path: '/app/chatbot' },
   { label: '상담', path: '/app/chat' },
   { label: '약 검색', path: '/app/drugs' },
-  { label: 'FAQ', path: '/app/faq' },
   { label: '근처 약국', path: '/app/pharmacies' },
   { label: '알림', path: '/app/notifications' },
   { label: '스마트 약통', path: '/app/iot' },

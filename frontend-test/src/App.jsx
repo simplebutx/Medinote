@@ -79,16 +79,7 @@ function App() {
           <Route path="/app/chat" element={<ChatConsultPage />} />
           <Route path="/app/drugs" element={<MedicineSearch />} />
           <Route path="/app/pharmacies" element={<PharmacyMap />} />
-          <Route
-            path="/app/faq"
-            element={
-              <SimplePlaceholderPage
-                eyebrow="FAQ"
-                title="FAQ"
-                description="사용자 공통 레이아웃에 맞춰 FAQ 자리를 먼저 구성했습니다."
-              />
-            }
-          />
+          <Route path="/app/faq" element={<Navigate to="/app/schedule" replace />} />
           <Route
             path="/app/notifications"
             element={
