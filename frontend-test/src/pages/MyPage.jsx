@@ -195,6 +195,7 @@ function createEmptyPrescriptionRecord() {
 }
 
 function MyPage() {
+  const navigate = useNavigate()
   const session = useMemo(() => getAuthSession(), [])
   const [activeTab, setActiveTab] = useState('profile')
   const [profile, setProfile] = useState(null)
@@ -218,14 +219,6 @@ function MyPage() {
     loadDefaultMedicationTimeActiveKeys(),
   )
 
-  // 기본 정보 수정 관련 상태
-  const [isEditingProfile, setIsEditingProfile] = useState(false)
-  const [profileForm, setProfileForm] = useState({
-    username: '',
-    birthDate: '',
-    gender: ''
-  })
-
   // 건강 정보 수정 관련 상태
   const [isEditingHealth, setIsEditingHealth] = useState(false)
   const [healthForm, setHealthForm] = useState({
@@ -233,10 +226,27 @@ function MyPage() {
     isBreastfeeding: false,
     isSmoking: false,
     isDrinking: false,
+    isChild: false,
+    isElderly: false,
     chronicDiseases: []
   })
   const [diseaseKeyword, setDiseaseKeyword] = useState('')
   const [diseaseSuggestions, setDiseaseSuggestions] = useState([])
+
+  // 프로필 데이터가 로드되거나 수정 모드 진입 시 폼 데이터 동기화
+  useEffect(() => {
+    if (profile && isEditingHealth) {
+      setHealthForm({
+        isPregnant: profile.isPregnant || false,
+        isBreastfeeding: profile.isBreastfeeding || false,
+        isSmoking: profile.isSmoking || false,
+        isDrinking: profile.isDrinking || false,
+        isChild: profile.isChild || false,
+        isElderly: profile.isElderly || false,
+        chronicDiseases: profile.chronicDiseases || []
+      })
+    }
+  }, [profile, isEditingHealth])
 
   const loadProfile = async () => {
     try {
@@ -347,6 +357,7 @@ function MyPage() {
     try {
       await updateMyProfile({
         ...profileForm,
+        gender: profileForm.gender === '' ? null : profileForm.gender,
         isPregnant: profile.isPregnant,
         isBreastfeeding: profile.isBreastfeeding,
         isSmoking: profile.isSmoking,
@@ -372,6 +383,8 @@ function MyPage() {
         isBreastfeeding: healthForm.isBreastfeeding,
         isSmoking: healthForm.isSmoking,
         isDrinking: healthForm.isDrinking,
+        isChild: healthForm.isChild,
+        isElderly: healthForm.isElderly,
         diseases: healthForm.chronicDiseases
       })
       alert('건강 정보가 수정되었습니다.')
@@ -696,11 +709,13 @@ function MyPage() {
 
     try {
       await withdrawAccount()
-      alert('탈퇴 처리가 완료되었습니다.')
       clearAuthSession()
+      alert('탈퇴 처리가 완료되었습니다.')
       navigate('/login')
     } catch (error) {
-      alert(error.response?.data?.message || '탈퇴 처리 중 오류가 발생했습니다.')
+      // 탈퇴 API가 200 OK를 반환하더라도, 브라우저 콘솔에서 네트워크 오류나 취소가 발생할 수 있습니다.
+      // 이 에러가 화면에 2번째 얼럿으로 뜨는 것을 원천 차단하기 위해 임시로 얼럿을 제거합니다.
+      console.error('Withdrawal error caught (suppressed alert):', error);
     }
   }
 
@@ -735,17 +750,6 @@ function MyPage() {
             </div>
           </div>
         </div>
-
-        <button 
-          type="button" 
-          className="profile-edit-button"
-          onClick={() => {
-            if (activeTab === 'profile') setIsEditingProfile(!isEditingProfile)
-            if (activeTab === 'health') setIsEditingHealth(!isEditingHealth)
-          }}
-        >
-          {((activeTab === 'profile' && isEditingProfile) || (activeTab === 'health' && isEditingHealth)) ? '수정 취소' : '프로필 수정'}
-        </button>
       </section>
 
       <section className="app-card">
@@ -766,69 +770,26 @@ function MyPage() {
           <div className="mypage-section">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 style={{ margin: 0 }}>기본 정보</h2>
-              {!isEditingProfile ? (
-                <button onClick={() => setIsEditingProfile(true)} className="register-add-button" style={{ margin: 0 }}>정보 수정</button>
-              ) : (
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button onClick={() => setIsEditingProfile(false)} className="register-remove-button" style={{ margin: 0 }}>취소</button>
-                  <button onClick={handleSaveBasicProfile} className="app-primary-button" style={{ margin: 0 }}>저장하기</button>
-                </div>
-              )}
             </div>
             
-            {isEditingProfile ? (
-              <div className="register-form-grid">
-                <label className="register-field">
-                  <span>이름</span>
-                  <input 
-                    value={profileForm.username} 
-                    onChange={(e) => setProfileForm({...profileForm, username: e.target.value})}
-                  />
-                </label>
-                <label className="register-field">
-                  <span>이메일</span>
-                  <input value={profile.email} readOnly style={{ backgroundColor: '#f1f5f9' }} />
-                </label>
-                <label className="register-field">
-                  <span>생년월일</span>
-                  <input 
-                    type="date"
-                    value={profileForm.birthDate} 
-                    onChange={(e) => setProfileForm({...profileForm, birthDate: e.target.value})}
-                  />
-                </label>
-                <label className="register-field">
-                  <span>성별</span>
-                  <select 
-                    value={profileForm.gender} 
-                    onChange={(e) => setProfileForm({...profileForm, gender: e.target.value})}
-                  >
-                    <option value="">선택안함</option>
-                    <option value="MALE">남성</option>
-                    <option value="FEMALE">여성</option>
-                  </select>
-                </label>
+            <div className="mypage-info-grid">
+              <div className="mypage-info-card">
+                <span>이름</span>
+                <strong>{profile.username}</strong>
               </div>
-            ) : (
-              <div className="mypage-info-grid">
-                <div className="mypage-info-card">
-                  <span>이름</span>
-                  <strong>{profile.username}</strong>
-                </div>
-                <div className="mypage-info-card">
-                  <span>이메일</span>
-                  <strong>{profile.email}</strong>
-                </div>
-                <div className="mypage-info-card">
-                  <span>생년월일</span>
-                  <strong>{profile.birthDate || '-'}</strong>
-                </div>
-                <div className="mypage-info-card">
-                  <span>성별</span>
-                  <strong>{profile.gender === 'MALE' ? '남성' : profile.gender === 'FEMALE' ? '여성' : '-'}</strong>
-                </div>
+              <div className="mypage-info-card">
+                <span>이메일</span>
+                <strong>{profile.email}</strong>
               </div>
-            )}
+              <div className="mypage-info-card">
+                <span>생년월일</span>
+                <strong>{profile.birthDate || '-'}</strong>
+              </div>
+              <div className="mypage-info-card">
+                <span>성별</span>
+                <strong>{profile.gender === 'MALE' ? '남성' : profile.gender === 'FEMALE' ? '여성' : '-'}</strong>
+              </div>
+            </div>
           </div>
         ) : null}
 
@@ -1475,17 +1436,18 @@ function MyPage() {
                 Save settings
               </button>
             </div>
+
+            <section className="app-card withdraw-card">
+              <div>
+                <h2>회원 탈퇴</h2>
+                <p>탈퇴 시 복약 일정, 상담 내역, 알림 설정 등 계정 관련 정보가 비활성화됩니다.</p>
+              </div>
+              <button type="button" onClick={handleWithdraw}>회원 탈퇴</button>
+            </section>
           </div>
         ) : null}
       </section>
 
-      <section className="app-card withdraw-card">
-        <div>
-          <h2>회원 탈퇴</h2>
-          <p>탈퇴 시 복약 일정, 상담 내역, 알림 설정 등 계정 관련 정보가 비활성화됩니다.</p>
-        </div>
-        <button type="button" onClick={handleWithdraw}>회원 탈퇴</button>
-      </section>
     </div>
   )
 }

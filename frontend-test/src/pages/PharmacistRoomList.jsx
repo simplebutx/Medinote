@@ -143,9 +143,9 @@ const PharmacistRoomList = () => {
                                             {room.rating}점
                                         </span>
                                     </div>
-                                    {room.comment && (
+                                    {room.feedbackComment && (
                                         <div style={{ fontSize: '14px', color: '#475569', fontStyle: 'italic', backgroundColor: '#fff', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                            "{room.comment}"
+                                            "{room.feedbackComment}"
                                         </div>
                                     )}
                                 </div>

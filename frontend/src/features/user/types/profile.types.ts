@@ -13,8 +13,9 @@ export type UserDisease =
     };
 
 export interface UserProfile {
-  id?: number;
-  userId?: number;
+  id?: number | string | null;
+  userId?: number | string | null;
+  user_id?: number | string | null;
 
   email?: string | null;
   username?: string | null;
@@ -24,6 +25,12 @@ export interface UserProfile {
   birth_date?: string | null;
   gender?: UserGender | string | null;
   role?: UserRole | string | null;
+  status?: string | null;
+
+  createdAt?: string | null;
+  created_at?: string | null;
+  updatedAt?: string | null;
+  updated_at?: string | null;
 
   isPregnant?: boolean | null;
   is_pregnant?: boolean | null;
@@ -51,4 +58,10 @@ export interface UpdateMyProfileRequest {
   isSmoking?: boolean;
   isDrinking?: boolean;
   diseases?: string[];
+}
+
+export interface UpdateMyPharmacistProfileRequest {
+  docNumber: string;
+  licenseNumber: string;
+  licenseImage?: File | null;
 }

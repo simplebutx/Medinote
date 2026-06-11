@@ -5,6 +5,7 @@ import { Badge, Button, Card, Input } from '../../components/ui';
 import {
   useCreateMedicationSchedule,
   useCreateMedicationScheduleTime,
+  useMedicationTimePresets,
 } from '../../features/schedule/hooks';
 import type {
   DosageUnit as ApiDosageUnit,
@@ -92,6 +93,29 @@ function getDefaultDoseTimes(timesPerDay: number): DoseTimeForm[] {
   ];
 }
 
+function getPresetDoseTimes(
+  timesPerDay: number,
+  presets: { timesPerDay: number; slots: { sortOrder: number; takeTime: string }[] }[],
+): DoseTimeForm[] {
+  const matchedPreset = presets.find(
+    (preset) => preset.timesPerDay === timesPerDay,
+  );
+
+  if (!matchedPreset || matchedPreset.slots.length === 0) {
+    return getDefaultDoseTimes(timesPerDay);
+  }
+
+  const sortedSlots = [...matchedPreset.slots].sort(
+    (a, b) => a.sortOrder - b.sortOrder,
+  );
+
+  return sortedSlots.map((slot, index) => ({
+    label: `${index + 1}회차`,
+    takeTime: slot.takeTime.slice(0, 5),
+    timing: '식후',
+  }));
+}
+
 function normalizeTakeTime(time: string) {
   return time.slice(0, 5);
 }
@@ -126,6 +150,8 @@ function mapTiming(timing: TimingType): MedicationTiming {
 
 function OcrPage() {
   const navigate = useNavigate();
+
+  const { data: medicationTimePresets = [] } = useMedicationTimePresets();
 
   const createScheduleMutation = useCreateMedicationSchedule();
   const createScheduleTimeMutation = useCreateMedicationScheduleTime();
@@ -251,7 +277,7 @@ function OcrPage() {
     setManualForm((prev) => ({
       ...prev,
       timesPerDay: value,
-      doseTimes: getDefaultDoseTimes(nextTimesPerDay),
+      doseTimes: getPresetDoseTimes(nextTimesPerDay, medicationTimePresets),
     }));
   };
 
@@ -524,7 +550,10 @@ function OcrPage() {
         ]),
       );
 
-      const doseTimes = getDefaultDoseTimes(timesPerDay).map((doseTime) => ({
+      const doseTimes = getPresetDoseTimes(
+        timesPerDay,
+        medicationTimePresets,
+      ).map((doseTime) => ({
         ...doseTime,
         timing,
       }));
@@ -848,7 +877,7 @@ function OcrPage() {
     setOcrEditForm((prev) => ({
       ...prev,
       timesPerDay: value,
-      doseTimes: getDefaultDoseTimes(nextTimesPerDay),
+      doseTimes: getPresetDoseTimes(nextTimesPerDay, medicationTimePresets),
     }));
   };
 

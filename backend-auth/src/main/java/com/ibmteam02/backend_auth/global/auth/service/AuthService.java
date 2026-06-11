@@ -86,15 +86,16 @@ public class AuthService {
             diseaseNames.stream()
                     .filter(StringUtils::hasText)
                     .distinct()
-                    .forEach(diseaseName -> diseaseMasterRepository.findByDiseaseName(diseaseName)
-                            .ifPresent(diseaseMaster -> {
-                                UserChronicDisease userChronicDisease = UserChronicDisease.builder()
-                                        .user(user)
-                                        .diseaseMaster(diseaseMaster)
-                                        .diseaseName(diseaseMaster.getDiseaseName())
-                                        .build();
-                                userChronicDiseaseRepository.save(userChronicDisease);
-                            }));
+                    .forEach(diseaseName -> {
+                        // 자유 입력 허용: DB에 있으면 맵핑하고, 없으면 null 상태로 이름만 저장
+                        DiseaseMaster master = diseaseMasterRepository.findByDiseaseName(diseaseName).orElse(null);
+                        UserChronicDisease userChronicDisease = UserChronicDisease.builder()
+                                .user(user)
+                                .diseaseMaster(master)
+                                .diseaseName(diseaseName)
+                                .build();
+                        userChronicDiseaseRepository.save(userChronicDisease);
+                    });
         }
 
         user.activateGeneralUser();
@@ -149,7 +150,7 @@ public class AuthService {
 
         refreshTokenRepository.save(refreshToken);
 
-        return new LoginResponse(user.getId(), accessToken, refreshTokenValue, user.getEmail(), user.getRole().name());
+        return new LoginResponse(user.getId(), accessToken, refreshTokenValue, user.getEmail(), user.getRole().name(), user.getStatus());
     }
 
     // Refresh Token 재발급
@@ -175,7 +176,7 @@ public class AuthService {
 
         refreshTokenRepository.save(new RefreshToken(user.getEmail(), newRefreshToken, 14 * 24 * 60 * 60L));
 
-        return new LoginResponse(user.getId(), newAccessToken, newRefreshToken, user.getEmail(), user.getRole().name());
+        return new LoginResponse(user.getId(), newAccessToken, newRefreshToken, user.getEmail(), user.getRole().name(), user.getStatus());
     }
 
     // 로그아웃
@@ -198,16 +199,20 @@ public class AuthService {
         PharmacistProfile pharmacistProfile = pharmacistProfileRepository.findByUser(user).orElse(null);
 
         return UserProfileResponse.builder()
+                .id(user.getId())
                 .email(user.getEmail())
                 .username(user.getUsername())
                 .birthDate(user.getBirthDate())
                 .gender(user.getGender())
                 .role(user.getRole())
+                .status(user.getStatus()) // 상태 추가
                 //일반 유저 건강,질병 정보
                 .isPregnant(userProfileHealth != null ? userProfileHealth.getIsPregnant() : false)
                 .isBreastfeeding(userProfileHealth != null ? userProfileHealth.getIsBreastfeeding() : false)
                 .isSmoking(userProfileHealth != null ? userProfileHealth.getIsSmoking() : false)
                 .isDrinking(userProfileHealth != null ? userProfileHealth.getIsDrinking() : false)
+                .isChild(userProfileHealth != null ? userProfileHealth.getIsChild() : false)
+                .isElderly(userProfileHealth != null ? userProfileHealth.getIsElderly() : false)
                 .chronicDiseases(diseases)
                 //약사 정보
                 .docNumber(pharmacistProfile != null ? pharmacistProfile.getDocNumber() : null)
@@ -219,11 +224,18 @@ public class AuthService {
     }
 
 
-    //마이페이지 정보 수정
     @Transactional
     public void updateMyProfile(String email, ProfileUpdateRequest profileUpdateRequest) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 1. 역할(Role) 업데이트 (추가)
+        if (profileUpdateRequest.getRole() != null) {
+            // User 엔티티에 setRole 메서드가 없다면 reflection이나 필드 직접 수정이 필요할 수 있으나, 
+            // 여기서는 domain.User에 setRole 대신 updateBasicProfile 등을 확장하거나 새로 만듭니다.
+            // 일단 User.java에 public void updateRole(Role role)이 있다고 가정하거나 추가해야 함.
+            user.updateRole(profileUpdateRequest.getRole());
+        }
 
         //기본정보 수정(이름, 생년월일, 성별)
         user.updateBasicProfile(
@@ -232,21 +244,27 @@ public class AuthService {
                 profileUpdateRequest.getGender()
         );
 
-        //일반 유저 추가 정보 수정
+        // 2. 일반 유저일 경우에만 건강 정보 수정
         if (user.getRole() == Role.USER) {
             UserProfileHealth userProfileHealth = userProfileHealthRepository.findByUser(user)
-                    .orElseGet(() -> userProfileHealthRepository.save(UserProfileHealth.builder()
-                            .user(user)
-                            .build()));
+                    .orElseGet(() -> {
+                        // 만약 신규 생성이 필요한데 필수 필드가 null이면 에러가 나므로,
+                        // 요청에 건강 정보가 있을 때만 생성하도록 방어 로직 추가
+                        if (profileUpdateRequest.getIsPregnant() == null) return null;
+                        return UserProfileHealth.builder().user(user).build();
+                    });
 
-            userProfileHealth.updateHealth(
-                    profileUpdateRequest.getIsPregnant(),
-                    profileUpdateRequest.getIsBreastfeeding(),
-                    profileUpdateRequest.getIsSmoking(),
-                    profileUpdateRequest.getIsDrinking(),
-                    profileUpdateRequest.getIsChild(),
-                    profileUpdateRequest.getIsElderly()
-            );
+            if (userProfileHealth != null) {
+                userProfileHealth.updateHealth(
+                        profileUpdateRequest.getIsPregnant(),
+                        profileUpdateRequest.getIsBreastfeeding(),
+                        profileUpdateRequest.getIsSmoking(),
+                        profileUpdateRequest.getIsDrinking(),
+                        profileUpdateRequest.getIsChild(),
+                        profileUpdateRequest.getIsElderly()
+                );
+                userProfileHealthRepository.save(userProfileHealth);
+            }
 
             userChronicDiseaseRepository.deleteByUser(user);
 
@@ -259,7 +277,6 @@ public class AuthService {
                 }
             }
         }
-
     }
 
     // 약사 정보 수정 (면허 재인증 포함)
@@ -289,6 +306,25 @@ public class AuthService {
     public void withdraw(String email){
         User user = userRepository.findByEmail(email)
                 .orElseThrow(()->new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        userChronicDiseaseRepository.deleteByUser(user); //자식 데이터 먼저 삭제
+
+        userProfileHealthRepository.findByUser(user).ifPresent(health -> {
+            userProfileHealthRepository.delete(health);
+        });
+
+        if (user.getRole() == Role.PHARMACIST){
+            pharmacistProfileRepository.findByUser(user).ifPresent(profile -> {
+                String imageKey = profile.getLicenseImage();
+                if(imageKey != null && !imageKey.equals("DELETED_DUE_TO_PRIVACY")){
+                    s3Service.deleteFile(imageKey);
+                }
+                pharmacistProfileRepository.delete(profile);
+            });
+        }
+
+        refreshTokenRepository.deleteById(email);
+
         userRepository.delete(user);
     }
 

@@ -20,6 +20,8 @@ import ScheduleEditPage from './pages/schedule/ScheduleEditPage'
 import ScheduleListPage from './pages/schedule/ScheduleListPage'
 import ScheduleOcrPage from './pages/schedule/ScheduleOcrPage'
 import Signup from './pages/Signup'
+import ExtraInfo from './pages/ExtraInfo'
+import OAuth2Redirect from './pages/OAuth2Redirect'
 import SimplePlaceholderPage from './pages/SimplePlaceholderPage'
 import Sync from './pages/Sync'
 import YunjuTest from './pages/YunjuTest'
@@ -39,6 +41,8 @@ function App() {
         <Route path="/" element={<Navigate to="/app/schedule" replace />} />
 
         <Route path="/signup" element={<Signup />} />
+        <Route path="/signup/extra-info" element={<ExtraInfo />} />
+        <Route path="/oauth2/redirect" element={<OAuth2Redirect />} />
         <Route path="/login" element={<Login />} />
         <Route path="/yunjutest" element={<YunjuTest />} />
         <Route path="/sync" element={<Sync />} />
@@ -75,16 +79,7 @@ function App() {
           <Route path="/app/chat" element={<ChatConsultPage />} />
           <Route path="/app/drugs" element={<MedicineSearch />} />
           <Route path="/app/pharmacies" element={<PharmacyMap />} />
-          <Route
-            path="/app/faq"
-            element={
-              <SimplePlaceholderPage
-                eyebrow="FAQ"
-                title="FAQ"
-                description="사용자 공통 레이아웃에 맞춰 FAQ 자리를 먼저 구성했습니다."
-              />
-            }
-          />
+          <Route path="/app/faq" element={<Navigate to="/app/schedule" replace />} />
           <Route
             path="/app/notifications"
             element={

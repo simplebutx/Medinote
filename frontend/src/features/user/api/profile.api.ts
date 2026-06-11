@@ -1,5 +1,6 @@
 import { authInstance } from '../../../api/axiosInstance';
 import type {
+  UpdateMyPharmacistProfileRequest,
   UpdateMyProfileRequest,
   UserProfile,
 } from '../types/profile.types';
@@ -24,6 +25,35 @@ export const suggestDiseases = async (keyword: string) => {
         keyword,
       },
     },
+  );
+
+  return response.data;
+};
+
+export const updateMyPharmacistProfile = async (
+  body: UpdateMyPharmacistProfileRequest,
+) => {
+  const formData = new FormData();
+
+  const request = {
+    docNumber: body.docNumber,
+    licenseNumber: body.licenseNumber,
+  };
+
+  formData.append(
+    'data',
+    new Blob([JSON.stringify(request)], {
+      type: 'application/json',
+    }),
+  );
+
+  if (body.licenseImage) {
+    formData.append('licenseImage', body.licenseImage);
+  }
+
+  const response = await authInstance.patch(
+    '/api/auth/pharmacists/profile',
+    formData,
   );
 
   return response.data;
