@@ -2106,7 +2106,10 @@ body {
 }
 
 .app-sidebar-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   flex-shrink: 0;
   padding: 12px 16px;
   border-radius: 14px;
@@ -2114,6 +2117,24 @@ body {
   text-decoration: none;
   font-size: 14px;
   font-weight: 600;
+}
+
+.app-sidebar-link span:first-child {
+  min-width: 0;
+}
+
+.app-sidebar-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .app-sidebar-link-active {
@@ -2165,6 +2186,17 @@ body {
   background: #fff;
   color: #475569;
   border: 1px solid #cbd5e1;
+}
+
+.app-secondary-button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: #fff;
+  color: #475569;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .app-content {
@@ -4080,6 +4112,206 @@ body {
   background: #fee500;
   border-color: #fee500;
   color: #181600;
+}
+
+.notification-page {
+  max-width: 1120px;
+}
+
+.notification-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.notification-actions,
+.notification-list-header,
+.notification-item,
+.notification-item-title-row {
+  display: flex;
+  gap: 12px;
+}
+
+.notification-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.notification-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.notification-summary-card {
+  display: grid;
+  gap: 8px;
+}
+
+.notification-summary-card span {
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.notification-summary-card strong {
+  color: #0f172a;
+  font-size: 28px;
+}
+
+.notification-list-card {
+  display: grid;
+  gap: 16px;
+}
+
+.notification-list-header {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.notification-list-actions,
+.notification-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.notification-list-header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.notification-list {
+  display: grid;
+  gap: 12px;
+}
+
+.notification-item {
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border: 1px solid #d9e2ef;
+  border-radius: 18px;
+  background: #f8fbff;
+}
+
+.notification-item-read {
+  opacity: 0.68;
+}
+
+.notification-item-main {
+  min-width: 0;
+}
+
+.notification-item-title-row {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.notification-item-title-row h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.notification-item-title-row span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.notification-item p {
+  margin: 8px 0;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.notification-item small,
+.notification-empty {
+  color: #64748b;
+}
+
+.notification-danger-button {
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.notification-danger-button:disabled {
+  color: #94a3b8;
+  border-color: #e2e8f0;
+  cursor: not-allowed;
+}
+
+.notification-delete-button {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff;
+  color: #dc2626;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.notification-delete-button:hover {
+  background: #fef2f2;
+}
+
+.notification-empty {
+  margin: 0;
+  padding: 24px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 18px;
+  background: #f8fbff;
+  text-align: center;
+}
+
+.in-app-notification-toast {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 1000;
+  width: min(360px, calc(100vw - 32px));
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 18px 18px 20px;
+  border: 1px solid #bfdbfe;
+  border-radius: 18px;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+}
+
+.in-app-notification-toast strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 17px;
+}
+
+.in-app-notification-toast p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.in-app-notification-toast button {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 

@@ -57,7 +57,8 @@ public class SecurityConfig {
                                 "/api/prescriptions/**",
                                 "/api/medication-schedules/**",
                                 "/api/medication-schedule-times/**",
-                                "/api/medication-intake-logs/**"
+                                "/api/medication-intake-logs/**",
+                                "/api/medication-notifications/**"
                         ).authenticated()
                         .anyRequest().permitAll()
                 )

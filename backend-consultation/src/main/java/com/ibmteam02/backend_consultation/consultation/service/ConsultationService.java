@@ -6,12 +6,14 @@ import com.ibmteam02.backend_consultation.ai.dto.AiConsultationSummaryResponse;
 import com.ibmteam02.backend_consultation.consultation.domain.ConsultationFeedback;
 import com.ibmteam02.backend_consultation.consultation.domain.ConsultationMessage;
 import com.ibmteam02.backend_consultation.consultation.domain.ConsultationSession;
+import com.ibmteam02.backend_consultation.consultation.domain.SenderType;
 import com.ibmteam02.backend_consultation.consultation.domain.SessionStatus;
 import com.ibmteam02.backend_consultation.consultation.dto.*;
 import com.ibmteam02.backend_consultation.consultation.repository.ConsultationFeedbackRepository;
 import com.ibmteam02.backend_consultation.consultation.repository.ConsultationMessageRepository;
 import com.ibmteam02.backend_consultation.consultation.repository.ConsultationSessionRepository;
 import com.ibmteam02.backend_consultation.global.auth.AuthUserClient;
+import com.ibmteam02.backend_consultation.notification.service.ConsultationNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ public class ConsultationService {
     private final ConsultationFeedbackRepository consultationFeedbackRepository;
     private final AuthUserClient authUserClient;
     private final AiConsultationSummaryClient aiConsultationSummaryClient;
+    private final ConsultationNotificationService consultationNotificationService;
 
     // 공통 변환 메서드
     public ConsultationRoomResponse convertToResponse(ConsultationSession session) {
@@ -97,7 +100,41 @@ public class ConsultationService {
                 chatMessageDto.getMessage()
         );
 
-        consultationMessageRepository.save(message);
+        ConsultationMessage savedMessage = consultationMessageRepository.save(message);
+
+        Long receiverId = resolveNotificationReceiverId(
+                session,
+                chatMessageDto.getSenderId(),
+                chatMessageDto.getSenderType()
+        );
+
+        consultationNotificationService.notifyNewMessage(
+                receiverId,
+                chatMessageDto.getSenderId(),
+                session.getId(),
+                savedMessage.getId(),
+                savedMessage.getContent()
+        );
+    }
+
+    private Long resolveNotificationReceiverId(
+            ConsultationSession session,
+            Long senderId,
+            SenderType senderType
+    ) {
+        if (senderId == null || senderType == null) {
+            return null;
+        }
+
+        if (senderType == SenderType.USER) {
+            return session.getPharmacistId();
+        }
+
+        if (senderType == SenderType.PHARMACIST) {
+            return session.getCustomerId();
+        }
+
+        return null;
     }
 
     //과거 대화 내역 조회
