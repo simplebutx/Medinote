@@ -5,6 +5,7 @@ import type {
   ConsultMessage,
   ConsultPatientInfo,
   ConsultRoom,
+  SubmitConsultFeedbackRequest,
 } from '../types';
 
 export const getPendingConsultRooms = async () => {
@@ -48,7 +49,7 @@ export const getConsultMessages = async (roomId: number) => {
 };
 
 export const closeConsultRoom = async (roomId: number) => {
-  const response = await consultationInstance.get<void>(
+  const response = await consultationInstance.patch<void>(
     `/app/consult/room/${roomId}/close`,
   );
 
@@ -66,6 +67,59 @@ export const getConsultPatientInfo = async (roomId: number) => {
 export const getConsultFeedbackStats = async () => {
   const response = await consultationInstance.get<ConsultFeedbackStats>(
     '/app/consult/rooms/feedback-stats',
+  );
+
+  return response.data;
+};
+
+type CreateConsultRoomResponse =
+  | number
+  | string
+  | {
+      roomId?: number | string;
+      id?: number | string;
+    };
+
+export const createConsultRoom = async () => {
+  const response = await consultationInstance.post<CreateConsultRoomResponse>(
+    '/app/consult/room',
+  );
+
+  const data = response.data;
+
+  if (typeof data === 'object' && data !== null) {
+    return Number(data.roomId ?? data.id);
+  }
+
+  return Number(data);
+};
+
+export const getMyConsultRooms = async () => {
+  const response = await consultationInstance.get<ConsultRoom[]>(
+    '/app/consult/rooms/my',
+  );
+
+  return response.data;
+};
+
+export const submitConsultFeedback = async ({
+  roomId,
+  body,
+}: {
+  roomId: number;
+  body: SubmitConsultFeedbackRequest;
+}) => {
+  const response = await consultationInstance.post<void>(
+    `/app/consult/room/${roomId}/feedback`,
+    body,
+  );
+
+  return response.data;
+};
+
+export const generateConsultSummary = async (roomId: number) => {
+  const response = await consultationInstance.post<string>(
+    `/app/consult/room/${roomId}/summary`,
   );
 
   return response.data;
