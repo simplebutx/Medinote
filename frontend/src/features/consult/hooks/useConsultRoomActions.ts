@@ -20,6 +20,8 @@ export const useCloseConsultRoom = () => {
     mutationFn: closeConsultRoom,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['consult-rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['my-consult-rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['consult-messages'] });
     },
   });
 };

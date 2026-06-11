@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge, Card } from '../../components/ui';
 import {
@@ -7,20 +7,29 @@ import {
   useCompletedConsultRooms,
   useConsultMessages,
   useConsultPatientInfo,
+  useConsultSocket,
+  useGenerateConsultSummary,
   useMatchConsultRoom,
   usePendingConsultRooms,
 } from '../../features/consult/hooks';
-import type { ConsultRoom, ConsultRoomStatus } from '../../features/consult/types';
+import type {
+  ConsultMessage,
+  ConsultRoom,
+  ConsultRoomStatus,
+  ConsultSocketMessage,
+} from '../../features/consult/types';
+
+type ConsultTabStatus = 'PENDING' | 'ACTIVE' | 'COMPLETED';
 
 function getConsultStatusLabel(status: ConsultRoomStatus) {
   if (status === 'PENDING') return '대기';
-  if (status === 'ACTIVE') return '진행 중';
+  if (status === 'MATCHED' || status === 'ACTIVE') return '진행 중';
   return '완료';
 }
 
 function getConsultStatusBadge(status: ConsultRoomStatus) {
   if (status === 'PENDING') return 'yellow';
-  if (status === 'ACTIVE') return 'blue';
+  if (status === 'MATCHED' || status === 'ACTIVE') return 'blue';
   return 'green';
 }
 
@@ -52,6 +61,41 @@ function formatDateTime(value?: string) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date);
+}
+
+function getConsultMessageSortTime(message: {
+  createdAt?: string;
+}) {
+  if (!message.createdAt) {
+    return Date.now();
+  }
+
+  const time = new Date(message.createdAt).getTime();
+
+  if (Number.isNaN(time)) {
+    return Date.now();
+  }
+
+  return time;
+}
+
+function getConsultMessageContent(message: {
+  message?: string;
+  content?: string;
+}) {
+  return (
+    message.content ??
+    message.message ??
+    '메시지 내용을 불러오지 못했습니다.'
+  );
+}
+
+function getRatingStars(rating?: number | null) {
+  if (rating == null) {
+    return '아직 평가 없음';
+  }
+
+  return `${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}`;
 }
 
 function getPatientDisplayName(patientInfo: {
@@ -89,9 +133,12 @@ function getPatientHealthBadges(patientInfo: {
 }
 
 function ConsultPage() {
-  const [activeStatus, setActiveStatus] = useState<ConsultRoomStatus>('PENDING');
+  const consultMessagesContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const [activeStatus, setActiveStatus] = useState<ConsultTabStatus>('PENDING');
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
   const [answerText, setAnswerText] = useState('');
+  const [socketMessages, setSocketMessages] = useState<ConsultMessage[]>([]);
 
   const {
     data: pendingRooms = [],
@@ -114,6 +161,8 @@ function ConsultPage() {
   const matchConsultRoomMutation = useMatchConsultRoom();
   const closeConsultRoomMutation = useCloseConsultRoom();
 
+  const generateConsultSummaryMutation = useGenerateConsultSummary();
+
   const roomsByStatus = useMemo(() => {
     if (activeStatus === 'PENDING') return pendingRooms;
     if (activeStatus === 'ACTIVE') return activeRooms;
@@ -129,6 +178,12 @@ function ConsultPage() {
       null
     );
   }, [pendingRooms, activeRooms, completedRooms, roomsByStatus, selectedRoomId]);
+
+  const isSelectedRoomMatched =
+    selectedRoom?.status === 'MATCHED' || selectedRoom?.status === 'ACTIVE';
+
+  const isSelectedRoomClosed =
+    selectedRoom?.status === 'COMPLETED' || selectedRoom?.status === 'CLOSED';
 
   const {
     data: messages = [],
@@ -148,12 +203,50 @@ function ConsultPage() {
   const isError =
     isPendingRoomsError || isActiveRoomsError || isCompletedRoomsError;
 
+  const handleReceiveSocketMessage = useCallback(
+    (socketMessage: ConsultSocketMessage) => {
+      if (socketMessage.type !== 'TALK') {
+        return;
+      }
+
+      // 약사가 보낸 메시지는 전송 직후 optimistic append로 이미 표시함
+      if (socketMessage.senderType === 'PHARMACIST') {
+        return;
+      }
+
+      setSocketMessages((prev) => [
+        ...prev,
+        {
+          type: socketMessage.type,
+          roomId: socketMessage.roomId,
+          senderId: socketMessage.senderId,
+          senderType: socketMessage.senderType,
+          message: socketMessage.message,
+          content: socketMessage.message,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+    },
+    [],
+  );
+
+  const {
+    isConnected: isConsultSocketConnected,
+    sendMessage: sendConsultSocketMessage,
+  } = useConsultSocket({
+    roomId: selectedRoom?.roomId,
+    senderType: 'PHARMACIST',
+    senderName: '약사',
+    enabled: Boolean(selectedRoom) && isSelectedRoomMatched,
+    onMessage: handleReceiveSocketMessage,
+  });
+
   const handleSelectRoom = (roomId: number) => {
     setSelectedRoomId(roomId);
     setAnswerText('');
   };
 
-  const handleChangeStatus = (status: ConsultRoomStatus) => {
+  const handleChangeStatus = (status: ConsultTabStatus) => {
     setActiveStatus(status);
 
     const nextRooms =
@@ -183,12 +276,100 @@ function ConsultPage() {
     setAnswerText('');
   };
 
-  const handleSubmitAnswer = () => {
-    console.log('상담 답변 임시 저장:', {
-      roomId: selectedRoom?.roomId,
-      answerText,
+  const handleGenerateConsultSummary = () => {
+    if (!selectedRoom?.roomId) {
+      return;
+    }
+
+    generateConsultSummaryMutation.mutate(selectedRoom.roomId, {
+      onError: (error) => {
+        console.error('상담 요약 생성 실패:', error);
+        alert('상담 요약 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      },
     });
   };
+
+  const handleSubmitAnswer = () => {
+    const trimmedAnswer = answerText.trim();
+
+    if (!trimmedAnswer || !selectedRoom) {
+      return;
+    }
+
+    if (!isSelectedRoomMatched) {
+      alert('상담 수락 후 답변을 전송할 수 있습니다.');
+      return;
+    }
+
+    const isSent = sendConsultSocketMessage(trimmedAnswer);
+
+    if (!isSent) {
+      alert('상담 서버에 연결되지 않았습니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
+    setSocketMessages((prev) => [
+      ...prev,
+      {
+        type: 'TALK',
+        roomId: selectedRoom.roomId,
+        senderId: 0,
+        senderType: 'PHARMACIST',
+        message: trimmedAnswer,
+        content: trimmedAnswer,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    setAnswerText('');
+  };
+
+  const selectedRoomRoomId = selectedRoom?.roomId ?? null;
+
+  const displayedMessages = useMemo(() => {
+    if (!selectedRoomRoomId) {
+      return [];
+    }
+
+    const serverMessages = messages.map((message) => ({
+      ...message,
+      roomId: message.roomId ?? selectedRoomRoomId,
+    }));
+
+    const socketMessagesInRoom = socketMessages.filter((message) => {
+      return message.roomId === selectedRoomRoomId;
+    });
+
+    return [...serverMessages, ...socketMessagesInRoom].sort((a, b) => {
+      return getConsultMessageSortTime(a) - getConsultMessageSortTime(b);
+    });
+  }, [messages, selectedRoomRoomId, socketMessages]);
+
+  const lastDisplayedMessageKey =
+    displayedMessages.length > 0
+      ? `${
+          displayedMessages[displayedMessages.length - 1].messageId ??
+          displayedMessages[displayedMessages.length - 1].createdAt
+        }-${
+          displayedMessages[displayedMessages.length - 1].content ??
+          displayedMessages[displayedMessages.length - 1].message
+        }`
+      : '';
+
+  useEffect(() => {
+    const container = consultMessagesContainerRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth',
+      });
+    });
+  }, [lastDisplayedMessageKey, selectedRoomRoomId]);
 
   const patientHealthBadges = getPatientHealthBadges(patientInfo);
 
@@ -376,16 +557,14 @@ function ConsultPage() {
                     </button>
                   )}
 
-                  {selectedRoom.status === 'ACTIVE' && (
+                  {(selectedRoom.status === 'MATCHED' || selectedRoom.status === 'ACTIVE') && (
                     <button
                       type="button"
                       onClick={handleCloseRoom}
                       disabled={closeConsultRoomMutation.isPending}
                       className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {closeConsultRoomMutation.isPending
-                        ? '종료 중'
-                        : '상담 종료'}
+                      {closeConsultRoomMutation.isPending ? '종료 중' : '상담 종료'}
                     </button>
                   )}
                 </div>
@@ -396,49 +575,55 @@ function ConsultPage() {
                   상담 메시지
                 </h3>
 
-                <div className="mt-2 space-y-3 rounded-2xl bg-slate-50 p-4">
-                  {isMessagesLoading ? (
-                    <p className="text-sm text-slate-500">
-                      메시지를 불러오는 중입니다.
-                    </p>
-                  ) : isMessagesError ? (
-                    <p className="text-sm text-red-600">
-                      메시지를 불러오지 못했습니다.
-                    </p>
-                  ) : messages.length === 0 ? (
-                    <p className="text-sm text-slate-500">
-                      아직 표시할 메시지가 없습니다.
-                    </p>
-                  ) : (
-                    messages.map((message, index) => (
-                      <div
-                        key={`${message.senderId}-${message.createdAt ?? index}`}
-                        className="rounded-2xl bg-white p-3"
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge
-                            variant={
-                              message.senderType === 'PHARMACIST'
-                                ? 'blue'
-                                : 'gray'
-                            }
-                          >
-                            {message.senderType === 'PHARMACIST'
-                              ? '약사'
-                              : '환자'}
-                          </Badge>
+                <div
+                  ref={consultMessagesContainerRef}
+                  className="mt-2 h-80 overflow-y-auto rounded-2xl bg-slate-50 p-4"
+                >
+                  <div className="space-y-3">
+                    {isMessagesLoading ? (
+                      <p className="text-sm text-slate-500">
+                        메시지를 불러오는 중입니다.
+                      </p>
+                    ) : isMessagesError ? (
+                      <p className="text-sm text-red-600">
+                        메시지를 불러오지 못했습니다.
+                      </p>
+                    ) : displayedMessages.length === 0 ? (
+                      <p className="text-sm text-slate-500">
+                        아직 표시할 메시지가 없습니다.
+                      </p>
+                    ) : (
+                      displayedMessages.map((message, index) => (
+                        <div
+                          key={
+                            message.messageId ??
+                            `${message.roomId ?? selectedRoom?.roomId}-${message.senderId}-${
+                              message.createdAt ?? index
+                            }-${index}`
+                          }
+                          className="rounded-2xl bg-white p-3"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant={
+                                message.senderType === 'PHARMACIST' ? 'blue' : 'gray'
+                              }
+                            >
+                              {message.senderType === 'PHARMACIST' ? '약사' : '환자'}
+                            </Badge>
 
-                          <span className="text-xs text-slate-400">
-                            {formatDateTime(message.createdAt)}
-                          </span>
+                            <span className="text-xs text-slate-400">
+                              {formatDateTime(message.createdAt)}
+                            </span>
+                          </div>
+
+                          <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">
+                            {getConsultMessageContent(message)}
+                          </p>
                         </div>
-
-                        <p className="mt-2 text-sm leading-6 text-slate-700">
-                          {message.message}
-                        </p>
-                      </div>
-                    ))
-                  )}
+                      ))
+                    )}
+                  </div>
                 </div>
               </section>
 
@@ -459,7 +644,6 @@ function ConsultPage() {
                   ) : (
                     <div className="mt-2 space-y-2 text-sm text-slate-700">
                       <p>이름: {getPatientDisplayName(patientInfo)}</p>
-                      <p>이메일: {patientInfo?.email ?? '-'}</p>
                       <p>성별: {patientInfo?.gender ?? '-'}</p>
                       <p>생년월일: {patientInfo?.birthDate ?? '-'}</p>
                     </div>
@@ -485,28 +669,83 @@ function ConsultPage() {
                 </div>
               </section>
 
-              <section>
-                <h3 className="text-sm font-semibold text-slate-500">
-                  답변 작성
-                </h3>
+              {isSelectedRoomClosed && (
+                <section className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <h3 className="text-sm font-semibold text-slate-500">
+                      상담 요약
+                    </h3>
 
-                <textarea
-                  value={answerText}
-                  onChange={(event) => setAnswerText(event.target.value)}
-                  placeholder="환자에게 전달할 상담 답변을 입력하세요. 실제 메시지 전송은 WebSocket 연동 단계에서 처리합니다."
-                  className="mt-2 min-h-40 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
-                />
+                    <div className="mt-2 space-y-3">
+                      <p className="whitespace-pre-line text-sm leading-6 text-slate-700">
+                        {selectedRoom.aiConsultationSummary ||
+                          '아직 생성된 상담 요약이 없습니다.'}
+                      </p>
 
-                <div className="mt-3 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleSubmitAnswer}
-                    className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                  >
-                    답변 임시 저장
-                  </button>
+                      {!selectedRoom.aiConsultationSummary && (
+                        <button
+                          type="button"
+                          onClick={handleGenerateConsultSummary}
+                          disabled={generateConsultSummaryMutation.isPending}
+                          className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {generateConsultSummaryMutation.isPending
+                            ? '요약 생성 중'
+                            : 'AI 상담 요약 생성'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <h3 className="text-sm font-semibold text-slate-500">
+                      사용자 평가
+                    </h3>
+
+                    <p className="mt-2 text-sm font-bold text-yellow-500">
+                      {getRatingStars(selectedRoom.rating)}
+                    </p>
+
+                    <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">
+                      {selectedRoom.feedbackComment || '아직 등록된 한줄평이 없습니다.'}
+                    </p>
+                  </div>
+                </section>
+              )}
+
+              {isSelectedRoomClosed ? (
+                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+                  종료된 상담입니다. 메시지를 추가로 전송할 수 없습니다.
                 </div>
-              </section>
+              ) : (
+                <section>
+                  <h3 className="text-sm font-semibold text-slate-500">
+                    답변 작성
+                  </h3>
+
+                  <textarea
+                    value={answerText}
+                    onChange={(event) => setAnswerText(event.target.value)}
+                    placeholder="환자에게 전달할 상담 답변을 입력하세요."
+                    className="mt-2 min-h-40 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                  />
+
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleSubmitAnswer}
+                      disabled={
+                        !answerText.trim() ||
+                        !isSelectedRoomMatched ||
+                        !isConsultSocketConnected
+                      }
+                      className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isConsultSocketConnected ? '답변 전송' : '연결 중'}
+                    </button>
+                  </div>
+                </section>
+              )}
             </div>
           ) : (
             <div className="rounded-2xl bg-slate-50 p-8 text-center text-sm text-slate-500">

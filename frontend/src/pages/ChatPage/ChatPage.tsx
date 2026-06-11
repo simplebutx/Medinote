@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge, Button, Card, Input } from '../../components/ui';
 import {
@@ -10,7 +10,17 @@ import {
   useSendChatbotMessage,
   useUpdateChatbotRoom,
 } from '../../features/chat/hooks';
+import {
+  useCloseConsultRoom,
+  useConsultMessages,
+  useConsultSocket,
+  useCreateConsultRoom,
+  useGenerateConsultSummary,
+  useMyConsultRooms,
+  useSubmitConsultFeedback,
+} from '../../features/consult/hooks';
 import type { ChatbotMessage as ApiChatbotMessage } from '../../features/chat/types/chat.types';
+import type { ConsultSocketMessage } from '../../features/consult/types';
 import { useMedicineSuggest } from '../../features/drug/hooks';
 import { useDebounce } from '../../hooks/useDebounce';
 
@@ -30,6 +40,7 @@ interface ChatMessage {
   sender: MessageSender;
   content: string;
   createdAt: string;
+  sortTime?: number;
   drugs?: DrugOption[];
 }
 
@@ -81,6 +92,44 @@ function formatChatTime(createdAt?: string | null) {
   return createdAt.slice(11, 16);
 }
 
+function getMessageSortTime(createdAt?: string | null) {
+  if (!createdAt) {
+    return Date.now();
+  }
+
+  const time = new Date(createdAt).getTime();
+
+  if (Number.isNaN(time)) {
+    return Date.now();
+  }
+
+  return time;
+}
+
+function getConsultRoomStatusLabel(status?: string) {
+  if (status === 'PENDING') return '약사 매칭 대기 중';
+  if (status === 'MATCHED' || status === 'ACTIVE') return '약사와 상담 중';
+  if (status === 'COMPLETED' || status === 'CLOSED') return '상담 종료';
+
+  return '상담방 없음';
+}
+
+function getConsultRoomStatusDescription(status?: string) {
+  if (status === 'PENDING') {
+    return '상담 요청이 접수되었습니다. 약사가 수락하면 상담을 이어갈 수 있습니다.';
+  }
+
+  if (status === 'MATCHED' || status === 'ACTIVE') {
+    return '약사가 상담을 수락했습니다. 이제 상담 내용을 주고받을 수 있습니다.';
+  }
+
+  if (status === 'COMPLETED' || status === 'CLOSED') {
+    return '상담이 종료되었습니다. 필요한 경우 새 상담 요청을 생성해주세요.';
+  }
+
+  return '약사 상담이 필요한 경우 상담 요청을 생성해주세요.';
+}
+
 function mapApiChatbotMessageToChatMessage(
   message: ApiChatbotMessage,
   index: number,
@@ -90,14 +139,138 @@ function mapApiChatbotMessageToChatMessage(
     apiMessageId: message.messageId ?? null,
     sender: message.senderType === 'USER' ? 'USER' : 'AI',
     content:
-      message.content ??
-      message.answer ??
-      '메시지 내용을 불러오지 못했습니다.',
+      message.content ?? message.answer ?? '메시지 내용을 불러오지 못했습니다.',
     createdAt: formatChatTime(message.createdAt),
   };
 }
+
+function mapConsultMessageToChatMessage(
+  message: {
+    messageId?: number;
+    senderType: 'USER' | 'PHARMACIST';
+    message?: string;
+    content?: string;
+    createdAt?: string;
+  },
+  index: number,
+): ChatMessage {
+  return {
+    id: message.messageId ?? index + 1,
+    sender: message.senderType,
+    content:
+      message.content ??
+      message.message ??
+      '메시지 내용을 불러오지 못했습니다.',
+    createdAt: formatChatTime(message.createdAt),
+    sortTime: getMessageSortTime(message.createdAt),
+  };
+}
+
+function mapSocketMessageToChatMessage(
+  message: ConsultSocketMessage,
+  id: number,
+): ChatMessage {
+  const now = Date.now();
+
+  return {
+    id,
+    sender: message.senderType,
+    content: message.message,
+    createdAt: '방금',
+    sortTime: now,
+  };
+}
+
+function buildConsultMessageText(text: string, drugs: DrugOption[]) {
+  const trimmedText = text.trim();
+
+  if (drugs.length === 0) {
+    return trimmedText;
+  }
+
+  const drugText = drugs
+    .map((drug) => {
+      return `- ${drug.name}${drug.ingredient ? ` / 성분: ${drug.ingredient}` : ''}`;
+    })
+    .join('\n');
+
+  if (!trimmedText) {
+    return `선택한 약에 대해 상담하고 싶어요.\n\n[선택한 약]\n${drugText}`;
+  }
+
+  return `${trimmedText}\n\n[선택한 약]\n${drugText}`;
+}
+
+function buildChatbotMessageText(text: string, drugs: DrugOption[]) {
+  const trimmedText = text.trim();
+
+  if (drugs.length === 0) {
+    return trimmedText;
+  }
+
+  const drugMentionText = drugs
+    .map((drug) => {
+      return `@${drug.name}`;
+    })
+    .join('\n');
+
+  if (!trimmedText) {
+    return `선택한 약에 대해 확인해주세요.\n\n[선택한 약]\n${drugMentionText}`;
+  }
+
+  return `${trimmedText}\n\n[선택한 약]\n${drugMentionText}`;
+}
+
+function removeDuplicateChatMessages(messages: ChatMessage[]) {
+  const seen = new Set<string>();
+
+  return messages.filter((message) => {
+    /**
+     * 서버 저장 메시지는 apiMessageId 기준으로만 중복 제거
+     */
+    if (message.apiMessageId) {
+      const key = `api-${message.apiMessageId}`;
+
+      if (seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    }
+
+    /**
+     * 로컬 메시지는 id 기준으로만 중복 제거
+     * 같은 내용의 질문/답변이 반복되어도 별도 메시지로 보여야 함
+     */
+    const key = `local-${message.id}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
 function ChatPage() {
   const messageIdRef = useRef(100);
+  const chatMessagesContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const [activeMode, setActiveMode] = useState<ChatMode>('ai');
+  const [selectedConsultRoomId, setSelectedConsultRoomId] = useState<
+    number | null
+  >(null);
+
+  const [consultSocketMessages, setConsultSocketMessages] = useState<
+    ChatMessage[]
+  >([]);
+
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [locallyClosedConsultRoomIds, setLocallyClosedConsultRoomIds] =
+    useState<number[]>([]);
 
   const createMessageId = () => {
     messageIdRef.current += 1;
@@ -105,6 +278,15 @@ function ChatPage() {
   };
 
   const sendChatbotMessageMutation = useSendChatbotMessage();
+  const createConsultRoomMutation = useCreateConsultRoom();
+
+  const closeConsultRoomMutation = useCloseConsultRoom();
+  const submitConsultFeedbackMutation = useSubmitConsultFeedback();
+
+  const generateConsultSummaryMutation = useGenerateConsultSummary();
+
+  const { data: myConsultRooms = [], isLoading: isMyConsultRoomsLoading } =
+    useMyConsultRooms(activeMode === 'pharmacist');
 
   const { data: chatbotRooms = [], isLoading: isChatbotRoomsLoading } =
     useChatbotRooms();
@@ -150,7 +332,7 @@ function ChatPage() {
 
     return createdRoom.roomId;
   };
-  
+
   const handleCreateChatbotRoom = async () => {
     try {
       const createdRoom = await createChatbotRoomMutation.mutateAsync({
@@ -158,7 +340,11 @@ function ChatPage() {
       });
 
       setSelectedChatbotRoomId(createdRoom.roomId);
-      setAiMessages(initialAiMessages);
+
+      setAiMessagesByRoomId((prev) => ({
+        ...prev,
+        [createdRoom.roomId]: initialAiMessages,
+      }));
     } catch (error) {
       console.error('챗봇 대화방 생성 실패:', error);
     }
@@ -220,8 +406,13 @@ function ChatPage() {
 
     if (selectedChatbotRoomId === roomId) {
       setSelectedChatbotRoomId(nextRoomId);
-      setAiMessages(initialAiMessages);
     }
+
+    setAiMessagesByRoomId((prev) => {
+      const next = { ...prev };
+      delete next[roomId];
+      return next;
+    });
 
     deleteChatbotRoomMutation.mutate(roomId, {
       onSuccess: () => {
@@ -258,9 +449,10 @@ function ChatPage() {
     );
   };
 
-  const [activeMode, setActiveMode] = useState<ChatMode>('ai');
-  const [aiMessages, setAiMessages] =
-    useState<ChatMessage[]>(initialAiMessages);
+  const [aiMessagesByRoomId, setAiMessagesByRoomId] = useState<
+    Record<number, ChatMessage[]>
+  >({});
+
   const [pharmacistMessages, setPharmacistMessages] = useState<ChatMessage[]>(
     initialPharmacistMessages,
   );
@@ -273,20 +465,43 @@ function ChatPage() {
     return chatbotRoomMessages.map(mapApiChatbotMessageToChatMessage);
   }, [chatbotRoomMessages]);
 
-  const optimisticAiMessages = useMemo(() => {
-    if (!sendChatbotMessageMutation.isPending) {
+  const localAiMessages = useMemo(() => {
+    if (!activeChatbotRoomId) {
       return [];
     }
 
-    return aiMessages.filter((chat) => chat.createdAt === '방금');
-  }, [aiMessages, sendChatbotMessageMutation.isPending]);
+    return aiMessagesByRoomId[activeChatbotRoomId] ?? [];
+  }, [activeChatbotRoomId, aiMessagesByRoomId]);
 
-  const activeMessages =
-    activeMode === 'ai'
-      ? serverAiMessages.length > 0
-        ? [...serverAiMessages, ...optimisticAiMessages]
-        : aiMessages
-      : pharmacistMessages;
+  const mergedAiMessages = useMemo(() => {
+    return removeDuplicateChatMessages([
+      ...serverAiMessages,
+      ...localAiMessages,
+    ]);
+  }, [localAiMessages, serverAiMessages]);
+
+  useEffect(() => {
+    if (!activeChatbotRoomId || serverAiMessages.length === 0) {
+      return;
+    }
+
+    setAiMessagesByRoomId((prev) => {
+      const currentMessages = prev[activeChatbotRoomId] ?? [];
+
+      const onlySystemMessages = currentMessages.filter((chat) => {
+        return chat.sender === 'SYSTEM';
+      });
+
+      if (onlySystemMessages.length === currentMessages.length) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [activeChatbotRoomId]: onlySystemMessages,
+      };
+    });
+  }, [activeChatbotRoomId, serverAiMessages.length]);
 
   const drugSearchKeyword = useMemo(() => {
     const atIndex = message.lastIndexOf('@');
@@ -297,6 +512,157 @@ function ChatPage() {
 
     return message.slice(atIndex + 1).trim();
   }, [message]);
+
+  const activeConsultRooms = myConsultRooms
+    .filter((room) => {
+      return (
+        room.status === 'PENDING' ||
+        room.status === 'MATCHED' ||
+        room.status === 'ACTIVE'
+      );
+    })
+    .sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+  const completedConsultRooms = myConsultRooms
+    .filter((room) => {
+      return room.status === 'COMPLETED' || room.status === 'CLOSED';
+    })
+    .sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+  const allConsultRooms = [...activeConsultRooms, ...completedConsultRooms];
+
+  const activeConsultRoom =
+    allConsultRooms.find((room) => room.roomId === selectedConsultRoomId) ??
+    activeConsultRooms[0] ??
+    completedConsultRooms[0] ??
+    null;
+
+  const { data: consultRoomMessages = [] } = useConsultMessages(
+    activeMode === 'pharmacist' ? activeConsultRoom?.roomId : null,
+  );
+
+  const serverConsultMessages = useMemo(() => {
+    return consultRoomMessages.map(mapConsultMessageToChatMessage);
+  }, [consultRoomMessages]);
+
+  const activeMessages: ChatMessage[] =
+    activeMode === 'ai'
+      ? activeChatbotRoomId
+        ? mergedAiMessages.length > 0
+          ? mergedAiMessages
+          : initialAiMessages
+        : initialAiMessages
+      : serverConsultMessages.length > 0 || consultSocketMessages.length > 0
+        ? removeDuplicateChatMessages([
+            ...serverConsultMessages,
+            ...consultSocketMessages,
+          ]).sort((a, b) => {
+            return (a.sortTime ?? 0) - (b.sortTime ?? 0);
+          })
+        : pharmacistMessages;
+
+  const lastActiveMessageKey =
+    activeMessages.length > 0
+      ? `${activeMessages[activeMessages.length - 1].id}-${
+          activeMessages[activeMessages.length - 1].content
+        }`
+      : '';
+
+  useEffect(() => {
+    if (!activeChatbotRoomId || serverAiMessages.length === 0) {
+      return;
+    }
+
+    setAiMessagesByRoomId((prev) => {
+      const currentMessages = prev[activeChatbotRoomId] ?? [];
+
+      const messagesToKeep = currentMessages.filter((chat) => {
+        /**
+         * SYSTEM 메시지는 서버에 저장되지 않으므로 유지
+         * apiMessageId가 없는 AI 메시지도 서버에 저장되지 않은 임시 응답일 수 있으므로 유지
+         */
+        if (chat.sender === 'SYSTEM') {
+          return true;
+        }
+
+        if (chat.sender === 'AI' && !chat.apiMessageId) {
+          return true;
+        }
+
+        return false;
+      });
+
+      if (messagesToKeep.length === currentMessages.length) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [activeChatbotRoomId]: messagesToKeep,
+      };
+    });
+  }, [activeChatbotRoomId, lastActiveMessageKey, serverAiMessages.length]);
+
+  const handleReceiveConsultMessage = useCallback(
+    (socketMessage: ConsultSocketMessage) => {
+      if (socketMessage.type !== 'TALK') {
+        return;
+      }
+
+      // 사용자가 보낸 메시지는 전송 직후 optimistic append로 이미 표시함
+      if (socketMessage.senderType === 'USER') {
+        return;
+      }
+
+      setConsultSocketMessages((prev) => [
+        ...prev,
+        mapSocketMessageToChatMessage(socketMessage, createMessageId()),
+      ]);
+    },
+    [],
+  );
+
+  const isConsultRoomMatched =
+    activeConsultRoom?.status === 'MATCHED' ||
+    activeConsultRoom?.status === 'ACTIVE';
+
+  const isConsultRoomClosed =
+    activeConsultRoom?.status === 'COMPLETED' ||
+    activeConsultRoom?.status === 'CLOSED' ||
+    locallyClosedConsultRoomIds.includes(activeConsultRoom?.roomId ?? -1);
+
+  const shouldShowConsultFeedbackForm =
+    activeMode === 'pharmacist' &&
+    Boolean(activeConsultRoom) &&
+    isConsultRoomClosed &&
+    activeConsultRoom?.rating == null;
+
+  const shouldShowSubmittedConsultFeedback =
+    activeMode === 'pharmacist' &&
+    Boolean(activeConsultRoom) &&
+    isConsultRoomClosed &&
+    activeConsultRoom?.rating != null;
+
+  const canCloseConsultRoom =
+    activeMode === 'pharmacist' &&
+    activeConsultRoom &&
+    isConsultRoomMatched &&
+    !isConsultRoomClosed;
+
+  const {
+    isConnected: isConsultSocketConnected,
+    sendMessage: sendConsultSocketMessage,
+  } = useConsultSocket({
+    roomId: activeConsultRoom?.roomId,
+    senderType: 'USER',
+    senderName: '사용자',
+    enabled: activeMode === 'pharmacist' && Boolean(activeConsultRoom),
+    onMessage: handleReceiveConsultMessage,
+  });
 
   const debouncedDrugSearchKeyword = useDebounce(drugSearchKeyword, 300);
 
@@ -359,6 +725,7 @@ function ChatPage() {
   const sendAiQuestion = async (
     question: string,
     drugs: DrugOption[] = [],
+    displayQuestion = question,
   ) => {
     if (isChatbotRoomsLoading) {
       return;
@@ -367,7 +734,7 @@ function ChatPage() {
     const userMessage: ChatMessage = {
       id: createMessageId(),
       sender: 'USER',
-      content: question || '선택한 약에 대해 상담하고 싶어요.',
+      content: displayQuestion || '선택한 약에 대해 상담하고 싶어요.',
       createdAt: '방금',
       drugs,
     };
@@ -379,18 +746,14 @@ function ChatPage() {
     } catch (error) {
       console.error('챗봇 대화방 생성 실패:', error);
 
-      const errorMessage: ChatMessage = {
-        id: createMessageId(),
-        sender: 'SYSTEM',
-        content: '챗봇 대화방을 준비하지 못했습니다. 잠시 후 다시 시도해주세요.',
-        createdAt: '방금',
-      };
-
-      setAiMessages((prev) => [...prev, errorMessage]);
+      alert('챗봇 대화방을 준비하지 못했습니다. 잠시 후 다시 시도해주세요.');
       return;
     }
 
-    setAiMessages((prev) => [...prev, userMessage]);
+    setAiMessagesByRoomId((prev) => ({
+      ...prev,
+      [roomId]: [...(prev[roomId] ?? []), userMessage],
+    }));
 
     sendChatbotMessageMutation.mutate(
       {
@@ -401,15 +764,17 @@ function ChatPage() {
         onSuccess: (data) => {
           const aiMessage: ChatMessage = {
             id: data.messageId ?? createMessageId(),
+            apiMessageId: data.messageId ?? null,
             sender: 'AI',
             content:
-              data.answer ??
-              data.content ??
-              '응답 내용을 불러오지 못했습니다.',
+              data.answer || data.content || '응답 내용을 불러오지 못했습니다.',
             createdAt: data.createdAt ? data.createdAt.slice(11, 16) : '방금',
           };
 
-          setAiMessages((prev) => [...prev, aiMessage]);
+          setAiMessagesByRoomId((prev) => ({
+            ...prev,
+            [roomId]: [...(prev[roomId] ?? []), aiMessage],
+          }));
         },
         onError: (error) => {
           console.error('챗봇 메시지 전송 실패:', error);
@@ -422,7 +787,10 @@ function ChatPage() {
             createdAt: '방금',
           };
 
-          setAiMessages((prev) => [...prev, errorMessage]);
+          setAiMessagesByRoomId((prev) => ({
+            ...prev,
+            [roomId]: [...(prev[roomId] ?? []), errorMessage],
+          }));
         },
       },
     );
@@ -435,33 +803,83 @@ function ChatPage() {
       return;
     }
 
-    const userMessage: ChatMessage = {
-      id: createMessageId(),
-      sender: 'USER',
-      content: trimmedMessage || '선택한 약에 대해 상담하고 싶어요.',
-      createdAt: '방금',
-      drugs: selectedDrugs,
-    };
-
     if (activeMode === 'ai') {
+      const aiQuestion = buildChatbotMessageText(trimmedMessage, selectedDrugs);
+
       await sendAiQuestion(
-        trimmedMessage || selectedDrugs.map((drug) => drug.name).join(', '),
+        aiQuestion,
         selectedDrugs,
+        trimmedMessage || '선택한 약에 대해 확인해주세요.',
       );
     } else {
-      setPharmacistMessages((prev) => [...prev, userMessage]);
-
-      window.setTimeout(() => {
-        const pharmacistMessage: ChatMessage = {
+      if (!activeConsultRoom) {
+        const systemMessage: ChatMessage = {
           id: createMessageId(),
-          sender: 'PHARMACIST',
-          content:
-            '상담 내용을 확인했습니다. 현재 복용 중인 약, 증상 발생 시점, 알레르기 이력을 함께 확인하면 더 정확히 안내할 수 있습니다.',
+          sender: 'SYSTEM',
+          content: '먼저 약사 상담 요청을 생성해주세요.',
           createdAt: '방금',
         };
 
-        setPharmacistMessages((prev) => [...prev, pharmacistMessage]);
-      }, 500);
+        setPharmacistMessages((prev) => [...prev, systemMessage]);
+        return;
+      }
+
+      if (isConsultRoomClosed) {
+        const systemMessage: ChatMessage = {
+          id: createMessageId(),
+          sender: 'SYSTEM',
+          content: '이미 종료된 상담입니다. 새 상담 요청을 생성해주세요.',
+          createdAt: '방금',
+        };
+
+        setPharmacistMessages((prev) => [...prev, systemMessage]);
+        return;
+      }
+
+      if (!isConsultRoomMatched) {
+        const systemMessage: ChatMessage = {
+          id: createMessageId(),
+          sender: 'SYSTEM',
+          content:
+            '아직 약사가 상담을 수락하지 않았습니다. 잠시만 기다려주세요.',
+          createdAt: '방금',
+        };
+
+        setPharmacistMessages((prev) => [...prev, systemMessage]);
+        return;
+      }
+
+      const consultMessage = buildConsultMessageText(
+        trimmedMessage,
+        selectedDrugs,
+      );
+
+      const isSent = sendConsultSocketMessage(consultMessage);
+
+      if (!isSent) {
+        const systemMessage: ChatMessage = {
+          id: createMessageId(),
+          sender: 'SYSTEM',
+          content:
+            '상담 서버에 연결되지 않았습니다. 잠시 후 다시 시도해주세요.',
+          createdAt: '방금',
+        };
+
+        setPharmacistMessages((prev) => [...prev, systemMessage]);
+        return;
+      }
+
+      setConsultSocketMessages((prev) => [
+        ...prev,
+        {
+          id: createMessageId(),
+          sender: 'USER',
+          content: consultMessage,
+          createdAt: '방금',
+          sortTime: Date.now(),
+          drugs: selectedDrugs,
+        },
+      ]);
     }
 
     setMessage('');
@@ -470,23 +888,117 @@ function ChatPage() {
   };
 
   const handleQuickQuestion = async (question: string) => {
-    if (activeMode === 'ai') {
-      await sendAiQuestion(question);
-      return;
-    }
+    const aiQuestion = buildChatbotMessageText(question, selectedDrugs);
 
-    const quickMessage: ChatMessage = {
-      id: createMessageId(),
-      sender: 'USER',
-      content: question,
-      createdAt: '방금',
-    };
-
-    setPharmacistMessages((prev) => [...prev, quickMessage]);
+    await sendAiQuestion(aiQuestion, selectedDrugs, question);
   };
 
   const handleMoveToPharmacist = () => {
     setActiveMode('pharmacist');
+  };
+
+  const handleCreateConsultRoom = async () => {
+    try {
+      const roomId = await createConsultRoomMutation.mutateAsync();
+
+      setSelectedConsultRoomId(roomId);
+      setActiveMode('pharmacist');
+    } catch (error) {
+      console.error('약사 상담방 생성 실패:', error);
+
+      const errorMessage: ChatMessage = {
+        id: createMessageId(),
+        sender: 'SYSTEM',
+        content: '약사 상담 요청에 실패했습니다. 잠시 후 다시 시도해주세요.',
+        createdAt: '방금',
+      };
+
+      setPharmacistMessages((prev) => [...prev, errorMessage]);
+    }
+  };
+
+  const handleCloseConsultRoom = async () => {
+    if (!activeConsultRoom) {
+      return;
+    }
+
+    const isConfirmed = window.confirm(
+      '상담을 종료하시겠습니까?\n종료 후에는 이 상담방에 메시지를 보낼 수 없습니다.',
+    );
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    try {
+      const closedRoomId = activeConsultRoom.roomId;
+
+      await closeConsultRoomMutation.mutateAsync(closedRoomId);
+
+      setSelectedConsultRoomId(closedRoomId);
+
+      setLocallyClosedConsultRoomIds((prev) => {
+        if (prev.includes(closedRoomId)) {
+          return prev;
+        }
+
+        return [...prev, closedRoomId];
+      });
+
+      generateConsultSummaryMutation.mutate(closedRoomId, {
+        onError: (error) => {
+          console.error('상담 요약 생성 실패:', error);
+        },
+      });
+
+      setConsultSocketMessages((prev) => [
+        ...prev,
+        {
+          id: createMessageId(),
+          sender: 'SYSTEM',
+          content: '상담이 종료되었습니다. 상담에 대한 평가를 남겨주세요.',
+          createdAt: '방금',
+          sortTime: new Date().getTime(),
+        },
+      ]);
+    } catch (error) {
+      console.error('상담 종료 실패:', error);
+
+      setPharmacistMessages((prev) => [
+        ...prev,
+        {
+          id: createMessageId(),
+          sender: 'SYSTEM',
+          content: '상담 종료에 실패했습니다. 잠시 후 다시 시도해주세요.',
+          createdAt: '방금',
+        },
+      ]);
+    }
+  };
+
+  const handleSubmitConsultFeedback = async () => {
+    if (!activeConsultRoom?.roomId) {
+      return;
+    }
+
+    try {
+      await submitConsultFeedbackMutation.mutateAsync({
+        roomId: activeConsultRoom.roomId,
+        body: {
+          rating: feedbackRating,
+          comment: feedbackComment.trim(),
+          pharmacistId: activeConsultRoom.pharmacistId ?? 0,
+        },
+      });
+
+      setFeedbackComment('');
+      setFeedbackRating(5);
+
+      alert('상담 평가가 등록되었습니다.');
+    } catch (error) {
+      console.error('상담 평가 등록 실패:', error);
+      alert('상담 평가 등록에 실패했습니다. 이미 평가를 등록했을 수 있습니다.');
+    }
   };
 
   return (
@@ -533,87 +1045,465 @@ function ChatPage() {
           </button>
         </div>
 
-        <div className="grid min-h-[620px] gap-0 lg:grid-cols-[1fr_320px]">
-          <div className="flex flex-col border-r border-slate-100">
-            <div className="space-y-4 p-6">
-              {activeMode === 'pharmacist' && (
-                <div className="rounded-2xl bg-yellow-50 p-4 text-sm leading-6 text-yellow-700">
-                  <p className="font-bold">AI 요약</p>
-                  <p className="mt-1">
-                    사용자가 선택한 약과 질문 내용을 바탕으로 약사에게 상담
-                    요약이 전달됩니다. 실제 연동 시 복용 이력, 주의 성분,
-                    알레르기 정보도 함께 표시됩니다.
-                  </p>
-                </div>
-              )}
+        <div className="grid min-h-[620px] gap-0 lg:grid-cols-[320px_1fr]">
+          <aside className="space-y-4 border-r border-slate-100 bg-slate-50 p-5">
+            {activeMode === 'ai' && (
+              <>
+                <Card>
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-lg font-bold text-slate-900">대화방</h2>
 
-              {activeMode === 'ai' && isChatbotRoomMessagesLoading && (
-                <div className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-700">
-                  대화 내용을 불러오는 중입니다.
-                </div>
-              )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleCreateChatbotRoom}
+                      disabled={createChatbotRoomMutation.isPending}
+                    >
+                      새 대화
+                    </Button>
+                  </div>
 
-              {activeMode === 'ai' && !activeChatbotRoomId && chatbotRooms.length > 0 && (
-                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
-                  오른쪽 대화방 목록에서 대화방을 선택하거나 새 대화를 시작해주세요.
-                </div>
-              )}
-
-              {activeMessages.map((chat) => (
-                <div
-                  key={chat.id}
-                  className={[
-                    'flex',
-                    chat.sender === 'USER' ? 'justify-end' : 'justify-start',
-                  ].join(' ')}
-                >
-                  <div
-                    className={[
-                      'max-w-[80%] rounded-2xl p-4',
-                      chat.sender === 'USER'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-100 text-slate-700',
-                    ].join(' ')}
-                  >
-                    <div className="mb-2 flex items-center gap-2">
-                      <Badge variant={getSenderBadge(chat.sender)}>
-                        {getSenderLabel(chat.sender)}
-                      </Badge>
-
-                      <span
-                        className={[
-                          'text-xs',
-                          chat.sender === 'USER'
-                            ? 'text-blue-100'
-                            : 'text-slate-400',
-                        ].join(' ')}
-                      >
-                        {chat.createdAt}
-                      </span>
-                    </div>
-
-                    {chat.drugs && chat.drugs.length > 0 && (
-                      <div className="mb-3 space-y-2">
-                        {chat.drugs.map((drug) => (
-                          <div
-                            key={drug.id}
-                            className={[
-                              'rounded-xl p-3 text-sm',
-                              chat.sender === 'USER'
-                                ? 'bg-white/15 text-white'
-                                : 'bg-white text-slate-700',
-                            ].join(' ')}
-                          >
-                            <p className="font-bold">{drug.name}</p>
-                            <p className="mt-1 text-xs opacity-80">
-                              성분: {drug.ingredient}
-                            </p>
-                          </div>
-                        ))}
+                  <div className="mt-4 space-y-2">
+                    {isChatbotRoomsLoading && (
+                      <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
+                        대화방을 불러오는 중입니다.
                       </div>
                     )}
 
-                    <p className="text-sm leading-6">{chat.content}</p>
+                    {!isChatbotRoomsLoading && chatbotRooms.length === 0 && (
+                      <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
+                        아직 생성된 대화방이 없습니다.
+                      </div>
+                    )}
+
+                    {!isChatbotRoomsLoading &&
+                      chatbotRooms.map((room) => {
+                        const isSelected = activeChatbotRoomId === room.roomId;
+                        const isEditing = editingRoomId === room.roomId;
+
+                        return (
+                          <div
+                            key={room.roomId}
+                            className={[
+                              'rounded-xl border p-3',
+                              isSelected
+                                ? 'border-blue-200 bg-blue-50'
+                                : 'border-slate-200 bg-white',
+                            ].join(' ')}
+                          >
+                            {isEditing ? (
+                              <div className="space-y-2">
+                                <Input
+                                  value={editingRoomTitle}
+                                  onChange={(event) =>
+                                    setEditingRoomTitle(event.target.value)
+                                  }
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Enter') {
+                                      handleSaveRoomTitle(room.roomId);
+                                    }
+                                  }}
+                                />
+
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="border border-slate-200"
+                                    onClick={handleCancelEditRoomTitle}
+                                  >
+                                    취소
+                                  </Button>
+
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleSaveRoomTitle(room.roomId)
+                                    }
+                                    disabled={
+                                      updateChatbotRoomMutation.isPending
+                                    }
+                                  >
+                                    저장
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleSelectChatbotRoom(room.roomId)
+                                  }
+                                  className="w-full text-left"
+                                >
+                                  <p className="font-semibold text-slate-900">
+                                    {room.title || '새 대화'}
+                                  </p>
+
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {room.updatedAt
+                                      ? room.updatedAt
+                                          .slice(0, 16)
+                                          .replace('T', ' ')
+                                      : '최근 대화 시간 없음'}
+                                  </p>
+                                </button>
+
+                                <div className="mt-3 flex gap-2">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="border border-slate-200"
+                                    onClick={() =>
+                                      handleStartEditRoomTitle(
+                                        room.roomId,
+                                        room.title || '새 대화',
+                                      )
+                                    }
+                                  >
+                                    이름 수정
+                                  </Button>
+
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="border border-red-200 text-red-600 hover:bg-red-50"
+                                    onClick={() =>
+                                      handleDeleteChatbotRoom(room.roomId)
+                                    }
+                                    disabled={
+                                      deleteChatbotRoomMutation.isPending
+                                    }
+                                  >
+                                    삭제
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </Card>
+
+                <Card>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    빠른 질문
+                  </h2>
+
+                  <div className="mt-4 space-y-2">
+                    {[
+                      '복용법 확인',
+                      '부작용 확인',
+                      '내가 복용 중인 약인지 확인',
+                      '같이 먹어도 되는지 확인',
+                      '임산부 주의사항 확인',
+                    ].map((question) => (
+                      <button
+                        key={question}
+                        type="button"
+                        onClick={() => handleQuickQuestion(question)}
+                        className="w-full rounded-xl bg-white px-3 py-3 text-left text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-700"
+                      >
+                        {question}
+                      </button>
+                    ))}
+                  </div>
+                </Card>
+
+                <Card className="border-yellow-100 bg-yellow-50">
+                  <h2 className="text-lg font-bold text-yellow-700">
+                    약사 상담 연결
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-yellow-700">
+                    복용 중단, 용량 변경, 심한 부작용 의심 등은 AI 답변만으로
+                    판단하지 않고 약사 상담을 권장합니다.
+                  </p>
+
+                  <Button
+                    type="button"
+                    className="mt-4 w-full"
+                    onClick={
+                      activeConsultRoom
+                        ? handleMoveToPharmacist
+                        : handleCreateConsultRoom
+                    }
+                    disabled={
+                      createConsultRoomMutation.isPending ||
+                      isMyConsultRoomsLoading
+                    }
+                  >
+                    {createConsultRoomMutation.isPending
+                      ? '상담 요청 중...'
+                      : activeConsultRoom?.status === 'PENDING'
+                        ? '상담 대기방으로 이동'
+                        : activeConsultRoom
+                          ? '진행 중인 상담으로 이동'
+                          : '약사 상담 요청'}
+                  </Button>
+                </Card>
+              </>
+            )}
+
+            {activeMode === 'pharmacist' && (
+              <>
+                <Card>
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-lg font-bold text-slate-900">
+                      내 상담 내역
+                    </h2>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleCreateConsultRoom}
+                      disabled={createConsultRoomMutation.isPending}
+                    >
+                      새 상담
+                    </Button>
+                  </div>
+
+                  <div className="mt-4 space-y-4">
+                    <div>
+                      <p className="mb-2 text-xs font-bold text-slate-500">
+                        진행 중
+                      </p>
+
+                      {activeConsultRooms.length === 0 ? (
+                        <div className="rounded-xl bg-white p-3 text-sm text-slate-500">
+                          진행 중인 상담이 없습니다.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {activeConsultRooms.map((room) => {
+                            const isSelected =
+                              activeConsultRoom?.roomId === room.roomId;
+
+                            return (
+                              <button
+                                key={room.roomId}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedConsultRoomId(room.roomId);
+                                  setActiveMode('pharmacist');
+                                }}
+                                className={[
+                                  'w-full rounded-xl border p-3 text-left text-sm transition',
+                                  isSelected
+                                    ? 'border-blue-200 bg-blue-50'
+                                    : 'border-slate-200 bg-white hover:bg-slate-50',
+                                ].join(' ')}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="font-semibold text-slate-900">
+                                    상담방 #{room.roomId}
+                                  </p>
+
+                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                                    {room.status === 'PENDING'
+                                      ? '대기'
+                                      : '진행'}
+                                  </span>
+                                </div>
+
+                                <p className="mt-1 line-clamp-2 text-slate-500">
+                                  {room.firstMessage || '상담 메시지 없음'}
+                                </p>
+
+                                <p className="mt-1 text-xs text-slate-400">
+                                  {room.createdAt
+                                    ?.slice(0, 16)
+                                    .replace('T', ' ')}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="mb-2 text-xs font-bold text-slate-500">
+                        종료 내역
+                      </p>
+
+                      {completedConsultRooms.length === 0 ? (
+                        <div className="rounded-xl bg-white p-3 text-sm text-slate-500">
+                          종료된 상담이 없습니다.
+                        </div>
+                      ) : (
+                        <div className="max-h-56 space-y-2 overflow-y-auto">
+                          {completedConsultRooms.map((room) => {
+                            const isSelected =
+                              activeConsultRoom?.roomId === room.roomId;
+
+                            return (
+                              <button
+                                key={room.roomId}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedConsultRoomId(room.roomId);
+                                  setActiveMode('pharmacist');
+                                }}
+                                className={[
+                                  'w-full rounded-xl border p-3 text-left text-sm transition',
+                                  isSelected
+                                    ? 'border-blue-200 bg-blue-50'
+                                    : 'border-slate-200 bg-white hover:bg-slate-50',
+                                ].join(' ')}
+                              >
+                                <p className="font-semibold text-slate-900">
+                                  상담방 #{room.roomId}
+                                </p>
+
+                                <p className="mt-1 line-clamp-2 text-slate-500">
+                                  {room.firstMessage || '상담 메시지 없음'}
+                                </p>
+
+                                <p className="mt-1 text-xs text-slate-400">
+                                  {room.createdAt
+                                    ?.slice(0, 16)
+                                    .replace('T', ' ')}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              </>
+            )}
+          </aside>
+
+          <div className="flex flex-col">
+            <div
+              ref={chatMessagesContainerRef}
+              className="h-[520px] overflow-y-auto p-6"
+            >
+              <div className="space-y-4">
+                {activeMode === 'pharmacist' && (
+                  <div className="rounded-2xl bg-yellow-50 p-4 text-sm leading-6 text-yellow-700">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-bold">
+                        {getConsultRoomStatusLabel(activeConsultRoom?.status)}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        {activeConsultRoom && (
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-yellow-700">
+                            상담방 #{activeConsultRoom.roomId}
+                          </span>
+                        )}
+
+                        {canCloseConsultRoom && (
+                          <button
+                            type="button"
+                            onClick={handleCloseConsultRoom}
+                            disabled={closeConsultRoomMutation.isPending}
+                            className="rounded-full bg-yellow-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-yellow-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {closeConsultRoomMutation.isPending
+                              ? '종료 중'
+                              : '상담 종료'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <p className="mt-1">
+                      {getConsultRoomStatusDescription(
+                        activeConsultRoom?.status,
+                      )}
+                    </p>
+
+                    {activeConsultRoom?.status === 'PENDING' && (
+                      <p className="mt-2 text-xs text-yellow-600">
+                        약사가 수락하면 상태가 자동으로 갱신됩니다.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {activeMode === 'ai' && isChatbotRoomMessagesLoading && (
+                  <div className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-700">
+                    대화 내용을 불러오는 중입니다.
+                  </div>
+                )}
+
+                {activeMode === 'ai' &&
+                  !activeChatbotRoomId &&
+                  chatbotRooms.length > 0 && (
+                    <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+                      왼쪽 대화방 목록에서 대화방을 선택하거나 새 대화를
+                      시작해주세요.
+                    </div>
+                  )}
+
+                {activeMessages.map((chat) => (
+                  <div
+                    key={chat.id}
+                    className={[
+                      'flex',
+                      chat.sender === 'USER' ? 'justify-end' : 'justify-start',
+                    ].join(' ')}
+                  >
+                    <div
+                      className={[
+                        'max-w-[80%] rounded-2xl p-4',
+                        chat.sender === 'USER'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-100 text-slate-700',
+                      ].join(' ')}
+                    >
+                      <div className="mb-2 flex items-center gap-2">
+                        <Badge variant={getSenderBadge(chat.sender)}>
+                          {getSenderLabel(chat.sender)}
+                        </Badge>
+
+                        <span
+                          className={[
+                            'text-xs',
+                            chat.sender === 'USER'
+                              ? 'text-blue-100'
+                              : 'text-slate-400',
+                          ].join(' ')}
+                        >
+                          {chat.createdAt}
+                        </span>
+                      </div>
+
+                      {chat.drugs && chat.drugs.length > 0 && (
+                        <div className="mb-3 space-y-2">
+                          {chat.drugs.map((drug) => (
+                            <div
+                              key={drug.id}
+                              className={[
+                                'rounded-xl p-3 text-sm',
+                                chat.sender === 'USER'
+                                  ? 'bg-white/15 text-white'
+                                  : 'bg-white text-slate-700',
+                              ].join(' ')}
+                            >
+                              <p className="font-bold">{drug.name}</p>
+                              <p className="mt-1 text-xs opacity-80">
+                                성분: {drug.ingredient}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <p className="whitespace-pre-line text-sm leading-6">
+                        {chat.content}
+                      </p>
                       {activeMode === 'ai' && chat.apiMessageId && (
                         <div className="mt-3 flex justify-end">
                           <button
@@ -631,18 +1521,88 @@ function ChatPage() {
                           </button>
                         </div>
                       )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
-              {activeMode === 'ai' && sendChatbotMessageMutation.isPending && (
-                <div className="flex justify-start">
-                  <div className="rounded-2xl bg-slate-100 p-4 text-sm text-slate-500">
-                    AI가 답변을 생성하고 있습니다...
+                {activeMode === 'ai' &&
+                  sendChatbotMessageMutation.isPending && (
+                    <div className="flex justify-start">
+                      <div className="rounded-2xl bg-slate-100 p-4 text-sm text-slate-500">
+                        AI가 답변을 생성하고 있습니다...
+                      </div>
+                    </div>
+                  )}
+              </div>
+            </div>
+
+            {shouldShowConsultFeedbackForm && activeConsultRoom && (
+              <div className="border-t border-slate-100 p-4">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-sm font-bold text-slate-900">
+                    상담은 어떠셨나요?
+                  </p>
+
+                  <div className="mt-3 flex gap-2">
+                    {[1, 2, 3, 4, 5].map((rating) => (
+                      <button
+                        key={rating}
+                        type="button"
+                        onClick={() => setFeedbackRating(rating)}
+                        className={[
+                          'rounded-full px-3 py-2 text-sm font-bold transition',
+                          feedbackRating >= rating
+                            ? 'bg-yellow-400 text-white'
+                            : 'bg-white text-slate-400',
+                        ].join(' ')}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+
+                  <textarea
+                    value={feedbackComment}
+                    onChange={(event) => setFeedbackComment(event.target.value)}
+                    placeholder="상담에 대한 한줄평을 남겨주세요."
+                    className="mt-3 min-h-24 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                  />
+
+                  <div className="mt-3 flex justify-end">
+                    <Button
+                      type="button"
+                      onClick={handleSubmitConsultFeedback}
+                      disabled={submitConsultFeedbackMutation.isPending}
+                    >
+                      {submitConsultFeedbackMutation.isPending
+                        ? '등록 중...'
+                        : '평가 등록'}
+                    </Button>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
+            {shouldShowSubmittedConsultFeedback && activeConsultRoom && (
+              <div className="border-t border-slate-100 p-4">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-sm font-bold text-slate-900">
+                    내가 남긴 상담 평가
+                  </p>
+
+                  <p className="mt-2 text-sm text-yellow-500">
+                    {'★'.repeat(activeConsultRoom.rating ?? 0)}
+                    <span className="text-slate-300">
+                      {'★'.repeat(5 - (activeConsultRoom.rating ?? 0))}
+                    </span>
+                  </p>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {activeConsultRoom.feedbackComment || '한줄평이 없습니다.'}
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="mt-auto border-t border-slate-100 p-4">
               {selectedDrugs.length > 0 && (
@@ -683,10 +1643,23 @@ function ChatPage() {
                     onClick={handleSendMessage}
                     disabled={
                       sendChatbotMessageMutation.isPending ||
-                      createChatbotRoomMutation.isPending
+                      createChatbotRoomMutation.isPending ||
+                      (activeMode === 'pharmacist' &&
+                        (!activeConsultRoom ||
+                          !isConsultRoomMatched ||
+                          isConsultRoomClosed ||
+                          !isConsultSocketConnected))
                     }
                   >
-                    {sendChatbotMessageMutation.isPending ? '전송 중...' : '전송'}
+                    {activeMode === 'pharmacist'
+                      ? isConsultRoomClosed
+                        ? '종료된 상담'
+                        : isConsultSocketConnected
+                          ? '전송'
+                          : '연결 중'
+                      : sendChatbotMessageMutation.isPending
+                        ? '전송 중...'
+                        : '전송'}
                   </Button>
                 </div>
 
@@ -738,204 +1711,6 @@ function ChatPage() {
               </div>
             </div>
           </div>
-
-          <aside className="space-y-4 bg-slate-50 p-5">
-            {activeMode === 'ai' && (
-              <Card>
-                <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-lg font-bold text-slate-900">대화방</h2>
-
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleCreateChatbotRoom}
-                    disabled={createChatbotRoomMutation.isPending}
-                  >
-                    새 대화
-                  </Button>
-                </div>
-
-                <div className="mt-4 space-y-2">
-                  {isChatbotRoomsLoading && (
-                    <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
-                      대화방을 불러오는 중입니다.
-                    </div>
-                  )}
-
-                  {!isChatbotRoomsLoading && chatbotRooms.length === 0 && (
-                    <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
-                      아직 생성된 대화방이 없습니다.
-                    </div>
-                  )}
-
-                  {!isChatbotRoomsLoading &&
-                    chatbotRooms.map((room) => {
-                      const isSelected = activeChatbotRoomId === room.roomId;
-                      const isEditing = editingRoomId === room.roomId;
-
-                      return (
-                        <div
-                          key={room.roomId}
-                          className={[
-                            'rounded-xl border p-3',
-                            isSelected
-                              ? 'border-blue-200 bg-blue-50'
-                              : 'border-slate-200 bg-white',
-                          ].join(' ')}
-                        >
-                          {isEditing ? (
-                            <div className="space-y-2">
-                              <Input
-                                value={editingRoomTitle}
-                                onChange={(event) =>
-                                  setEditingRoomTitle(event.target.value)
-                                }
-                                onKeyDown={(event) => {
-                                  if (event.key === 'Enter') {
-                                    handleSaveRoomTitle(room.roomId);
-                                  }
-                                }}
-                              />
-
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  className="border border-slate-200"
-                                  onClick={handleCancelEditRoomTitle}
-                                >
-                                  취소
-                                </Button>
-
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  onClick={() => handleSaveRoomTitle(room.roomId)}
-                                  disabled={updateChatbotRoomMutation.isPending}
-                                >
-                                  저장
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div>
-                              <button
-                                type="button"
-                                onClick={() => handleSelectChatbotRoom(room.roomId)}
-                                className="w-full text-left"
-                              >
-                                <p className="font-semibold text-slate-900">
-                                  {room.title || '새 대화'}
-                                </p>
-
-                                <p className="mt-1 text-xs text-slate-500">
-                                  {room.updatedAt
-                                    ? room.updatedAt.slice(0, 16).replace('T', ' ')
-                                    : '최근 대화 시간 없음'}
-                                </p>
-                              </button>
-
-                              <div className="mt-3 flex gap-2">
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  className="border border-slate-200"
-                                  onClick={() =>
-                                    handleStartEditRoomTitle(
-                                      room.roomId,
-                                      room.title || '새 대화',
-                                    )
-                                  }
-                                >
-                                  이름 수정
-                                </Button>
-
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  className="border border-red-200 text-red-600 hover:bg-red-50"
-                                  onClick={() => handleDeleteChatbotRoom(room.roomId)}
-                                  disabled={deleteChatbotRoomMutation.isPending}
-                                >
-                                  삭제
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                </div>
-              </Card>
-            )}
-
-            <Card>
-              <h2 className="text-lg font-bold text-slate-900">빠른 질문</h2>
-
-              <div className="mt-4 space-y-2">
-                {[
-                  '이 약은 식후에 먹어야 해?',
-                  '다른 약과 같이 먹어도 돼?',
-                  '오늘 저녁 약 먹었는지 확인해줘',
-                  '속이 불편한데 계속 먹어도 돼?',
-                ].map((question) => (
-                  <button
-                    key={question}
-                    type="button"
-                    onClick={() => handleQuickQuestion(question)}
-                    className="w-full rounded-xl bg-white px-3 py-3 text-left text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-700"
-                  >
-                    {question}
-                  </button>
-                ))}
-              </div>
-            </Card>
-
-            <Card className="border-yellow-100 bg-yellow-50">
-              <h2 className="text-lg font-bold text-yellow-700">
-                약사 상담 연결
-              </h2>
-
-              <p className="mt-2 text-sm leading-6 text-yellow-700">
-                복용 중단, 용량 변경, 심한 부작용 의심 등은 AI 답변만으로
-                판단하지 않고 약사 상담을 권장합니다.
-              </p>
-
-              <Button
-                type="button"
-                className="mt-4 w-full"
-                onClick={handleMoveToPharmacist}
-              >
-                약사 상담으로 이동
-              </Button>
-            </Card>
-
-            <Card>
-              <h2 className="text-lg font-bold text-slate-900">
-                상담 참고 정보
-              </h2>
-
-              <div className="mt-4 space-y-3 text-sm text-slate-600">
-                <div className="rounded-xl bg-white p-3">
-                  선택한 약:{' '}
-                  {selectedDrugs.length > 0
-                    ? selectedDrugs.map((drug) => drug.name).join(', ')
-                    : '아직 선택된 약이 없습니다.'}
-                </div>
-
-                <div className="rounded-xl bg-white p-3">
-                  주의 성분: 내 정보의 주의 약/성분과 연동 예정
-                </div>
-
-                <div className="rounded-xl bg-white p-3">
-                  건강 정보: 내 정보의 건강 정보와 연동 예정
-                </div>
-              </div>
-            </Card>
-          </aside>
         </div>
       </Card>
     </div>

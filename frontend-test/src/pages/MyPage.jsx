@@ -1436,17 +1436,18 @@ function MyPage() {
                 Save settings
               </button>
             </div>
+
+            <section className="app-card withdraw-card">
+              <div>
+                <h2>회원 탈퇴</h2>
+                <p>탈퇴 시 복약 일정, 상담 내역, 알림 설정 등 계정 관련 정보가 비활성화됩니다.</p>
+              </div>
+              <button type="button" onClick={handleWithdraw}>회원 탈퇴</button>
+            </section>
           </div>
         ) : null}
       </section>
 
-      <section className="app-card withdraw-card">
-        <div>
-          <h2>회원 탈퇴</h2>
-          <p>탈퇴 시 복약 일정, 상담 내역, 알림 설정 등 계정 관련 정보가 비활성화됩니다.</p>
-        </div>
-        <button type="button" onClick={handleWithdraw}>회원 탈퇴</button>
-      </section>
     </div>
   )
 }

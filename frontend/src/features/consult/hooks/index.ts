@@ -3,3 +3,8 @@ export * from './useConsultMessages';
 export * from './useConsultPatientInfo';
 export * from './useConsultRoomActions';
 export * from './useConsultFeedbackStats';
+export * from './useCreateConsultRoom';
+export * from './useMyConsultRooms';
+export * from './useConsultSocket';
+export * from './useConsultFeedback';
+export * from './useConsultSummary';
