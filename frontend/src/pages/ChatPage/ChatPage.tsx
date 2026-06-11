@@ -188,17 +188,29 @@ function buildConsultMessageText(text: string, drugs: DrugOption[]) {
     return trimmedText;
   }
 
+  let questionText = trimmedText;
+
+  drugs.forEach((drug) => {
+    questionText = questionText.replaceAll(`@${drug.name}`, '');
+    questionText = questionText.replaceAll(drug.name, '');
+  });
+
+  questionText = questionText
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
   const drugText = drugs
     .map((drug) => {
       return `- ${drug.name}${drug.ingredient ? ` / 성분: ${drug.ingredient}` : ''}`;
     })
     .join('\n');
 
-  if (!trimmedText) {
+  if (!questionText) {
     return `선택한 약에 대해 상담하고 싶어요.\n\n[선택한 약]\n${drugText}`;
   }
 
-  return `${trimmedText}\n\n[선택한 약]\n${drugText}`;
+  return `${questionText}\n\n[선택한 약]\n${drugText}`;
 }
 
 function buildChatbotMessageText(text: string, drugs: DrugOption[]) {
@@ -770,6 +782,10 @@ function ChatPage() {
   const handleChangeMessage = (value: string) => {
     setMessage(value);
 
+    setSelectedDrugs((prev) => {
+      return prev.filter((drug) => value.includes(`@${drug.name}`));
+    });
+
     const isTypingDrugMention = /@([^\s@]*)$/.test(value);
 
     setIsDrugSearchOpen(isTypingDrugMention);
@@ -795,10 +811,6 @@ function ChatPage() {
     });
 
     setIsDrugSearchOpen(false);
-  };
-
-  const handleRemoveSelectedDrug = (drugId: number) => {
-    setSelectedDrugs((prev) => prev.filter((drug) => drug.id !== drugId));
   };
 
   const sendAiQuestion = async (
@@ -1690,20 +1702,6 @@ function ChatPage() {
             )}
 
             <div className="mt-auto border-t border-slate-100 p-4">
-              {activeMode === 'pharmacist' && selectedDrugs.length > 0 && (
-                <div className="mb-3 flex flex-wrap gap-2">
-                  {selectedDrugs.map((drug) => (
-                    <button
-                      key={drug.id}
-                      type="button"
-                      onClick={() => handleRemoveSelectedDrug(drug.id)}
-                      className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700"
-                    >
-                      {drug.name} ×
-                    </button>
-                  ))}
-                </div>
-              )}
 
               <div className="relative">
                 <div className="flex w-full gap-2">
