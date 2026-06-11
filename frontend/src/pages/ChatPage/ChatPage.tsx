@@ -42,6 +42,9 @@ interface ChatMessage {
   createdAt: string;
   sortTime?: number;
   drugs?: DrugOption[];
+
+  escalationDraft?: string;
+  escalationDrugs?: DrugOption[];
 }
 
 const initialAiMessages: ChatMessage[] = [
@@ -49,10 +52,17 @@ const initialAiMessages: ChatMessage[] = [
     id: 1,
     sender: 'AI',
     content:
-      '안녕하세요. 복약 관련 궁금한 점을 물어보세요. 약 이름을 @로 검색해서 함께 보낼 수 있어요.',
+      '복용 중인 약 정보와 복약 일정에 대해 궁금한 점을 물어보세요.\n응급 증상, 심각한 부작용, 과다 복용이 의심된다면 AI 답변을 기다리지 말고 즉시 의료기관 또는 119에 도움을 요청해주세요.',
     createdAt: '09:00',
   },
 ];
+
+const PHARMACIST_DRAFT_STORAGE_KEY = 'pendingPharmacistConsultQuestion';
+
+interface PharmacistDraftStorageValue {
+  draft: string;
+  drugs: DrugOption[];
+}
 
 const initialPharmacistMessages: ChatMessage[] = [
   {
@@ -251,6 +261,59 @@ function buildChatbotDisplayText(text: string, drugs: DrugOption[]) {
   return displayText.replace(/\s+/g, ' ').trim();
 }
 
+function buildPharmacistDraftText(question: string, drugs: DrugOption[]) {
+  const displayQuestion = buildChatbotDisplayText(question, drugs);
+
+  const drugMentionText = drugs.map((drug) => `@${drug.name}`).join(' ');
+
+  if (drugMentionText && displayQuestion) {
+    return `${drugMentionText} ${displayQuestion}`;
+  }
+
+  if (drugMentionText) {
+    return drugMentionText;
+  }
+
+  return question.trim();
+}
+
+function isPharmacistGuideText(text?: string | null) {
+  const answerText = (text ?? '').replace(/\s+/g, ' ').trim();
+
+  if (!answerText) {
+    return false;
+  }
+
+  const guideKeywords = [
+    '답변드리기 어렵습니다',
+    '답변이 어렵',
+    '확인할 수 없',
+    '직접 관련된 내용을 찾기 어려',
+    '관련된 내용을 찾기 어려',
+    '전문가',
+    '약사 상담',
+    '상담을 통해',
+  ];
+
+  return guideKeywords.some((keyword) => answerText.includes(keyword));
+}
+
+function isPharmacistGuideAnswer(data: ApiChatbotMessage) {
+  return isPharmacistGuideText(data.answer ?? data.content);
+}
+
+function getPreviousUserMessage(messages: ChatMessage[], currentIndex: number) {
+  for (let index = currentIndex - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+
+    if (message.sender === 'USER') {
+      return message;
+    }
+  }
+
+  return null;
+}
+
 function removeDuplicateChatMessages(messages: ChatMessage[]) {
   const seen = new Set<string>();
 
@@ -294,9 +357,7 @@ function getChatDisplayParts(chat: ChatMessage) {
 
   const drugNamesFromState = chat.drugs?.map((drug) => drug.name) ?? [];
 
-  const drugNamesFromMention = Array.from(
-    chat.content.matchAll(/@([^\n]+)/g),
-  )
+  const drugNamesFromMention = Array.from(chat.content.matchAll(/@([^\n]+)/g))
     .map((match) => match[1]?.trim())
     .filter(Boolean) as string[];
 
@@ -664,40 +725,55 @@ function ChatPage() {
         }`
       : '';
 
+  // useEffect(() => {
+  //   if (!activeChatbotRoomId || serverAiMessages.length === 0) {
+  //     return;
+  //   }
+
+  //   setAiMessagesByRoomId((prev) => {
+  //     const currentMessages = prev[activeChatbotRoomId] ?? [];
+
+  //     const messagesToKeep = currentMessages.filter((chat) => {
+  //       /**
+  //        * SYSTEM 메시지는 서버에 저장되지 않으므로 유지
+  //        * apiMessageId가 없는 AI 메시지도 서버에 저장되지 않은 임시 응답일 수 있으므로 유지
+  //        */
+  //       if (chat.sender === 'SYSTEM') {
+  //         return true;
+  //       }
+
+  //       if (chat.sender === 'AI' && !chat.apiMessageId) {
+  //         return true;
+  //       }
+
+  //       return false;
+  //     });
+
+  //     if (messagesToKeep.length === currentMessages.length) {
+  //       return prev;
+  //     }
+
+  //     return {
+  //       ...prev,
+  //       [activeChatbotRoomId]: messagesToKeep,
+  //     };
+  //   });
+  // }, [activeChatbotRoomId, lastActiveMessageKey, serverAiMessages.length]);
+
   useEffect(() => {
-    if (!activeChatbotRoomId || serverAiMessages.length === 0) {
+    const container = chatMessagesContainerRef.current;
+
+    if (!container) {
       return;
     }
 
-    setAiMessagesByRoomId((prev) => {
-      const currentMessages = prev[activeChatbotRoomId] ?? [];
-
-      const messagesToKeep = currentMessages.filter((chat) => {
-        /**
-         * SYSTEM 메시지는 서버에 저장되지 않으므로 유지
-         * apiMessageId가 없는 AI 메시지도 서버에 저장되지 않은 임시 응답일 수 있으므로 유지
-         */
-        if (chat.sender === 'SYSTEM') {
-          return true;
-        }
-
-        if (chat.sender === 'AI' && !chat.apiMessageId) {
-          return true;
-        }
-
-        return false;
+    window.requestAnimationFrame(() => {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth',
       });
-
-      if (messagesToKeep.length === currentMessages.length) {
-        return prev;
-      }
-
-      return {
-        ...prev,
-        [activeChatbotRoomId]: messagesToKeep,
-      };
     });
-  }, [activeChatbotRoomId, lastActiveMessageKey, serverAiMessages.length]);
+  }, [activeMode, lastActiveMessageKey, sendChatbotMessageMutation.isPending]);
 
   const handleReceiveConsultMessage = useCallback(
     (socketMessage: ConsultSocketMessage) => {
@@ -755,6 +831,30 @@ function ChatPage() {
     enabled: activeMode === 'pharmacist' && Boolean(activeConsultRoom),
     onMessage: handleReceiveConsultMessage,
   });
+
+  // useEffect(() => {
+  //   if (activeMode !== 'pharmacist') {
+  //     return;
+  //   }
+
+  //   const savedDraft = localStorage.getItem(PHARMACIST_DRAFT_STORAGE_KEY);
+
+  //   if (!savedDraft) {
+  //     return;
+  //   }
+
+  //   try {
+  //     const parsedDraft = JSON.parse(savedDraft) as PharmacistDraftStorageValue;
+
+  //     setMessage(parsedDraft.draft);
+  //     setSelectedDrugs(parsedDraft.drugs ?? []);
+  //   } catch {
+  //     setMessage(savedDraft);
+  //   }
+
+  //   setIsDrugSearchOpen(false);
+  //   localStorage.removeItem(PHARMACIST_DRAFT_STORAGE_KEY);
+  // }, [activeMode]);
 
   const debouncedDrugSearchKeyword = useDebounce(drugSearchKeyword, 300);
 
@@ -853,13 +953,23 @@ function ChatPage() {
       },
       {
         onSuccess: (data) => {
+          const answerText =
+            data.answer || data.content || '응답 내용을 불러오지 못했습니다.';
+
+          const shouldShowPharmacistButton = isPharmacistGuideAnswer(data);
+
           const aiMessage: ChatMessage = {
             id: data.messageId ?? createMessageId(),
             apiMessageId: data.messageId ?? null,
             sender: 'AI',
-            content:
-              data.answer || data.content || '응답 내용을 불러오지 못했습니다.',
+            content: shouldShowPharmacistButton
+              ? '입력하신 내용은 전문가의 확인이 필요해요. 약사 상담을 통해 확인해주세요.'
+              : answerText,
             createdAt: data.createdAt ? data.createdAt.slice(11, 16) : '방금',
+            escalationDraft: shouldShowPharmacistButton
+              ? buildPharmacistDraftText(question, drugs)
+              : undefined,
+            escalationDrugs: shouldShowPharmacistButton ? drugs : undefined,
           };
 
           setAiMessagesByRoomId((prev) => ({
@@ -992,8 +1102,68 @@ function ChatPage() {
     }
   };
 
+  const applyPendingPharmacistDraft = () => {
+    const savedDraft = localStorage.getItem(PHARMACIST_DRAFT_STORAGE_KEY);
+
+    if (!savedDraft) {
+      return;
+    }
+
+    try {
+      const parsedDraft = JSON.parse(savedDraft) as PharmacistDraftStorageValue;
+
+      setMessage(parsedDraft.draft);
+      setSelectedDrugs(parsedDraft.drugs ?? []);
+    } catch {
+      setMessage(savedDraft);
+      setSelectedDrugs([]);
+    }
+
+    setIsDrugSearchOpen(false);
+    localStorage.removeItem(PHARMACIST_DRAFT_STORAGE_KEY);
+  };
+
   const handleMoveToPharmacist = () => {
     setActiveMode('pharmacist');
+    applyPendingPharmacistDraft();
+  };
+
+  const handleContinueToPharmacist = async (
+    draft: string,
+    drugs: DrugOption[] = [],
+  ) => {
+    const trimmedDraft = draft.trim();
+
+    if (!trimmedDraft) {
+      return;
+    }
+
+    const storageValue: PharmacistDraftStorageValue = {
+      draft: trimmedDraft,
+      drugs,
+    };
+
+    localStorage.setItem(
+      PHARMACIST_DRAFT_STORAGE_KEY,
+      JSON.stringify(storageValue),
+    );
+
+    setActiveMode('pharmacist');
+    setMessage(trimmedDraft);
+    setSelectedDrugs(drugs);
+    setIsDrugSearchOpen(false);
+
+    if (activeConsultRoom) {
+      setSelectedConsultRoomId(activeConsultRoom.roomId);
+      return;
+    }
+
+    try {
+      const roomId = await createConsultRoomMutation.mutateAsync();
+      setSelectedConsultRoomId(roomId);
+    } catch (error) {
+      console.error('약사 상담방 생성 실패:', error);
+    }
   };
 
   const handleCreateConsultRoom = async () => {
@@ -1132,7 +1302,10 @@ function ChatPage() {
 
           <button
             type="button"
-            onClick={() => setActiveMode('pharmacist')}
+            onClick={() => {
+              setActiveMode('pharmacist');
+              applyPendingPharmacistDraft();
+            }}
             className={[
               'flex-1 px-5 py-4 text-sm font-semibold transition',
               activeMode === 'pharmacist'
@@ -1144,8 +1317,8 @@ function ChatPage() {
           </button>
         </div>
 
-        <div className="grid min-h-[620px] gap-0 lg:grid-cols-[320px_1fr]">
-          <aside className="space-y-4 border-r border-slate-100 bg-slate-50 p-5">
+        <div className="grid h-[700px] min-h-0 gap-0 lg:grid-cols-[320px_minmax(0,1fr)]">
+          <aside className="h-full min-h-0 space-y-4 overflow-y-auto border-r border-slate-100 bg-slate-50 p-5">
             {activeMode === 'ai' && (
               <>
                 <Card>
@@ -1482,55 +1655,55 @@ function ChatPage() {
             )}
           </aside>
 
-          <div className="flex flex-col">
-            <div
-              ref={chatMessagesContainerRef}
-              className="h-[520px] overflow-y-auto p-6"
-            >
-              <div className="space-y-4">
-                {activeMode === 'pharmacist' && (
-                  <div className="rounded-2xl bg-yellow-50 p-4 text-sm leading-6 text-yellow-700">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-bold">
-                        {getConsultRoomStatusLabel(activeConsultRoom?.status)}
-                      </p>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        {activeConsultRoom && (
-                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-yellow-700">
-                            상담방 #{activeConsultRoom.roomId}
-                          </span>
-                        )}
-
-                        {canCloseConsultRoom && (
-                          <button
-                            type="button"
-                            onClick={handleCloseConsultRoom}
-                            disabled={closeConsultRoomMutation.isPending}
-                            className="rounded-full bg-yellow-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-yellow-700 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {closeConsultRoomMutation.isPending
-                              ? '종료 중'
-                              : '상담 종료'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <p className="mt-1">
-                      {getConsultRoomStatusDescription(
-                        activeConsultRoom?.status,
-                      )}
+          <div className="flex h-full min-h-0 flex-col">
+            {activeMode === 'pharmacist' && (
+              <div className="border-b border-slate-100 p-4">
+                <div className="rounded-2xl bg-yellow-50 p-4 text-sm leading-6 text-yellow-700">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-bold">
+                      {getConsultRoomStatusLabel(activeConsultRoom?.status)}
                     </p>
 
-                    {activeConsultRoom?.status === 'PENDING' && (
-                      <p className="mt-2 text-xs text-yellow-600">
-                        약사가 수락하면 상태가 자동으로 갱신됩니다.
-                      </p>
-                    )}
-                  </div>
-                )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {activeConsultRoom && (
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-yellow-700">
+                          상담방 #{activeConsultRoom.roomId}
+                        </span>
+                      )}
 
+                      {canCloseConsultRoom && (
+                        <button
+                          type="button"
+                          onClick={handleCloseConsultRoom}
+                          disabled={closeConsultRoomMutation.isPending}
+                          className="rounded-full bg-yellow-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-yellow-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {closeConsultRoomMutation.isPending
+                            ? '종료 중'
+                            : '상담 종료'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="mt-1">
+                    {getConsultRoomStatusDescription(activeConsultRoom?.status)}
+                  </p>
+
+                  {activeConsultRoom?.status === 'PENDING' && (
+                    <p className="mt-2 text-xs text-yellow-600">
+                      약사가 수락하면 상태가 자동으로 갱신됩니다.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div
+              ref={chatMessagesContainerRef}
+              className="min-h-0 flex-1 overflow-y-auto p-6"
+            >
+              <div className="space-y-4">
                 {activeMode === 'ai' && isChatbotRoomMessagesLoading && (
                   <div className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-700">
                     대화 내용을 불러오는 중입니다.
@@ -1546,78 +1719,112 @@ function ChatPage() {
                     </div>
                   )}
 
-                {activeMessages.map((chat) => {
+                {activeMessages.map((chat, index) => {
                   const displayParts = getChatDisplayParts(chat);
+
+                  const previousUserMessage = getPreviousUserMessage(activeMessages, index);
+
+                  const shouldShowPharmacistButton =
+                    activeMode === 'ai' &&
+                    chat.sender === 'AI' &&
+                    (Boolean(chat.escalationDraft) || isPharmacistGuideText(chat.content));
+
+                  const pharmacistDraft =
+                    chat.escalationDraft ??
+                    (previousUserMessage
+                      ? buildPharmacistDraftText(
+                          previousUserMessage.content,
+                          previousUserMessage.drugs ?? [],
+                        )
+                      : '');
 
                   return (
                     <div
                       key={chat.id}
                       className={[
                         'flex',
-                        chat.sender === 'USER' ? 'justify-end' : 'justify-start',
-                      ].join(' ')}
-                    >
-                    <div
-                      className={[
-                        'max-w-[80%] rounded-2xl p-4',
                         chat.sender === 'USER'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-slate-100 text-slate-700',
+                          ? 'justify-end'
+                          : 'justify-start',
                       ].join(' ')}
                     >
-                      <div className="mb-2 flex items-center gap-2">
-                        <Badge variant={getSenderBadge(chat.sender)}>
-                          {getSenderLabel(chat.sender)}
-                        </Badge>
+                      <div
+                        className={[
+                          'max-w-[80%] rounded-2xl p-4',
+                          chat.sender === 'USER'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-100 text-slate-700',
+                        ].join(' ')}
+                      >
+                        <div className="mb-2 flex items-center gap-2">
+                          <Badge variant={getSenderBadge(chat.sender)}>
+                            {getSenderLabel(chat.sender)}
+                          </Badge>
 
-                        <span
-                          className={[
-                            'text-xs',
-                            chat.sender === 'USER'
-                              ? 'text-blue-100'
-                              : 'text-slate-400',
-                          ].join(' ')}
-                        >
-                          {chat.createdAt}
-                        </span>
-                      </div>
-
-                      {displayParts.drugNames.length > 0 && (
-                        <div className="mb-3 space-y-1">
-                          {displayParts.drugNames.map((drugName) => (
-                            <p
-                              key={drugName}
-                              className="text-sm font-bold leading-6"
-                            >
-                              {drugName}
-                            </p>
-                          ))}
-                        </div>
-                      )}
-
-                      {displayParts.content && (
-                        <p className="whitespace-pre-line text-sm leading-6">
-                          {displayParts.content}
-                        </p>
-                      )}
-                      {activeMode === 'ai' && chat.apiMessageId && (
-                        <div className="mt-3 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteChatbotMessage(chat)}
-                            disabled={deleteChatbotMessageMutation.isPending}
+                          <span
                             className={[
-                              'text-xs font-semibold',
+                              'text-xs',
                               chat.sender === 'USER'
-                                ? 'text-blue-100 hover:text-white'
-                                : 'text-slate-400 hover:text-red-600',
+                                ? 'text-blue-100'
+                                : 'text-slate-400',
                             ].join(' ')}
                           >
-                            삭제
-                          </button>
+                            {chat.createdAt}
+                          </span>
                         </div>
-                      )}
-                    </div>
+
+                        {displayParts.drugNames.length > 0 && (
+                          <div className="mb-3 space-y-1">
+                            {displayParts.drugNames.map((drugName) => (
+                              <p
+                                key={drugName}
+                                className="text-sm font-bold leading-6"
+                              >
+                                {drugName}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+
+                        {displayParts.content && (
+                          <p className="whitespace-pre-line text-sm leading-6">
+                            {displayParts.content}
+                          </p>
+                        )}
+                        {shouldShowPharmacistButton && pharmacistDraft && (
+                          <div className="mt-3">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleContinueToPharmacist(
+                                  pharmacistDraft,
+                                  chat.escalationDrugs ?? previousUserMessage?.drugs ?? [],
+                                )
+                              }
+                              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                            >
+                              약사 상담 이어가기
+                            </button>
+                          </div>
+                        )}
+                        {activeMode === 'ai' && chat.apiMessageId && (
+                          <div className="mt-3 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteChatbotMessage(chat)}
+                              disabled={deleteChatbotMessageMutation.isPending}
+                              className={[
+                                'text-xs font-semibold',
+                                chat.sender === 'USER'
+                                  ? 'text-blue-100 hover:text-white'
+                                  : 'text-slate-400 hover:text-red-600',
+                              ].join(' ')}
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -1634,7 +1841,7 @@ function ChatPage() {
             </div>
 
             {shouldShowConsultFeedbackForm && activeConsultRoom && (
-              <div className="border-t border-slate-100 p-4">
+              <div className="shrink-0 border-t border-slate-100 p-4">
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-sm font-bold text-slate-900">
                     상담은 어떠셨나요?
@@ -1681,7 +1888,7 @@ function ChatPage() {
             )}
 
             {shouldShowSubmittedConsultFeedback && activeConsultRoom && (
-              <div className="border-t border-slate-100 p-4">
+              <div className="shrink-0 border-t border-slate-100 p-4">
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-sm font-bold text-slate-900">
                     내가 남긴 상담 평가
@@ -1701,8 +1908,7 @@ function ChatPage() {
               </div>
             )}
 
-            <div className="mt-auto border-t border-slate-100 p-4">
-
+            <div className="shrink-0 border-t border-slate-100 p-4">
               <div className="relative">
                 <div className="flex w-full gap-2">
                   <div className="flex-1">
@@ -1722,7 +1928,7 @@ function ChatPage() {
 
                   <Button
                     type="button"
-                    className="shrink-0"
+                    className="w-24 shrink-0"
                     onClick={handleSendMessage}
                     disabled={
                       sendChatbotMessageMutation.isPending ||
