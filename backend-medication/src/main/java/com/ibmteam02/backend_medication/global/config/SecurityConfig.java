@@ -50,7 +50,12 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/medicines/**", "/api/ai/health", "/api/internal/**").permitAll()
+                        .requestMatchers(
+                                "/api/medicines/**",
+                                "/api/ai/health",
+                                "/api/internal/**",
+                                "/api/smartpill/**"
+                        ).permitAll()
                         .requestMatchers(
                                 "/api/me/medication-time-presets/**",
                                 "/api/me/cautions/**",

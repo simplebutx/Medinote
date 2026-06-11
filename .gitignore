@@ -5,4 +5,5 @@ schedule-test.json
 .env.local
 secrets/
 secrets/gcloud-adc.json
+smartpill/arduino_secrets.h
 .local-notes/

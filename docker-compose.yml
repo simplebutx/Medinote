@@ -37,6 +37,80 @@ services:
     volumes:
       - qdrant-data:/qdrant/storage
 
+  qdrant-seed:
+    profiles:
+      - seed
+    build:
+      context: ./ai-server
+    container_name: mymedi-qdrant-seed
+    working_dir: /app
+    environment:
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-medicine_docs}
+      QDRANT_SEED_CSV_PATH: ${QDRANT_SEED_CSV_PATH:-/app/app/data/medicine_info_0531.csv}
+      QDRANT_SEED_NAMES_FILE: ${QDRANT_SEED_NAMES_FILE:-/app/app/data/demo_medicine_names_20.txt}
+      QDRANT_SEED_SAMPLE_SIZE: ${QDRANT_SEED_SAMPLE_SIZE:-10}
+      QDRANT_SEED_RANDOM_SEED: ${QDRANT_SEED_RANDOM_SEED:-42}
+      QDRANT_SEED_SKIP_IF_NOT_EMPTY: ${QDRANT_SEED_SKIP_IF_NOT_EMPTY:-true}
+      QDRANT_SEED_CLEAR_COLLECTION: ${QDRANT_SEED_CLEAR_COLLECTION:-false}
+      QDRANT_SEED_WAIT_TIMEOUT_SECONDS: ${QDRANT_SEED_WAIT_TIMEOUT_SECONDS:-60}
+    command: ["python", "scripts/load_sample_pdf_docs.py"]
+    depends_on:
+      qdrant:
+        condition: service_started
+
+  qdrant-snapshot-export:
+    profiles:
+      - snapshot
+    image: curlimages/curl:8.10.1
+    container_name: mymedi-qdrant-snapshot-export
+    environment:
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-medicine_docs}
+      QDRANT_SNAPSHOT_PATH: ${QDRANT_SNAPSHOT_PATH:-/qdrant-snapshots/medicine_docs.snapshot}
+    volumes:
+      - ./qdrant-snapshots:/qdrant-snapshots
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        set -eu;
+        qdrant_url="$${QDRANT_URL%/}";
+        snapshot_name="$$(curl -fsS -X POST "$$qdrant_url/collections/$$QDRANT_COLLECTION_NAME/snapshots?wait=true" | sed -n 's/.*"name":"\([^"]*\)".*/\1/p')";
+        test -n "$$snapshot_name";
+        mkdir -p "$$(dirname "$$QDRANT_SNAPSHOT_PATH")";
+        curl -fsS "$$qdrant_url/collections/$$QDRANT_COLLECTION_NAME/snapshots/$$snapshot_name" -o "$$QDRANT_SNAPSHOT_PATH";
+        echo "[done] Exported $$QDRANT_COLLECTION_NAME snapshot to $$QDRANT_SNAPSHOT_PATH"
+    depends_on:
+      qdrant:
+        condition: service_started
+
+  qdrant-snapshot-import:
+    profiles:
+      - snapshot
+    image: curlimages/curl:8.10.1
+    container_name: mymedi-qdrant-snapshot-import
+    environment:
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-medicine_docs}
+      QDRANT_SNAPSHOT_PATH: ${QDRANT_SNAPSHOT_PATH:-/qdrant-snapshots/medicine_docs.snapshot}
+    volumes:
+      - ./qdrant-snapshots:/qdrant-snapshots
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        set -eu;
+        qdrant_url="$${QDRANT_URL%/}";
+        test -f "$$QDRANT_SNAPSHOT_PATH";
+        curl -fsS -X POST "$$qdrant_url/collections/$$QDRANT_COLLECTION_NAME/snapshots/upload?wait=true&priority=snapshot" -F "snapshot=@$$QDRANT_SNAPSHOT_PATH";
+        echo;
+        echo "[done] Imported $$QDRANT_SNAPSHOT_PATH into $$QDRANT_COLLECTION_NAME"
+    depends_on:
+      qdrant:
+        condition: service_started
+
   backend-auth:
     build:
       context: ./backend-auth
@@ -178,6 +252,9 @@ services:
       - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
+    depends_on:
+      qdrant:
+        condition: service_started
 
   api-gateway:
     image: nginx:1.27-alpine
