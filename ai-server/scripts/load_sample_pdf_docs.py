@@ -4,13 +4,16 @@ import argparse
 import csv
 import hashlib
 import io
+import os
 import random
 import sys
+import time
 from pathlib import Path
 
 import requests
 from pypdf import PdfReader
-from qdrant_client.models import Filter, FilterSelector, PointStruct
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, PointStruct, VectorParams
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -29,11 +32,40 @@ DOCUMENT_COLUMNS = {
 }
 
 
+def env_bool(name: str, default: bool = False) -> bool:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+
+    return raw_value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def env_int(name: str, default: int) -> int:
+    raw_value = os.getenv(name)
+    if raw_value is None or not raw_value.strip():
+        return default
+
+    return int(raw_value)
+
+
 def build_parser() -> argparse.ArgumentParser:
+    default_csv_path = os.getenv(
+        "QDRANT_SEED_CSV_PATH",
+        str(ROOT_DIR / "app" / "data" / "medicine_info_0531.csv"),
+    )
+    default_names_file = os.getenv(
+        "QDRANT_SEED_NAMES_FILE",
+        str(ROOT_DIR / "app" / "data" / "demo_medicine_names_20.txt"),
+    )
+
     parser = argparse.ArgumentParser(
         description="Load sampled medicine PDF documents into Qdrant."
     )
-    parser.add_argument("--csv-path", required=True, help="Path to exported CSV file")
+    parser.add_argument(
+        "--csv-path",
+        default=default_csv_path,
+        help="Path to exported CSV file",
+    )
     parser.add_argument(
         "--name-column",
         default="item_name",
@@ -42,34 +74,48 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--sample-size",
         type=int,
-        default=10,
+        default=env_int("QDRANT_SEED_SAMPLE_SIZE", 10),
         help="Number of medicines to sample",
     )
     parser.add_argument(
         "--seed",
         type=int,
-        default=42,
+        default=env_int("QDRANT_SEED_RANDOM_SEED", 42),
         help="Random seed for deterministic sampling",
     )
     parser.add_argument(
         "--timeout-seconds",
         type=int,
-        default=30,
+        default=env_int("QDRANT_SEED_DOWNLOAD_TIMEOUT_SECONDS", 30),
         help="HTTP timeout for PDF download",
     )
     parser.add_argument(
         "--download-dir",
-        default=str(ROOT_DIR / "tmp" / "sample_pdfs"),
+        default=os.getenv("QDRANT_SEED_DOWNLOAD_DIR", str(ROOT_DIR / "tmp" / "sample_pdfs")),
         help="Directory for downloaded sample PDFs",
     )
     parser.add_argument(
         "--names-file",
+        default=default_names_file,
         help="Optional text file with one medicine name per line",
     )
     parser.add_argument(
         "--clear-collection",
         action="store_true",
+        default=env_bool("QDRANT_SEED_CLEAR_COLLECTION", False),
         help="Delete all existing points from the target collection before upsert",
+    )
+    parser.add_argument(
+        "--skip-if-not-empty",
+        action="store_true",
+        default=env_bool("QDRANT_SEED_SKIP_IF_NOT_EMPTY", False),
+        help="Exit without embedding/upserting when the target collection already has points",
+    )
+    parser.add_argument(
+        "--wait-timeout-seconds",
+        type=int,
+        default=env_int("QDRANT_SEED_WAIT_TIMEOUT_SECONDS", 60),
+        help="Maximum time to wait for Qdrant to become reachable",
     )
     return parser
 
@@ -229,6 +275,7 @@ def upsert_records(records: list[dict]) -> None:
         return
 
     client = get_qdrant_client()
+    ensure_collection(client)
     texts = [record["text"] for record in records]
     vectors = embed_texts(texts)
 
@@ -255,13 +302,62 @@ def upsert_records(records: list[dict]) -> None:
     print(f"[done] Upserted {len(points)} documents into {settings.qdrant_collection_name}")
 
 
-def clear_collection_points() -> None:
-    client = get_qdrant_client()
-    client.delete(
+def wait_for_qdrant(client: QdrantClient, timeout_seconds: int) -> None:
+    deadline = time.monotonic() + timeout_seconds
+    last_error: Exception | None = None
+
+    while time.monotonic() <= deadline:
+        try:
+            client.get_collections()
+            return
+        except Exception as exc:
+            last_error = exc
+            print("[wait] Qdrant is not ready yet. Retrying...")
+            time.sleep(2)
+
+    raise RuntimeError(
+        f"Qdrant did not become ready within {timeout_seconds} seconds"
+    ) from last_error
+
+
+def collection_exists(client: QdrantClient) -> bool:
+    if hasattr(client, "collection_exists"):
+        return bool(client.collection_exists(settings.qdrant_collection_name))
+
+    collections = client.get_collections().collections
+    return any(collection.name == settings.qdrant_collection_name for collection in collections)
+
+
+def ensure_collection(client: QdrantClient) -> None:
+    if collection_exists(client):
+        return
+
+    client.create_collection(
         collection_name=settings.qdrant_collection_name,
-        points_selector=FilterSelector(filter=Filter()),
-        wait=True,
+        vectors_config=VectorParams(
+            size=settings.embedding_dimensions,
+            distance=Distance.COSINE,
+        ),
     )
+    print(f"[done] Created collection: {settings.qdrant_collection_name}")
+
+
+def count_collection_points(client: QdrantClient) -> int:
+    if not collection_exists(client):
+        return 0
+
+    result = client.count(
+        collection_name=settings.qdrant_collection_name,
+        exact=True,
+    )
+    return int(result.count)
+
+
+def clear_collection_points(client: QdrantClient) -> None:
+    if collection_exists(client):
+        client.delete_collection(collection_name=settings.qdrant_collection_name)
+
+    ensure_collection(client)
     print(f"[done] Cleared collection: {settings.qdrant_collection_name}")
 
 
@@ -273,12 +369,36 @@ def main() -> None:
     download_dir = Path(args.download_dir)
     download_dir.mkdir(parents=True, exist_ok=True)
 
+    client = get_qdrant_client()
+    wait_for_qdrant(client, args.wait_timeout_seconds)
+
+    if args.clear_collection:
+        clear_collection_points(client)
+    else:
+        ensure_collection(client)
+
+    if args.skip_if_not_empty and not args.clear_collection:
+        point_count = count_collection_points(client)
+        if point_count > 0:
+            print(
+                f"[skip] Collection already has {point_count} points: "
+                f"{settings.qdrant_collection_name}"
+            )
+            return
+
+    if not csv_path.exists():
+        raise FileNotFoundError(f"CSV path does not exist: {csv_path}")
+
     rows = read_csv_rows(csv_path)
     if args.names_file:
         names_file = Path(args.names_file)
-        selected_names = read_selected_names(names_file)
-        sampled_rows = filter_rows_by_names(rows, args.name_column, selected_names)
-        print(f"[info] Loaded {len(selected_names)} selected medicine names")
+        if names_file.exists():
+            selected_names = read_selected_names(names_file)
+            sampled_rows = filter_rows_by_names(rows, args.name_column, selected_names)
+            print(f"[info] Loaded {len(selected_names)} selected medicine names")
+        else:
+            print(f"[warn] Names file does not exist. Falling back to sampling: {names_file}")
+            sampled_rows = sample_rows(rows, args.sample_size, args.seed)
     else:
         sampled_rows = sample_rows(rows, args.sample_size, args.seed)
 
@@ -292,9 +412,6 @@ def main() -> None:
         download_dir=download_dir,
     )
     print(f"[info] Prepared {len(records)} document records")
-
-    if args.clear_collection:
-        clear_collection_points()
 
     upsert_records(records)
 
