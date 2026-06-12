@@ -20,6 +20,8 @@ services:
     build:
       context: ./backend-auth
     container_name: medinote-backend-auth
+    env_file:
+      - .env
     environment:
       SPRING_PROFILES_ACTIVE: docker
       MYSQL_HOST: ${MYSQL_HOST}
