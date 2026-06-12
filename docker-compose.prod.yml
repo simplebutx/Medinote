@@ -30,7 +30,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      # ... 나머지 환경변수들은 그대로 유지하세요
+
     ports:
       - "8080:8080"
     restart: always
@@ -45,7 +45,6 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       MYSQL_HOST: ${MYSQL_HOST}
-      # ...
     ports:
       - "8081:8081"
     restart: always
