@@ -310,6 +310,7 @@ services:
       VITE_MEDICATION_API_URL: ${VITE_MEDICATION_API_URL:-http://localhost:8081}
       VITE_CONSULTATION_API_URL: ${VITE_CONSULTATION_API_URL:-http://localhost:8082}
       VITE_AI_API_URL: ${VITE_AI_API_URL:-http://localhost:8000}
+      VITE_KAKAO_MAP_KEY: ${VITE_KAKAO_MAP_KEY:-}
     command: ["sh", "-c", "npm run dev -- --host 0.0.0.0"]
     ports:
       - "5174:5173"

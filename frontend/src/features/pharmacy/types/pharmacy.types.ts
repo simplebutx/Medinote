@@ -28,6 +28,15 @@ export interface Pharmacy {
   extraInfo?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+
+  postalCode?: string | null;
+  postal_code?: string | null;
+
+  mapImageUrl?: string | null;
+  map_image_url?: string | null;
+
+  homepageUrl?: string | null;
+  homepage_url?: string | null;
 }
 
 export interface PharmacyRegisterRequest {
@@ -89,4 +98,16 @@ export interface PharmacyInventoryRequest {
   itemName: string;
   companyName?: string;
   stockQuantity: number;
+}
+
+export interface PharmacyBoundsParams {
+  southLat: number;
+  northLat: number;
+  westLng: number;
+  eastLng: number;
+  limit?: number;
+}
+
+export interface PharmacyMedicineSearchParams extends PharmacyBoundsParams {
+  keyword: string;
 }
