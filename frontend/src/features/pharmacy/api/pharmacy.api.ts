@@ -107,7 +107,7 @@ export const searchPharmaciesByMedicine = async ({
       '/api/pharmacies/search/medicine',
       {
         params: {
-          keyword,
+          itemName: keyword,
           southLat,
           northLat,
           westLng,

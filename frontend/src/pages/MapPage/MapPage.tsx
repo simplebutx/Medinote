@@ -853,7 +853,7 @@ function MapPage() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                {/* <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
                   <p className="text-sm font-semibold text-amber-800">
                     약국별 전체 재고 조회 API는 아직 없습니다.
                   </p>
@@ -862,7 +862,7 @@ function MapPage() {
                     현재는 약 이름 검색으로 해당 약을 보유한 약국을 찾을 수
                     있습니다.
                   </p>
-                </div>
+                </div> */}
               </div>
             )}
           </Card>
