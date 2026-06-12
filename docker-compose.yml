@@ -109,6 +109,15 @@ services:
         fi;
         echo "[info] Snapshot file:";
         ls -lh "$$QDRANT_SNAPSHOT_PATH";
+        echo "[info] Removing existing $$QDRANT_COLLECTION_NAME collection if it exists";
+        curl -sS -X DELETE "$$qdrant_url/collections/$$QDRANT_COLLECTION_NAME?wait=true" -o /tmp/qdrant-delete-response.json -w "%{http_code}" > /tmp/qdrant-delete-code.txt;
+        delete_code="$$(cat /tmp/qdrant-delete-code.txt)";
+        if [ "$$delete_code" != "200" ] && [ "$$delete_code" != "404" ]; then
+          cat /tmp/qdrant-delete-response.json;
+          echo;
+          echo "[error] Failed to remove existing $$QDRANT_COLLECTION_NAME collection with HTTP $$delete_code" >&2;
+          exit 1;
+        fi;
         response_path="/tmp/qdrant-snapshot-import-response.json";
         http_code="$$(curl -sS -o "$$response_path" -w "%{http_code}" -X POST "$$qdrant_url/collections/$$QDRANT_COLLECTION_NAME/snapshots/upload?wait=true&priority=snapshot" -F "snapshot=@$$QDRANT_SNAPSHOT_PATH")";
         cat "$$response_path";
