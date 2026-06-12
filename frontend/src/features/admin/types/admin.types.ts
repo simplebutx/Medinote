@@ -25,6 +25,7 @@ export interface PendingPharmacist {
 
 export interface AdminUser {
   id: number;
+  userId?: number;
   email: string;
   username: string;
   birthDate?: string | null;

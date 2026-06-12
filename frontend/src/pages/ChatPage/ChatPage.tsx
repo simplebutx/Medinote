@@ -43,6 +43,7 @@ interface ChatMessage {
   sortTime?: number;
   drugs?: DrugOption[];
 
+  answerType?: string;
   escalationDraft?: string;
   escalationDrugs?: DrugOption[];
 }
@@ -54,10 +55,14 @@ const initialAiMessages: ChatMessage[] = [
     content:
       '복용 중인 약 정보와 복약 일정에 대해 궁금한 점을 물어보세요.\n응급 증상, 심각한 부작용, 과다 복용이 의심된다면 AI 답변을 기다리지 말고 즉시 의료기관 또는 119에 도움을 요청해주세요.',
     createdAt: '09:00',
+    sortTime: 0,
   },
 ];
 
 const PHARMACIST_DRAFT_STORAGE_KEY = 'pendingPharmacistConsultQuestion';
+const PHARMACIST_GUIDE_MESSAGE =
+  '입력하신 내용은 전문가의 확인이 필요해요. 약사 상담을 통해 확인해주세요.';
+const PENDING_CONSULT_MESSAGE_LIMIT = 2;
 
 interface PharmacistDraftStorageValue {
   draft: string;
@@ -71,6 +76,7 @@ const initialPharmacistMessages: ChatMessage[] = [
     content:
       '안녕하세요. 약사 상담입니다. 복용 중인 약과 증상을 함께 알려주시면 확인해드릴게요.',
     createdAt: '09:05',
+    sortTime: 0,
   },
 ];
 
@@ -104,16 +110,54 @@ function formatChatTime(createdAt?: string | null) {
 
 function getMessageSortTime(createdAt?: string | null) {
   if (!createdAt) {
-    return Date.now();
+    return 0;
   }
 
   const time = new Date(createdAt).getTime();
 
   if (Number.isNaN(time)) {
-    return Date.now();
+    return 0;
   }
 
   return time;
+}
+
+function getChatMessageSortTime(message: ChatMessage) {
+  if (
+    typeof message.sortTime === 'number' &&
+    Number.isFinite(message.sortTime)
+  ) {
+    return message.sortTime;
+  }
+
+  const parsedTime = new Date(message.createdAt).getTime();
+
+  if (!Number.isNaN(parsedTime)) {
+    return parsedTime;
+  }
+
+  const clockMatch = /^(\d{1,2}):(\d{2})$/.exec(message.createdAt);
+
+  if (clockMatch) {
+    const hours = Number(clockMatch[1]);
+    const minutes = Number(clockMatch[2]);
+
+    return (hours * 60 + minutes) * 60 * 1000;
+  }
+
+  return 0;
+}
+
+function sortChatMessagesByTime(messages: ChatMessage[]) {
+  return [...messages].sort((a, b) => {
+    const timeDifference = getChatMessageSortTime(a) - getChatMessageSortTime(b);
+
+    if (timeDifference !== 0) {
+      return timeDifference;
+    }
+
+    return a.id - b.id;
+  });
 }
 
 function getConsultRoomStatusLabel(status?: string) {
@@ -144,13 +188,20 @@ function mapApiChatbotMessageToChatMessage(
   message: ApiChatbotMessage,
   index: number,
 ): ChatMessage {
+  const isFallback = message.answerType === 'FALLBACK';
+
   return {
     id: message.messageId ?? index + 1,
     apiMessageId: message.messageId ?? null,
     sender: message.senderType === 'USER' ? 'USER' : 'AI',
-    content:
-      message.content ?? message.answer ?? '메시지 내용을 불러오지 못했습니다.',
+    content: isFallback
+      ? PHARMACIST_GUIDE_MESSAGE
+      : message.content ??
+        message.answer ??
+        '메시지 내용을 불러오지 못했습니다.',
     createdAt: formatChatTime(message.createdAt),
+    sortTime: getMessageSortTime(message.createdAt),
+    answerType: message.answerType,
   };
 }
 
@@ -180,14 +231,11 @@ function mapSocketMessageToChatMessage(
   message: ConsultSocketMessage,
   id: number,
 ): ChatMessage {
-  const now = Date.now();
-
   return {
     id,
     sender: message.senderType,
     content: message.message,
     createdAt: '방금',
-    sortTime: now,
   };
 }
 
@@ -275,31 +323,6 @@ function buildPharmacistDraftText(question: string, drugs: DrugOption[]) {
   }
 
   return question.trim();
-}
-
-function isPharmacistGuideText(text?: string | null) {
-  const answerText = (text ?? '').replace(/\s+/g, ' ').trim();
-
-  if (!answerText) {
-    return false;
-  }
-
-  const guideKeywords = [
-    '답변드리기 어렵습니다',
-    '답변이 어렵',
-    '확인할 수 없',
-    '직접 관련된 내용을 찾기 어려',
-    '관련된 내용을 찾기 어려',
-    '전문가',
-    '약사 상담',
-    '상담을 통해',
-  ];
-
-  return guideKeywords.some((keyword) => answerText.includes(keyword));
-}
-
-function isPharmacistGuideAnswer(data: ApiChatbotMessage) {
-  return isPharmacistGuideText(data.answer ?? data.content);
 }
 
 function getPreviousUserMessage(messages: ChatMessage[], currentIndex: number) {
@@ -618,10 +641,12 @@ function ChatPage() {
   }, [activeChatbotRoomId, aiMessagesByRoomId]);
 
   const mergedAiMessages = useMemo(() => {
-    return removeDuplicateChatMessages([
-      ...serverAiMessages,
-      ...localAiMessages,
-    ]);
+    return sortChatMessagesByTime(
+      removeDuplicateChatMessages([
+        ...serverAiMessages,
+        ...localAiMessages,
+      ]),
+    );
   }, [localAiMessages, serverAiMessages]);
 
   useEffect(() => {
@@ -725,41 +750,6 @@ function ChatPage() {
         }`
       : '';
 
-  // useEffect(() => {
-  //   if (!activeChatbotRoomId || serverAiMessages.length === 0) {
-  //     return;
-  //   }
-
-  //   setAiMessagesByRoomId((prev) => {
-  //     const currentMessages = prev[activeChatbotRoomId] ?? [];
-
-  //     const messagesToKeep = currentMessages.filter((chat) => {
-  //       /**
-  //        * SYSTEM 메시지는 서버에 저장되지 않으므로 유지
-  //        * apiMessageId가 없는 AI 메시지도 서버에 저장되지 않은 임시 응답일 수 있으므로 유지
-  //        */
-  //       if (chat.sender === 'SYSTEM') {
-  //         return true;
-  //       }
-
-  //       if (chat.sender === 'AI' && !chat.apiMessageId) {
-  //         return true;
-  //       }
-
-  //       return false;
-  //     });
-
-  //     if (messagesToKeep.length === currentMessages.length) {
-  //       return prev;
-  //     }
-
-  //     return {
-  //       ...prev,
-  //       [activeChatbotRoomId]: messagesToKeep,
-  //     };
-  //   });
-  // }, [activeChatbotRoomId, lastActiveMessageKey, serverAiMessages.length]);
-
   useEffect(() => {
     const container = chatMessagesContainerRef.current;
 
@@ -798,10 +788,24 @@ function ChatPage() {
     activeConsultRoom?.status === 'MATCHED' ||
     activeConsultRoom?.status === 'ACTIVE';
 
+  const isConsultRoomPending = activeConsultRoom?.status === 'PENDING';
+
+  const pendingConsultUserMessageCount =
+    activeMode === 'pharmacist' && isConsultRoomPending
+      ? activeMessages.filter((chat) => chat.sender === 'USER').length
+      : 0;
+
+  const canSendPendingConsultMessage =
+    isConsultRoomPending &&
+    pendingConsultUserMessageCount < PENDING_CONSULT_MESSAGE_LIMIT;
+
   const isConsultRoomClosed =
     activeConsultRoom?.status === 'COMPLETED' ||
     activeConsultRoom?.status === 'CLOSED' ||
     locallyClosedConsultRoomIds.includes(activeConsultRoom?.roomId ?? -1);
+
+  const activeConsultSummary =
+    activeConsultRoom?.aiConsultationSummary?.trim() ?? '';
 
   const shouldShowConsultFeedbackForm =
     activeMode === 'pharmacist' &&
@@ -956,20 +960,20 @@ function ChatPage() {
           const answerText =
             data.answer || data.content || '응답 내용을 불러오지 못했습니다.';
 
-          const shouldShowPharmacistButton = isPharmacistGuideAnswer(data);
+          const isFallback = data.answerType === 'FALLBACK';
 
           const aiMessage: ChatMessage = {
             id: data.messageId ?? createMessageId(),
             apiMessageId: data.messageId ?? null,
             sender: 'AI',
-            content: shouldShowPharmacistButton
-              ? '입력하신 내용은 전문가의 확인이 필요해요. 약사 상담을 통해 확인해주세요.'
-              : answerText,
+            content: isFallback ? PHARMACIST_GUIDE_MESSAGE : answerText,
             createdAt: data.createdAt ? data.createdAt.slice(11, 16) : '방금',
-            escalationDraft: shouldShowPharmacistButton
+            sortTime: getMessageSortTime(data.createdAt),
+            answerType: data.answerType,
+            escalationDraft: isFallback
               ? buildPharmacistDraftText(question, drugs)
               : undefined,
-            escalationDrugs: shouldShowPharmacistButton ? drugs : undefined,
+            escalationDrugs: isFallback ? drugs : undefined,
           };
 
           setAiMessagesByRoomId((prev) => ({
@@ -1037,7 +1041,7 @@ function ChatPage() {
         return;
       }
 
-      if (!isConsultRoomMatched) {
+      if (!isConsultRoomMatched && !canSendPendingConsultMessage) {
         const systemMessage: ChatMessage = {
           id: createMessageId(),
           sender: 'SYSTEM',
@@ -1077,7 +1081,7 @@ function ChatPage() {
           sender: 'USER',
           content: consultMessage,
           createdAt: '방금',
-          sortTime: Date.now(),
+          sortTime: new Date().getTime(),
           drugs: selectedDrugs,
         },
       ]);
@@ -1727,7 +1731,7 @@ function ChatPage() {
                   const shouldShowPharmacistButton =
                     activeMode === 'ai' &&
                     chat.sender === 'AI' &&
-                    (Boolean(chat.escalationDraft) || isPharmacistGuideText(chat.content));
+                    chat.answerType === 'FALLBACK';
 
                   const pharmacistDraft =
                     chat.escalationDraft ??
@@ -1840,6 +1844,26 @@ function ChatPage() {
               </div>
             </div>
 
+            {activeMode === 'pharmacist' && activeConsultRoom && isConsultRoomClosed && (
+              <div className="shrink-0 border-t border-slate-100 p-4">
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                  <p className="text-sm font-bold text-blue-800">
+                    AI 상담 요약
+                  </p>
+
+                  {activeConsultSummary ? (
+                    <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-700">
+                      {activeConsultSummary}
+                    </p>
+                  ) : (
+                    <p className="mt-3 text-sm leading-6 text-blue-700">
+                      상담 요약이 아직 준비되지 않았습니다.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {shouldShowConsultFeedbackForm && activeConsultRoom && (
               <div className="shrink-0 border-t border-slate-100 p-4">
                 <div className="rounded-2xl bg-slate-50 p-4">
@@ -1935,7 +1959,8 @@ function ChatPage() {
                       createChatbotRoomMutation.isPending ||
                       (activeMode === 'pharmacist' &&
                         (!activeConsultRoom ||
-                          !isConsultRoomMatched ||
+                          (!isConsultRoomMatched &&
+                            !canSendPendingConsultMessage) ||
                           isConsultRoomClosed ||
                           !isConsultSocketConnected))
                     }

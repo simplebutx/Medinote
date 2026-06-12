@@ -726,6 +726,18 @@ function ConsultPage() {
                   <textarea
                     value={answerText}
                     onChange={(event) => setAnswerText(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key !== 'Enter' ||
+                        event.shiftKey ||
+                        event.nativeEvent.isComposing
+                      ) {
+                        return;
+                      }
+
+                      event.preventDefault();
+                      handleSubmitAnswer();
+                    }}
                     placeholder="환자에게 전달할 상담 답변을 입력하세요."
                     className="mt-2 min-h-40 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                   />

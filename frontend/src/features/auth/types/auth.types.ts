@@ -63,6 +63,7 @@ export interface LoginResponse {
   refreshToken: string;
   role: UserRole;
   userId: number;
+  status?: string | null;
 }
 
 export interface RefreshTokenRequest {

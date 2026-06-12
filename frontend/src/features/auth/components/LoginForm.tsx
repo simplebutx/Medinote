@@ -44,6 +44,7 @@ function LoginForm() {
       refreshToken: "mock-refresh-token",
       role,
       userId: 1,
+      status: role === "PHARMACIST" ? "ACTIVE" : null,
     });
 
     toast.success(`${role} 임시 로그인`);

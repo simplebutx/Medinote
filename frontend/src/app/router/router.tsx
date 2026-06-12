@@ -5,6 +5,7 @@ import AuthLayout from '../../components/layout/AuthLayout';
 import AppLayout from '../../components/layout/AppLayout';
 
 import PrivateRoute from './PrivateRoute';
+import PharmacistGuard from './PharmacistGuard';
 import RoleRoute from './RoleRoute';
 
 import LandingPage from '../../pages/LandingPage/LandingPage';
@@ -27,6 +28,7 @@ import PatientPage from '../../pages/PatientPage/PatientPage';
 import PharmDrugSearchPage from '../../pages/PharmDrugSearchPage/PharmDrugSearchPage';
 import PharmInventoryPage from '../../pages/PharmInventoryPage/PharmInventoryPage';
 import PharmMyPage from '../../pages/PharmMyPage/PharmMyPage';
+import PharmPendingPage from '../../pages/PharmPendingPage/PharmPendingPage';
 
 import AdminDashboardPage from '../../pages/AdminDashboardPage/AdminDashboardPage';
 import MemberManagePage from '../../pages/MemberManagePage/MemberManagePage';
@@ -118,36 +120,45 @@ export const router = createBrowserRouter([
             element: <AppLayout />,
             children: [
               {
-                path: '/pharmacist',
-                element: <Navigate to="/pharmacist/dashboard" replace />,
+                path: '/pharmacist/pending',
+                element: <PharmPendingPage />,
               },
               {
-                path: '/pharmacist/dashboard',
-                element: <PharmDashboardPage />,
-              },
-              {
-                path: '/pharmacist/consults',
-                element: <ConsultPage />,
-              },
-              {
-                path: '/pharmacist/patients',
-                element: <PatientPage />,
-              },
-              {
-                path: '/pharmacist/drugs',
-                element: <PharmDrugSearchPage />,
-              },
-              {
-                path: '/pharmacist/inventory',
-                element: <PharmInventoryPage />,
-              },
-              {
-                path: '/pharmacist/notifications',
-                element: <NotifPage />,
-              },
-              {
-                path: '/pharmacist/my',
-                element: <PharmMyPage />,
+                element: <PharmacistGuard />,
+                children: [
+                  {
+                    path: '/pharmacist',
+                    element: <Navigate to="/pharmacist/dashboard" replace />,
+                  },
+                  {
+                    path: '/pharmacist/dashboard',
+                    element: <PharmDashboardPage />,
+                  },
+                  {
+                    path: '/pharmacist/consults',
+                    element: <ConsultPage />,
+                  },
+                  {
+                    path: '/pharmacist/patients',
+                    element: <PatientPage />,
+                  },
+                  {
+                    path: '/pharmacist/drugs',
+                    element: <PharmDrugSearchPage />,
+                  },
+                  {
+                    path: '/pharmacist/inventory',
+                    element: <PharmInventoryPage />,
+                  },
+                  {
+                    path: '/pharmacist/notifications',
+                    element: <NotifPage />,
+                  },
+                  {
+                    path: '/pharmacist/my',
+                    element: <PharmMyPage />,
+                  },
+                ],
               },
             ],
           },

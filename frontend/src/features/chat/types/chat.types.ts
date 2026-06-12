@@ -1,4 +1,5 @@
 export type ChatbotSenderType = "USER" | "BOT";
+export type ChatbotAnswerType = "NORMAL" | "FALLBACK" | string;
 
 export interface ChatbotRoom {
   roomId: number;
@@ -24,6 +25,7 @@ export interface SendChatbotMessageRequest {
 export interface ChatbotMessage {
   messageId?: number | null;
   answer?: string | null;
+  answerType?: ChatbotAnswerType;
   roomId?: number | null;
   senderType?: ChatbotSenderType | string | null;
   content?: string | null;

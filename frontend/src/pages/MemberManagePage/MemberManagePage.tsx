@@ -41,6 +41,10 @@ function formatDateTime(value?: string | null) {
   }).format(date);
 }
 
+function getAdminUserId(user: AdminUser) {
+  return user.userId ?? user.id;
+}
+
 function MemberManagePage() {
   const [keyword, setKeyword] = useState('');
   const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
@@ -72,6 +76,13 @@ function MemberManagePage() {
   }, [adminUsers, keyword]);
 
   const handleDeleteUser = (user: AdminUser) => {
+    const userId = getAdminUserId(user);
+
+    if (!userId) {
+      toast.error('회원 ID를 확인할 수 없습니다.');
+      return;
+    }
+
     if (user.role === 'ADMIN') {
       toast.error('관리자 계정은 화면에서 삭제할 수 없습니다.');
       return;
@@ -85,7 +96,7 @@ function MemberManagePage() {
 
     if (!isConfirmed) return;
 
-    deleteAdminUserMutation.mutate(user.id, {
+    deleteAdminUserMutation.mutate(userId, {
       onSuccess: () => {
         toast.success('회원이 삭제되었습니다.');
         setExpandedUserId(null);
@@ -144,16 +155,17 @@ function MemberManagePage() {
       {!isLoading && !isError && filteredUsers.length > 0 && (
         <div className="space-y-4">
           {filteredUsers.map((user) => {
-            const isExpanded = expandedUserId === user.id;
+            const userId = getAdminUserId(user);
+            const isExpanded = expandedUserId === userId;
 
             return (
-              <Card key={user.id}>
+              <Card key={userId}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <button
                     type="button"
                     className="min-w-0 flex-1 text-left"
                     onClick={() =>
-                      setExpandedUserId(isExpanded ? null : user.id)
+                      setExpandedUserId(isExpanded ? null : userId)
                     }
                   >
                     <div className="flex flex-wrap items-center gap-2">
