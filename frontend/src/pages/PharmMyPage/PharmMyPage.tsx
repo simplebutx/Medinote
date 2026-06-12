@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useUserStore } from '../../store/useUserStore';
-import { Badge, Card, Input } from '../../components/ui';
+import { useNavigate } from 'react-router-dom';
+import { Badge, Button, Card, Input } from '../../components/ui';
 import {
   usePharmacyDetail,
   useRegisterPharmacy,
@@ -10,6 +11,7 @@ import type { PharmacyRegisterRequest } from '../../features/pharmacy/types';
 import {
   useMyProfile,
   useUpdateMyPharmacistProfile,
+  useWithdrawAccount,
 } from '../../features/user/hooks';
 
 function getApprovalStatusLabel(status?: string | null, role?: string | null) {
@@ -181,6 +183,28 @@ function PharmMyPage() {
   const updatePharmacistProfileMutation = useUpdateMyPharmacistProfile();
   const registerPharmacyMutation = useRegisterPharmacy();
   const updatePharmacyMutation = useUpdatePharmacy();
+
+  const navigate = useNavigate();
+    const withdrawAccountMutation = useWithdrawAccount();
+
+    const handleWithdrawAccount = () => {
+      const confirmed = window.confirm(
+        '정말로 약사 회원 탈퇴하시겠습니까? 탈퇴 후 계정 정보는 복구할 수 없습니다.',
+      );
+
+      if (!confirmed) return;
+
+      withdrawAccountMutation.mutate(undefined, {
+        onSuccess: () => {
+          window.alert('회원 탈퇴가 완료되었습니다.');
+          navigate('/login', { replace: true });
+        },
+        onError: (error) => {
+          console.error('약사 회원 탈퇴 실패:', error);
+          window.alert('회원 탈퇴에 실패했습니다. 다시 시도해주세요.');
+        },
+      });
+    };
 
   const tokenUserId = getUserIdFromAccessToken(accessToken);
 
@@ -703,6 +727,25 @@ function PharmMyPage() {
           </div>
         </>
       )}
+      <Card className="border-red-100 bg-red-50">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-red-700">약사 회원 탈퇴</h2>
+            <p className="mt-2 text-sm text-red-600">
+              탈퇴 시 약사 프로필, 약국 정보 등 계정 관련 정보가 삭제되며 복구할 수 없습니다.
+            </p>
+          </div>
+
+          <Button
+            type="button"
+            variant="danger"
+            onClick={handleWithdrawAccount}
+            disabled={withdrawAccountMutation.isPending}
+          >
+            {withdrawAccountMutation.isPending ? '탈퇴 처리 중...' : '약사 회원 탈퇴'}
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 }

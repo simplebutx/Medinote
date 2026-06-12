@@ -58,12 +58,23 @@ interface MedicationPreview {
   cautionMessage?: string;
 }
 
-const initialCommonForm: PrescriptionCommonForm = {
-  hospitalName: '',
-  pharmacyName: '',
-  startDate: '2026-05-24',
-  durationDays: '3',
-};
+function getTodayDateText() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const date = String(today.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${date}`;
+}
+
+function createInitialCommonForm(): PrescriptionCommonForm {
+  return {
+    hospitalName: '',
+    pharmacyName: '',
+    startDate: getTodayDateText(),
+    durationDays: '3',
+  };
+}
 
 function getDefaultDoseTimes(timesPerDay: number): DoseTimeForm[] {
   if (timesPerDay <= 1) {
@@ -160,8 +171,9 @@ function OcrPage() {
     createScheduleMutation.isPending || createScheduleTimeMutation.isPending;
   const [activeMode, setActiveMode] = useState<RegisterMode>('manual');
 
-  const [commonForm, setCommonForm] =
-    useState<PrescriptionCommonForm>(initialCommonForm);
+  const [commonForm, setCommonForm] = useState<PrescriptionCommonForm>(() =>
+    createInitialCommonForm(),
+  );
 
   const handleChangeCommonForm = (
     key: keyof PrescriptionCommonForm,
@@ -1487,7 +1499,7 @@ function OcrPage() {
                         setSelectedFileName(file.name);
                         setOcrStep('idle');
                         setOcrResults([]);
-                        setCommonForm(initialCommonForm);
+                        setCommonForm(createInitialCommonForm());
                       }
                     }}
                   />

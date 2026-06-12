@@ -58,3 +58,9 @@ export const updateMyPharmacistProfile = async (
 
   return response.data;
 };
+
+export const withdrawAccount = async () => {
+  const response = await authInstance.delete<string>('/api/auth/me');
+
+  return response.data;
+};

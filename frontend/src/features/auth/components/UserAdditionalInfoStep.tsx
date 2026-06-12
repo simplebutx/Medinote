@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
 import { Button, Input } from "../../../components/ui";
+import { useDebounce } from "../../../hooks/useDebounce";
+import { useDiseaseSuggest } from "../../user/hooks/useDiseaseSuggest";
 import useUserAdditionalInfoSignup from "../hooks/useUserAdditionalInfoSignup";
 
 interface UserAdditionalInfoStepProps {
@@ -14,19 +16,6 @@ interface DiseaseOption {
   code: string;
   name: string;
 }
-
-const diseaseOptions: DiseaseOption[] = [
-  { code: "I10", name: "고혈압" },
-  { code: "E11", name: "당뇨병" },
-  { code: "J45", name: "천식" },
-  { code: "K29", name: "위염" },
-  { code: "K21", name: "역류성 식도염" },
-  { code: "N18", name: "만성 신장질환" },
-  { code: "K76", name: "간 질환" },
-  { code: "E78", name: "고지혈증" },
-  { code: "I20", name: "협심증" },
-  { code: "I50", name: "심부전" },
-];
 
 function UserAdditionalInfoStep({
   email,
@@ -44,27 +33,24 @@ function UserAdditionalInfoStep({
   const [isDiseaseSearchOpen, setIsDiseaseSearchOpen] = useState(false);
   const [selectedDiseases, setSelectedDiseases] = useState<DiseaseOption[]>([]);
 
-  const filteredDiseases = useMemo(() => {
-    const keyword = diseaseKeyword.trim().replace("@", "").toLowerCase();
+  const debouncedDiseaseKeyword = useDebounce(diseaseKeyword, 300);
+  const diseaseSearchKeyword = debouncedDiseaseKeyword.trim();
 
-    if (!keyword) {
-      return diseaseOptions;
-    }
-
-    return diseaseOptions.filter((disease) =>
-      disease.name.toLowerCase().includes(keyword)
-    );
-  }, [diseaseKeyword]);
+  const {
+    data: diseaseSuggestions = [],
+    isLoading: isDiseaseSuggestLoading,
+  } = useDiseaseSuggest(diseaseSearchKeyword);
+  
+  const filteredDiseases = useMemo<DiseaseOption[]>(() => {
+    return diseaseSuggestions.map((diseaseName) => ({
+      code: diseaseName,
+      name: diseaseName,
+    }));
+  }, [diseaseSuggestions]);
 
   const handleChangeDiseaseKeyword = (value: string) => {
     setDiseaseKeyword(value);
-
-    if (value.startsWith("@")) {
-      setIsDiseaseSearchOpen(true);
-      return;
-    }
-
-    setIsDiseaseSearchOpen(false);
+    setIsDiseaseSearchOpen(value.trim().length >= 2);
   };
 
   const handleSelectDisease = (disease: DiseaseOption) => {
@@ -204,7 +190,7 @@ function UserAdditionalInfoStep({
 
           <div className="relative">
             <Input
-              placeholder="@고혈압 처럼 입력하면 질환을 검색할 수 있습니다."
+              placeholder="기저질환명을 2자 이상 입력해 검색하세요. 예: 고혈압"
               value={diseaseKeyword}
               onChange={(event) =>
                 handleChangeDiseaseKeyword(event.target.value)
@@ -218,23 +204,25 @@ function UserAdditionalInfoStep({
                 </div>
 
                 <div className="max-h-56 overflow-y-auto">
-                  {filteredDiseases.map((disease) => (
-                    <button
-                      key={disease.code}
-                      type="button"
-                      onClick={() => handleSelectDisease(disease)}
-                      className="w-full rounded-xl px-3 py-3 text-left hover:bg-slate-50"
-                    >
-                      <p className="font-semibold text-slate-900">
-                        {disease.name}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        코드: {disease.code}
-                      </p>
-                    </button>
-                  ))}
+                  {isDiseaseSuggestLoading && (
+                    <div className="px-3 py-4 text-sm text-blue-700">
+                      기저질환을 검색하고 있습니다.
+                    </div>
+                  )}
 
-                  {filteredDiseases.length === 0 && (
+                  {!isDiseaseSuggestLoading &&
+                    filteredDiseases.map((disease) => (
+                      <button
+                        key={disease.code}
+                        type="button"
+                        onClick={() => handleSelectDisease(disease)}
+                        className="w-full rounded-xl px-3 py-3 text-left hover:bg-slate-50"
+                      >
+                        <p className="font-semibold text-slate-900">{disease.name}</p>
+                      </button>
+                    ))}
+
+                  {!isDiseaseSuggestLoading && filteredDiseases.length === 0 && (
                     <div className="px-3 py-4 text-sm text-slate-500">
                       검색 결과가 없습니다.
                     </div>
@@ -245,8 +233,7 @@ function UserAdditionalInfoStep({
           </div>
 
           <p className="mt-2 text-xs text-slate-500">
-            현재는 Mock Data 기준이며, 추후 질병 목록 API가 확정되면 DB 검색으로
-            교체합니다.
+            입력한 질환명은 DB 기준 검색 결과에서 선택할 수 있습니다.
           </p>
         </div>
 

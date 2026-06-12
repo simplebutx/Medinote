@@ -11,13 +11,13 @@ import type { ConsultRoom, ConsultRoomStatus } from '../../features/consult/type
 
 function getConsultStatusLabel(status: ConsultRoomStatus) {
   if (status === 'PENDING') return '대기';
-  if (status === 'ACTIVE') return '진행 중';
+  if (status === 'MATCHED' || status === 'ACTIVE') return '진행 중';
   return '완료';
 }
 
 function getConsultStatusBadge(status: ConsultRoomStatus) {
   if (status === 'PENDING') return 'yellow';
-  if (status === 'ACTIVE') return 'blue';
+  if (status === 'MATCHED' || status === 'ACTIVE') return 'blue';
   return 'green';
 }
 

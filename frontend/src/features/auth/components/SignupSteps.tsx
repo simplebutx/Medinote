@@ -16,6 +16,37 @@ import { useUserStore } from "../../../store/useUserStore";
 
 type Gender = "MALE" | "FEMALE";
 
+function getEmailValidationMessage(value: string) {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return "이메일을 입력해주세요.";
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue)) {
+    return "이메일 형식이 올바르지 않습니다.";
+  }
+
+  return "";
+}
+
+function getPasswordValidationMessage(value: string) {
+  if (!value) {
+    return "비밀번호를 입력해주세요.";
+  }
+
+  const hasAlphabet = /[A-Za-z]/.test(value);
+  const hasSpecialCharacter = /[!@#$%^&*()_\-+=[\]{};':"\\|,.<>/?`~]/.test(value);
+  const hasValidLength = value.length >= 8 && value.length <= 20;
+  const hasNoWhitespace = !/\s/.test(value);
+
+  if (!hasValidLength || !hasAlphabet || !hasSpecialCharacter || !hasNoWhitespace) {
+    return "비밀번호는 8자 이상 20자 이하이며 영문과 특수문자를 포함해야 합니다.";
+  }
+
+  return "";
+}
+
 function SignupSteps() {
   const [step, setStep] = useState(1);
 
@@ -27,6 +58,7 @@ function SignupSteps() {
   const [role, setRole] = useState<UserRole>("USER");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
+  const [hasTriedNextStep, setHasTriedNextStep] = useState(false);
 
   const navigate = useNavigate();
   const setLogin = useUserStore((state) => state.setLogin);
@@ -36,6 +68,12 @@ function SignupSteps() {
   const verifyCodeMutation = useVerifySmsCode();
 
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const emailValidationMessage = getEmailValidationMessage(email);
+  const passwordValidationMessage = getPasswordValidationMessage(password);
+  const shouldShowEmailError =
+    (hasTriedNextStep || email.length > 0) && Boolean(emailValidationMessage);
+  const shouldShowPasswordError =
+    (hasTriedNextStep || password.length > 0) && Boolean(passwordValidationMessage);
 
   const handleCompleteSignup = () => {
     setLogin({
@@ -43,6 +81,7 @@ function SignupSteps() {
       refreshToken: "mock-signup-refresh-token",
       role,
       userId: 1,
+      status: role === "PHARMACIST" ? "WAITING_APPROVAL" : null,
     });
 
     toast.success("회원가입이 완료되었습니다.");
@@ -106,7 +145,14 @@ function SignupSteps() {
   };
 
   const handleNextStep = () => {
-    if (!email || !password || !username || !birthDate) {
+    setHasTriedNextStep(true);
+
+    if (emailValidationMessage || passwordValidationMessage) {
+      toast.error("이메일과 비밀번호 형식을 확인해주세요.");
+      return;
+    }
+
+    if (!username.trim() || !birthDate) {
       toast.error("필수 정보를 모두 입력해주세요.");
       return;
     }
@@ -118,9 +164,9 @@ function SignupSteps() {
 
     signupMutation.mutate(
       {
-        email,
+        email: email.trim(),
         password,
-        username,
+        username: username.trim(),
         birthDate,
         gender,
         role,
@@ -166,16 +212,23 @@ function SignupSteps() {
             <Input
               label="이메일"
               placeholder="example@email.com"
+              type="email"
+              autoComplete="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
+              errorMessage={shouldShowEmailError ? emailValidationMessage : undefined}
             />
 
             <Input
               label="비밀번호"
               type="password"
               placeholder="비밀번호"
+              autoComplete="new-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+              errorMessage={
+                shouldShowPasswordError ? passwordValidationMessage : undefined
+              }
             />
 
             <Input

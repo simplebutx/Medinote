@@ -16,6 +16,7 @@ export interface CautionItem {
   ingredientCode?: string | null;
   ingredientName?: string | null;
   reason: CautionReason;
+  cautionType?: CautionTargetType | null;
   memo?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -27,7 +28,8 @@ export interface CautionRequest {
   ingredientCode?: string | null;
   ingredientName?: string | null;
   reason: CautionReason;
-  memo?: string;
+  cautionType: CautionTargetType;
+  memo?: string | null;
 }
 
 export interface CautionSuggestItem {

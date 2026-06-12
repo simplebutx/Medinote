@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Badge, Button, Card, Input } from '../../components/ui';
 import {
@@ -10,6 +11,7 @@ import {
   useMyProfile,
   useUpdateMyCaution,
   useUpdateMyProfile,
+  useWithdrawAccount,
 } from '../../features/user/hooks';
 import type {
   CautionItem,
@@ -61,6 +63,8 @@ interface HealthFormState {
   isBreastfeeding: boolean;
   isSmoking: boolean;
   isDrinking: boolean;
+  isChild: boolean;
+  isElderly: boolean;
   diseases: DiseaseOption[];
 }
 
@@ -365,6 +369,28 @@ function MyPage() {
 
   const updateMedicationTimePresetsMutation = useUpdateMedicationTimePresets();
 
+    const navigate = useNavigate();
+    const withdrawAccountMutation = useWithdrawAccount();
+
+    const handleWithdrawAccount = () => {
+      const confirmed = window.confirm(
+        '정말로 회원 탈퇴하시겠습니까? 탈퇴 후 계정 정보는 복구할 수 없습니다.',
+      );
+
+      if (!confirmed) return;
+
+      withdrawAccountMutation.mutate(undefined, {
+        onSuccess: () => {
+          toast.success('회원 탈퇴가 완료되었습니다.');
+          navigate('/login', { replace: true });
+        },
+        onError: (error) => {
+          console.error('회원 탈퇴 실패:', error);
+          toast.error('회원 탈퇴에 실패했습니다. 다시 시도해주세요.');
+        },
+      });
+    };
+
   const normalizedMedicationTimePresets = useMemo(
     () => normalizeMedicationTimePresets(medicationTimePresets),
     [medicationTimePresets],
@@ -430,6 +456,8 @@ function MyPage() {
       ),
       isSmoking: Boolean(myProfile?.isSmoking ?? myProfile?.is_smoking),
       isDrinking: Boolean(myProfile?.isDrinking ?? myProfile?.is_drinking),
+      isChild: Boolean(myProfile?.isChild ?? myProfile?.is_child),
+      isElderly: Boolean(myProfile?.isElderly ?? myProfile?.is_elderly),
       diseases: profileDiseases
         .map((disease) => {
           if (typeof disease === 'string') {
@@ -552,6 +580,8 @@ function MyPage() {
         isBreastfeeding: healthForm.isBreastfeeding,
         isSmoking: healthForm.isSmoking,
         isDrinking: healthForm.isDrinking,
+        isChild: healthForm.isChild,
+        isElderly: healthForm.isElderly,
         diseases: healthForm.diseases.map((disease) => disease.name),
       },
       {
@@ -963,7 +993,8 @@ function MyPage() {
       ingredientCode: null,
       ingredientName: isMedicine ? null : selectedCautionTarget.name,
       reason,
-      memo: memo.trim(),
+      cautionType: selectedCautionTarget.type,
+      memo: memo.trim() || null,
     };
 
     if (editingCautionId !== null) {
@@ -1226,6 +1257,42 @@ function MyPage() {
                     ].join(' ')}
                   >
                     음주
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateHealthForm((current) => ({
+                        ...current,
+                        isChild: !current.isChild,
+                      }))
+                    }
+                    className={[
+                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
+                      healthForm.isChild
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-slate-200 text-slate-600',
+                    ].join(' ')}
+                  >
+                    소아
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateHealthForm((current) => ({
+                        ...current,
+                        isElderly: !current.isElderly,
+                      }))
+                    }
+                    className={[
+                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
+                      healthForm.isElderly
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-slate-200 text-slate-600',
+                    ].join(' ')}
+                  >
+                    고령자
                   </button>
                 </div>
               </div>
@@ -2058,8 +2125,8 @@ function MyPage() {
                                                   handleChangePrescriptionDoseTime(
                                                     medicineIndex,
                                                     doseTimeIndex,
-                                                    'timing',
-                                                    event.target.value as MedicationTiming,
+                                                    'takeTime',
+                                                    event.target.value,
                                                   )
                                                 }
                                               />
@@ -2163,8 +2230,13 @@ function MyPage() {
             </p>
           </div>
 
-          <Button type="button" variant="danger">
-            회원 탈퇴
+          <Button
+            type="button"
+            variant="danger"
+            onClick={handleWithdrawAccount}
+            disabled={withdrawAccountMutation.isPending}
+          >
+            {withdrawAccountMutation.isPending ? '탈퇴 처리 중...' : '회원 탈퇴'}
           </Button>
         </div>
       </Card>

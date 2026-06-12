@@ -1,7 +1,7 @@
 import axios from "axios";
 import { useUserStore } from "../store/useUserStore";
 
-const AUTH_BASE_URL = import.meta.env.VITE_AUTH_API_URL || "http://localhost:8080";
+const AUTH_BASE_URL = import.meta.env.VITE_AUTH_API_URL ?? "";
 const MEDICATION_BASE_URL = import.meta.env.VITE_MEDICATION_API_URL || "http://localhost:8081";
 const CONSULTATION_BASE_URL = import.meta.env.VITE_CONSULTATION_API_URL || "http://localhost:8082";
 const AI_BASE_URL = import.meta.env.VITE_AI_API_URL || "http://localhost:8000";

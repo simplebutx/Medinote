@@ -13,6 +13,7 @@ function useLogin() {
         refreshToken: data.refreshToken,
         role: data.role,
         userId: data.userId,
+        status: data.status ?? null,
       });
     },
   });
