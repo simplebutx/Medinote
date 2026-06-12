@@ -40,6 +40,8 @@ services:
     build:
       context: ./backend-medication
     container_name: medinote-backend-medication
+    env_file:
+      - .env
     environment:
       SPRING_PROFILES_ACTIVE: docker
       MYSQL_HOST: ${MYSQL_HOST}
@@ -53,6 +55,8 @@ services:
     build:
       context: ./backend-consultation
     container_name: medinote-backend-consultation
+    env_file:
+      - .env
     ports:
       - "8082:8082"
     restart: always
@@ -62,6 +66,8 @@ services:
     build:
       context: ./ai-server
     container_name: medinote-ai-server
+    env_file:
+      - .env
     ports:
       - "8000:8000"
     restart: always
