@@ -41,7 +41,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         // 리액트가 돌아가는 5173 포트를 허용합니다.
-        configuration.setAllowedOrigins(List.of("http://localhost:5173","http://localhost:5174","http://medinote-team-frontend.s3-website.ap-northeast-2.amazonaws.com"));
+        configuration.setAllowedOrigins(List.of("http://localhost:5173","http://localhost:5174","https://d3s9d84ez4sxzx.cloudfront.net"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

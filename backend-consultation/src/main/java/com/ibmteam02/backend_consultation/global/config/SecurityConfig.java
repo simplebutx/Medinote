@@ -36,7 +36,8 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(List.of(
                 "http://localhost:*",
                 "http://192.168.*:*",
-                "http://medinote-team-frontend.s3-website.ap-northeast-2.amazonaws.com"
+                "http://medinote-team-frontend.s3-website.ap-northeast-2.amazonaws.com",
+                "https://d3s9d84ez4sxzx.cloudfront.net"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
