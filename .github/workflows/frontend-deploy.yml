@@ -28,10 +28,10 @@ jobs:
       - name: Create .env.production file
         working-directory: ./frontend
         run: |
-          echo "VITE_AUTH_API_URL=https://d3s9d84ez4sxzx.cloudfront.net/auth" > .env.production
-          echo "VITE_MEDICATION_API_URL=https://d3s9d84ez4sxzx.cloudfront.net/medication" >> .env.production
-          echo "VITE_CONSULTATION_API_URL=https://d3s9d84ez4sxzx.cloudfront.net/consultation" >> .env.production
-          echo "VITE_AI_API_URL=https://d3s9d84ez4sxzx.cloudfront.net/ai" >> .env.production
+          echo "VITE_AUTH_API_URL=https://d3s9d84ez4sxzx.cloudfront.net" > .env.production
+          echo "VITE_MEDICATION_API_URL=https://d3s9d84ez4sxzx.cloudfront.net" >> .env.production
+          echo "VITE_CONSULTATION_API_URL=https://d3s9d84ez4sxzx.cloudfront.net" >> .env.production
+          echo "VITE_AI_API_URL=https://d3s9d84ez4sxzx.cloudfront.net" >> .env.production
 
       - name: Build
         working-directory: ./frontend
