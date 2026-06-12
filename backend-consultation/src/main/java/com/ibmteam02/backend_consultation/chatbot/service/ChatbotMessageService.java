@@ -11,7 +11,6 @@ import com.ibmteam02.backend_consultation.chatbot.dto.ChatbotMessageRequest;
 import com.ibmteam02.backend_consultation.chatbot.dto.ChatbotMessageResponse;
 import com.ibmteam02.backend_consultation.chatbot.dto.SenderType;
 import com.ibmteam02.backend_consultation.chatbot.filter.MessagePreprocessor;
-import com.ibmteam02.backend_consultation.chatbot.filter.RiskKeywordFilter;
 import com.ibmteam02.backend_consultation.chatbot.repository.ChatbotMessageRepository;
 import com.ibmteam02.backend_consultation.chatbot.repository.ChatbotRoomRepository;
 import com.ibmteam02.backend_consultation.medication.client.MedicationClient;
@@ -40,7 +39,6 @@ public class ChatbotMessageService {
     private final AiChatBotClient aiChatBotClient;
     private final MedicationClient medicationClient;
     private final MessagePreprocessor messagePreprocessor;
-    private final RiskKeywordFilter riskKeywordFilter;
     private final ChatbotIntentClassifier chatbotIntentClassifier;
 
     @Transactional
@@ -55,18 +53,16 @@ public class ChatbotMessageService {
             chatbotMessageRepository.save(ChatbotMessage.create(room, SenderType.USER, message));
             room.touch();
 
-            if (riskKeywordFilter.containsRiskKeyword(normalizedMessage)) {
-                ChatbotMessage savedBotMessage = chatbotMessageRepository.save(
-                        ChatbotMessage.create(room, SenderType.BOT, "응급 시 병원에 가셔야 해요.")
-                );
-                room.touch();
-                return toResponse(savedBotMessage);
-            }
-
             // @로 직접 선택한 약 이름
             List<String> extractedNames = extractMentionedMedicineNames(message);
-            ChatbotIntentResult intentResult = chatbotIntentClassifier.classify(normalizedMessage);  // 스케쥴인지 약인지 판별
-            boolean scheduleQuestion = intentResult.isScheduleQuestion();  // 스케쥴인지
+            ChatbotIntentResult intentResult = chatbotIntentClassifier.classify(normalizedMessage, extractedNames);  // intent 판별
+
+            // 질문 intent type
+            String questionType = switch (intentResult.questionType()) {
+                case SCHEDULE -> "schedule";
+                case DRUG_INFO -> "drug_info";
+                case UNKNOWN -> "unknown";
+            };
             List<String> scheduleRequestDetails = intentResult.scheduleRequestDetails();  // 스케쥴이면 스케쥴db 조회
             String scheduleContext = buildScheduleContext(userId, extractedNames, scheduleRequestDetails);  // llm 한테 넘길 컨텍스트
 
@@ -76,7 +72,7 @@ public class ChatbotMessageService {
                     normalizedMessage,
                     extractedNames,
                     userId,
-                    scheduleQuestion ? "schedule" : "drug_info",
+                    questionType,
                     scheduleContext  // 스케쥴이면 스케쥴컨텍스트도 포함
             );
 
@@ -92,11 +88,11 @@ public class ChatbotMessageService {
             log.debug(
                     "추출된 약 이름: {}, questionType: {}",
                     extractedNames,
-                    scheduleQuestion ? "schedule" : "drug_info"
+                    questionType
             );
 
             ChatbotMessage savedBotMessage = chatbotMessageRepository.save(
-                    ChatbotMessage.create(room, SenderType.BOT, aiResponse.answer())
+                    ChatbotMessage.create(room, SenderType.BOT, aiResponse.answer(), aiResponse.answerType())
             );
             room.touch();
             return toResponse(savedBotMessage);  // ai(8000) -> consultation(8082)
@@ -192,6 +188,7 @@ public class ChatbotMessageService {
         return new ChatbotMessageResponse(
                 message.getId(),
                 message.getContent(),
+                message.getAnswerType() == null || message.getAnswerType().isBlank() ? "NORMAL" : message.getAnswerType(),
                 message.getChatbotRoom().getId(),
                 message.getSenderType().name(),
                 message.getContent(),

@@ -2,7 +2,12 @@ import logging
 
 from app.schemas.chatbot import AiChatBotRequest, AiChatBotResponse
 from app.services.chatbot.document_search_service import search_relevant_documents
-from app.services.chatbot.llm_answer_service import generate_answer_from_context
+from app.services.chatbot.llm_classify_chatbot_intent import classify_chatbot_intent
+from app.services.chatbot.llm_answer_service import (
+    ANSWER_TYPE_FALLBACK,
+    ANSWER_TYPE_NORMAL,
+    generate_answer_from_context,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -10,10 +15,30 @@ logger = logging.getLogger(__name__)
 def generate_chatbot_answer(request: AiChatBotRequest) -> AiChatBotResponse:
     raw_text = request.message
     drug_names = request.extractedNames
-    question_type = request.questionType or "drug_info"
+    question_type = request.questionType
     schedule_context = (request.scheduleContext or "").strip()
 
-    # 스케쥴 관련 질문이면
+    # ================= question_type == unknown ================
+    if question_type == "unknown":
+        classified_intent = classify_chatbot_intent(raw_text)  # 질문의도 판별기에 보내기
+        logger.info(
+            "classified unknown chatbot question: intent=%s question=%s",
+            classified_intent,
+            raw_text,
+        )
+
+        # 스케쥴 관련인지 확인
+        if classified_intent == "schedule":
+            return AiChatBotResponse(
+                answer="복약 일정 관련 질문으로 보여요. 오늘 먹을 약, 다음 복용 시간, 복용 기록처럼 조금 더 구체적으로 질문해 주세요."
+            )
+
+        # 나머지 
+        return AiChatBotResponse(
+            answer="저는 약 정보와 복약 일정 관련 질문만 도와드릴 수 있어요. 약 정보 질문은 약 이름을 @로 선택해서 함께 보내 주세요."
+        )
+
+    # ================= question_type == schedule ================
     if question_type == "schedule":
         if not schedule_context:
             return AiChatBotResponse(
@@ -21,19 +46,25 @@ def generate_chatbot_answer(request: AiChatBotRequest) -> AiChatBotResponse:
             )
 
         log_schedule_debug(raw_text=raw_text, schedule_context=schedule_context)
-        answer = generate_answer_from_context(
+        
+        # 스케쥴 최종 결과
+        answer_result = generate_answer_from_context(
             question=raw_text,
             results=[],
             schedule_context=schedule_context,
         )
-        return AiChatBotResponse(answer=answer)
+        return AiChatBotResponse(answer=answer_result.answer, answerType=answer_result.answer_type)
+    
+    # ============= question_type = drug_info =======================
 
     if not drug_names:
         return AiChatBotResponse(
-            answer="질문 내용을 조금 더 구체적으로 적어 주세요. 약 이름이나 복약 정보를 함께 알려주시면 더 정확하게 도와드릴 수 있어요."
+            answer="약 정보 질문은 약 이름을 @로 선택해서 함께 보내 주세요.",
+            answerType=ANSWER_TYPE_NORMAL,
         )
 
     answers: list[str] = []
+    answer_type = ANSWER_TYPE_NORMAL
 
     for drug_name in drug_names:
         debug_info: dict = {}
@@ -48,19 +79,26 @@ def generate_chatbot_answer(request: AiChatBotRequest) -> AiChatBotResponse:
         )
 
         # llm 한테 보낼 컨텍스트
-        answer = generate_answer_from_context(
+        answer_result = generate_answer_from_context(
             question=raw_text,
             results=results,
             drug_name=drug_name,
         )
+        # llm 답변
+        answer = answer_result.answer
+
+        # 문서에서 못찾은 경우
+        if answer_result.answer_type == ANSWER_TYPE_FALLBACK:
+            answer_type = ANSWER_TYPE_FALLBACK
+
         # 출처가 있으면 출처 표시
         source_text = format_sources(results)
-        if source_text and should_append_source(answer):
+        if answer_result.answer_type != ANSWER_TYPE_FALLBACK and source_text:
             answers.append(f"{answer}\n\n출처: {source_text}")
         else:
             answers.append(answer)
 
-    return AiChatBotResponse(answer="\n\n".join(answers))
+    return AiChatBotResponse(answer="\n\n".join(answers), answerType=answer_type)
 
 
 def log_search_debug(
@@ -111,15 +149,6 @@ def log_schedule_debug(raw_text: str, schedule_context: str) -> None:
             ]
         )
     )
-
-
-# 출처 붙일지 판별
-def should_append_source(answer: str) -> bool:
-    lowered = answer.lower()
-    impossible_markers = [
-        "답변드리기 어렵습니다",
-    ]
-    return not any(marker in lowered for marker in impossible_markers)
 
 
 # 출처 문구 정리

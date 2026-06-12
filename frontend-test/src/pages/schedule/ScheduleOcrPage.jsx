@@ -188,6 +188,7 @@ function ScheduleOcrPage() {
         setForm((prev) => applyOcrDraftToForm(prev, ocrDraft))
         setMessage('OCR 분석이 끝났고, 아래 스케줄 등록 칸에 값을 채워 두었습니다.')
       } else {
+        setForm(createDefaultScheduleForm())
         setMessage('OCR 분석은 끝났지만 자동 입력 가능한 구조화 결과는 찾지 못했습니다.')
       }
     } catch (error) {
@@ -274,13 +275,6 @@ function ScheduleOcrPage() {
             </div>
 
             <div className="schedule-ocr-result-panel">
-              <div className="schedule-ocr-result-card">
-                <span className="schedule-status-label">추출 텍스트</span>
-                <pre className="schedule-output">
-                  {ocrResult?.rawText || 'OCR 분석이 끝나면 여기에 추출한 텍스트가 표시됩니다.'}
-                </pre>
-              </div>
-
               <div className="schedule-ocr-result-card">
                 <span className="schedule-status-label">구조화 결과 JSON</span>
                 <pre className="schedule-output">
