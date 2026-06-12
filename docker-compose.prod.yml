@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # 1. 공용 대문 (API Gateway)
+  api-gateway:
+    image: nginx:1.27-alpine
+    container_name: medinote-api-gateway
+    volumes:
+      - ./infra/nginx/api-gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8090:80"
+    depends_on:
+      - backend-auth
+      - backend-medication
+      - backend-consultation
+    restart: always
+
+  # 2. 인증 서비스 (8080)
+  backend-auth:
+    build:
+      context: ./backend-auth
+    container_name: medinote-backend-auth
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-medic}
+      MYSQL_USERNAME: ${MYSQL_USERNAME}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # ... 나머지 환경변수들은 그대로 유지하세요
+    ports:
+      - "8080:8080"
+    restart: always
+
+  # 3. 복약 관리 서비스 (8081)
+  backend-medication:
+    build:
+      context: ./backend-medication
+    container_name: medinote-backend-medication
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_HOST: ${MYSQL_HOST}
+      # ...
+    ports:
+      - "8081:8081"
+    restart: always
+
+  # 4. 상담 서비스 (8082)
+  backend-consultation:
+    build:
+      context: ./backend-consultation
+    container_name: medinote-backend-consultation
+    ports:
+      - "8082:8082"
+    restart: always
+
+  # 5. AI 서버 (8000)
+  ai-server:
+    build:
+      context: ./ai-server
+    container_name: medinote-ai-server
+    ports:
+      - "8000:8000"
+    restart: always
+
+  # 6. 필수 인프라
+  redis:
+    image: redis:7-alpine
+    container_name: medinote-redis
+    restart: always
+
+  qdrant:
+    image: qdrant/qdrant:v1.18.1
+    container_name: medinote-qdrant
+    volumes:
+      - qdrant-data:/qdrant/storage
+    restart: always
+
+volumes:
+  qdrant-data:
+  redis-data:
