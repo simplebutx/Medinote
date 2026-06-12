@@ -23,7 +23,7 @@ function PharmacistAdditionalInfoStep({
 
   const handleSubmit = () => {
     if (!docNumber || !licenseNumber || !licenseImage) {
-      toast.error("문서번호, 면허번호, 면허증 이미지를 모두 입력해주세요.");
+      toast.error("소속 약국, 면허번호, 면허증 이미지를 모두 입력해주세요.");
       return;
     }
 
@@ -59,8 +59,8 @@ function PharmacistAdditionalInfoStep({
 
       <div className="mt-6 space-y-6">
         <Input
-          label="문서번호"
-          placeholder="문서번호를 입력하세요"
+          label="소속 약국명"
+          placeholder="소속된 약국을 입력하세요"
           value={docNumber}
           onChange={(event) => setDocNumber(event.target.value)}
         />

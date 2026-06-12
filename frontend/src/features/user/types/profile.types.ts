@@ -47,6 +47,11 @@ export interface UserProfile {
   docNumber?: string | null;
   licenseNumber?: string | null;
   licenseImage?: string | null;
+
+  isChild?: boolean | null;
+  is_child?: boolean | null;
+  isElderly?: boolean | null;
+  is_elderly?: boolean | null;
 }
 
 export interface UpdateMyProfileRequest {
@@ -57,6 +62,8 @@ export interface UpdateMyProfileRequest {
   isBreastfeeding?: boolean;
   isSmoking?: boolean;
   isDrinking?: boolean;
+  isChild?: boolean;
+  isElderly?: boolean;
   diseases?: string[];
 }
 

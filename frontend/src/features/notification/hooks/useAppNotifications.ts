@@ -13,8 +13,8 @@ import type { UserRole } from '../../../types/common.types';
 
 export const APP_NOTIFICATIONS_QUERY_KEY = ['app-notifications'];
 
-const ENABLE_MEDICATION_NOTIFICATIONS = false;
-const ENABLE_CONSULTATION_NOTIFICATIONS = false;
+const ENABLE_MEDICATION_NOTIFICATIONS = true;
+const ENABLE_CONSULTATION_NOTIFICATIONS = true;
 
 function mapMedicationNotification(
   notification: MedicationNotification,

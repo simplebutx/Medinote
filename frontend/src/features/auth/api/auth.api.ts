@@ -11,6 +11,7 @@ import type {
   SendEmailVerificationCodeResponse,
   SignupRequest,
   SignupResponse,
+  SocialProfileUpdateRequest,
   UserAdditionalInfoRequest,
   UserAdditionalInfoResponse,
   VerifyEmailCodeRequest,
@@ -98,18 +99,27 @@ export const logout = async () => {
 };
 
 export const signupUserAdditionalInfo = async (
-  body: UserAdditionalInfoRequest
+  body: UserAdditionalInfoRequest,
+  accessToken?: string,
 ) => {
   const response = await authInstance.post<UserAdditionalInfoResponse>(
     "/api/auth/user/profile",
-    body
+    body,
+    accessToken
+      ? {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      : undefined,
   );
 
   return response.data;
 };
 
 export const requestPharmacistVerification = async (
-  body: PharmacistVerificationRequest
+  body: PharmacistVerificationRequest,
+  accessToken?: string,
 ) => {
   const formData = new FormData();
 
@@ -131,8 +141,32 @@ export const requestPharmacistVerification = async (
   const response =
     await authInstance.post<PharmacistVerificationResponse>(
       "/api/auth/pharmacists/verification",
-      formData
+      formData,
+      accessToken
+        ? {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        : undefined,
     );
+
+  return response.data;
+};
+
+export const updateSocialProfile = async (
+  body: SocialProfileUpdateRequest,
+  accessToken: string,
+) => {
+  const response = await authInstance.patch<string>(
+    "/api/auth/me",
+    body,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
 
   return response.data;
 };

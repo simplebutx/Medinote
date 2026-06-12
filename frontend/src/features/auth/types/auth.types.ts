@@ -63,6 +63,7 @@ export interface LoginResponse {
   refreshToken: string;
   role: UserRole;
   userId: number;
+  status?: string | null;
 }
 
 export interface RefreshTokenRequest {
@@ -84,6 +85,8 @@ export interface UserAdditionalInfoRequest {
   isBreastfeeding: boolean;
   isSmoking: boolean;
   isDrinking: boolean;
+  isChild?: boolean;
+  isElderly?: boolean;
   diseaseNames: string[];
 }
 
@@ -102,4 +105,11 @@ export interface PharmacistVerificationRequest {
 export interface PharmacistVerificationResponse {
   userId: number;
   status: UserStatus;
+}
+
+export interface SocialProfileUpdateRequest {
+  username: string;
+  birthDate: string;
+  gender: Gender;
+  role: Exclude<UserRole, "ADMIN">;
 }

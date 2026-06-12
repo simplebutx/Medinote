@@ -52,6 +52,7 @@ export const useConsultSocket = ({
   const accessToken = useUserStore((state) => state.accessToken);
 
   const clientRef = useRef<Client | null>(null);
+  const receivedMessageKeysRef = useRef<Set<string>>(new Set());
   const [isConnected, setIsConnected] = useState(false);
 
   const senderId = useMemo(() => {
@@ -62,6 +63,10 @@ export const useConsultSocket = ({
     if (!enabled || !roomId || !accessToken) {
       return;
     }
+
+    const receivedMessageKeys = receivedMessageKeysRef.current;
+
+    receivedMessageKeys.clear();
 
     const client = new Client({
       webSocketFactory: () =>
@@ -74,14 +79,28 @@ export const useConsultSocket = ({
       onConnect: () => {
         setIsConnected(true);
 
-        client.subscribe(`/topic/chat/room/${roomId}`, (frame) => {
+        const handleMessageFrame = (frame: { body: string }) => {
+          const messageKey = frame.body;
+
+          if (receivedMessageKeys.has(messageKey)) {
+            return;
+          }
+
+          receivedMessageKeys.add(messageKey);
+          window.setTimeout(() => {
+            receivedMessageKeys.delete(messageKey);
+          }, 1000);
+
           try {
             const parsedMessage = JSON.parse(frame.body) as ConsultSocketMessage;
             onMessage?.(parsedMessage);
           } catch (error) {
             console.error('상담 메시지 파싱 실패:', error);
           }
-        });
+        };
+
+        client.subscribe(`/topic/chat/room/${roomId}`, handleMessageFrame);
+        client.subscribe(`/topic/room/${roomId}`, handleMessageFrame);
 
         client.publish({
           destination: '/app/consult/message',
@@ -111,6 +130,7 @@ export const useConsultSocket = ({
 
     return () => {
       setIsConnected(false);
+      receivedMessageKeys.clear();
       client.deactivate();
       clientRef.current = null;
     };

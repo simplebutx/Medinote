@@ -65,6 +65,10 @@ export const getMedicineSyncStatus = async () => {
 export const syncMedicines = async () => {
   const response = await medicationInstance.post<MedicineSyncResult | string>(
     '/api/medicines/sync',
+    undefined,
+    {
+      timeout: 300000,
+    },
   );
 
   return response.data;
