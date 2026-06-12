@@ -5,13 +5,14 @@ import com.ibmteam02.backend_medication.ai.dto.AiOcrRequest;
 import com.ibmteam02.backend_medication.ai.dto.AiOcrResponse;
 import com.ibmteam02.backend_medication.global.exception.ForbiddenException;
 import com.ibmteam02.backend_medication.global.exception.ResourceNotFoundException;
+import com.ibmteam02.backend_medication.prescription.cache.OcrResultCache;
+import com.ibmteam02.backend_medication.prescription.cache.OcrResultCacheRepository;
 import com.ibmteam02.backend_medication.prescription.config.S3StorageProperties;
-import com.ibmteam02.backend_medication.prescription.domain.OcrResult;
 import com.ibmteam02.backend_medication.prescription.dto.PrescriptionOcrResponse;
-import com.ibmteam02.backend_medication.prescription.repository.OcrResultRepository;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClientException;
 import software.amazon.awssdk.services.s3.S3Client;
 import tools.jackson.databind.JsonNode;
@@ -21,75 +22,70 @@ import tools.jackson.databind.node.ObjectNode;
 @Service
 @RequiredArgsConstructor
 public class PrescriptionOcrService {
-    private static final String OCR_ENGINE_NAME = "google-vision-document-text-detection";
 
-    private final OcrResultRepository ocrResultRepository;
+    private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
+
+    private final OcrResultCacheRepository ocrResultCacheRepository;
     private final AiOcrClient aiOcrClient;
     private final MedicineNameMatchService medicineMatchService;
     private final ObjectMapper objectMapper;
     private final S3Client s3Client;
     private final S3StorageProperties s3StorageProperties;
 
-    // 업로드한 사진에 대해 ocr 실행
-    @Transactional
+    // ocr 실행
     public PrescriptionOcrResponse runOcr(Long userId, Long ocrResultId) {
         if (userId == null) {
             throw new ForbiddenException("Authenticated user is required.");
         }
 
-        OcrResult ocrResult = ocrResultRepository.findByIdAndUserId(ocrResultId, userId)
-                .orElseThrow(() -> new ResourceNotFoundException("OCR result not found."));
+        // Redis 조회
+        OcrResultCache ocrResult = ocrResultCacheRepository.findById(ocrResultId);
+        if (ocrResult == null) {
+            throw new ResourceNotFoundException("OCR result not found.");
+        }
+        if (!userId.equals(ocrResult.userId())) {
+            throw new ForbiddenException("OCR result is not owned by the authenticated user.");
+        }
 
-        ocrResult.markProcessing(OCR_ENGINE_NAME);
+        // 상태값 변경 + 재저장
+        ocrResult = ocrResult.processing(now());
+        ocrResultCacheRepository.save(ocrResult);
 
         try {
-            AiOcrResponse aiResponse = aiOcrClient.analyzePrescription(   // 8081 -> 8000 -> 8081 (AI 서버에 요청)
-                    new AiOcrRequest(ocrResult.getId(), userId, ocrResult.getImageKey())
+            // ai server에 요청
+            AiOcrResponse aiResponse = aiOcrClient.analyzePrescription(
+                    new AiOcrRequest(ocrResult.ocrResultId(), userId, ocrResult.imageKey())
             );
 
-            String updatedResultJson = addMatchedName(aiResponse.resultJson());   // 매칭된 ocr 약명들을 비교후, result JSON에 추가 (최종 리턴할 json)
+            // 서버가 준 ocr 결과에 matchedName 추가
+            String updatedResultJson = addMatchedName(aiResponse.resultJson());
+            // 상태값 변경 + 재저장
+            ocrResult = ocrResult.success(updatedResultJson, now());
+            ocrResultCacheRepository.save(ocrResult);
 
-            // 상태값 바꾸고 결과 ocrResult에 저장
-            ocrResult.markSuccess(aiResponse.rawText(), updatedResultJson, aiResponse.ocrEngine());
-
-            // ocr 성공 시 s3에 저장된 이미지 삭제 (개인정보)
-            if (ocrResult.getImageKey() != null && !ocrResult.getImageKey().isBlank()) {
+            // s3에 업로드했던 처방전 이미지 삭제
+            String imageKey = ocrResult.imageKey();
+            if (imageKey != null && !imageKey.isBlank()) {
                 s3Client.deleteObject(builder -> builder
                         .bucket(s3StorageProperties.bucket())
-                        .key(ocrResult.getImageKey()));
+                        .key(imageKey));
             }
 
-
-            return toResponse(ocrResult, aiResponse.preprocessedImageDataUrl());
+            return toResponse(ocrResult);
         } catch (RestClientException exception) {
-            ocrResult.markFailed(exception.getMessage(), OCR_ENGINE_NAME);
-            return toResponse(ocrResult, null);
+            ocrResult = ocrResult.failed(exception.getMessage(), now());
+            ocrResultCacheRepository.save(ocrResult);
+            return toResponse(ocrResult);
         } catch (RuntimeException exception) {
-            ocrResult.markFailed(exception.getMessage(), OCR_ENGINE_NAME);
+            ocrResult = ocrResult.failed(exception.getMessage(), now());
+            ocrResultCacheRepository.save(ocrResult);
             throw exception;
         }
     }
 
-    // ocr 결과에서 약 이름 추출
-    private String extractFirstMedicineName(String resultJson) {
-        try {
-            JsonNode root = objectMapper.readTree(resultJson);
-            JsonNode medicines = root.path("medicines");
-
-            if (!medicines.isArray() || medicines.isEmpty()) {
-                return null;
-            }
-
-            return medicines.get(0).path("name").asText(null);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Failed to parse OCR resultJson", e);
-        }
-    }
-
-    // 매칭된 이름들을 최종결과 json에 포함
+    // ocr 결과에서 약이름 추출 (db와 매칭)
     private String addMatchedName(String resultJson) {
         try {
-            ObjectMapper objectMapper = new ObjectMapper();
             ObjectNode root = (ObjectNode) objectMapper.readTree(resultJson);
 
             JsonNode medicinesNode = root.path("medicines");
@@ -97,7 +93,6 @@ public class PrescriptionOcrService {
                 return resultJson;
             }
 
-            // 약 이름 하나씩 대조함수에 넣기
             for (JsonNode medicineNode : medicinesNode) {
                 if (!(medicineNode instanceof ObjectNode medicineObject)) {
                     continue;
@@ -112,21 +107,20 @@ public class PrescriptionOcrService {
 
             return objectMapper.writeValueAsString(root);
         } catch (Exception e) {
-            throw new IllegalArgumentException("matchedName 추가 실패", e);
+            throw new IllegalArgumentException("Failed to add matchedName to OCR result.", e);
         }
     }
 
-    // preprocessedImageDataUrl 은 디거빙용 (db 저장 x)
-    private PrescriptionOcrResponse toResponse(OcrResult ocrResult, String preprocessedImageDataUrl) {
+    private PrescriptionOcrResponse toResponse(OcrResultCache ocrResult) {
         return new PrescriptionOcrResponse(
-                ocrResult.getId(),
-                ocrResult.getImageKey(),
-                ocrResult.getRawText(),
-                ocrResult.getResultJson(),
-                ocrResult.getOcrEngine(),
-                preprocessedImageDataUrl,
-                ocrResult.getStatus(),
-                ocrResult.getErrorMessage()
+                ocrResult.ocrResultId(),
+                ocrResult.resultJson(),
+                ocrResult.status(),
+                ocrResult.errorMessage()
         );
+    }
+
+    private LocalDateTime now() {
+        return LocalDateTime.now(SCHEDULE_ZONE);
     }
 }

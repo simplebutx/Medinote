@@ -243,6 +243,13 @@ function MedicationRegisterPage() {
         })
         setMessage('OCR 분석 결과를 기반으로 입력칸을 채웠습니다. 저장 전 내용을 확인해 주세요.')
       } else {
+        const emptyForm = createDefaultScheduleForm()
+        setForm({
+          ...emptyForm,
+          medicines: emptyForm.medicines.map((medicine) =>
+            applyPresetTimesToMedicine(medicine, medicationTimePresets),
+          ),
+        })
         setMessage('OCR 결과를 읽었지만 자동으로 채울 수 있는 구조화 데이터가 부족합니다.')
       }
     } catch (error) {
@@ -336,22 +343,6 @@ function MedicationRegisterPage() {
               ) : null}
             </div>
 
-            {/*
-              <div className="register-ocr-panel">
-                <h2>추출 텍스트</h2>
-                <pre>{ocrResult?.rawText || '분석 결과가 여기에 표시됩니다.'}</pre>
-              </div>
-              <div className="register-ocr-panel">
-                <h2>구조화 결과</h2>
-                <pre>{ocrResult?.resultJson || '구조화된 OCR 결과가 여기에 표시됩니다.'}</pre>
-              </div>
-            </div> : (
-              selectedPreviewUrl ? (
-                <img className="register-preview-image" src={selectedPreviewUrl} alt="OCR preview" />
-              ) : (
-                <div className="register-preview-empty">이미지를 선택하면 미리보기가 표시됩니다.</div>
-              )
-            */}
           </div>
         ) : null}
 

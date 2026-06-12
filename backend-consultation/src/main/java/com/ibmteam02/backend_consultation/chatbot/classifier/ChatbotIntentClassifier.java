@@ -10,21 +10,26 @@ import org.springframework.stereotype.Component;
 public class ChatbotIntentClassifier {
 
     private static final List<String> SCHEDULE_KEYWORDS = List.of(
-            "오늘먹어야하는약","오늘약먹었는지","약먹었는지","복약일정",
+            "오늘먹어야하는약","오늘약먹었는지","약먹었는지","복약일정","오늘먹을약",
             "복용일정","복용기록","복약기록","현재복용","지금복용","먹고있는약",
             "먹는약","다음복용","언제먹어","복용현황","약체크","복약체크"
     );
 
     // DRUG_INFO, SCHEDULE 판별
-    public ChatbotIntentResult classify(String normalizedMessage) {
-        if (!containsScheduleKeywords(normalizedMessage)) {
+// 1. SCHEDULE인지 먼저 판별
+// 2. 아니면 약 이름이 추출됐는지 확인
+// 3. 약 이름이 있으면 DRUG_INFO
+// 4. 둘 다 아니면 UNKNOWN으로 FastAPI에 보내서 LLM classifier에게 맡김
+    public ChatbotIntentResult classify(String normalizedMessage, List<String> extractedNames) {
+        if (containsScheduleKeywords(normalizedMessage)) {
+            return new ChatbotIntentResult(ChatbotIntentType.SCHEDULE, extractScheduleRequestDetails(normalizedMessage));
+        }
+
+        if (extractedNames != null && !extractedNames.isEmpty()) {
             return new ChatbotIntentResult(ChatbotIntentType.DRUG_INFO, List.of());
         }
 
-        return new ChatbotIntentResult(
-                ChatbotIntentType.SCHEDULE,
-                extractScheduleRequestDetails(normalizedMessage)
-        );
+        return new ChatbotIntentResult(ChatbotIntentType.UNKNOWN, List.of());
     }
 
     // 스케쥴 관련 키워드 있는지 체크

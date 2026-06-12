@@ -1,13 +1,15 @@
 package com.ibmteam02.backend_medication.prescription.service;
 
 import com.ibmteam02.backend_medication.prescription.config.S3StorageProperties;
-import com.ibmteam02.backend_medication.prescription.domain.OcrResult;
+import com.ibmteam02.backend_medication.prescription.cache.OcrResultCache;
+import com.ibmteam02.backend_medication.prescription.cache.OcrResultCacheRepository;
 import com.ibmteam02.backend_medication.prescription.domain.OcrResultStatus;
 import com.ibmteam02.backend_medication.prescription.dto.PrescriptionUploadUrlRequest;
 import com.ibmteam02.backend_medication.prescription.dto.PrescriptionUploadUrlResponse;
-import com.ibmteam02.backend_medication.prescription.repository.OcrResultRepository;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -25,6 +27,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 public class PrescriptionUploadService {
 
     private static final String DEFAULT_REGION = "ap-northeast-2";
+    private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "image/jpeg",
             "image/jpg",
@@ -36,8 +39,9 @@ public class PrescriptionUploadService {
 
     private final S3Presigner s3Presigner;
     private final S3StorageProperties s3StorageProperties;
-    private final OcrResultRepository ocrResultRepository;
+    private final OcrResultCacheRepository ocrResultCacheRepository;
 
+    // presigned url 발급
     @Transactional
     public PrescriptionUploadUrlResponse createUploadUrl(Long userId, PrescriptionUploadUrlRequest request) {
         validateUserId(userId);
@@ -45,13 +49,18 @@ public class PrescriptionUploadService {
         validateContentType(request.contentType());
 
         String key = buildObjectKey(userId, request.fileName());
-        OcrResult ocrResult = ocrResultRepository.save(
-                OcrResult.builder()
-                        .userId(userId)
-                        .imageKey(key)
-                        .status(OcrResultStatus.PRESIGNED_ISSUED)
-                        .build()
-        );
+        Long ocrResultId = ocrResultCacheRepository.nextId();
+        LocalDateTime now = LocalDateTime.now(SCHEDULE_ZONE);
+        ocrResultCacheRepository.save(new OcrResultCache(
+                ocrResultId,
+                userId,
+                key,
+                null,
+                OcrResultStatus.PRESIGNED_ISSUED,
+                null,
+                now,
+                now
+        ));
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(s3StorageProperties.bucket())
                 .key(key)
@@ -65,7 +74,7 @@ public class PrescriptionUploadService {
         );
 
         return new PrescriptionUploadUrlResponse(
-                ocrResult.getId(),
+                ocrResultId,
                 presignedRequest.url().toString(),
                 key,
                 null,
@@ -73,6 +82,7 @@ public class PrescriptionUploadService {
         );
     }
 
+    // ================ 검증  ===============
     private void validateUserId(Long userId) {
         if (userId == null) {
             throw new IllegalArgumentException("Authenticated user is required.");
@@ -94,6 +104,7 @@ public class PrescriptionUploadService {
         }
     }
 
+    // S3에 저장할 파일 경로 빌드
     private String buildObjectKey(Long userId, String fileName) {
         LocalDate today = LocalDate.now();
         String sanitizedFileName = sanitizeFileName(fileName);
@@ -112,6 +123,7 @@ public class PrescriptionUploadService {
         );
     }
 
+    // 파일명 정리
     private String sanitizeFileName(String fileName) {
         if (!StringUtils.hasText(fileName)) {
             return "prescription.jpg";

@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class ChatbotMessageResponse {
     private Long messageId;
     private String answer;
+    private String answerType;
     private Long roomId;
     private String senderType;
     private String content;
@@ -18,6 +19,7 @@ public class ChatbotMessageResponse {
     public ChatbotMessageResponse(String answer) {
         this.messageId = null;
         this.answer = answer;
+        this.answerType = "NORMAL";
         this.roomId = null;
         this.senderType = null;
         this.content = null;

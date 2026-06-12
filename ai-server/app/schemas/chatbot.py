@@ -7,9 +7,10 @@ class AiChatBotRequest(BaseModel):
     normalizedMessage: str = Field(..., description="Preprocessed user message")
     extractedNames: list[str] = Field(default_factory=list)
     userId: int | None = Field(default=None, description="Authenticated user id")
-    questionType: str = Field(default="drug_info", description="drug_info or schedule")
+    questionType: str = Field(default="drug_info", description="drug_info, schedule, or unknown")
     scheduleContext: str = Field(default="", description="Schedule context built by Spring")
 
 
 class AiChatBotResponse(BaseModel):
     answer: str
+    answerType: str = Field(default="NORMAL", description="NORMAL or FALLBACK")

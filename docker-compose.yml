@@ -28,6 +28,15 @@ services:
       timeout: 5s
       retries: 10
 
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: mymedi-redisinsight
+    ports:
+      - "5540:5540"
+    depends_on:
+      redis:
+        condition: service_healthy
+
   qdrant:
     image: qdrant/qdrant:v1.18.1
     container_name: mymedi-qdrant
@@ -199,6 +208,8 @@ services:
       AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-}
       AWS_S3_PRESCRIPTION_PREFIX: ${AWS_S3_PRESCRIPTION_PREFIX:-prescriptions}
       AWS_PRESIGN_EXPIRATION_SECONDS: ${AWS_PRESIGN_EXPIRATION_SECONDS:-300}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -206,6 +217,8 @@ services:
       - "8081:8081"
     command: ["sh", "-c", "chmod +x gradlew && sed -i 's/\\r$//' gradlew && ./gradlew bootRun --no-daemon"]
     depends_on:
+      redis:
+        condition: service_healthy
       ai-server:
         condition: service_started
 

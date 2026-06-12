@@ -11,6 +11,10 @@ spring:
       hibernate:
         format_sql: true
     show-sql: true
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
 
 public-data:
   service-key: ${PUBLIC_DATA_SERVICE_KEY:}

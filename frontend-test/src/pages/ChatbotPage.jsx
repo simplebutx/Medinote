@@ -113,6 +113,7 @@ function mapMessage(message) {
     sender: message.senderType === 'USER' ? 'USER' : 'AI',
     time: formatMessageTime(message.createdAt),
     content: message.content || message.answer || '',
+    answerType: message.answerType ?? 'NORMAL',
   }
 }
 
@@ -662,7 +663,9 @@ function ChatbotPage() {
                         <div className="chat-message-label">AI 의약품 정보 도우미</div>
                       </div>
                       <div className="chat-bubble">
-                        <p>복용 중인 약에 대한 질문, 복약 정보 확인, 주의 성분 확인까지 도와드릴게요.</p>
+                        <p>복용중인 약 정보와 복약 일정에 대해 궁금한 점을 물어보세요.
+
+                            응급 증상, 심각한 부작용, 과다복용 등의 위험이 있다면 즉시 가까운 병원에 도움을 요청해 주세요.</p>
                       </div>
                       <div className="chat-intro-actions">
                         {introExampleQuestions.map((question) => (
@@ -720,7 +723,9 @@ function ChatbotPage() {
                             const { body, source } = splitChatContent(chat.content)
                             const previousUserQuestion = chat.sender === 'AI' ? findPreviousUserQuestion(messages, index) : ''
                             const showConsultAction =
-                              chat.sender === 'AI' && isInconclusiveAnswer(body) && Boolean(previousUserQuestion)
+                              chat.sender === 'AI' &&
+                              (chat.answerType === 'FALLBACK' || isInconclusiveAnswer(body)) &&
+                              Boolean(previousUserQuestion)
                             const displayBody = showConsultAction ? FALLBACK_DISPLAY_MESSAGE : body
 
                             return (

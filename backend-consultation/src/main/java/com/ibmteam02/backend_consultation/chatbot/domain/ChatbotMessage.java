@@ -39,6 +39,9 @@ public class ChatbotMessage {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @Column(name = "answer_type")
+    private String answerType = "NORMAL";
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -46,14 +49,33 @@ public class ChatbotMessage {
         this.chatbotRoom = chatbotRoom;
         this.senderType = senderType;
         this.content = content;
+        this.answerType = "NORMAL";
+    }
+
+    private ChatbotMessage(ChatbotRoom chatbotRoom, SenderType senderType, String content, String answerType) {
+        this.chatbotRoom = chatbotRoom;
+        this.senderType = senderType;
+        this.content = content;
+        this.answerType = normalizeAnswerType(answerType);
     }
 
     public static ChatbotMessage create(ChatbotRoom chatbotRoom, SenderType senderType, String content) {
         return new ChatbotMessage(chatbotRoom, senderType, content);
     }
 
+    public static ChatbotMessage create(ChatbotRoom chatbotRoom, SenderType senderType, String content, String answerType) {
+        return new ChatbotMessage(chatbotRoom, senderType, content, answerType);
+    }
+
     public void updateContent(String content) {
         this.content = content;
+    }
+
+    private static String normalizeAnswerType(String answerType) {
+        if (answerType == null || answerType.isBlank()) {
+            return "NORMAL";
+        }
+        return answerType;
     }
 
     @PrePersist

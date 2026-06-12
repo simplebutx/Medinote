@@ -255,8 +255,10 @@ module lid_set() {
 // Parts
 // ------------------------------------------------------------
 module frame() {
-    frame_wall_h = tray_mount_z();
-    full_h = tray_full_h();
+    // The tray sits on top of the 2 mm frame floor, so the frame needs
+    // 43 mm of internal height plus the floor thickness.
+    frame_wall_h = tray_mount_z() + plate_th;
+    full_h = tray_full_h() + plate_th;
 
     difference() {
         union() {
@@ -346,10 +348,11 @@ module assembly() {
     color("#d9d9d9")
         frame();
 
-    pill_tray();
+    translate([0, 0, plate_th])
+        pill_tray();
 
     color("#eeeeee")
-        translate([0, 0, tray_mount_z()])
+        translate([0, 0, plate_th + tray_mount_z()])
             lid_set_local();
 }
 

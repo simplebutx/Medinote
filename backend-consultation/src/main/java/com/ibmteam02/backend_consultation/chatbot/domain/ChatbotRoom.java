@@ -48,6 +48,7 @@ public class ChatbotRoom {
         this.title = title;
     }
 
+    // 수정시간만 현재 시간으로 갱신 (파일 내용은 안바꿈) - 최근 대화한 방으로 올리는 의도
     public void touch() {
         this.updatedAt = LocalDateTime.now(SCHEDULE_ZONE);
     }
