@@ -11,6 +11,8 @@ import RoleRoute from './RoleRoute';
 import LandingPage from '../../pages/LandingPage/LandingPage';
 import LoginPage from '../../pages/LoginPage/LoginPage';
 import SignupPage from '../../pages/SignupPage/SignupPage';
+import OAuth2RedirectPage from '../../pages/OAuth2RedirectPage/OAuth2RedirectPage';
+import SocialExtraInfoPage from '../../pages/SocialExtraInfoPage/SocialExtraInfoPage';
 
 import SchedulePage from '../../pages/SchedulePage/SchedulePage';
 import OcrPage from '../../pages/OcrPage/OcrPage';
@@ -55,6 +57,14 @@ export const router = createBrowserRouter([
       {
         path: '/signup',
         element: <SignupPage />,
+      },
+      {
+        path: '/signup/extra-info',
+        element: <SocialExtraInfoPage />,
+      },
+      {
+        path: '/oauth2/redirect',
+        element: <OAuth2RedirectPage />,
       },
     ],
   },

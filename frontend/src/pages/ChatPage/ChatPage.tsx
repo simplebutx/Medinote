@@ -62,6 +62,15 @@ const initialAiMessages: ChatMessage[] = [
 const PHARMACIST_DRAFT_STORAGE_KEY = 'pendingPharmacistConsultQuestion';
 const PHARMACIST_GUIDE_MESSAGE =
   '입력하신 내용은 전문가의 확인이 필요해요. 약사 상담을 통해 확인해주세요.';
+const LEGACY_INCONCLUSIVE_ANSWER_MARKERS = [
+  '답변드리기 어렵습니다',
+  '확인할 수 없',
+  '확인이 어려',
+  '답변이 어려',
+  '정답을 드릴 수 없',
+  '문서에 포함되어 있지 않',
+  '직접 관련된 내용을 찾기 어려',
+];
 const PENDING_CONSULT_MESSAGE_LIMIT = 2;
 
 interface PharmacistDraftStorageValue {
@@ -125,9 +134,14 @@ function getMessageSortTime(createdAt?: string | null) {
 function getChatMessageSortTime(message: ChatMessage) {
   if (
     typeof message.sortTime === 'number' &&
-    Number.isFinite(message.sortTime)
+    Number.isFinite(message.sortTime) &&
+    message.sortTime > 0
   ) {
     return message.sortTime;
+  }
+
+  if (message.createdAt === '방금') {
+    return Number.MAX_SAFE_INTEGER;
   }
 
   const parsedTime = new Date(message.createdAt).getTime();
@@ -184,11 +198,24 @@ function getConsultRoomStatusDescription(status?: string) {
   return '약사 상담이 필요한 경우 상담 요청을 생성해주세요.';
 }
 
+function isLegacyDocumentFallback(message: ApiChatbotMessage) {
+  if (message.answerType) {
+    return false;
+  }
+
+  const answerText = message.answer ?? message.content ?? '';
+
+  return LEGACY_INCONCLUSIVE_ANSWER_MARKERS.some((marker) =>
+    answerText.includes(marker),
+  );
+}
+
 function mapApiChatbotMessageToChatMessage(
   message: ApiChatbotMessage,
   index: number,
 ): ChatMessage {
-  const isFallback = message.answerType === 'FALLBACK';
+  const isFallback =
+    message.answerType === 'FALLBACK' || isLegacyDocumentFallback(message);
 
   return {
     id: message.messageId ?? index + 1,
@@ -201,7 +228,7 @@ function mapApiChatbotMessageToChatMessage(
         '메시지 내용을 불러오지 못했습니다.',
     createdAt: formatChatTime(message.createdAt),
     sortTime: getMessageSortTime(message.createdAt),
-    answerType: message.answerType,
+    answerType: isFallback ? 'FALLBACK' : message.answerType,
   };
 }
 
@@ -643,8 +670,8 @@ function ChatPage() {
   const mergedAiMessages = useMemo(() => {
     return sortChatMessagesByTime(
       removeDuplicateChatMessages([
-        ...serverAiMessages,
         ...localAiMessages,
+        ...serverAiMessages,
       ]),
     );
   }, [localAiMessages, serverAiMessages]);
@@ -659,6 +686,16 @@ function ChatPage() {
 
       const messagesToKeep = currentMessages.filter((chat) => {
         if (chat.sender === 'SYSTEM') {
+          return true;
+        }
+
+        // 전송 응답에서 받은 FALLBACK 메타데이터와 상담 draft는
+        // 과거 메시지 조회 응답에 같은 정보가 없더라도 유지한다.
+        if (
+          chat.sender === 'AI' &&
+          chat.answerType === 'FALLBACK' &&
+          chat.escalationDraft
+        ) {
           return true;
         }
 
@@ -960,7 +997,8 @@ function ChatPage() {
           const answerText =
             data.answer || data.content || '응답 내용을 불러오지 못했습니다.';
 
-          const isFallback = data.answerType === 'FALLBACK';
+          const isFallback =
+            data.answerType === 'FALLBACK' || isLegacyDocumentFallback(data);
 
           const aiMessage: ChatMessage = {
             id: data.messageId ?? createMessageId(),
@@ -969,7 +1007,7 @@ function ChatPage() {
             content: isFallback ? PHARMACIST_GUIDE_MESSAGE : answerText,
             createdAt: data.createdAt ? data.createdAt.slice(11, 16) : '방금',
             sortTime: getMessageSortTime(data.createdAt),
-            answerType: data.answerType,
+            answerType: isFallback ? 'FALLBACK' : data.answerType,
             escalationDraft: isFallback
               ? buildPharmacistDraftText(question, drugs)
               : undefined,

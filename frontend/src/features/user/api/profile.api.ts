@@ -5,8 +5,17 @@ import type {
   UserProfile,
 } from '../types/profile.types';
 
-export const getMyProfile = async () => {
-  const response = await authInstance.get<UserProfile>('/api/auth/me');
+export const getMyProfile = async (accessToken?: string) => {
+  const response = await authInstance.get<UserProfile>(
+    '/api/auth/me',
+    accessToken
+      ? {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      : undefined,
+  );
 
   return response.data;
 };
