@@ -31,7 +31,7 @@ jobs:
             git pull origin main
             
             # 백엔드 서버 재빌드 및 실행
-            docker compose -f docker-compose.prod.yml up -d --build backend-auth backend-medication backend-consultation ai-server api-gateway qdrant redis
+             docker compose -f docker-compose.prod.yml up -d --build
             
             # 불필요한 이미지 찌꺼기 정리
             docker image prune -f
