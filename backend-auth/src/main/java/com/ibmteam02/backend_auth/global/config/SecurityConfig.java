@@ -35,7 +35,6 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    // 1. CORS 설정을 위한 빈 추가
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
