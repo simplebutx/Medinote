@@ -2289,6 +2289,359 @@ body {
   border: 1px solid #e2e8f0;
 }
 
+.smartpill-page {
+  max-width: 1040px;
+}
+
+.smartpill-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.smartpill-refresh-button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.smartpill-refresh-button:disabled {
+  color: #94a3b8;
+  cursor: wait;
+}
+
+.smartpill-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.smartpill-summary-card,
+.smartpill-slot-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+}
+
+.smartpill-summary-card {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+}
+
+.smartpill-summary-card span,
+.smartpill-slot-top small,
+.smartpill-slot-details dt {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.smartpill-summary-card strong {
+  color: #0f172a;
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.smartpill-connection-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) repeat(2, minmax(120px, 0.7fr));
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #eff6ff;
+}
+
+.smartpill-connection-panel div {
+  display: grid;
+  gap: 6px;
+}
+
+.smartpill-connection-panel span {
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.smartpill-connection-panel strong {
+  color: #0f172a;
+  font-size: 18px;
+}
+
+.smartpill-connection-panel p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #475569;
+  font-weight: 700;
+}
+
+.smartpill-detection-button {
+  min-height: 48px;
+  align-self: end;
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.smartpill-detection-button.secondary {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+}
+
+.smartpill-detection-button.danger {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.smartpill-detection-button:disabled {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.smartpill-error {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #be123c;
+  font-weight: 700;
+}
+
+.smartpill-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.smartpill-slot-card {
+  min-height: 330px;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 14px;
+  padding: 18px;
+}
+
+.smartpill-slot-card-present {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.smartpill-slot-card-empty {
+  border-color: #e2e8f0;
+}
+
+.smartpill-slot-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.smartpill-slot-top span {
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.smartpill-slot-assignment {
+  min-height: 86px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.smartpill-slot-assignment span {
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.smartpill-slot-assignment ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.smartpill-slot-assignment li,
+.smartpill-slot-assignment p {
+  margin: 0;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.smartpill-slot-assignment p {
+  color: #94a3b8;
+}
+
+.smartpill-slot-mark {
+  align-self: center;
+  justify-self: center;
+  color: #0f172a;
+  font-size: 88px;
+  line-height: 1;
+}
+
+.smartpill-slot-card-present .smartpill-slot-mark {
+  color: #15803d;
+}
+
+.smartpill-slot-details {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.smartpill-slot-details div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.smartpill-slot-details dd {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.smartpill-link-button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid #93c5fd;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.smartpill-link-button:disabled {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.smartpill-assignment-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.smartpill-assignment-modal {
+  width: min(720px, 100%);
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22);
+}
+
+.smartpill-assignment-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.smartpill-assignment-header p {
+  margin: 0 0 4px;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.smartpill-assignment-header h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 24px;
+}
+
+.smartpill-assignment-header button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.smartpill-assignment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.smartpill-assignment-message {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .smartpill-summary-grid,
+  .smartpill-connection-panel,
+  .smartpill-slot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .smartpill-page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .smartpill-summary-grid,
+  .smartpill-slot-grid,
+  .smartpill-connection-panel,
+  .smartpill-assignment-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .smartpill-slot-card {
+    min-height: 220px;
+  }
+
+  .smartpill-slot-mark {
+    font-size: 72px;
+  }
+}
+
 .app-muted-card {
   background: linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
 }

@@ -24,6 +24,7 @@ import ExtraInfo from './pages/ExtraInfo'
 import OAuth2Redirect from './pages/OAuth2Redirect'
 import SimplePlaceholderPage from './pages/SimplePlaceholderPage'
 import NotificationsPage from './pages/NotificationsPage'
+import SmartPillPage from './pages/SmartPillPage'
 import Sync from './pages/Sync'
 import YunjuTest from './pages/YunjuTest'
 import PharmacistDashboard from './pages/PharmacistDashboard'
@@ -95,6 +96,7 @@ function App() {
               />
             }
           />
+          <Route path="/app/iot" element={<SmartPillPage />} />
           <Route
             path="/app/iot"
             element={

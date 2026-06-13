@@ -43,7 +43,7 @@ constexpr uint8_t BUTTON_LED_PRESSED = 12;
 // Mux에 연결된 거리센서 포트
 // =====================
 constexpr uint8_t SENSOR_COUNT = 4;
-constexpr uint8_t MUX_PORTS[SENSOR_COUNT] = {0, 2, 3, 4};
+constexpr uint8_t MUX_PORTS[SENSOR_COUNT] = {3, 4, 6, 7};
 
 // Pill detection test target.
 // The current prototype has about 40mm of height above the sensor.
@@ -62,6 +62,7 @@ constexpr char SMARTPILL_DEVICE_ID[] = SECRET_SMARTPILL_DEVICE_ID;
 
 constexpr unsigned long WIFI_RETRY_INTERVAL_MS = 10000;
 constexpr unsigned long INTAKE_EVENT_COOLDOWN_MS = 5000;
+constexpr unsigned long STATUS_POST_INTERVAL_MS = 3000;
 
 // =====================
 // 객체 생성
@@ -89,6 +90,7 @@ unsigned long lastOledRefreshMs = 0;
 unsigned long lastSerialPrintMs = 0;
 unsigned long lastWifiAttemptMs = 0;
 unsigned long lastIntakeEventPostMs = 0;
+unsigned long lastStatusEventPostMs = 0;
 
 constexpr unsigned long SENSOR_INTERVAL_MS = 100;
 constexpr unsigned long OLED_INTERVAL_MS = 200;
@@ -121,6 +123,14 @@ bool isTargetPillPresent() {
   if (!sensorReady[targetIndex]) return false;
 
   int distance = latestDistances[targetIndex];
+  return distance >= PILL_PRESENT_MIN_MM && distance <= PILL_PRESENT_MAX_MM;
+}
+
+bool isPillPresentAtIndex(uint8_t sensorIndex) {
+  if (sensorIndex >= SENSOR_COUNT) return false;
+  if (!sensorReady[sensorIndex]) return false;
+
+  int distance = latestDistances[sensorIndex];
   return distance >= PILL_PRESENT_MIN_MM && distance <= PILL_PRESENT_MAX_MM;
 }
 
@@ -192,6 +202,28 @@ String buildSmartpillPayload(const char* eventType, bool pillPresent) {
   payload += String(targetDistanceMm());
   payload += ",\"pillPresent\":";
   payload += pillPresent ? "true" : "false";
+  payload += ",\"buttonClickCount\":";
+  payload += String(buttonClickCount);
+  payload += ",\"slots\":[";
+  for (uint8_t i = 0; i < SENSOR_COUNT; i++) {
+    payload += "{";
+    payload += "\"slotNumber\":";
+    payload += String(i + 1);
+    payload += ",\"muxPort\":";
+    payload += String(MUX_PORTS[i]);
+    payload += ",\"sensorReady\":";
+    payload += sensorReady[i] ? "true" : "false";
+    payload += ",\"distanceMm\":";
+    payload += String(sensorReady[i] ? latestDistances[i] : -1);
+    payload += ",\"pillPresent\":";
+    payload += isPillPresentAtIndex(i) ? "true" : "false";
+    payload += "}";
+
+    if (i < SENSOR_COUNT - 1) {
+      payload += ",";
+    }
+  }
+  payload += "]";
   payload += ",\"uptimeMs\":";
   payload += String(millis());
   payload += ",\"sequence\":";
@@ -227,6 +259,19 @@ bool postSmartpillEvent(const char* eventType, bool pillPresent) {
   Serial.println(responseBody);
 
   return responseCode >= 200 && responseCode < 300;
+}
+
+void postSmartpillStatusIfDue() {
+  if (!isTargetSensorReady()) {
+    return;
+  }
+
+  if (millis() - lastStatusEventPostMs < STATUS_POST_INTERVAL_MS) {
+    return;
+  }
+
+  lastStatusEventPostMs = millis();
+  postSmartpillEvent("SENSOR_STATUS", isTargetPillPresent());
 }
 
 void detectAndPostIntakeEvent() {
@@ -417,6 +462,7 @@ void initMuxAndSensors() {
 
     distanceSensors[i].setDistanceModeShort();
     distanceSensors[i].setTimingBudgetInMs(50);
+    distanceSensors[i].setROI(5, 5, 199);
     distanceSensors[i].startRanging();
 
     sensorReady[i] = true;
@@ -505,6 +551,7 @@ void setup() {
   logLine("Button press = LED slightly brighter.");
   logLine("Button click = click count up.");
   logLine("Button click = send BUTTON_TEST to Spring if WiFi is configured.");
+  logLine("Every 3 seconds = send 4-slot SENSOR_STATUS to Spring.");
   logLine("Pill present -> absent = send PILL_TAKEN to Spring.");
   logLine("");
 }
@@ -516,6 +563,7 @@ void loop() {
   readButton();
   readSensors();
   detectAndPostIntakeEvent();
+  postSmartpillStatusIfDue();
   refreshOled();
 
   if (millis() - lastSerialPrintMs >= SERIAL_INTERVAL_MS) {
