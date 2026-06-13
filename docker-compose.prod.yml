@@ -20,50 +20,121 @@ services:
     build:
       context: ./backend-auth
     container_name: medinote-backend-auth
-    env_file:
-      - .env
+    env_file: .env
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-medic}
+      MYSQL_USERNAME: ${MYSQL_USERNAME}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}
+      AWS_SECRET_KEY: ${AWS_SECRET_KEY}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+      COOLSMS_API_KEY: ${COOLSMS_API_KEY}
+      COOLSMS_API_SECRET: ${COOLSMS_API_SECRET}
+      COOLSMS_FROM_NUMBER: ${COOLSMS_FROM_NUMBER}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      NAVER_CLIENT_ID: ${NAVER_CLIENT_ID}
+      NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET}
+      KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID}
+      KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET}
     ports:
       - "8080:8080"
     restart: always
+    depends_on:
+      redis:
+        condition: service_started
 
   # 3. 복약 관리 서비스 (8081)
   backend-medication:
     build:
       context: ./backend-medication
     container_name: medinote-backend-medication
-    env_file:
-      - .env
+    env_file: .env
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-medic}
+      MYSQL_USERNAME: ${MYSQL_USERNAME}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      AI_SERVICE_BASE_URL: http://ai-server:8000
+      AUTH_SERVICE_BASE_URL: http://backend-auth:8080
+      PUBLIC_DATA_SERVICE_KEY: ${PUBLIC_DATA_SERVICE_KEY}
+      AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}
+      AWS_SECRET_KEY: ${AWS_SECRET_KEY}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "8081:8081"
     restart: always
+    depends_on:
+      redis:
+        condition: service_started
+      ai-server:
+        condition: service_started
 
   # 4. 상담 서비스 (8082)
   backend-consultation:
     build:
       context: ./backend-consultation
     container_name: medinote-backend-consultation
-    env_file:
-      - .env
+    env_file: .env
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-medic}
+      MYSQL_USERNAME: ${MYSQL_USERNAME}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      AI_SERVICE_BASE_URL: http://ai-server:8000
+      MEDICATION_SERVICE_BASE_URL: http://backend-medication:8081
     ports:
       - "8082:8082"
     restart: always
+    depends_on:
+      backend-medication:
+        condition: service_started
+      ai-server:
+        condition: service_started
 
   # 5. AI 서버 (8000)
   ai-server:
     build:
       context: ./ai-server
     container_name: medinote-ai-server
-    env_file:
-      - .env
+    env_file: .env
+    environment:
+      LLM_API_KEY: ${LLM_API_KEY}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION_NAME: medicine_docs
+      SCHEDULE_DB_HOST: ${MYSQL_HOST}
+      SCHEDULE_DB_PORT: ${MYSQL_PORT:-3306}
+      SCHEDULE_DB_NAME: ${MYSQL_DATABASE:-medic}
+      SCHEDULE_DB_USER: ${MYSQL_USERNAME}
+      SCHEDULE_DB_PASSWORD: ${MYSQL_PASSWORD}
     ports:
       - "8000:8000"
     restart: always
+    depends_on:
+      qdrant:
+        condition: service_started
 
   # 6. 필수 인프라
   redis:
