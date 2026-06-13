@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 
 import { Badge, Button, Card, Input } from '../../components/ui';
 import {
@@ -539,8 +540,10 @@ function ChatPage() {
         ...prev,
         [createdRoom.roomId]: initialAiMessages,
       }));
+      toast.success('새 대화방이 생성되었습니다.');
     } catch (error) {
       console.error('챗봇 대화방 생성 실패:', error);
+      toast.error('새 대화방 생성에 실패했습니다.');
     }
   };
 
@@ -578,9 +581,11 @@ function ChatPage() {
         onSuccess: () => {
           setEditingRoomId(null);
           setEditingRoomTitle('');
+          toast.success('대화방 이름이 수정되었습니다.');
         },
         onError: (error) => {
           console.error('챗봇 대화방 이름 수정 실패:', error);
+          toast.error('대화방 이름 수정에 실패했습니다.');
         },
       },
     );
@@ -612,9 +617,11 @@ function ChatPage() {
       onSuccess: () => {
         setEditingRoomId(null);
         setEditingRoomTitle('');
+        toast.success('대화방이 삭제되었습니다.');
       },
       onError: (error) => {
         console.error('챗봇 대화방 삭제 실패:', error);
+        toast.error('대화방 삭제에 실패했습니다.');
       },
     });
   };
@@ -636,8 +643,12 @@ function ChatPage() {
         roomId: activeChatbotRoomId,
       },
       {
+        onSuccess: () => {
+          toast.success('메시지가 삭제되었습니다.');
+        },
         onError: (error) => {
           console.error('챗봇 메시지 삭제 실패:', error);
+          toast.error('메시지 삭제에 실패했습니다.');
         },
       },
     );
@@ -978,7 +989,7 @@ function ChatPage() {
     } catch (error) {
       console.error('챗봇 대화방 생성 실패:', error);
 
-      alert('챗봇 대화방을 준비하지 못했습니다. 잠시 후 다시 시도해주세요.');
+      toast.error('챗봇 대화방을 준비하지 못했습니다.');
       return;
     }
 
@@ -1021,6 +1032,7 @@ function ChatPage() {
         },
         onError: (error) => {
           console.error('챗봇 메시지 전송 실패:', error);
+          toast.error('챗봇 메시지 전송에 실패했습니다.');
 
           const errorMessage: ChatMessage = {
             id: createMessageId(),
@@ -1203,8 +1215,10 @@ function ChatPage() {
     try {
       const roomId = await createConsultRoomMutation.mutateAsync();
       setSelectedConsultRoomId(roomId);
+      toast.success('약사 상담 요청이 생성되었습니다.');
     } catch (error) {
       console.error('약사 상담방 생성 실패:', error);
+      toast.error('약사 상담 요청 생성에 실패했습니다.');
     }
   };
 
@@ -1214,8 +1228,10 @@ function ChatPage() {
 
       setSelectedConsultRoomId(roomId);
       setActiveMode('pharmacist');
+      toast.success('약사 상담 요청이 생성되었습니다.');
     } catch (error) {
       console.error('약사 상담방 생성 실패:', error);
+      toast.error('약사 상담 요청 생성에 실패했습니다.');
 
       const errorMessage: ChatMessage = {
         id: createMessageId(),
@@ -1272,8 +1288,10 @@ function ChatPage() {
           sortTime: new Date().getTime(),
         },
       ]);
+      toast.success('상담이 종료되었습니다.');
     } catch (error) {
       console.error('상담 종료 실패:', error);
+      toast.error('상담 종료에 실패했습니다.');
 
       setPharmacistMessages((prev) => [
         ...prev,
@@ -1305,10 +1323,12 @@ function ChatPage() {
       setFeedbackComment('');
       setFeedbackRating(5);
 
-      alert('상담 평가가 등록되었습니다.');
+      toast.success('상담 평가가 등록되었습니다.');
     } catch (error) {
       console.error('상담 평가 등록 실패:', error);
-      alert('상담 평가 등록에 실패했습니다. 이미 평가를 등록했을 수 있습니다.');
+      toast.error(
+        '상담 평가 등록에 실패했습니다. 이미 평가를 등록했을 수 있습니다.',
+      );
     }
   };
 

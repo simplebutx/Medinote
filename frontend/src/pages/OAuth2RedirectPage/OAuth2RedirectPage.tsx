@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import toast from "react-hot-toast";
 
 import { getMyProfile } from "../../features/user/api/profile.api";
 import { useUserStore } from "../../store/useUserStore";
@@ -52,6 +53,7 @@ function OAuth2RedirectPage() {
     const token = searchParams.get("token");
 
     if (!token) {
+      toast.error("소셜 로그인 정보를 확인하지 못했습니다.");
       navigate("/login", { replace: true });
       return;
     }
@@ -73,9 +75,11 @@ function OAuth2RedirectPage() {
           status: profile.status ?? null,
         });
 
+        toast.success("로그인이 완료되었습니다.");
         navigate(getRedirectPath(role), { replace: true });
       } catch (error) {
         console.error("소셜 로그인 사용자 정보 조회 실패:", error);
+        toast.error("소셜 로그인에 실패했습니다.");
         setErrorMessage(
           "소셜 로그인 정보를 확인하지 못했습니다. 로그인 페이지에서 다시 시도해주세요.",
         );

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 import { Badge, Button, Card } from '../../components/ui';
 import {
@@ -55,15 +56,28 @@ function NotifPage() {
   }, [notifications]);
 
   const handleClickNotification = async (notification: AppNotification) => {
-    if (!notification.readAt) {
-      await readNotificationMutation.mutateAsync(notification);
-    }
+    try {
+      if (!notification.readAt) {
+        await readNotificationMutation.mutateAsync(notification);
+      }
 
-    navigate(getNotificationTargetPath(role, notification));
+      navigate(getNotificationTargetPath(role, notification));
+    } catch (error) {
+      console.error('알림 읽음 처리 실패:', error);
+      toast.error('알림을 읽음 처리하지 못했습니다.');
+    }
   };
 
   const handleReadNotification = (notification: AppNotification) => {
-    readNotificationMutation.mutate(notification);
+    readNotificationMutation.mutate(notification, {
+      onSuccess: () => {
+        toast.success('알림을 읽음 처리했습니다.');
+      },
+      onError: (error) => {
+        console.error('알림 읽음 처리 실패:', error);
+        toast.error('알림을 읽음 처리하지 못했습니다.');
+      },
+    });
   };
 
   const handleDeleteNotification = (notification: AppNotification) => {
@@ -73,7 +87,15 @@ function NotifPage() {
       return;
     }
 
-    deleteNotificationMutation.mutate(notification);
+    deleteNotificationMutation.mutate(notification, {
+      onSuccess: () => {
+        toast.success('알림이 삭제되었습니다.');
+      },
+      onError: (error) => {
+        console.error('알림 삭제 실패:', error);
+        toast.error('알림 삭제에 실패했습니다.');
+      },
+    });
   };
 
   const handleDeleteAllNotifications = () => {
@@ -89,7 +111,15 @@ function NotifPage() {
       return;
     }
 
-    deleteAllNotificationsMutation.mutate();
+    deleteAllNotificationsMutation.mutate(undefined, {
+      onSuccess: () => {
+        toast.success('모든 알림이 삭제되었습니다.');
+      },
+      onError: (error) => {
+        console.error('전체 알림 삭제 실패:', error);
+        toast.error('전체 알림 삭제에 실패했습니다.');
+      },
+    });
   };
 
   return (

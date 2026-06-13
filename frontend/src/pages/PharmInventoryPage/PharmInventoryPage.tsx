@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 
 import { Badge, Card, Input } from '../../components/ui';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -168,32 +169,44 @@ function PharmInventoryPage() {
     const pharmacyHpid = inventoryForm.pharmacyHpid || currentPharmacyHpid;
 
     if (!pharmacyHpid.trim()) {
-      setMessage('약국 등록 후 재고를 등록하거나 약국 HPID를 입력해주세요.');
+      const errorMessage =
+        '약국 등록 후 재고를 등록하거나 약국 HPID를 입력해주세요.';
+      setMessage(errorMessage);
+      toast.error(errorMessage);
       return;
     }
 
     if (!inventoryForm.itemSeq.trim() || !inventoryForm.itemName.trim()) {
-      setMessage('약 검색 결과에서 재고로 등록할 약을 선택해주세요.');
+      const errorMessage = '약 검색 결과에서 재고로 등록할 약을 선택해주세요.';
+      setMessage(errorMessage);
+      toast.error(errorMessage);
       return;
     }
 
-    await upsertInventoryMutation.mutateAsync({
-      pharmacyHpid,
-      itemSeq: inventoryForm.itemSeq,
-      itemName: inventoryForm.itemName,
-      companyName: inventoryForm.companyName,
-      stockQuantity: inventoryForm.stockQuantity,
-    });
+    try {
+      await upsertInventoryMutation.mutateAsync({
+        pharmacyHpid,
+        itemSeq: inventoryForm.itemSeq,
+        itemName: inventoryForm.itemName,
+        companyName: inventoryForm.companyName,
+        stockQuantity: inventoryForm.stockQuantity,
+      });
 
-    setInventoryForm({
-      ...defaultInventoryForm,
-      pharmacyHpid,
-    });
+      setInventoryForm({
+        ...defaultInventoryForm,
+        pharmacyHpid,
+      });
 
-    setMedicineKeyword('');
-    setCommittedMedicineKeyword('');
+      setMedicineKeyword('');
+      setCommittedMedicineKeyword('');
 
-    setMessage('약국 재고가 저장되었습니다.');
+      setMessage('약국 재고가 저장되었습니다.');
+      toast.success('약국 재고가 저장되었습니다.');
+    } catch (error) {
+      console.error('약국 재고 저장 실패:', error);
+      setMessage('약국 재고 저장에 실패했습니다.');
+      toast.error('약국 재고 저장에 실패했습니다.');
+    }
   };
 
   const handleEditInventory = (inventory: PharmacyInventory) => {
@@ -215,13 +228,21 @@ function PharmInventoryPage() {
     setMessage('');
 
     if (!inventoryId) {
-      setMessage('삭제할 재고 ID를 확인할 수 없습니다.');
+      const errorMessage = '삭제할 재고 ID를 확인할 수 없습니다.';
+      setMessage(errorMessage);
+      toast.error(errorMessage);
       return;
     }
 
-    await deleteInventoryMutation.mutateAsync(inventoryId);
-
-    setMessage('약국 재고가 삭제되었습니다.');
+    try {
+      await deleteInventoryMutation.mutateAsync(inventoryId);
+      setMessage('약국 재고가 삭제되었습니다.');
+      toast.success('약국 재고가 삭제되었습니다.');
+    } catch (error) {
+      console.error('약국 재고 삭제 실패:', error);
+      setMessage('약국 재고 삭제에 실패했습니다.');
+      toast.error('약국 재고 삭제에 실패했습니다.');
+    }
   };
 
   return (
