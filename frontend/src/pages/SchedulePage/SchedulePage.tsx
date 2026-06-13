@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Badge, Button, Card } from '../../components/ui';
@@ -25,7 +25,7 @@ interface TodayMedication {
   time: string;
   timing: string;
   status: MedicationStatus;
-  source?: 'MOCK' | 'SERVER';
+  source?: 'SERVER';
   medicationScheduleId?: number;
   medicationScheduleMedicineId?: number;
   medicationScheduleTimeId?: number;
@@ -33,47 +33,43 @@ interface TodayMedication {
   intakeLogId?: number;
 }
 
-const initialTodayMedications: TodayMedication[] = [
-  {
-    id: 1,
-    drugName: '아스피린 100mg',
-    dosage: '1정',
-    time: '08:00',
-    timing: '식후',
-    status: 'TAKEN',
-  },
-  {
-    id: 2,
-    drugName: '암로디핀 5mg',
-    dosage: '1정',
-    time: '13:00',
-    timing: '식후',
-    status: 'PENDING',
-  },
-  {
-    id: 3,
-    drugName: '타이레놀 500mg',
-    dosage: '1정',
-    time: '20:00',
-    timing: '필요 시',
-    status: 'PENDING',
-  },
-];
+function isMedicationExpired(
+  medication: TodayMedication,
+  currentTimestamp: number,
+) {
+  if (medication.status !== 'PENDING' || !medication.scheduledAt) {
+    return false;
+  }
 
-function getStatusBadge(status: MedicationStatus) {
-  if (status === 'TAKEN') {
+  const scheduledTimestamp = new Date(medication.scheduledAt).getTime();
+
+  return (
+    Number.isFinite(scheduledTimestamp) &&
+    scheduledTimestamp < currentTimestamp
+  );
+}
+
+function getStatusBadge(
+  medication: TodayMedication,
+  currentTimestamp: number,
+) {
+  if (medication.status === 'TAKEN') {
     return <Badge variant="green">복용 완료</Badge>;
   }
 
-  if (status === 'SKIPPED') {
+  if (medication.status === 'SKIPPED') {
     return <Badge variant="yellow">건너뜀</Badge>;
   }
 
-  if (status === 'MISSED') {
+  if (medication.status === 'MISSED') {
     return <Badge variant="red">누락</Badge>;
   }
 
-  return <Badge variant="gray">예정</Badge>;
+  if (isMedicationExpired(medication, currentTimestamp)) {
+    return <Badge variant="gray">만료</Badge>;
+  }
+
+  return <Badge variant="yellow">예정</Badge>;
 }
 
 const today = new Date();
@@ -89,6 +85,12 @@ function formatDate(date: Date) {
 function parseDateText(dateText: string) {
   const [year, month, day] = dateText.split('-').map(Number);
   return new Date(year, month - 1, day);
+}
+
+function formatMedicationDateTitle(dateText: string) {
+  const [, month, day] = dateText.split('-').map(Number);
+
+  return `${month}월 ${day}일 복약`;
 }
 
 function getWeekDates(baseDateText: string) {
@@ -251,6 +253,15 @@ function SchedulePage() {
   const [calendarBaseDate, setCalendarBaseDate] = useState(
     () => new Date(today.getFullYear(), today.getMonth(), 1),
   );
+  const [currentTimestamp, setCurrentTimestamp] = useState(today.getTime());
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setCurrentTimestamp(Date.now());
+    }, 60_000);
+
+    return () => window.clearInterval(timerId);
+  }, []);
 
   const {
     data: medicationSchedules = [],
@@ -300,42 +311,6 @@ function SchedulePage() {
   const activeMedicationScheduleCount = medicationSchedules.filter(
     (schedule) => schedule.isActive,
   ).length;
-
-  const [medicationsByDate, setMedicationsByDate] = useState<
-    Record<string, TodayMedication[]>
-  >(() => ({
-    [todayText]: initialTodayMedications,
-
-    '2026-05-20': initialTodayMedications.map((item) => ({
-      ...item,
-      status: 'TAKEN',
-    })),
-
-    '2026-05-21': initialTodayMedications.map((item, index) => ({
-      ...item,
-      status: index === 2 ? 'PENDING' : 'TAKEN',
-    })),
-
-    '2026-05-22': initialTodayMedications.map((item) => ({
-      ...item,
-      status: 'TAKEN',
-    })),
-
-    '2026-05-23': initialTodayMedications.map((item, index) => ({
-      ...item,
-      status: index === 0 ? 'TAKEN' : 'PENDING',
-    })),
-
-    '2026-05-24': initialTodayMedications.map((item, index) => ({
-      ...item,
-      status: index === 0 ? 'TAKEN' : 'SKIPPED',
-    })),
-
-    '2026-05-25': initialTodayMedications.map((item, index) => ({
-      ...item,
-      status: index === 0 || index === 1 ? 'TAKEN' : 'PENDING',
-    })),
-  }));
 
   function getTimingLabel(timing: string) {
     if (timing === 'AFTER_MEAL') return '식후';
@@ -484,13 +459,7 @@ function SchedulePage() {
     return getServerMedicationsByDate(selectedDate);
   }, [getServerMedicationsByDate, selectedDate]);
 
-  const selectedDateMedications = useMemo<TodayMedication[]>(() => {
-    if (serverSelectedDateMedications.length > 0) {
-      return serverSelectedDateMedications;
-    }
-
-    return medicationsByDate[selectedDate] ?? [];
-  }, [serverSelectedDateMedications, medicationsByDate, selectedDate]);
+  const selectedDateMedications = serverSelectedDateMedications;
 
   const selectedMedicationGroups = useMemo(() => {
     const groupMap = new Map<string, TodayMedication[]>();
@@ -611,9 +580,16 @@ function SchedulePage() {
       ? 0
       : Math.round((selectedTakenCount / selectedDateMedications.length) * 100);
 
-  const selectedRemainingCount = selectedDateMedications.filter(
-    (medication) => medication.status !== 'TAKEN',
+  const selectedPendingMedications = selectedDateMedications.filter(
+    (medication) => medication.status === 'PENDING',
   ).length;
+
+  const selectedExpiredCount = selectedDateMedications.filter((medication) =>
+    isMedicationExpired(medication, currentTimestamp),
+  ).length;
+
+  const selectedScheduledCount =
+    selectedPendingMedications - selectedExpiredCount;
 
   const handleChangeMonth = (monthOffset: number) => {
     setCalendarBaseDate((prev) => {
@@ -742,12 +718,7 @@ function SchedulePage() {
       return;
     }
 
-    setMedicationsByDate((prev) => ({
-      ...prev,
-      [selectedDate]: (prev[selectedDate] ?? []).map((item) =>
-        item.id === medication.id ? { ...item, status } : item,
-      ),
-    }));
+    toast.error('복용 기록을 변경할 일정 정보를 찾지 못했습니다.');
   };
 
   const handleCancelIntakeLog = (medication: TodayMedication) => {
@@ -782,12 +753,7 @@ function SchedulePage() {
       return;
     }
 
-    setMedicationsByDate((prev) => ({
-      ...prev,
-      [selectedDate]: (prev[selectedDate] ?? []).map((item) =>
-        item.id === medication.id ? { ...item, status: 'PENDING' } : item,
-      ),
-    }));
+    toast.error('취소할 복용 기록 정보를 찾지 못했습니다.');
   };
 
   return (
@@ -819,10 +785,10 @@ function SchedulePage() {
         <Card>
           <p className="text-sm text-slate-500">선택 날짜 남은 복약</p>
           <p className="mt-3 text-3xl font-bold text-slate-900">
-            {selectedRemainingCount}개
+            {selectedPendingMedications}개
           </p>
           <p className="mt-2 text-sm text-slate-500">
-            예정 상태의 약을 확인해주세요.
+            예정 {selectedScheduledCount}개 · 만료 {selectedExpiredCount}개
           </p>
         </Card>
 
@@ -885,56 +851,6 @@ function SchedulePage() {
           </p>
         </Card>
       )}
-
-      {!isMedicationScheduleLoading &&
-        !isMedicationScheduleError &&
-        medicationSchedules.length > 0 && (
-          <Card>
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">
-                  서버 복약 일정
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  현재 로그인 사용자 기준으로 조회된 복약 일정입니다.
-                </p>
-              </div>
-
-              <Badge variant="blue">{medicationSchedules.length}건</Badge>
-            </div>
-
-            <div className="space-y-3">
-              {medicationSchedules.slice(0, 5).map((schedule) => (
-                <div
-                  key={schedule.id}
-                  className="rounded-2xl border border-slate-200 p-4"
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-bold text-slate-900">
-                      {getScheduleDisplayName(schedule)}
-                    </p>
-
-                    <Badge variant={schedule.isActive ? 'green' : 'gray'}>
-                      {schedule.isActive ? '복용 중' : '비활성'}
-                    </Badge>
-                  </div>
-
-                  <p className="mt-2 text-sm text-slate-500">
-                    {getScheduleRange(schedule).startDate || '시작일 없음'} ~{' '}
-                    {getScheduleRange(schedule).endDate || '종료일 없음'}
-                  </p>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    1회 {getPrimaryMedicine(schedule)?.dosageAmount ?? '-'}
-                    {getPrimaryMedicine(schedule)?.dosageUnit ?? ''} · 하루{' '}
-                    {getPrimaryMedicine(schedule)?.timesPerDay ?? '-'}회 · 총{' '}
-                    {getScheduleRange(schedule).durationDays ?? '-'}일
-                  </p>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
 
       <Card>
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -1011,12 +927,7 @@ function SchedulePage() {
               return <div key={day.key} />;
             }
 
-            const serverDayMedications = getServerMedicationsByDate(day.date);
-
-            const dayMedications =
-              serverDayMedications.length > 0
-                ? serverDayMedications
-                : (medicationsByDate[day.date] ?? []);
+            const dayMedications = getServerMedicationsByDate(day.date);
 
             const rate =
               dayMedications.length === 0
@@ -1063,11 +974,9 @@ function SchedulePage() {
       <Card>
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">선택 날짜 복약</h2>
-
-            <p className="mt-1 text-sm text-slate-500">
-              {selectedDate} 기준 복약 목록입니다.
-            </p>
+            <h2 className="text-xl font-bold text-slate-900">
+              {formatMedicationDateTitle(selectedDate)}
+            </h2>
           </div>
 
           <Badge variant="blue">
@@ -1137,9 +1046,7 @@ function SchedulePage() {
                 <div className="space-y-3">
                   {group.items.map((medication) => (
                     <div
-                      key={`${medication.medicationScheduleId ?? 'mock'}-${
-                        medication.id
-                      }`}
+                      key={`${medication.medicationScheduleId}-${medication.id}`}
                       className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 md:flex-row md:items-center md:justify-between"
                     >
                       <div>
@@ -1154,7 +1061,7 @@ function SchedulePage() {
                             {medication.drugName}
                           </button>
 
-                          {getStatusBadge(medication.status)}
+                          {getStatusBadge(medication, currentTimestamp)}
                         </div>
 
                         <p className="mt-2 text-sm text-slate-500">

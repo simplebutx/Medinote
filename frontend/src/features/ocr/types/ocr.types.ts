@@ -16,11 +16,7 @@ export interface PrescriptionOcrResponse {
   id?: number;
   ocrResultId?: number;
   userId?: number;
-  imageKey?: string;
-  rawText?: string | null;
   resultJson?: string | Record<string, unknown> | null;
-  preprocessedImageDataUrl?: string | null;
   status?: string;
   errorMessage?: string | null;
-  ocrEngine?: string | null;
 }

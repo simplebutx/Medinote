@@ -424,10 +424,7 @@ function OcrPage() {
   function getRawTextFromOcrResponse(response: PrescriptionOcrResponse) {
     const parsed = parseOcrResultJson(response.resultJson);
 
-    const parsedRawText =
-      parsed && typeof parsed.rawText === 'string' ? parsed.rawText : '';
-
-    return response.rawText || parsedRawText || '';
+    return parsed && typeof parsed.rawText === 'string' ? parsed.rawText : '';
   }
 
   function inferTimesPerDayFromText(text: string) {
@@ -612,7 +609,7 @@ function OcrPage() {
 
   const handleAnalyzeOcr = async () => {
     if (!selectedFile) {
-      toast.error('처방전 또는 약봉투 이미지를 먼저 선택해주세요.');
+      toast.error('처방 내역 또는 약봉투 이미지를 먼저 선택해주세요.');
       return;
     }
 
@@ -1117,7 +1114,7 @@ function OcrPage() {
         <h1 className="mt-2 text-3xl font-bold text-slate-900">복약 등록</h1>
 
         <p className="mt-2 text-slate-500">
-          복용할 약을 직접 입력하거나 처방전/약봉투 이미지를 업로드해 복약
+          복용할 약을 직접 입력하거나 처방 내역/약봉투 이미지를 업로드해 복약
           일정을 등록합니다.
         </p>
       </div>
@@ -1147,7 +1144,7 @@ function OcrPage() {
                 : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
             ].join(' ')}
           >
-            처방전 업로드
+            처방 내역 업로드
           </button>
         </div>
 
@@ -1467,18 +1464,18 @@ function OcrPage() {
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl font-bold text-slate-900">
-                  처방전 업로드
+                  처방 내역 업로드
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  처방전이나 약봉투 이미지를 업로드하면 OCR 분석 결과를 바탕으로
+                  처방 내역이나 약봉투 이미지를 업로드하면 OCR 분석 결과를 바탕으로
                   복약 일정 후보를 생성합니다.
                 </p>
               </div>
 
               <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center">
                 <p className="text-lg font-bold text-slate-900">
-                  처방전 또는 약봉투 이미지 업로드
+                  처방 내역 또는 약봉투 이미지 업로드
                 </p>
 
                 <p className="mt-2 text-sm text-slate-500">
@@ -1611,7 +1608,7 @@ function OcrPage() {
                           OCR 결과 수정
                         </h4>
                         <p className="mt-1 text-sm text-slate-500">
-                          OCR이 인식한 약 정보가 실제 처방전과 다르면 직접
+                          OCR이 인식한 약 정보가 실제 처방 내역과 다르면 직접
                           수정해주세요.
                         </p>
                       </div>
