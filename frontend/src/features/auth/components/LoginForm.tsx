@@ -101,7 +101,7 @@ function LoginForm() {
       { email, password },
       {
         onSuccess: (data) => {
-          toast.success("로그인 성공");
+          toast.success("로그인이 완료되었습니다.");
           navigate(getRedirectPath(data.role));
         },
         onError: () => {

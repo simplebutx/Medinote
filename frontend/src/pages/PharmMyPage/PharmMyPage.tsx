@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import { useUserStore } from '../../store/useUserStore';
 import { useNavigate } from 'react-router-dom';
 import { Badge, Button, Card, Input } from '../../components/ui';
@@ -196,12 +197,12 @@ function PharmMyPage() {
 
       withdrawAccountMutation.mutate(undefined, {
         onSuccess: () => {
-          window.alert('회원 탈퇴가 완료되었습니다.');
+          toast.success('회원 탈퇴가 완료되었습니다.');
           navigate('/login', { replace: true });
         },
         onError: (error) => {
           console.error('약사 회원 탈퇴 실패:', error);
-          window.alert('회원 탈퇴에 실패했습니다. 다시 시도해주세요.');
+          toast.error('회원 탈퇴에 실패했습니다. 다시 시도해주세요.');
         },
       });
     };
@@ -300,18 +301,21 @@ function PharmMyPage() {
       if (!requestBody.pharmacyName.trim()) {
         setPharmacyMessage('약국명을 입력해주세요.');
         setIsPharmacyMessageError(true);
+        toast.error('약국명을 입력해주세요.');
         return;
       }
 
       if (!requestBody.address.trim()) {
         setPharmacyMessage('약국 주소를 입력해주세요.');
         setIsPharmacyMessageError(true);
+        toast.error('약국 주소를 입력해주세요.');
         return;
       }
 
       if (!requestBody.phone.trim()) {
         setPharmacyMessage('약국 전화번호를 입력해주세요.');
         setIsPharmacyMessageError(true);
+        toast.error('약국 전화번호를 입력해주세요.');
         return;
       }
 
@@ -323,6 +327,7 @@ function PharmMyPage() {
 
         setPharmacyMessage('약국 정보가 수정되었습니다.');
         setIsPharmacyMessageError(false);
+        toast.success('약국 정보가 수정되었습니다.');
         return;
       }
 
@@ -330,11 +335,14 @@ function PharmMyPage() {
 
       setPharmacyMessage('약국 정보가 등록되었습니다.');
       setIsPharmacyMessageError(false);
-    } catch {
+      toast.success('약국 정보가 등록되었습니다.');
+    } catch (error) {
+      console.error('약국 정보 저장 실패:', error);
       setPharmacyMessage(
         '약국 정보 저장에 실패했습니다. 서버의 약국 등록/수정 조건을 확인해주세요.',
       );
       setIsPharmacyMessageError(true);
+      toast.error('약국 정보 저장에 실패했습니다.');
     }
   };
 
@@ -342,18 +350,24 @@ function PharmMyPage() {
     const nextLicenseNumber = displayedLicenseNumber.trim();
 
     if (!nextLicenseNumber) {
-      window.alert('면허번호를 입력해주세요.');
+      toast.error('면허번호를 입력해주세요.');
       return;
     }
 
-    await updatePharmacistProfileMutation.mutateAsync({
-      docNumber: currentDocNumber,
-      licenseNumber: nextLicenseNumber,
-      licenseImage,
-    });
+    try {
+      await updatePharmacistProfileMutation.mutateAsync({
+        docNumber: currentDocNumber,
+        licenseNumber: nextLicenseNumber,
+        licenseImage,
+      });
 
-    setLicenseNumber(undefined);
-    setLicenseImage(null);
+      setLicenseNumber(undefined);
+      setLicenseImage(null);
+      toast.success('약사 정보가 수정되었습니다.');
+    } catch (error) {
+      console.error('약사 정보 수정 실패:', error);
+      toast.error('약사 정보 수정에 실패했습니다.');
+    }
   };
 
   return (
