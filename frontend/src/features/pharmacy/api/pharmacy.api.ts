@@ -16,7 +16,7 @@ function isOptionalPharmacySearchError(error: unknown) {
 }
 
 export const registerPharmacy = async (body: PharmacyRegisterRequest) => {
-  const response = await medicationInstance.post<Pharmacy>(
+  const response = await medicationInstance.post<string>(
     '/api/pharmacies',
     body,
   );
@@ -31,12 +31,7 @@ export const updatePharmacy = async ({
   hpid: string;
   body: PharmacyRegisterRequest;
 }) => {
-  const response = await medicationInstance.patch<Pharmacy>(
-    `/api/pharmacies/${hpid}`,
-    body,
-  );
-
-  return response.data;
+  await medicationInstance.patch<void>(`/api/pharmacies/${hpid}`, body);
 };
 
 export const getMyPharmacyInventory = async () => {
@@ -100,7 +95,6 @@ export const searchPharmaciesByMedicine = async ({
   northLat,
   westLng,
   eastLng,
-  limit = 30,
 }: PharmacyMedicineSearchParams) => {
   try {
     const response = await medicationInstance.get<Pharmacy[]>(
@@ -112,7 +106,6 @@ export const searchPharmaciesByMedicine = async ({
           northLat,
           westLng,
           eastLng,
-          limit,
         },
       },
     );

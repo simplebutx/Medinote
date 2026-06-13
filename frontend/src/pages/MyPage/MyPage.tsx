@@ -132,7 +132,7 @@ function getPrescriptionTitle(schedule: MedicationSchedule) {
     return `${schedule.pharmacyName} 조제`;
   }
 
-  return `처방전 #${schedule.id}`;
+  return `처방 내역 #${schedule.id}`;
 }
 
 function getPrescriptionDate(schedule: MedicationSchedule) {
@@ -341,7 +341,7 @@ const tabs: { label: string; value: MyPageTab }[] = [
   { label: '건강 정보', value: 'health' },
   { label: '알레르기/주의 성분', value: 'caution' },
   { label: '복약 시간 설정', value: 'timePreset' },
-  { label: '처방전', value: 'prescription' },
+  { label: '처방 내역', value: 'prescription' },
 ];
 
 function MyPage() {
@@ -699,8 +699,8 @@ function MyPage() {
       setEditingPrescriptionMedicineId(null);
 
     } catch (error) {
-      console.error('처방전 수정 정보 불러오기 실패:', error);
-      toast.error('처방전 수정 정보를 불러오지 못했습니다.');
+      console.error('처방 내역 수정 정보 불러오기 실패:', error);
+      toast.error('처방 내역 수정 정보를 불러오지 못했습니다.');
     } finally {
       setIsPrescriptionEditLoading(false);
     }
@@ -898,11 +898,11 @@ function MyPage() {
         }
       }
 
-      toast.success('처방전 정보가 수정되었습니다.');
+      toast.success('처방 내역 정보가 수정되었습니다.');
       handleCancelEditPrescription();
     } catch (error) {
-      console.error('처방전 수정 실패:', error);
-      toast.error('처방전 수정에 실패했습니다.');
+      console.error('처방 내역 수정 실패:', error);
+      toast.error('처방 내역 수정에 실패했습니다.');
     }
   };
 
@@ -910,7 +910,7 @@ function MyPage() {
     const title = getPrescriptionTitle(schedule);
 
     const isConfirmed = window.confirm(
-      `${title}을(를) 삭제하시겠습니까?\n삭제하면 해당 처방전의 약과 복용 시간도 함께 삭제됩니다.`,
+      `${title}을(를) 삭제하시겠습니까?\n삭제하면 해당 처방 내역의 약과 복용 시간도 함께 삭제됩니다.`,
     );
 
     if (!isConfirmed) {
@@ -919,15 +919,15 @@ function MyPage() {
 
     deleteMedicationScheduleMutation.mutate(schedule.id, {
       onSuccess: () => {
-        toast.success('처방전이 삭제되었습니다.');
+        toast.success('처방 내역이 삭제되었습니다.');
 
         if (editingPrescriptionId === schedule.id) {
           handleCancelEditPrescription();
         }
       },
       onError: (error) => {
-        console.error('처방전 삭제 실패:', error);
-        toast.error('처방전 삭제에 실패했습니다.');
+        console.error('처방 내역 삭제 실패:', error);
+        toast.error('처방 내역 삭제에 실패했습니다.');
       },
     });
   };
@@ -1054,7 +1054,7 @@ function MyPage() {
         <h1 className="mt-2 text-3xl font-bold text-slate-900">내 정보</h1>
 
         <p className="mt-2 text-slate-500">
-          기본 정보, 건강 정보, 알레르기/주의 성분, 처방전 정보를 관리합니다.
+          기본 정보, 건강 정보, 알레르기/주의 성분, 처방 내역 정보를 관리합니다.
         </p>
       </div>
 
@@ -1800,21 +1800,21 @@ function MyPage() {
           {activeTab === 'prescription' && (
             <div className="space-y-4">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">처방전</h2>
+                <h2 className="text-xl font-bold text-slate-900">처방 내역</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  복약 등록과 OCR 처방전 업로드로 생성된 처방 묶음을 확인합니다.
+                  복약 등록과 OCR 처방 내역 업로드로 생성된 처방 묶음을 확인합니다.
                 </p>
               </div>
 
               {isMedicationScheduleLoading && (
                 <div className="rounded-2xl bg-blue-50 p-6 text-sm text-blue-700">
-                  처방전 정보를 불러오는 중입니다.
+                  처방 내역 정보를 불러오는 중입니다.
                 </div>
               )}
 
               {isMedicationScheduleError && (
                 <div className="rounded-2xl bg-red-50 p-6 text-sm text-red-700">
-                  처방전 정보를 불러오지 못했습니다. 로그인 상태와 서버를
+                  처방 내역 정보를 불러오지 못했습니다. 로그인 상태와 서버를
                   확인해주세요.
                 </div>
               )}
@@ -1823,7 +1823,7 @@ function MyPage() {
                 !isMedicationScheduleError &&
                 medicationSchedules.length === 0 && (
                   <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                    등록된 처방전이 없습니다.
+                    등록된 처방 내역이 없습니다.
                   </div>
                 )}
 
@@ -1906,7 +1906,7 @@ function MyPage() {
 
                       {editingPrescriptionId === schedule.id && (
                         <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                          <h3 className="font-bold text-slate-900">처방전 전체 수정</h3>
+                          <h3 className="font-bold text-slate-900">처방 내역 전체 수정</h3>
 
                           <div className="mt-4 grid gap-4 md:grid-cols-2">
                             <Input
@@ -2183,7 +2183,7 @@ function MyPage() {
                               deleteMedicationScheduleTimeMutation.isPending ||
                               createScheduleTimeMutation.isPending
                                 ? '저장 중...'
-                                : '처방전 수정 완료'}
+                                : '처방 내역 수정 완료'}
                             </Button>
                           </div>
                         </div>
