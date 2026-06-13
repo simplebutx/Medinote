@@ -14,6 +14,8 @@ import {
   getMedicationScheduleTimes,
   getMedicationTimePresets,
   getMedicationSchedules,
+  getSmartPillSlotAssignments,
+  saveSmartPillSlotAssignments,
   suggestCautions,
   suggestDiseases,
   updateMedicationTimePresets,
@@ -194,6 +196,65 @@ function createEmptyPrescriptionRecord() {
   }
 }
 
+const SMARTPILL_SLOT_NUMBERS = [1, 2, 3, 4]
+const DEFAULT_SMARTPILL_DEVICE_ID = 'smartpill-prototype-1'
+
+function buildSmartPillTimeGroups(prescription) {
+  if (!prescription || prescription.isNew) {
+    return []
+  }
+
+  const groups = new Map()
+
+  prescription.medicines.forEach((medicine, medicineIndex) => {
+    const medicineName = medicine.customMedicineName || `약 ${medicineIndex + 1}`
+
+    medicine.timeSlots.forEach((slot) => {
+      if (!slot.id || !slot.takeTime) {
+        return
+      }
+
+      const key = slot.takeTime
+      const current = groups.get(key) || {
+        key,
+        takeTime: slot.takeTime,
+        scheduleTimeIds: [],
+        medicineNames: [],
+      }
+
+      current.scheduleTimeIds.push(slot.id)
+      current.medicineNames.push(medicineName)
+      groups.set(key, current)
+    })
+  })
+
+  return Array.from(groups.values()).sort((left, right) => left.takeTime.localeCompare(right.takeTime))
+}
+
+function createDefaultSmartPillAssignments(timeGroups) {
+  return Object.fromEntries(
+    SMARTPILL_SLOT_NUMBERS.map((slotNumber, index) => [slotNumber, timeGroups[index]?.key || '']),
+  )
+}
+
+function createSmartPillAssignmentsFromResponse(response, timeGroups) {
+  const nextAssignments = createDefaultSmartPillAssignments([])
+
+  ;(response?.slots || []).forEach((slot) => {
+    const assignedIds = new Set((slot.scheduleTimes || []).map((scheduleTime) => scheduleTime.medicationScheduleTimeId))
+    const matchedGroup = timeGroups.find((group) =>
+      group.scheduleTimeIds.length === assignedIds.size &&
+      group.scheduleTimeIds.every((id) => assignedIds.has(id)),
+    )
+
+    if (matchedGroup) {
+      nextAssignments[slot.slotNumber] = matchedGroup.key
+    }
+  })
+
+  return nextAssignments
+}
+
 function MyPage() {
   const navigate = useNavigate()
   const session = useMemo(() => getAuthSession(), [])
@@ -212,6 +273,11 @@ function MyPage() {
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState(null)
   const [prescriptionMessage, setPrescriptionMessage] = useState('')
   const [prescriptionSaving, setPrescriptionSaving] = useState(false)
+  const [smartPillModalOpen, setSmartPillModalOpen] = useState(false)
+  const [smartPillDeviceId, setSmartPillDeviceId] = useState(DEFAULT_SMARTPILL_DEVICE_ID)
+  const [smartPillAssignments, setSmartPillAssignments] = useState(() => createDefaultSmartPillAssignments([]))
+  const [smartPillSaving, setSmartPillSaving] = useState(false)
+  const [smartPillMessage, setSmartPillMessage] = useState('')
   const [defaultMedicationTimeSettings, setDefaultMedicationTimeSettings] = useState(() =>
     loadDefaultMedicationTimeSettings(),
   )
@@ -425,6 +491,10 @@ function MyPage() {
 
   const selectedPrescription =
     prescriptions.find((item) => item.id === selectedPrescriptionId) || prescriptions[0] || null
+  const smartPillTimeGroups = useMemo(
+    () => buildSmartPillTimeGroups(selectedPrescription),
+    [selectedPrescription],
+  )
 
   const handleAddCaution = async () => {
     if (!selectedSuggestion) {
@@ -651,6 +721,72 @@ function MyPage() {
       setPrescriptionMessage(error.response?.data?.message || error.message || '처방전 삭제에 실패했습니다.')
     } finally {
       setPrescriptionSaving(false)
+    }
+  }
+
+  const handleOpenSmartPillModal = async () => {
+    if (!selectedPrescription || selectedPrescription.isNew) {
+      setPrescriptionMessage('스마트 약통 연결은 처방전을 먼저 저장한 뒤 사용할 수 있습니다.')
+      return
+    }
+
+    if (!smartPillTimeGroups.length) {
+      setPrescriptionMessage('연결할 복용 시간이 없습니다. 처방전 저장 후 다시 시도해 주세요.')
+      return
+    }
+
+    setSmartPillMessage('')
+    setSmartPillAssignments(createDefaultSmartPillAssignments(smartPillTimeGroups))
+    setSmartPillModalOpen(true)
+
+    try {
+      const response = await getSmartPillSlotAssignments(smartPillDeviceId)
+      setSmartPillAssignments(createSmartPillAssignmentsFromResponse(response, smartPillTimeGroups))
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        setSmartPillMessage(error.response?.data?.message || '기존 스마트 약통 연결 정보를 불러오지 못했습니다.')
+      }
+    }
+  }
+
+  const handleSmartPillAssignmentChange = (slotNumber, value) => {
+    setSmartPillAssignments((prev) => ({
+      ...prev,
+      [slotNumber]: value,
+    }))
+    setSmartPillMessage('')
+  }
+
+  const handleSaveSmartPillAssignments = async () => {
+    const trimmedDeviceId = smartPillDeviceId.trim()
+
+    if (!trimmedDeviceId) {
+      setSmartPillMessage('디바이스 ID를 입력해 주세요.')
+      return
+    }
+
+    setSmartPillSaving(true)
+    setSmartPillMessage('')
+
+    try {
+      const slots = SMARTPILL_SLOT_NUMBERS.map((slotNumber) => {
+        const group = smartPillTimeGroups.find((item) => item.key === smartPillAssignments[slotNumber])
+        return {
+          slotNumber,
+          medicationScheduleTimeIds: group?.scheduleTimeIds || [],
+        }
+      })
+
+      await saveSmartPillSlotAssignments(trimmedDeviceId, {
+        name: '내 스마트 약통',
+        slots,
+      })
+
+      setSmartPillMessage('스마트 약통 연결을 저장했습니다.')
+    } catch (error) {
+      setSmartPillMessage(error.response?.data?.message || error.message || '스마트 약통 연결 저장에 실패했습니다.')
+    } finally {
+      setSmartPillSaving(false)
     }
   }
 
@@ -1335,6 +1471,14 @@ function MyPage() {
                       </button>
                       <button
                         type="button"
+                        className="smartpill-link-button"
+                        onClick={handleOpenSmartPillModal}
+                        disabled={prescriptionSaving || selectedPrescription.isNew}
+                      >
+                        스마트 약통 연결
+                      </button>
+                      <button
+                        type="button"
                         className="app-primary-button"
                         onClick={handleSavePrescription}
                         disabled={prescriptionSaving}
@@ -1348,6 +1492,66 @@ function MyPage() {
                 )}
               </div>
             </div>
+          </div>
+        ) : null}
+
+        {smartPillModalOpen ? (
+          <div className="smartpill-assignment-overlay" role="presentation">
+            <section className="smartpill-assignment-modal" role="dialog" aria-modal="true">
+              <div className="smartpill-assignment-header">
+                <div>
+                  <p>Smart Pillbox</p>
+                  <h2>스마트 약통 연결</h2>
+                </div>
+                <button type="button" onClick={() => setSmartPillModalOpen(false)}>
+                  닫기
+                </button>
+              </div>
+
+              <label className="register-field register-span-full">
+                <span>디바이스 ID</span>
+                <input
+                  value={smartPillDeviceId}
+                  onChange={(event) => setSmartPillDeviceId(event.target.value)}
+                  placeholder="smartpill-prototype-1"
+                />
+              </label>
+
+              <div className="smartpill-assignment-grid">
+                {SMARTPILL_SLOT_NUMBERS.map((slotNumber) => (
+                  <label className="register-field" key={`smartpill-slot-${slotNumber}`}>
+                    <span>{slotNumber}번 칸</span>
+                    <select
+                      value={smartPillAssignments[slotNumber] || ''}
+                      onChange={(event) => handleSmartPillAssignmentChange(slotNumber, event.target.value)}
+                    >
+                      <option value="">연결 안 함</option>
+                      {smartPillTimeGroups.map((group) => (
+                        <option key={`${slotNumber}-${group.key}`} value={group.key}>
+                          {group.takeTime} · {group.medicineNames.join(', ')}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+
+              {smartPillMessage ? <p className="smartpill-assignment-message">{smartPillMessage}</p> : null}
+
+              <div className="register-submit-row">
+                <button type="button" className="register-remove-button" onClick={() => setSmartPillModalOpen(false)}>
+                  취소
+                </button>
+                <button
+                  type="button"
+                  className="app-primary-button"
+                  onClick={handleSaveSmartPillAssignments}
+                  disabled={smartPillSaving}
+                >
+                  {smartPillSaving ? '저장 중...' : '연결 저장'}
+                </button>
+              </div>
+            </section>
           </div>
         ) : null}
 

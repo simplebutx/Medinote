@@ -1,56 +1,78 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-import { API_BASE_URL, DEFAULT_API_HOST, PRESIGNED_UPLOAD_URL_ENDPOINT } from "../constants";
+import {
+  AI_BASE_URL,
+  AUTH_BASE_URL,
+  CONSULTATION_BASE_URL,
+  MEDICATION_BASE_URL,
+} from "../constants";
 import type { AppSettings, Session } from "../types";
 
 interface AppContextValue {
+  hydrated: boolean;
   session: Session | null;
   settings: AppSettings;
-  hydrated: boolean;
-  saveSession: (nextSession: Session) => Promise<void>;
+  saveSession: (session: Session) => Promise<void>;
   clearSession: () => Promise<void>;
+  updateSession: (patch: Partial<Session>) => Promise<void>;
 }
 
-const sessionKey = "mobile-expo.session";
+const storageKey = "medinote.mobile.session";
 
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [hydrated, setHydrated] = useState(false);
-  const settings: AppSettings = {
-    apiHost: DEFAULT_API_HOST,
-    apiBaseUrl: API_BASE_URL || undefined,
-    presignedUploadUrlEndpoint: PRESIGNED_UPLOAD_URL_ENDPOINT,
-  };
+
+  const settings = useMemo<AppSettings>(
+    () => ({
+      authBaseUrl: AUTH_BASE_URL,
+      medicationBaseUrl: MEDICATION_BASE_URL,
+      consultationBaseUrl: CONSULTATION_BASE_URL,
+      aiBaseUrl: AI_BASE_URL,
+    }),
+    []
+  );
 
   useEffect(() => {
+    let mounted = true;
+
     (async () => {
       try {
-        const rawSession = await AsyncStorage.getItem(sessionKey);
-
-        if (rawSession) {
-          setSession(JSON.parse(rawSession));
+        const raw = await AsyncStorage.getItem(storageKey);
+        if (mounted && raw) {
+          setSession(JSON.parse(raw) as Session);
         }
       } finally {
-        setHydrated(true);
+        if (mounted) setHydrated(true);
       }
     })();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const value = useMemo<AppContextValue>(
     () => ({
+      hydrated,
       session,
       settings,
-      hydrated,
       async saveSession(nextSession) {
         setSession(nextSession);
-        await AsyncStorage.setItem(sessionKey, JSON.stringify(nextSession));
+        await AsyncStorage.setItem(storageKey, JSON.stringify(nextSession));
+      },
+      async updateSession(patch) {
+        if (!session) return;
+        const nextSession = { ...session, ...patch };
+        setSession(nextSession);
+        await AsyncStorage.setItem(storageKey, JSON.stringify(nextSession));
       },
       async clearSession() {
         setSession(null);
-        await AsyncStorage.removeItem(sessionKey);
+        await AsyncStorage.removeItem(storageKey);
       },
     }),
     [hydrated, session, settings]
@@ -61,10 +83,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
 export function useAppContext() {
   const context = useContext(AppContext);
-
   if (!context) {
-    throw new Error("useAppContext must be used within AppProvider");
+    throw new Error("useAppContext must be used inside AppProvider");
   }
-
   return context;
 }

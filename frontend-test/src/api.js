@@ -100,6 +100,41 @@ export const syncMedicines = async () => {
   return response.data
 }
 
+export const getSmartPillStatus = async () => {
+  const response = await api.get('/smartpill/test/status')
+  return response.data
+}
+
+export const getSmartPillDevices = async () => {
+  const response = await api.get('/smartpill/devices')
+  return response.data
+}
+
+export const getSmartPillSlotAssignments = async (deviceId) => {
+  const response = await api.get(`/smartpill/devices/${encodeURIComponent(deviceId)}/slot-assignments`)
+  return response.data
+}
+
+export const saveSmartPillSlotAssignments = async (deviceId, payload) => {
+  const response = await api.put(`/smartpill/devices/${encodeURIComponent(deviceId)}/slot-assignments`, payload)
+  return response.data
+}
+
+export const startSmartPillDetection = async (deviceId) => {
+  const response = await api.post(`/smartpill/devices/${encodeURIComponent(deviceId)}/start-detection`)
+  return response.data
+}
+
+export const pauseSmartPillDetection = async (deviceId) => {
+  const response = await api.post(`/smartpill/devices/${encodeURIComponent(deviceId)}/pause-detection`)
+  return response.data
+}
+
+export const resetSmartPillConnection = async (deviceId) => {
+  const response = await api.post(`/smartpill/devices/${encodeURIComponent(deviceId)}/reset`)
+  return response.data
+}
+
 export const createChatbotRoom = async (payload = {}) => {
   const response = await api.post('/chatbot/rooms', payload)
   return response.data

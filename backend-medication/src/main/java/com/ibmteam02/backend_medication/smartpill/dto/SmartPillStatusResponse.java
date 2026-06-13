@@ -3,7 +3,7 @@ package com.ibmteam02.backend_medication.smartpill.dto;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public record SmartPillIntakeTestResponse(
+public record SmartPillStatusResponse(
         String message,
         String deviceId,
         String eventType,
