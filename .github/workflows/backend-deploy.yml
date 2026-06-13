@@ -50,8 +50,7 @@ jobs:
           docker push $ECR_REGISTRY/medinote-ai-server:latest
           
           # 5. Nginx (Gateway)
-          docker build -t $ECR_REGISTRY/medinote-nginx:latest -f ./infra/nginx/Dockerfile . || \
-          docker build -t $ECR_REGISTRY/medinote-nginx:latest -f ./infra/nginx/Dockerfile ./infra/nginx
+          docker build -t $ECR_REGISTRY/medinote-nginx:latest ./infra/nginx
           docker push $ECR_REGISTRY/medinote-nginx:latest
 
   deploy:
