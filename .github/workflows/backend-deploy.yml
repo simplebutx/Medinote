@@ -9,7 +9,7 @@ on:
       - 'frontend-test/**'
       - 'mobile-expo/**'
       - '.github/workflows/deploy-frontend.yml'
-  workflow_dispatch: # 수동 실행 버튼
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -27,12 +27,16 @@ jobs:
             echo "Starting Backend Deployment..."
             cd ~/ibmteam02
             
-            # 최신 코드 가져오기
+            # 1. 최신 코드 가져오기
             git pull origin main
             
-            # 백엔드 서버 재빌드 및 실행
-             docker compose -f docker-compose.prod.yml up -d --build
+            # 2. [핵심] 기존 컨테이너 및 찌꺼기(Orphans) 완전 제거 후 재빌드
+            echo "Cleaning up old containers..."
+            docker compose -f docker-compose.prod.yml down --remove-orphans
             
-            # 불필요한 이미지 찌꺼기 정리
+            echo "Building and starting new containers..."
+            docker compose -f docker-compose.prod.yml up -d --build
+            
+            # 3. 불필요한 이미지 정리
             docker image prune -f
-            echo "Deployment Completed!"
+            echo "Deployment Completed Successfully!"
