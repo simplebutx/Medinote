@@ -31,7 +31,7 @@ jobs:
 
       - name: Build, tag, and push images to Amazon ECR
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.registry }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           # 1. Auth Service
           docker build -t $ECR_REGISTRY/medinote-auth:latest ./backend-auth
