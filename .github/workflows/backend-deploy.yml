@@ -1,4 +1,4 @@
-name: Deploy Backend to EC2
+name: Deploy Backend to EC2 via ECR
 
 on:
   push:
@@ -8,13 +8,55 @@ on:
       - 'frontend/**'
       - 'frontend-test/**'
       - 'mobile-expo/**'
-      - '.github/workflows/deploy-frontend.yml'
+      - '.github/workflows/frontend-deploy.yml'
   workflow_dispatch:
 
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push images to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.registry }}
+        run: |
+          # 1. Auth Service
+          docker build -t $ECR_REGISTRY/medinote-auth:latest ./backend-auth
+          docker push $ECR_REGISTRY/medinote-auth:latest
+          
+          # 2. Medication Service
+          docker build -t $ECR_REGISTRY/medinote-medication:latest ./backend-medication
+          docker push $ECR_REGISTRY/medinote-medication:latest
+          
+          # 3. Consultation Service
+          docker build -t $ECR_REGISTRY/medinote-consultation:latest ./backend-consultation
+          docker push $ECR_REGISTRY/medinote-consultation:latest
+          
+          # 4. AI Server
+          docker build -t $ECR_REGISTRY/medinote-ai-server:latest ./ai-server
+          docker push $ECR_REGISTRY/medinote-ai-server:latest
+          
+          # 5. Nginx (Gateway)
+          docker build -t $ECR_REGISTRY/medinote-nginx:latest -f ./infra/nginx/Dockerfile . || \
+          docker build -t $ECR_REGISTRY/medinote-nginx:latest -f ./infra/nginx/Dockerfile ./infra/nginx
+          docker push $ECR_REGISTRY/medinote-nginx:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
     steps:
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
@@ -24,19 +66,23 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
-            echo "Starting Backend Deployment..."
+            echo "Starting Production Deployment (Pulling from ECR)..."
             cd ~/ibmteam02
             
-            # 1. 최신 코드 가져오기
+            # 최신 docker-compose.prod.yml 가져오기
             git pull origin main
             
-            # 2. [핵심] 기존 컨테이너 및 찌꺼기(Orphans) 완전 제거 후 재빌드
-            echo "Cleaning up old containers..."
-            docker compose -f docker-compose.prod.yml down --remove-orphans
+            # ECR 로그인 (EC2에서도 권한 필요)
+            aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY_URI }}
             
-            echo "Building and starting new containers..."
-            docker compose -f docker-compose.prod.yml up -d --build
+            # 1. 최신 이미지 당겨오기 (바뀐 이미지만 받아옴)
+            echo "Pulling latest images from ECR..."
+            docker compose -f docker-compose.prod.yml pull
             
-            # 3. 불필요한 이미지 정리
+            # 2. 스마트 업데이트 (바뀐 컨테이너만 껐다 켜짐)
+            echo "Updating services..."
+            docker compose -f docker-compose.prod.yml up -d
+            
+            # 3. 찌꺼기 정리
             docker image prune -f
-            echo "Deployment Completed Successfully!"
+            echo "Smart Deployment Completed Successfully!"
