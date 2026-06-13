@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 
 import { Badge, Card } from '../../components/ui';
 import {
@@ -263,17 +264,29 @@ function ConsultPage() {
   const handleMatchRoom = async () => {
     if (!selectedRoom) return;
 
-    await matchConsultRoomMutation.mutateAsync(selectedRoom.roomId);
-    setActiveStatus('ACTIVE');
-    setAnswerText('');
+    try {
+      await matchConsultRoomMutation.mutateAsync(selectedRoom.roomId);
+      setActiveStatus('ACTIVE');
+      setAnswerText('');
+      toast.success('상담 요청을 수락했습니다.');
+    } catch (error) {
+      console.error('상담 요청 수락 실패:', error);
+      toast.error('상담 요청을 수락하지 못했습니다.');
+    }
   };
 
   const handleCloseRoom = async () => {
     if (!selectedRoom) return;
 
-    await closeConsultRoomMutation.mutateAsync(selectedRoom.roomId);
-    setActiveStatus('COMPLETED');
-    setAnswerText('');
+    try {
+      await closeConsultRoomMutation.mutateAsync(selectedRoom.roomId);
+      setActiveStatus('COMPLETED');
+      setAnswerText('');
+      toast.success('상담이 종료되었습니다.');
+    } catch (error) {
+      console.error('상담 종료 실패:', error);
+      toast.error('상담 종료에 실패했습니다.');
+    }
   };
 
   const handleGenerateConsultSummary = () => {
@@ -282,9 +295,12 @@ function ConsultPage() {
     }
 
     generateConsultSummaryMutation.mutate(selectedRoom.roomId, {
+      onSuccess: () => {
+        toast.success('상담 요약이 생성되었습니다.');
+      },
       onError: (error) => {
         console.error('상담 요약 생성 실패:', error);
-        alert('상담 요약 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        toast.error('상담 요약 생성에 실패했습니다.');
       },
     });
   };
@@ -297,14 +313,14 @@ function ConsultPage() {
     }
 
     if (!isSelectedRoomMatched) {
-      alert('상담 수락 후 답변을 전송할 수 있습니다.');
+      toast.error('상담 수락 후 답변을 전송할 수 있습니다.');
       return;
     }
 
     const isSent = sendConsultSocketMessage(trimmedAnswer);
 
     if (!isSent) {
-      alert('상담 서버에 연결되지 않았습니다. 잠시 후 다시 시도해주세요.');
+      toast.error('상담 서버에 연결되지 않았습니다.');
       return;
     }
 

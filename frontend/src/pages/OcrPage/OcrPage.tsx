@@ -106,7 +106,10 @@ function getDefaultDoseTimes(timesPerDay: number): DoseTimeForm[] {
 
 function getPresetDoseTimes(
   timesPerDay: number,
-  presets: { timesPerDay: number; slots: { sortOrder: number; takeTime: string }[] }[],
+  presets: {
+    timesPerDay: number;
+    slots: { sortOrder: number; takeTime: string }[];
+  }[],
 ): DoseTimeForm[] {
   const matchedPreset = presets.find(
     (preset) => preset.timesPerDay === timesPerDay,
@@ -248,7 +251,7 @@ function OcrPage() {
 
   const handleAddManualMedication = () => {
     if (!manualForm.medicineName.trim()) {
-      alert('약 이름을 입력해주세요.');
+      toast.error('약 이름을 입력해주세요.');
       return;
     }
 
@@ -456,10 +459,7 @@ function OcrPage() {
       return 3;
     }
 
-    if (
-      normalizedText.includes('아침') &&
-      normalizedText.includes('저녁')
-    ) {
+    if (normalizedText.includes('아침') && normalizedText.includes('저녁')) {
       return 2;
     }
 
@@ -533,7 +533,9 @@ function OcrPage() {
       ]);
 
       const itemText = Object.values(item)
-        .filter((value) => typeof value === 'string' || typeof value === 'number')
+        .filter(
+          (value) => typeof value === 'string' || typeof value === 'number',
+        )
         .join(' ');
 
       const inferredTimesPerDay =
@@ -1261,15 +1263,19 @@ function OcrPage() {
                                 }}
                                 className="w-full rounded-xl px-3 py-3 text-left hover:bg-slate-50"
                               >
-                                <p className="font-semibold text-slate-900">{medicineName}</p>
+                                <p className="font-semibold text-slate-900">
+                                  {medicineName}
+                                </p>
                               </button>
                             ))}
 
-                          {!isMedicineSuggestLoading && medicineSuggestions.length === 0 && (
-                            <div className="px-3 py-4 text-sm text-slate-500">
-                              검색 결과가 없습니다. 직접 입력한 이름으로 등록할 수 있습니다.
-                            </div>
-                          )}
+                          {!isMedicineSuggestLoading &&
+                            medicineSuggestions.length === 0 && (
+                              <div className="px-3 py-4 text-sm text-slate-500">
+                                검색 결과가 없습니다. 직접 입력한 이름으로
+                                등록할 수 있습니다.
+                              </div>
+                            )}
                         </div>
                       </div>
                     )}
@@ -1468,8 +1474,8 @@ function OcrPage() {
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  처방 내역이나 약봉투 이미지를 업로드하면 OCR 분석 결과를 바탕으로
-                  복약 일정 후보를 생성합니다.
+                  처방 내역이나 약봉투 이미지를 업로드하면 OCR 분석 결과를
+                  바탕으로 복약 일정 후보를 생성합니다.
                 </p>
               </div>
 

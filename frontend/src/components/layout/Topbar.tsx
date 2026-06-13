@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { useUserStore } from "../../store/useUserStore";
 
 function Topbar() {
@@ -8,6 +9,7 @@ function Topbar() {
 
   const handleLogout = () => {
     logout();
+    toast.success("로그아웃되었습니다.");
     navigate("/login");
   };
 
