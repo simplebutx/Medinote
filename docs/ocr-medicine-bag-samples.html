@@ -1,0 +1,1321 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OCR Test Medicine Bag Samples</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 8mm;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #ececec;
+      color: #171717;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    .screen-note,
+    .answer-key {
+      width: min(100% - 24px, 210mm);
+      margin: 18px auto;
+      padding: 14px 16px;
+      background: #fff;
+      border: 1px solid #c8c8c8;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .screen-note strong {
+      font-size: 16px;
+    }
+
+    .sample-page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto 18px;
+      padding: 8mm;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      page-break-after: always;
+    }
+
+    .sheet {
+      position: relative;
+      overflow: hidden;
+      background: #fffef8;
+      border: 1.2px solid #8d8d8d;
+      box-shadow: 0 1mm 4mm rgba(0, 0, 0, .08);
+    }
+
+    .sheet::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(95deg, transparent 0 46%, rgba(0,0,0,.035) 46.2% 46.7%, transparent 47%),
+        linear-gradient(177deg, transparent 0 67%, rgba(0,0,0,.025) 67.2% 67.6%, transparent 68%);
+      mix-blend-mode: multiply;
+    }
+
+    .sheet::after {
+      content: "TEST SAMPLE";
+      position: absolute;
+      right: 8mm;
+      bottom: 7mm;
+      color: rgba(0, 0, 0, .055);
+      font-size: 22px;
+      font-weight: 900;
+      transform: rotate(-8deg);
+      pointer-events: none;
+    }
+
+    .landscape {
+      width: 194mm;
+      height: 128mm;
+      display: grid;
+      grid-template-columns: 63mm 1fr;
+      gap: 0;
+    }
+
+    .landscape.receipt-right {
+      grid-template-columns: 1fr 63mm;
+    }
+
+    .landscape.no-receipt {
+      grid-template-columns: 1fr;
+    }
+
+    .portrait {
+      width: 108mm;
+      height: 184mm;
+      padding: 5mm;
+    }
+
+    .receipt {
+      position: relative;
+      padding: 4mm 3mm;
+      border-right: 1.4px dashed #777;
+      background: #f9fbfd;
+      font-size: 9px;
+      line-height: 1.22;
+    }
+
+    .receipt.right {
+      border-right: 0;
+      border-left: 1.4px dashed #777;
+    }
+
+    .receipt h3 {
+      margin: 0 0 2mm;
+      padding: 1.4mm 1mm;
+      background: #526d93;
+      color: #fff;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .receipt table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .receipt th,
+    .receipt td {
+      border: 1px solid #6f7e91;
+      padding: .8mm;
+      vertical-align: top;
+    }
+
+    .receipt th {
+      width: 38%;
+      background: #edf3fa;
+      font-weight: 800;
+    }
+
+    .receipt .mini-list {
+      margin-top: 5mm;
+      border-top: 1px dashed #777;
+      padding-top: 2mm;
+      font-size: 9px;
+      line-height: 1.25;
+    }
+
+    .receipt .mini-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 9.5mm 7.5mm 7.5mm;
+      column-gap: .7mm;
+      row-gap: .9mm;
+      align-items: start;
+      margin-top: 1mm;
+    }
+
+    .receipt .mini-grid > div {
+      min-width: 0;
+    }
+
+    .receipt .mini-grid .mini-head {
+      font-weight: 900;
+      white-space: nowrap;
+      border-bottom: 1px solid #777;
+      padding-bottom: .8mm;
+    }
+
+    .receipt .mini-grid .mini-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: clip;
+    }
+
+    .receipt .mini-grid .mini-num {
+      text-align: center;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .main {
+      position: relative;
+      padding: 5mm 5mm 4mm;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .brand-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 5mm;
+      align-items: start;
+      margin-bottom: 3mm;
+    }
+
+    .brand-title {
+      font-size: 22px;
+      font-weight: 900;
+      color: #213a60;
+      line-height: 1.1;
+    }
+
+    .brand-title .mark {
+      display: inline-block;
+      width: 7mm;
+      height: 7mm;
+      margin-right: 2mm;
+      border-radius: 2mm;
+      background: #3b6f9f;
+      color: #fff;
+      text-align: center;
+      line-height: 7mm;
+      font-size: 13px;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 2mm 8mm;
+      margin: 2mm 0 3mm;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .meta div {
+      border-bottom: 1px solid #777;
+      padding-bottom: .7mm;
+    }
+
+    .qr {
+      width: 15mm;
+      height: 15mm;
+      border: 1px solid #333;
+      background:
+        linear-gradient(90deg, #111 0 18%, transparent 18% 34%, #111 34% 48%, transparent 48% 65%, #111 65% 78%, transparent 78%),
+        linear-gradient(#111 0 14%, transparent 14% 32%, #111 32% 46%, transparent 46% 62%, #111 62% 76%, transparent 76%);
+      background-size: 5mm 5mm;
+      opacity: .72;
+    }
+
+    .dose-box {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      border: 1.4px solid #333;
+      margin-bottom: 3mm;
+      font-weight: 900;
+    }
+
+    .dose-box > div {
+      padding: 2mm;
+      border-right: 1px solid #333;
+      text-align: center;
+      font-size: 17px;
+    }
+
+    .dose-box > div:last-child {
+      border-right: 0;
+      font-size: 14px;
+    }
+
+    .med-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 10.5px;
+      line-height: 1.22;
+    }
+
+    .med-table th {
+      padding: 1.5mm 1mm;
+      background: #496b94;
+      color: #fff;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .med-table td {
+      border-bottom: 1px solid #777;
+      padding: 1.4mm 1mm;
+      vertical-align: top;
+    }
+
+    .med-table .photo-col {
+      width: 26mm;
+    }
+
+    .med-table .name-col {
+      width: 36mm;
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    .pill-photo {
+      height: 14mm;
+      border: 1px solid #adc0cf;
+      background: #c8dae8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2mm;
+      overflow: hidden;
+    }
+
+    .pill {
+      display: inline-block;
+      width: 11mm;
+      height: 5mm;
+      border-radius: 99px;
+      border: 1px solid rgba(0,0,0,.18);
+      background: #f4f0d6;
+    }
+
+    .pill.round {
+      width: 7mm;
+      height: 7mm;
+      border-radius: 50%;
+    }
+
+    .pill.green {
+      background: #bfd68b;
+    }
+
+    .pill.gray {
+      background: #aaa;
+    }
+
+    .pill.red {
+      background: linear-gradient(90deg, #b45d62 0 50%, #f0e2d2 50%);
+    }
+
+    .pill.black {
+      background: linear-gradient(90deg, #303030 0 50%, #f0df88 50%);
+    }
+
+    .icons {
+      display: flex;
+      gap: 1mm;
+      flex-wrap: wrap;
+      justify-content: center;
+      color: #222;
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .icon {
+      display: inline-flex;
+      width: 7mm;
+      height: 7mm;
+      border: 1.2px solid #333;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 900;
+      background: #fff;
+    }
+
+    .bottom-checks {
+      margin-top: auto;
+      border: 1.6px solid #6a7f9c;
+      border-radius: 2mm;
+      padding: 2mm 3mm;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      gap: 3mm;
+      font-size: 16px;
+      font-weight: 900;
+      color: #222;
+    }
+
+    .ocr-summary {
+      margin-top: 3mm;
+      padding: 2mm 2mm 1.5mm;
+      border: 1.4px dashed #777;
+      background: #fff;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 20mm 16mm 16mm;
+      column-gap: 2.2mm;
+      row-gap: 1.6mm;
+      align-items: start;
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    .ocr-summary > div {
+      min-width: 0;
+    }
+
+    .ocr-summary .summary-head {
+      font-weight: 900;
+      border-bottom: 1px solid #777;
+      padding-bottom: 1mm;
+      white-space: nowrap;
+    }
+
+    .ocr-summary .summary-name {
+      overflow-wrap: anywhere;
+      word-break: keep-all;
+      font-weight: 700;
+    }
+
+    .ocr-summary .summary-num {
+      text-align: center;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .box {
+      display: inline-block;
+      width: 4mm;
+      height: 4mm;
+      border: 1.2px solid #333;
+      margin-right: 1mm;
+      vertical-align: -0.5mm;
+    }
+
+    .hand {
+      position: absolute;
+      color: #1b1b1b;
+      font-family: "Comic Sans MS", "Segoe Print", cursive;
+      font-size: 19px;
+      font-weight: 900;
+      transform: rotate(-7deg);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .circle {
+      position: absolute;
+      border: 2.2px solid #222;
+      border-radius: 50%;
+      transform: rotate(-12deg);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .checkmark {
+      position: absolute;
+      font-size: 28px;
+      font-weight: 900;
+      transform: rotate(-15deg);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .faint {
+      filter: contrast(.9) brightness(1.06);
+      opacity: .88;
+    }
+
+    .dense .med-table {
+      font-size: 9.4px;
+    }
+
+    .dense .med-table .name-col {
+      font-size: 10.5px;
+    }
+
+    .portrait .top-title {
+      margin-bottom: 3mm;
+      padding-bottom: 2mm;
+      border-bottom: 2px solid #496b94;
+      color: #213a60;
+      font-size: 21px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .portrait .portrait-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5mm;
+      margin-bottom: 3mm;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .portrait .portrait-meta div {
+      border: 1px solid #aaa;
+      padding: 1.4mm;
+    }
+
+    .portrait .dose-box {
+      grid-template-columns: 1fr;
+    }
+
+    .portrait .dose-box > div {
+      border-right: 0;
+      border-bottom: 1px solid #333;
+    }
+
+    .portrait .dose-box > div:last-child {
+      border-bottom: 0;
+    }
+
+    .portrait .med-table {
+      font-size: 9.5px;
+    }
+
+    .portrait .med-table .photo-col {
+      width: 21mm;
+    }
+
+    .portrait .med-table .name-col {
+      width: 26mm;
+      font-size: 10.5px;
+    }
+
+    .portrait .bottom-checks {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      font-size: 13px;
+      margin-top: 4mm;
+    }
+
+    .portrait .ocr-summary {
+      grid-template-columns: minmax(0, 1fr) 14mm 12mm 12mm;
+      font-size: 11.5px;
+    }
+
+    .simple-label {
+      height: 112mm;
+    }
+
+    .simple-label .med-table .photo-col,
+    .simple-label .med-table td:first-child,
+    .simple-label .med-table th:first-child {
+      display: none;
+    }
+
+    .simple-label .portrait-receipt {
+      display: none;
+    }
+
+    .document-style {
+      height: 150mm;
+    }
+
+    .document-style .dose-box {
+      margin-bottom: 5mm;
+    }
+
+    .pictogram-heavy .icon {
+      width: 9mm;
+      height: 9mm;
+      font-size: 14px;
+      border-width: 1.5px;
+    }
+
+    .pictogram-heavy .med-table td:last-child {
+      background: #f5f8fb;
+    }
+
+    .roll {
+      width: 76mm;
+      height: 210mm;
+      background: #fff;
+      border-style: dashed;
+      font-family: "Consolas", "Malgun Gothic", monospace;
+    }
+
+    .roll .top-title {
+      font-size: 17px;
+      color: #111;
+      border-bottom: 1px dashed #555;
+    }
+
+    .roll .portrait-meta {
+      grid-template-columns: 1fr;
+      font-size: 9px;
+    }
+
+    .roll .dose-box > div {
+      font-size: 13px;
+    }
+
+    .roll .med-table {
+      font-size: 8px;
+    }
+
+    .roll .med-table .photo-col,
+    .roll .med-table td:first-child,
+    .roll .med-table th:first-child {
+      display: none;
+    }
+
+    .roll .bottom-checks {
+      grid-template-columns: 1fr;
+      font-size: 10px;
+    }
+
+    .portrait-receipt {
+      margin-top: 4mm;
+      padding-top: 3mm;
+      border-top: 1.4px dashed #777;
+      font-size: 9px;
+      line-height: 1.25;
+    }
+
+    .answer-key h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    .answer-key table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .answer-key th,
+    .answer-key td {
+      border: 1px solid #aaa;
+      padding: 5px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .screen-note,
+      .answer-key {
+        display: none;
+      }
+
+      .sample-page {
+        margin: 0;
+        box-shadow: none;
+      }
+
+      .sheet {
+        box-shadow: none;
+      }
+    }
+
+    body.capture-mode {
+      background: white;
+      padding: 0;
+    }
+
+    body.capture-mode .screen-note,
+    body.capture-mode .answer-key {
+      display: none;
+    }
+
+    body.capture-mode .sample-page {
+      min-height: auto;
+      padding: 0;
+      page-break-after: auto;
+    }
+
+    body.capture-mode .sheet {
+      margin: 0;
+      box-shadow: none;
+    }
+  </style>
+</head>
+<body>
+  <section class="screen-note">
+    <strong>약봉지 OCR 테스트 유형별 샘플 12종</strong><br>
+    표준형, 우측 영수증형, 저대비, QR형, 세로 라벨형, 소아 시럽형, 외용제형 등 서로 다른 OCR 실패 케이스를 담았습니다.
+    이름, 병원, 약국은 더미 데이터이며, 약품명은 DB item_name과 정확히 일치하는 이름 및 현재 매칭 로직으로 잡히는 축약명을 섞었습니다.
+  </section>
+
+  <main id="samples"></main>
+
+  <section class="answer-key">
+    <h2>Ground Truth 요약표</h2>
+    <table id="answerKey">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>방향</th>
+          <th>핵심 추출값</th>
+          <th>테스트 포인트</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <script>
+    const samples = [
+      {
+        id: "T01",
+        orientation: "landscape",
+        receipt: "left",
+        title: "표준 가로형 조제약 복약안내",
+        patient: "한승훈",
+        age: "만 26세 / 남",
+        hospital: "대치퍼스트이비인후과의원",
+        pharmacist: "윤인경",
+        date: "2026-06-14",
+        days: 4,
+        dose: "1일 3회 4일분",
+        timing: "아침 · 점심 · 저녁 / 식후 30분",
+        meds: [
+          ["세토펜8시간이알서방정(아세트아미노펜)", "해열진통제", "열과 통증을 완화하는 약", "1정씩 3회 4일분", "간격주의", "round"],
+          ["지르텍정", "항히스타민제", "알레르기 증상을 완화하는 약", "1정씩 1회 4일분", "졸음주의", "green"],
+          ["넥시움정20밀리그램", "위산분비억제제", "속쓰림과 위산 관련 증상 완화", "1정씩 1회 4일분", "식전권장", "gray"],
+        ],
+        marks: [{ type: "circle", left: "74%", top: "4%", w: "14mm", h: "10mm" }, { type: "hand", text: "후", left: "80%", top: "7%" }],
+        point: "표준 가로형: 좌측 영수증, 약품사진 열, 복용 시간 필기"
+      },
+      {
+        id: "T02",
+        orientation: "landscape",
+        receipt: "right",
+        title: "영수증 우측 분리형 복약안내",
+        patient: "한관구",
+        age: "60세 / 남",
+        hospital: "마도치과",
+        pharmacist: "김영숙",
+        date: "2026-06-12",
+        days: 3,
+        dose: "1일 3회 3일분",
+        timing: "아침 · 점심 · 저녁 / 식후 30분",
+        meds: [
+          ["부루펜정200밀리그램", "소염진통제", "통증과 염증을 줄여주는 약", "1정씩 3회 3일분", "위장주의", "round"],
+          ["포리부틴정", "위장운동조절제", "복부 불편감과 위장 운동 조절", "1정씩 3회 3일분", "식전복용", "gray"],
+          ["오라메디연고", "구내염 치료제", "입안 염증 부위에 바르는 약", "1일 수회", "외용", "green"],
+        ],
+        marks: [{ type: "hand", text: "3", left: "24%", top: "18%" }, { type: "circle", left: "62%", top: "14%", w: "18mm", h: "18mm" }],
+        point: "우측 영수증: 참고 사진처럼 큰 복용법 영역과 손글씨 표시"
+      },
+      {
+        id: "T03",
+        orientation: "landscape",
+        receipt: "left",
+        title: "흐린 촬영 · 저대비 복약안내",
+        patient: "김민권",
+        age: "만 31세 / 남",
+        hospital: "코코이비인후과",
+        pharmacist: "김민권",
+        date: "2026-04-27",
+        days: 3,
+        dose: "1일 3회 3일분",
+        timing: "아침 · 점심 · 저녁 / 식후",
+        meds: [
+          ["게보린정(수출명:돌로린정)", "해열진통제", "두통과 통증 완화 목적의 약", "1정씩 3회 3일분", "과량주의", "round"],
+          ["판콜에이내복액", "감기약", "감기 증상 완화를 위한 내복액", "1병씩 3회 3일분", "졸음주의", "green"],
+          ["활명수", "소화제", "소화불량과 더부룩함 완화", "1병 필요 시", "당분주의", "gray"],
+        ],
+        className: "faint",
+        marks: [{ type: "circle", left: "26%", top: "22%", w: "55mm", h: "21mm" }, { type: "check", left: "90%", top: "47%" }],
+        point: "저대비/흐림: 촬영 품질이 낮은 사진 OCR 테스트"
+      },
+      {
+        id: "T04",
+        orientation: "landscape",
+        receipt: "none",
+        title: "식별사진 상세 문서형 복약지도",
+        patient: "백서윤",
+        age: "만 34세 / 여",
+        hospital: "미래여성의원",
+        pharmacist: "하유리",
+        date: "2026-06-12",
+        days: 10,
+        dose: "1일 1회 10일분",
+        timing: "매일 같은 시간 / 아침",
+        meds: [
+          ["삐콤정", "비타민제", "비타민 보충 목적의 약", "1정씩 1회", "매일복용", "round"],
+          ["비타메진캡슐50밀리그램", "비타민제", "비타민 B군 보충 목적의 캡슐", "1캡슐씩 1회", "식후권장", "black"],
+          ["듀락칸시럽", "변비약", "변비 증상 완화에 사용하는 시럽", "15mL씩 1회", "용량확인", "green"],
+        ],
+        qr: true,
+        className: "dense document-style",
+        point: "상세 문서형: 식별사진, 효능, 주의사항 중심의 별도 안내문 유형"
+      },
+      {
+        id: "T05",
+        orientation: "landscape",
+        receipt: "left",
+        title: "QR · 운전 위험 pictogram 강조형",
+        patient: "김수진",
+        age: "만 37세 / 여",
+        hospital: "삼성스마트신경과의원",
+        pharmacist: "김수진",
+        date: "2026-04-18",
+        days: 14,
+        dose: "1일 1회 14일분",
+        timing: "저녁 / 표시대로",
+        meds: [
+          ["뉴렙톨캡슐300밀리그램", "신경병증성 통증 치료제", "신경 통증 조절에 사용하는 약", "1캡슐씩 1회", "졸음주의", "black"],
+          ["키미테패취", "멀미약", "귀 뒤에 붙이는 패취형 약", "1매 필요 시", "운전주의", "gray"],
+          ["쎄레스톤지크림", "피부질환 치료제", "피부 염증 부위에 바르는 약", "1일 1~2회", "외용", "green"],
+        ],
+        qr: true,
+        marks: [{ type: "hand", text: "졸음, 운전X", left: "42%", top: "29%" }, { type: "circle", left: "91%", top: "42%", w: "18mm", h: "18mm" }],
+        className: "pictogram-heavy",
+        point: "QR/픽토그램: QR, 운전 위험, 졸음 등 주의 아이콘이 강조된 유형"
+      },
+      {
+        id: "T06",
+        orientation: "portrait",
+        title: "약봉투 한줄 라벨형 복약 안내",
+        patient: "문예린",
+        age: "만 19세 / 여",
+        hospital: "중앙역약국",
+        pharmacist: "김라온",
+        date: "2026-06-10",
+        days: 5,
+        dose: "1일 3회 5일분",
+        timing: "아침 · 점심 · 저녁 / 식후",
+        meds: [
+          ["토브라점안액", "점안제", "눈에 넣는 항생제 점안액", "1방울씩 3회", "점안", "green"],
+          ["후시딘연고", "항생제 연고", "상처 부위에 얇게 바르는 약", "1일 1~2회", "외용", "gray"],
+          ["오라메디연고{수출명:오라메디파스타(ORAMEDYPASTE)}", "구내염 치료제", "입안 염증 부위에 바르는 약", "1일 수회", "외용", "round"],
+        ],
+        className: "simple-label",
+        point: "한줄 라벨형: 약봉투 겉면에 간단 복약지도만 인쇄된 유형"
+      },
+      {
+        id: "T07",
+        orientation: "portrait",
+        title: "소아 시럽 · 분할 용량형",
+        patient: "오하준",
+        age: "만 6세 / 남",
+        hospital: "아이튼튼소아과",
+        pharmacist: "이채원",
+        date: "2026-04-16",
+        days: 3,
+        dose: "1일 2회 3일분",
+        timing: "아침 · 저녁 / 식후",
+        meds: [
+          ["듀락칸시럽(락툴로오즈농축액)", "변비약", "변비 증상 완화에 사용하는 시럽", "5mL씩 2회", "용량확인", "green"],
+          ["판콜에이내복액", "감기약", "감기 증상을 완화하는 내복액", "0.5병씩 2회", "소아용량", "gray"],
+          ["세토펜8시간이알서방정", "해열진통제", "열과 통증 완화 목적의 약", "0.5정 필요 시", "분할용량", "round"],
+        ],
+        point: "소아/시럽: mL, 0.5정처럼 숫자 추출이 중요한 유형"
+      },
+      {
+        id: "T08",
+        orientation: "portrait",
+        title: "긴 약품명 밀집형",
+        patient: "유시우",
+        age: "만 48세 / 남",
+        hospital: "봄날약국",
+        pharmacist: "박가람",
+        date: "2026-03-03",
+        days: 7,
+        dose: "1일 3회 7일분",
+        timing: "식후 30분",
+        meds: [
+          ["오라메디연고{수출명:오라메디파스타(ORAMEDYPASTE)}", "구내염 치료제", "수출명과 중괄호가 포함된 긴 약품명", "1일 수회", "외용", "round"],
+          ["비타민케이1주사액(피토나디온주사액)", "주사제", "주사제 이름과 성분명이 함께 표시됨", "의사지시대로", "주사", "gray"],
+          ["노바스크정5밀리그람(암로디핀베실산염)", "혈압강하제", "혈압 조절 목적의 약", "1정씩 1회", "어지럼", "green"],
+        ],
+        className: "dense",
+        point: "긴 이름: 괄호, 영문, 수출명, 성분명 포함"
+      },
+      {
+        id: "T09",
+        orientation: "landscape",
+        receipt: "left",
+        title: "복용법 하단 절취선 강조형",
+        patient: "정하은",
+        age: "만 52세 / 여",
+        hospital: "가온가정의학과",
+        pharmacist: "노은지",
+        date: "2026-04-30",
+        days: 30,
+        dose: "1일 1회 30일분",
+        timing: "매일 아침 / 같은 시간",
+        meds: [
+          ["다이아벡스정500밀리그램", "혈당강하제", "혈당 조절을 돕는 약", "1정씩 1회 30일분", "식사와 함께", "round"],
+          ["노바스크정5밀리그람", "혈압강하제", "혈압을 조절하는 약", "1정씩 1회 30일분", "어지럼", "gray"],
+          ["넥시움정20밀리그램(에스오메프라졸마그네슘)", "위산분비억제제", "속쓰림 완화 목적의 약", "1정씩 1회 30일분", "식전", "green"],
+        ],
+        marks: [{ type: "circle", left: "38%", top: "82%", w: "19mm", h: "11mm" }],
+        point: "만성질환 장기처방: 30일분과 하단 체크박스 추출"
+      },
+      {
+        id: "T10",
+        orientation: "portrait",
+        title: "패취 · 외용제 혼합형",
+        patient: "장예준",
+        age: "만 31세 / 남",
+        hospital: "24시테스트약국",
+        pharmacist: "한지민",
+        date: "2026-06-01",
+        days: 5,
+        dose: "필요 시 사용",
+        timing: "증상 있을 때 / 표시대로",
+        meds: [
+          ["키미테패취(스코폴라민)(수출명:可弥特止暈貼濟)", "멀미약", "귀 뒤에 붙이는 패취형 약", "1매 필요 시", "붙이는약", "gray"],
+          ["후시딘연고(퓨시드산나트륨)", "항생제 연고", "상처 부위에 바르는 약", "1일 1~2회", "외용", "green"],
+          ["쎄레스톤지크림", "피부질환 치료제", "피부 염증 부위에 바르는 약", "1일 1~2회", "외용", "round"],
+        ],
+        qr: true,
+        point: "패취/연고/크림: 복용이 아닌 사용 지시 유형"
+      },
+      {
+        id: "T11",
+        orientation: "landscape",
+        receipt: "left",
+        title: "OCR 오인식 유도 손글씨형",
+        patient: "강민서",
+        age: "만 28세 / 여",
+        hospital: "새봄약국",
+        pharmacist: "최도윤",
+        date: "2026-06-14",
+        days: 4,
+        dose: "1일 2회 4일분",
+        timing: "아침 식전 · 저녁 식후",
+        meds: [
+          ["비타메진캡슐50밀리그램", "비타민제", "비타민 보충 목적의 캡슐", "1캡슐씩 1회", "식후", "black"],
+          ["포리부틴정(트리메부틴말레산염)", "위장운동조절제", "위장 운동을 조절하는 약", "1정씩 2회", "식전", "round"],
+          ["게보린정", "해열진통제", "통증이 있을 때 복용", "1정 필요 시", "과량주의", "gray"],
+        ],
+        marks: [{ type: "hand", text: "식전!", left: "52%", top: "24%" }, { type: "circle", left: "50%", top: "35%", w: "18mm", h: "13mm" }, { type: "check", left: "84%", top: "62%" }],
+        point: "손글씨/동그라미/체크가 인쇄 텍스트를 가리는 유형"
+      },
+      {
+        id: "T12",
+        orientation: "portrait",
+        title: "롤용지 영수증형 복약지도",
+        patient: "차은우",
+        age: "만 55세 / 남",
+        hospital: "정다운약국",
+        pharmacist: "서하린",
+        date: "2026-02-21",
+        days: 14,
+        dose: "1일 2회 14일분",
+        timing: "아침 · 저녁 / 표시대로",
+        meds: [
+          ["토브라점안액", "점안제", "눈에 넣는 약", "필요 시 1방울", "점안", "green"],
+          ["삐콤정", "비타민제", "비타민 보충 목적", "1정씩 1회", "매일", "round"],
+          ["활명수", "소화제", "소화불량 완화", "1병 필요 시", "당분", "gray"],
+        ],
+        className: "dense faint roll",
+        point: "롤용지형: 카드 영수증처럼 좁은 폭에 약품명과 복용법이 압축된 유형"
+      },
+      {
+        id: "T13",
+        orientation: "landscape",
+        receipt: "right",
+        title: "처방약 · 일반약 혼합 가로형",
+        patient: "이도현",
+        age: "만 42세 / 남",
+        hospital: "바른속내과의원",
+        pharmacist: "유나래",
+        date: "2026-05-09",
+        days: 5,
+        dose: "1일 3회 5일분",
+        timing: "아침 · 점심 · 저녁 / 식전 30분",
+        meds: [
+          ["알마겔정", "제산제", "위산을 중화하고 속쓰림을 완화", "1정씩 3회 5일분", "식전", "round"],
+          ["포리부틴정", "위장운동조절제", "복부 불편감과 위장 운동 조절", "1정씩 3회 5일분", "졸음주의", "gray"],
+          ["뮤코라제정", "소염효소제", "염증과 부종 완화 목적의 약", "1정씩 2회 5일분", "과량주의", "green"],
+          ["후시딘연고", "항생제 연고", "상처 부위에 얇게 바르는 약", "1일 1~2회", "외용", "black"],
+        ],
+        marks: [{ type: "circle", left: "69%", top: "14%", w: "16mm", h: "12mm" }, { type: "hand", text: "식전", left: "72%", top: "24%" }],
+        point: "가로 우측 영수증: 먹는약과 외용제가 섞인 4개 약품"
+      },
+      {
+        id: "T14",
+        orientation: "portrait",
+        title: "소아 액제 · 반정 혼합형",
+        patient: "박하윤",
+        age: "만 8세 / 여",
+        hospital: "새싹소아청소년과",
+        pharmacist: "문서진",
+        date: "2026-01-19",
+        days: 4,
+        dose: "1일 2회 4일분",
+        timing: "아침 · 저녁 / 식후",
+        meds: [
+          ["듀락칸시럽", "변비약", "변비 증상 완화에 사용하는 시럽", "7.5mL씩 2회 4일분", "용량확인", "green"],
+          ["세토펜8시간이알서방정", "해열진통제", "열과 통증 완화 목적의 약", "0.5정씩 2회 4일분", "분할주의", "round"],
+          ["판콜에이내복액", "감기약", "감기 증상을 완화하는 내복액", "0.5병씩 2회 4일분", "졸음주의", "gray"],
+        ],
+        className: "dense",
+        point: "소아 액제: mL, 0.5정, 0.5병이 함께 있는 유형"
+      },
+      {
+        id: "T15",
+        orientation: "landscape",
+        receipt: "none",
+        title: "영수증 없는 복약지도 단독형",
+        patient: "최민재",
+        age: "만 67세 / 남",
+        hospital: "푸른정형외과의원",
+        pharmacist: "임도겸",
+        date: "2026-03-28",
+        days: 7,
+        dose: "1일 2회 7일분",
+        timing: "아침 · 저녁 / 식후 30분",
+        meds: [
+          ["덱시부펜정400밀리그램", "소염진통제", "통증과 염증을 완화하는 약", "1정씩 2회 7일분", "위장주의", "round"],
+          ["넥시움정20밀리그램", "위산분비억제제", "속쓰림과 위산 관련 증상 완화", "1정씩 1회 7일분", "식전권장", "gray"],
+          ["오라메디연고", "구내염 치료제", "입안 염증 부위에 바르는 약", "1일 수회", "외용", "green"],
+        ],
+        className: "document-style",
+        point: "영수증 없음: 큰 복약안내와 하단 요약표만 있는 유형"
+      },
+      {
+        id: "T16",
+        orientation: "portrait",
+        title: "약국명 숫자 시작 · 만성질환형",
+        patient: "권지후",
+        age: "만 59세 / 여",
+        hospital: "365튼튼약국",
+        pharmacist: "오하린",
+        date: "2026-05-22",
+        days: 30,
+        dose: "1일 1회 30일분",
+        timing: "매일 아침 / 같은 시간",
+        meds: [
+          ["다이아벡스정500밀리그램", "혈당강하제", "혈당 조절을 돕는 약", "1정씩 1회 30일분", "식사와함께", "round"],
+          ["노바스크정5밀리그램", "혈압강하제", "혈압을 조절하는 약", "1정씩 1회 30일분", "어지럼", "green"],
+          ["삐콤정", "비타민제", "비타민 보충 목적의 약", "1정씩 1회 30일분", "매일", "gray"],
+        ],
+        point: "숫자 시작 약국명: 365 약국명과 30일 장기처방"
+      },
+      {
+        id: "T17",
+        orientation: "landscape",
+        receipt: "left",
+        title: "긴 성분명 · 괄호 많은 가로형",
+        patient: "남서준",
+        age: "만 33세 / 남",
+        hospital: "우리피부과의원",
+        pharmacist: "강태오",
+        date: "2026-02-06",
+        days: 10,
+        dose: "1일 1회 10일분",
+        timing: "저녁 / 표시대로",
+        meds: [
+          ["쎄레스톤지크림(베타메타손/겐타마이신)", "피부질환 치료제", "피부 염증 부위에 바르는 약", "1일 1~2회", "외용", "round"],
+          ["키미테패취(스코폴라민)", "멀미약", "귀 뒤에 붙이는 패취형 약", "1매 필요 시", "붙이는약", "gray"],
+          ["지르텍정(세티리진염산염)", "항히스타민제", "알레르기 증상을 완화하는 약", "1정씩 1회 10일분", "졸음주의", "green"],
+        ],
+        qr: true,
+        className: "dense",
+        point: "괄호/성분명: 약품명 안 괄호와 외용/필요시 혼합"
+      },
+      {
+        id: "T18",
+        orientation: "portrait",
+        title: "좁은 라벨 · 점안제 다회 사용형",
+        patient: "정유빈",
+        age: "만 24세 / 여",
+        hospital: "맑은눈안과",
+        pharmacist: "송이준",
+        date: "2026-04-02",
+        days: 6,
+        dose: "1일 4회 6일분",
+        timing: "아침 · 점심 · 저녁 · 취침전",
+        meds: [
+          ["토브라점안액", "점안제", "눈에 넣는 항생제 점안액", "1방울씩 4회 6일분", "점안", "green"],
+          ["후시딘연고", "항생제 연고", "상처 부위에 바르는 약", "1일 1~2회", "외용", "gray"],
+          ["게보린정", "해열진통제", "통증이 있을 때 복용", "1정 필요 시", "과량주의", "round"],
+        ],
+        className: "simple-label faint",
+        point: "점안제/외용/필요시: 좁고 흐린 세로 라벨"
+      },
+    ];
+
+    const iconSet = ["☕", "🚗", "☾", "!", "물", "임"];
+
+    function receiptHtml(sample, side) {
+      const total = 3000 + sample.days * 890;
+      const selfPay = Math.round(total * 0.3 / 10) * 10;
+      const insurance = total - selfPay;
+      const parseReceiptDose = (text) => {
+        const amount = text.match(/(\d+(?:\.\d+)?)(?:정|캡슐|캡|병|포|mL|매|방울)/);
+        const times = text.match(/(\d+)회/);
+        const days = text.match(/(\d+)일분/);
+        return {
+          amount: amount ? amount[1] : "1",
+          times: times ? times[1] : "1",
+          days: days ? days[1] : String(sample.days),
+        };
+      };
+      const receiptMedicineName = (name) => name
+        .replace(/\{[^}]*\}/g, "")
+        .replace(/\([^)]*\)/g, "")
+        .replace(/\[[^\]]*\]/g, "")
+        .trim();
+      const medRows = sample.meds.slice(0, 5).map((m) => {
+        const dose = parseReceiptDose(m[3]);
+        return `
+          <div class="mini-name">${receiptMedicineName(m[0])}</div>
+          <div class="mini-num">${dose.amount}</div>
+          <div class="mini-num">${dose.times}</div>
+          <div class="mini-num">${dose.days}</div>
+        `;
+      }).join("");
+      return `
+        <aside class="receipt ${side === "right" ? "right" : ""}">
+          <h3>약제비 계산서 · 영수증</h3>
+          <table>
+            <tr><th>영수증번호</th><td>${sample.date.replaceAll("-", "")}-${sample.id.slice(1).padStart(5, "0")}</td></tr>
+            <tr><th>환자성명</th><td>${sample.patient}</td></tr>
+            <tr><th>조제일자</th><td>${sample.date}</td></tr>
+            <tr><th>투약일수</th><td>${sample.days} □야간 □공휴</td></tr>
+            <tr><th>약제비총액</th><td>${total.toLocaleString()} 원</td></tr>
+            <tr><th>본인부담금</th><td>${selfPay.toLocaleString()} 원</td></tr>
+            <tr><th>보험자부담금</th><td>${insurance.toLocaleString()} 원</td></tr>
+            <tr><th>상호</th><td>${sample.pharmacist.slice(0, 1)}온누리약국</td></tr>
+            <tr><th>발행일</th><td>${sample.date}</td></tr>
+          </table>
+          <div class="mini-list">
+            <div class="mini-grid">
+              <div class="mini-head">약품명</div>
+              <div class="mini-head mini-num">투약량</div>
+              <div class="mini-head mini-num">횟수</div>
+              <div class="mini-head mini-num">일수</div>
+              ${medRows}
+            </div>
+          </div>
+        </aside>
+      `;
+    }
+
+    function pillPhoto(kind) {
+      const cls = kind === "round" ? "pill round" : `pill ${kind || ""}`;
+      return `<div class="pill-photo"><span class="${cls}"></span><span class="${cls}"></span></div>`;
+    }
+
+    function medTable(sample) {
+      return `
+        <table class="med-table">
+          <thead>
+            <tr>
+              <th class="photo-col">약품사진</th>
+              <th class="name-col">약품명</th>
+              <th>복약안내</th>
+              <th>주의사항</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sample.meds.map((m, idx) => `
+              <tr>
+                <td>${pillPhoto(m[5])}</td>
+                <td class="name-col">${m[0]}<br><span style="font-weight:400">${m[1]}</span></td>
+                <td><strong>${m[3]}</strong><br>${m[2]}</td>
+                <td>
+                  <div class="icons">
+                    <span class="icon">${iconSet[(idx + sample.days) % iconSet.length]}</span>
+                    <span class="icon">${iconSet[(idx + 2) % iconSet.length]}</span>
+                  </div>
+                  <div style="margin-top:1mm;text-align:center">${m[4]}</div>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function marksHtml(sample) {
+      return (sample.marks || []).map((mark) => {
+        if (mark.type === "circle") {
+          return `<span class="circle" style="left:${mark.left};top:${mark.top};width:${mark.w};height:${mark.h}"></span>`;
+        }
+        if (mark.type === "check") {
+          return `<span class="checkmark" style="left:${mark.left};top:${mark.top}">✓</span>`;
+        }
+        return `<span class="hand" style="left:${mark.left};top:${mark.top}">${mark.text}</span>`;
+      }).join("");
+    }
+
+    function parseReceiptDose(text, sample) {
+      const amount = text.match(/(\d+(?:\.\d+)?)(?:정|캡슐|캡|병|포|mL|매|방울)/);
+      const times = text.match(/(\d+)회/);
+      const days = text.match(/(\d+)일분/);
+      return {
+        amount: amount ? amount[1] : "1",
+        times: times ? times[1] : "1",
+        days: days ? days[1] : String(sample.days),
+      };
+    }
+
+    function ocrSummaryHtml(sample) {
+      const summaryMedicineName = (name) => name
+        .replace(/\{[^}]*\}/g, "")
+        .replace(/\([^)]*\)/g, "")
+        .replace(/\[[^\]]*\]/g, "")
+        .trim();
+
+      return `
+        <div class="ocr-summary">
+          <div class="summary-head">약품명</div>
+          <div class="summary-head summary-num">투약량</div>
+          <div class="summary-head summary-num">횟수</div>
+          <div class="summary-head summary-num">일수</div>
+          ${sample.meds.map((m) => {
+            const dose = parseReceiptDose(m[3], sample);
+            return `
+              <div class="summary-name">${summaryMedicineName(m[0])}</div>
+              <div class="summary-num">${dose.amount}</div>
+              <div class="summary-num">${dose.times}</div>
+              <div class="summary-num">${dose.days}</div>
+            `;
+          }).join("")}
+        </div>
+      `;
+    }
+
+    function mainHtml(sample) {
+      return `
+        <section class="main">
+          <div class="brand-row">
+            <div>
+              <div class="brand-title"><span class="mark">✓</span>${sample.title} <span style="font-size:14px;color:#111">(다음내방일:　　　　)</span></div>
+              <div class="meta">
+                <div>환자정보 : ${sample.patient} (${sample.age})</div>
+                <div>조제 약사 : ${sample.pharmacist}</div>
+                <div>병원정보 : ${sample.hospital}</div>
+                <div>조제 일자 : ${sample.date}</div>
+              </div>
+            </div>
+            ${sample.qr ? '<div class="qr" aria-label="QR placeholder"></div>' : ''}
+          </div>
+          <div class="dose-box">
+            <div>${sample.dose}</div>
+            <div>${sample.timing}</div>
+          </div>
+          ${medTable(sample)}
+          <div class="bottom-checks">
+            <span><span class="box"></span>아침</span>
+            <span><span class="box"></span>점심</span>
+            <span><span class="box"></span>저녁</span>
+            <span><span class="box"></span>취침전</span>
+            <span><span class="box"></span>식후30분</span>
+          </div>
+          ${ocrSummaryHtml(sample)}
+          ${marksHtml(sample)}
+        </section>
+      `;
+    }
+
+    function landscapeHtml(sample) {
+      const receiptSide = sample.receipt || "left";
+      const classes = ["sheet", "landscape", sample.className || ""];
+      if (receiptSide === "right") classes.push("receipt-right");
+      if (receiptSide === "none") classes.push("no-receipt");
+
+      const left = receiptSide === "left" ? receiptHtml(sample, "left") : "";
+      const right = receiptSide === "right" ? receiptHtml(sample, "right") : "";
+      return `<article class="${classes.join(" ")}">${left}${mainHtml(sample)}${right}</article>`;
+    }
+
+    function portraitHtml(sample) {
+      return `
+        <article class="sheet portrait ${sample.className || ""}">
+          <div class="top-title">${sample.title}</div>
+          <div class="portrait-meta">
+            <div>환자: ${sample.patient}<br>${sample.age}</div>
+            <div>조제일: ${sample.date}<br>${sample.days}일분</div>
+            <div>병원: ${sample.hospital}</div>
+            <div>약사: ${sample.pharmacist}</div>
+          </div>
+          <div class="dose-box">
+            <div>${sample.dose}</div>
+            <div>${sample.timing}</div>
+          </div>
+          ${medTable(sample)}
+          <div class="bottom-checks">
+            <span><span class="box"></span>아침</span>
+            <span><span class="box"></span>점심</span>
+            <span><span class="box"></span>저녁</span>
+            <span><span class="box"></span>취침전</span>
+          </div>
+          ${ocrSummaryHtml(sample)}
+          <div class="portrait-receipt">
+            <strong>약제비 영수증</strong><br>
+            영수증번호 ${sample.date.replaceAll("-", "")}-${sample.id.slice(1).padStart(5, "0")}<br>
+            약국명 ${sample.pharmacist.slice(0, 1)}온누리약국 / 테스트용 더미 데이터<br>
+            약품명: ${sample.meds.map((m) => m[0]).join(", ")}
+          </div>
+          ${sample.qr ? '<div class="qr" style="position:absolute;right:5mm;bottom:5mm"></div>' : ''}
+          ${marksHtml(sample)}
+        </article>
+      `;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const singleId = params.get("single");
+    const filter = params.get("filter");
+    if (params.get("capture") === "1") {
+      document.body.classList.add("capture-mode");
+    }
+    const visibleSamples = singleId
+      ? samples.filter((sample) => sample.id === singleId)
+      : filter === "landscape-receipts"
+        ? samples.filter((sample) => sample.orientation === "landscape" && sample.receipt !== "none")
+        : filter === "new-regression"
+          ? samples.filter((sample) => Number(sample.id.slice(1)) >= 13)
+          : samples;
+
+    const root = document.getElementById("samples");
+    root.innerHTML = visibleSamples.map((sample) => `
+      <section class="sample-page">
+        ${sample.orientation === "landscape" ? landscapeHtml(sample) : portraitHtml(sample)}
+      </section>
+    `).join("");
+
+    const tbody = document.querySelector("#answerKey tbody");
+    tbody.innerHTML = visibleSamples.map((sample) => `
+      <tr>
+        <td>${sample.id}</td>
+        <td>${sample.orientation === "landscape" ? "가로" : "세로"}</td>
+        <td>${sample.patient} / ${sample.dose} / ${sample.meds.map((m) => m[0]).join(", ")}</td>
+        <td>${sample.point}</td>
+      </tr>
+    `).join("");
+  </script>
+</body>
+</html>
