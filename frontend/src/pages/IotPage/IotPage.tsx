@@ -1,267 +1,494 @@
+import axios from 'axios';
+import toast from 'react-hot-toast';
+
 import { Badge, Button, Card } from '../../components/ui';
+import {
+  usePauseSmartPillDetection,
+  useResetSmartPillConnection,
+  useSmartPillDevices,
+  useSmartPillHealth,
+  useSmartPillSlotAssignments,
+  useSmartPillStatus,
+  useStartSmartPillDetection,
+} from '../../features/smartpill/hooks';
+import type {
+  SmartPillSlotAssignment,
+  SmartPillSlotState,
+} from '../../features/smartpill/types/smartpill.types';
+import { useState } from 'react';
 
-const pillboxSlots = [
+const DEFAULT_DEVICE_ID = 'smartpill-prototype-1';
+
+const DEFAULT_SLOTS: SmartPillSlotState[] = [
   {
-    id: 1,
-    label: '1번 칸',
-    medicineName: '아침 복약',
-    status: '복용 완료',
-    statusVariant: 'green' as const,
-    time: '08:00',
-    description: '오늘 아침 복약이 완료되었습니다.',
+    slotNumber: 1,
+    muxPort: 3,
+    sensorReady: false,
+    distanceMm: null,
+    pillPresent: false,
   },
   {
-    id: 2,
-    label: '2번 칸',
-    medicineName: '점심 복약',
-    status: '대기 중',
-    statusVariant: 'blue' as const,
-    time: '13:00',
-    description: '복약 시간이 되면 알림을 보냅니다.',
+    slotNumber: 2,
+    muxPort: 4,
+    sensorReady: false,
+    distanceMm: null,
+    pillPresent: false,
   },
   {
-    id: 3,
-    label: '3번 칸',
-    medicineName: '저녁 복약',
-    status: '예정',
-    statusVariant: 'gray' as const,
-    time: '19:00',
-    description: '저녁 복약 일정이 등록되어 있습니다.',
+    slotNumber: 3,
+    muxPort: 6,
+    sensorReady: false,
+    distanceMm: null,
+    pillPresent: false,
   },
   {
-    id: 4,
-    label: '4번 칸',
-    medicineName: '비어 있음',
-    status: '미사용',
-    statusVariant: 'gray' as const,
-    time: '-',
-    description: '스마트 약통 칸을 추가로 설정할 수 있습니다.',
+    slotNumber: 4,
+    muxPort: 7,
+    sensorReady: false,
+    distanceMm: null,
+    pillPresent: false,
   },
 ];
 
-const recentLogs = [
-  {
-    id: 1,
-    time: '오늘 08:03',
-    title: '1번 칸 복용 완료',
-    description: '사용자가 약통을 열고 복약을 완료했습니다.',
-  },
-  {
-    id: 2,
-    time: '어제 19:12',
-    title: '저녁 복약 지연',
-    description: '예정 시간보다 12분 늦게 복약했습니다.',
-  },
-  {
-    id: 3,
-    time: '어제 13:00',
-    title: '점심 복약 알림 발송',
-    description: '스마트 약통 알림이 발송되었습니다.',
-  },
-];
+function formatDistance(distanceMm?: number | null) {
+  return Number.isFinite(distanceMm) && Number(distanceMm) >= 0
+    ? `${distanceMm} mm`
+    : '-- mm';
+}
+
+function formatReceivedAt(receivedAt?: string | null) {
+  if (!receivedAt) {
+    return '수신 대기';
+  }
+
+  const date = new Date(receivedAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return receivedAt;
+  }
+
+  return new Intl.DateTimeFormat('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(date);
+}
+
+function formatTakeTime(takeTime?: string | null) {
+  return takeTime ? takeTime.slice(0, 5) : '시간 미설정';
+}
+
+function getAssignedMedicineNames(assignment?: SmartPillSlotAssignment | null) {
+  return (assignment?.scheduleTimes ?? []).map((scheduleTime) => {
+    return (
+      scheduleTime.medicineName ||
+      `등록 약 #${scheduleTime.medicationScheduleMedicineId ?? '-'}`
+    );
+  });
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    const message = error.response?.data?.message;
+
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  }
+
+  return fallback;
+}
 
 function IotPage() {
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+
+  const healthQuery = useSmartPillHealth();
+  const statusQuery = useSmartPillStatus();
+  const devicesQuery = useSmartPillDevices();
+
+  const sensorDeviceId =
+    statusQuery.data?.deviceId && statusQuery.data.deviceId !== 'empty'
+      ? statusQuery.data.deviceId
+      : null;
+
+  const activeDeviceId =
+    selectedDeviceId ||
+    devicesQuery.data?.[0]?.deviceId ||
+    sensorDeviceId ||
+    DEFAULT_DEVICE_ID;
+
+  const assignmentQuery = useSmartPillSlotAssignments(activeDeviceId);
+  const startDetectionMutation = useStartSmartPillDetection();
+  const pauseDetectionMutation = usePauseSmartPillDetection();
+  const resetConnectionMutation = useResetSmartPillConnection();
+
+  const assignment =
+    assignmentQuery.isError &&
+    axios.isAxiosError(assignmentQuery.error) &&
+    assignmentQuery.error.response?.status === 404
+      ? null
+      : assignmentQuery.data;
+
+  const assignmentsBySlot = new Map(
+    (assignment?.slots ?? []).map((slot) => [slot.slotNumber, slot]),
+  );
+
+  const sensorSlotsByNumber = new Map(
+    (statusQuery.data?.slots ?? []).map((slot) => [slot.slotNumber, slot]),
+  );
+
+  const slots = DEFAULT_SLOTS.map((fallback) => ({
+    ...fallback,
+    ...sensorSlotsByNumber.get(fallback.slotNumber),
+    assignment: assignmentsBySlot.get(fallback.slotNumber) ?? null,
+  }));
+
+  const connectedSlotCount = slots.filter(
+    (slot) => getAssignedMedicineNames(slot.assignment).length > 0,
+  ).length;
+
+  const isControlPending =
+    startDetectionMutation.isPending ||
+    pauseDetectionMutation.isPending ||
+    resetConnectionMutation.isPending;
+
+  const canControlDetection = Boolean(assignment && connectedSlotCount > 0);
+
+  const handleRefresh = async () => {
+    const results = await Promise.all([
+      healthQuery.refetch(),
+      statusQuery.refetch(),
+      devicesQuery.refetch(),
+      assignmentQuery.refetch(),
+    ]);
+
+    if (results.some((result) => result.isError)) {
+      toast.error('일부 스마트 약통 정보를 새로고침하지 못했습니다.');
+      return;
+    }
+
+    toast.success('스마트 약통 정보를 새로고침했습니다.');
+  };
+
+  const handleToggleDetection = async () => {
+    if (!assignment) {
+      toast.error('내 정보에서 처방 내역을 스마트 약통에 먼저 연결해주세요.');
+      return;
+    }
+
+    try {
+      if (assignment.activeDetection) {
+        await pauseDetectionMutation.mutateAsync(activeDeviceId);
+        toast.success('자동 복약 감지를 중지했습니다.');
+      } else {
+        await startDetectionMutation.mutateAsync(activeDeviceId);
+        toast.success('자동 복약 감지를 시작했습니다.');
+      }
+
+      await assignmentQuery.refetch();
+    } catch (error) {
+      console.error('스마트 약통 감지 상태 변경 실패:', error);
+      toast.error(
+        getErrorMessage(error, '자동 복약 감지 상태를 변경하지 못했습니다.'),
+      );
+    }
+  };
+
+  const handleResetConnection = async () => {
+    if (!assignment) {
+      toast.error('초기화할 스마트 약통 연결 정보가 없습니다.');
+      return;
+    }
+
+    const isConfirmed = window.confirm(
+      '스마트 약통의 모든 슬롯 연결을 초기화하시겠습니까?',
+    );
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    try {
+      await resetConnectionMutation.mutateAsync(activeDeviceId);
+      await assignmentQuery.refetch();
+      toast.success('스마트 약통 연결을 초기화했습니다.');
+    } catch (error) {
+      console.error('스마트 약통 연결 초기화 실패:', error);
+      toast.error(
+        getErrorMessage(error, '스마트 약통 연결을 초기화하지 못했습니다.'),
+      );
+    }
+  };
+
+  const assignmentErrorMessage =
+    assignmentQuery.isError &&
+    !(
+      axios.isAxiosError(assignmentQuery.error) &&
+      assignmentQuery.error.response?.status === 404
+    )
+      ? getErrorMessage(
+          assignmentQuery.error,
+          '스마트 약통 연결 정보를 불러오지 못했습니다.',
+        )
+      : '';
+
+  const apiConnected = healthQuery.data === 'smartpill-test-ok';
+  const receivedAt = formatReceivedAt(statusQuery.data?.receivedAt);
+  const lastEvent = statusQuery.data?.eventType || '대기';
+  const buttonClickCount = statusQuery.data?.buttonClickCount ?? 0;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-blue-600">
-            Smart Pillbox
-          </p>
+          <p className="text-sm font-semibold text-blue-600">Smart Pillbox</p>
 
-          <h1 className="mt-2 text-3xl font-bold text-slate-900">
-            스마트 약통
-          </h1>
+          <h1 className="mt-2 text-3xl font-bold text-slate-900">스마트 약통</h1>
 
           <p className="mt-2 text-slate-500">
-            스마트 약통과 연동해 복약 시간, 약통 개폐 여부, 복용 상태를
-            확인하는 화면입니다.
+            4개 칸의 센서 상태와 연결된 처방 내역의 약을 확인합니다.
           </p>
         </div>
 
-        <Badge variant="gray">기기 연동 준비 중</Badge>
-      </div>
-
-      <Card className="border-blue-100 bg-blue-50">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="font-bold text-blue-900">
-              현재는 화면 설계용 미리보기입니다.
-            </p>
-
-            <p className="mt-1 text-sm leading-6 text-blue-700">
-              스마트 약통 API와 실제 기기 연동이 준비되면 이 화면에서 기기
-              연결 상태, 칸별 약 정보, 복약 완료 여부를 실시간으로 확인할 수
-              있습니다.
-            </p>
-          </div>
-
-          <Button type="button" disabled>
-            기기 연결 준비 중
+        <div className="flex items-center gap-2">
+          <Badge variant={apiConnected ? 'green' : 'red'}>
+            {apiConnected ? 'API 연결됨' : 'API 연결 안 됨'}
+          </Badge>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="border border-slate-200"
+            onClick={handleRefresh}
+            disabled={
+              healthQuery.isFetching ||
+              statusQuery.isFetching ||
+              devicesQuery.isFetching ||
+              assignmentQuery.isFetching
+            }
+          >
+            새로고침
           </Button>
         </div>
-      </Card>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card>
-          <p className="text-sm font-semibold text-slate-500">기기 상태</p>
-
-          <div className="mt-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">
-                연결 대기
-              </h2>
-
-              <p className="mt-2 text-sm text-slate-500">
-                아직 등록된 스마트 약통이 없습니다.
-              </p>
-            </div>
-
-            <Badge variant="gray">OFFLINE</Badge>
-          </div>
-        </Card>
-
-        <Card>
-          <p className="text-sm font-semibold text-slate-500">
-            오늘 복약 현황
-          </p>
-
-          <div className="mt-4">
-            <h2 className="text-2xl font-bold text-slate-900">1 / 3회</h2>
-
-            <p className="mt-2 text-sm text-slate-500">
-              오늘 예정된 복약 중 1회가 완료되었습니다.
-            </p>
-          </div>
-        </Card>
-
-        <Card>
-          <p className="text-sm font-semibold text-slate-500">다음 알림</p>
-
-          <div className="mt-4">
-            <h2 className="text-2xl font-bold text-slate-900">13:00</h2>
-
-            <p className="mt-2 text-sm text-slate-500">
-              점심 복약 알림이 예정되어 있습니다.
-            </p>
-          </div>
-        </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">
-                약통 칸별 상태
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-500">
-                각 칸에 등록된 약과 복약 상태를 확인합니다.
-              </p>
-            </div>
-
-            <Badge variant="blue">4칸</Badge>
-          </div>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {pillboxSlots.map((slot) => (
-              <div
-                key={slot.id}
-                className="rounded-2xl border border-slate-200 bg-white p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-blue-600">
-                      {slot.label}
-                    </p>
-
-                    <h3 className="mt-2 font-bold text-slate-900">
-                      {slot.medicineName}
-                    </h3>
-                  </div>
-
-                  <Badge variant={slot.statusVariant}>{slot.status}</Badge>
-                </div>
-
-                <div className="mt-4 rounded-xl bg-slate-50 px-3 py-2">
-                  <p className="text-sm font-semibold text-slate-700">
-                    예정 시간: {slot.time}
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    {slot.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <p className="text-sm font-semibold text-slate-500">버튼 횟수</p>
+          <p className="mt-3 text-3xl font-bold text-slate-900">
+            {buttonClickCount}
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            Arduino 버튼 누적 감지 횟수입니다.
+          </p>
         </Card>
 
         <Card>
-          <h2 className="text-xl font-bold text-slate-900">연동 예정 기능</h2>
+          <p className="text-sm font-semibold text-slate-500">마지막 이벤트</p>
+          <p className="mt-3 break-all text-2xl font-bold text-slate-900">
+            {lastEvent}
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            시퀀스 {statusQuery.data?.sequence ?? '-'}
+          </p>
+        </Card>
 
-          <div className="mt-4 space-y-3">
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="font-semibold text-slate-800">기기 등록</p>
-              <p className="mt-1 text-sm text-slate-500">
-                QR 코드 또는 기기 ID로 스마트 약통을 등록합니다.
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="font-semibold text-slate-800">실시간 상태 확인</p>
-              <p className="mt-1 text-sm text-slate-500">
-                약통 개폐 여부와 복약 완료 여부를 서버와 동기화합니다.
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="font-semibold text-slate-800">복약 알림 연동</p>
-              <p className="mt-1 text-sm text-slate-500">
-                복약 일정과 약통 알림을 연결해 미복용 상태를 확인합니다.
-              </p>
-            </div>
-          </div>
+        <Card>
+          <p className="text-sm font-semibold text-slate-500">마지막 수신</p>
+          <p className="mt-3 text-2xl font-bold text-slate-900">{receivedAt}</p>
+          <p className="mt-2 text-sm text-slate-500">
+            2초마다 최신 센서 상태를 확인합니다.
+          </p>
         </Card>
       </div>
 
       <Card>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">
-              최근 약통 기록
-            </h2>
-
-            <p className="mt-1 text-sm text-slate-500">
-              실제 API 연동 전까지는 예시 데이터로 표시됩니다.
-            </p>
-          </div>
-
-          <Badge variant="gray">Mock Data</Badge>
-        </div>
-
-        <div className="mt-5 space-y-3">
-          {recentLogs.map((log) => (
-            <div
-              key={log.id}
-              className="flex flex-col gap-2 rounded-2xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div>
-                <p className="font-semibold text-slate-900">{log.title}</p>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  {log.description}
-                </p>
-              </div>
-
-              <p className="text-sm font-semibold text-slate-400">
-                {log.time}
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="grid flex-1 gap-4 sm:grid-cols-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-500">연결된 약통</p>
+              <p className="mt-2 font-bold text-slate-900">
+                {assignment?.name || activeDeviceId}
               </p>
             </div>
-          ))}
+
+            <div>
+              <p className="text-sm font-semibold text-slate-500">
+                처방 내역 연결 칸
+              </p>
+              <p className="mt-2 font-bold text-slate-900">
+                {connectedSlotCount} / 4
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-slate-500">
+                자동 복약 감지
+              </p>
+              <p className="mt-2 font-bold text-slate-900">
+                {assignment?.activeDetection ? '측정 중' : '대기 중'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={assignment?.activeDetection ? 'secondary' : 'primary'}
+              onClick={handleToggleDetection}
+              disabled={!canControlDetection || isControlPending}
+            >
+              {assignment?.activeDetection ? '측정 중지' : '측정 시작'}
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              variant="danger"
+              onClick={handleResetConnection}
+              disabled={!canControlDetection || isControlPending}
+            >
+              연결 초기화
+            </Button>
+          </div>
         </div>
+
+        {devicesQuery.data && devicesQuery.data.length > 1 && (
+          <div className="mt-5 border-t border-slate-200 pt-5">
+            <label className="text-sm font-semibold text-slate-600">
+              스마트 약통 선택
+            </label>
+            <select
+              value={activeDeviceId}
+              onChange={(event) => setSelectedDeviceId(event.target.value)}
+              className="mt-2 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              {devicesQuery.data.map((device) => (
+                <option key={device.deviceId} value={device.deviceId}>
+                  {device.name || device.deviceId}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {!assignment && !assignmentQuery.isLoading && !assignmentErrorMessage && (
+          <p className="mt-4 text-sm text-amber-700">
+            아직 연결된 처방 내역이 없습니다. 내 정보의 처방 내역에서 스마트
+            약통 연결을 설정해주세요.
+          </p>
+        )}
+
+        {assignmentErrorMessage && (
+          <p className="mt-4 text-sm text-red-700">{assignmentErrorMessage}</p>
+        )}
       </Card>
+
+      {statusQuery.isError && (
+        <Card className="border-red-100 bg-red-50">
+          <p className="text-sm text-red-700">
+            {getErrorMessage(
+              statusQuery.error,
+              '스마트 약통 센서 상태를 불러오지 못했습니다.',
+            )}
+          </p>
+        </Card>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {slots.map((slot) => {
+          const pillPresent = Boolean(slot.pillPresent);
+          const sensorReady = Boolean(slot.sensorReady);
+          const medicineNames = getAssignedMedicineNames(slot.assignment);
+
+          return (
+            <Card
+              key={slot.slotNumber}
+              className={
+                pillPresent
+                  ? 'border-emerald-200 bg-emerald-50'
+                  : 'border-slate-200 bg-white'
+              }
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-blue-600">
+                    {slot.slotNumber}번 칸
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    PORT {slot.muxPort ?? '-'}
+                  </p>
+                </div>
+
+                <Badge
+                  variant={
+                    !sensorReady ? 'gray' : pillPresent ? 'green' : 'yellow'
+                  }
+                >
+                  {!sensorReady
+                    ? '센서 대기'
+                    : pillPresent
+                      ? '약 있음'
+                      : '비어 있음'}
+                </Badge>
+              </div>
+
+              <div className="mt-5 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-500">
+                    {formatTakeTime(slot.assignment?.takeTime)}
+                  </p>
+
+                  {medicineNames.length > 0 ? (
+                    <div className="mt-2 space-y-1">
+                      {medicineNames.map((medicineName, index) => (
+                        <p
+                          key={`${slot.slotNumber}-${medicineName}-${index}`}
+                          className="truncate font-semibold text-slate-900"
+                        >
+                          {medicineName}
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-400">연결 없음</p>
+                  )}
+                </div>
+
+                <strong
+                  className={[
+                    'flex size-16 shrink-0 items-center justify-center rounded-full text-3xl font-black',
+                    pillPresent
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-200 text-slate-600',
+                  ].join(' ')}
+                >
+                  {pillPresent ? 'O' : 'X'}
+                </strong>
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-200 pt-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-400">거리</p>
+                  <p className="mt-1 font-semibold text-slate-700">
+                    {formatDistance(slot.distanceMm)}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-slate-400">
+                    연결 시간
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-700">
+                    {formatTakeTime(slot.assignment?.takeTime)}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
