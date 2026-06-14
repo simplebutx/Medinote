@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # 1. 공용 대문 (API Gateway)
   api-gateway:
-    image: ${ECR_REPOSITORY_URI}/medinote-nginx:latest
+    image: 818783923876.dkr.ecr.ap-northeast-2.amazonaws.com/medinote-nginx:latest
     container_name: medinote-api-gateway
     volumes:
       - ./infra/nginx/api-gateway.conf:/etc/nginx/conf.d/default.conf:ro
@@ -17,7 +17,7 @@ services:
 
   # 2. 인증 서비스 (8080)
   backend-auth:
-    image: ${ECR_REPOSITORY_URI}/medinote-auth:latest
+    image: 818783923876.dkr.ecr.ap-northeast-2.amazonaws.com/medinote-auth:latest
     container_name: medinote-backend-auth
     env_file: .env
     environment:
@@ -56,7 +56,7 @@ services:
 
   # 3. 복약 관리 서비스 (8081)
   backend-medication:
-    image: ${ECR_REPOSITORY_URI}/medinote-medication:latest
+    image: 818783923876.dkr.ecr.ap-northeast-2.amazonaws.com/medinote-medication:latest
     container_name: medinote-backend-medication
     env_file: .env
     environment:
@@ -66,8 +66,8 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-medic}
       MYSQL_USERNAME: ${MYSQL_USERNAME}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      AI_SERVICE_BASE_URL: http://ai-server:8000
-      AUTH_SERVICE_BASE_URL: http://backend-auth:8080
+      AI_SERVICE_BASE_URL: http://medinote-ai-server:8000
+      AUTH_SERVICE_BASE_URL: http://medinote-backend-auth:8080
       PUBLIC_DATA_SERVICE_KEY: ${PUBLIC_DATA_SERVICE_KEY}
       PUBLIC_DATA_BASE_URL: ${PUBLIC_DATA_BASE_URL}
       PUBLIC_DATA_INGREDIENT_BASE_URL: ${PUBLIC_DATA_INGREDIENT_BASE_URL}
@@ -88,7 +88,7 @@ services:
 
   # 4. 상담 서비스 (8082)
   backend-consultation:
-    image: ${ECR_REPOSITORY_URI}/medinote-consultation:latest
+    image: 818783923876.dkr.ecr.ap-northeast-2.amazonaws.com/medinote-consultation:latest
     container_name: medinote-backend-consultation
     env_file: .env
     environment:
@@ -102,8 +102,8 @@ services:
       REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION}
-      AI_SERVICE_BASE_URL: http://ai-server:8000
-      MEDICATION_SERVICE_BASE_URL: http://backend-medication:8081
+      AI_SERVICE_BASE_URL: http://medinote-ai-server:8000
+      MEDICATION_SERVICE_BASE_URL: http://medinote-backend-medication:8081
       PUBLIC_DATA_SERVICE_KEY: ${PUBLIC_DATA_SERVICE_KEY}
       PUBLIC_DATA_BASE_URL: ${PUBLIC_DATA_BASE_URL}
       PUBLIC_DATA_INGREDIENT_BASE_URL: ${PUBLIC_DATA_INGREDIENT_BASE_URL}
@@ -114,7 +114,7 @@ services:
 
   # 5. AI 서버 (8000)
   ai-server:
-    image: ${ECR_REPOSITORY_URI}/medinote-ai-server:latest
+    image: 818783923876.dkr.ecr.ap-northeast-2.amazonaws.com/medinote-ai-server:latest
     container_name: medinote-ai-server
     env_file: .env
     environment:
@@ -131,7 +131,7 @@ services:
       AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
-      QDRANT_URL: http://qdrant:6333
+      QDRANT_URL: http://medinote-qdrant:6333
       QDRANT_COLLECTION_NAME: medicine_docs
       SCHEDULE_DB_HOST: ${MYSQL_HOST}
       SCHEDULE_DB_PORT: ${MYSQL_PORT:-3306}
