@@ -49,6 +49,7 @@ services:
       KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID}
       KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET}
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
+      FRONTEND_URL: ${FRONTEND_URL:-https://d3s9d84ez4sxzx.cloudfront.net}
     ports:
       - "8080:8080"
     restart: always
@@ -97,6 +98,8 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-medic}
       MYSQL_USERNAME: ${MYSQL_USERNAME}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION}
       AI_SERVICE_BASE_URL: http://ai-server:8000
@@ -115,7 +118,17 @@ services:
     container_name: medinote-ai-server
     env_file: .env
     environment:
+      LLM_API_URL: ${LLM_API_URL}
       LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL: ${LLM_MODEL}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-30}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-/app/secrets/gcloud-adc.json}
+      GOOGLE_APPLICATION_CREDENTIALS_JSON: ${GOOGLE_APPLICATION_CREDENTIALS_JSON}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_KEY}
+      AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
       QDRANT_URL: http://qdrant:6333
@@ -125,9 +138,14 @@ services:
       SCHEDULE_DB_NAME: ${MYSQL_DATABASE:-medic}
       SCHEDULE_DB_USER: ${MYSQL_USERNAME}
       SCHEDULE_DB_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS_HOST_PATH:-./secrets/gcloud-adc.json}:/app/secrets/gcloud-adc.json:ro
     ports:
       - "8000:8000"
     restart: always
+    depends_on:
+      qdrant:
+        condition: service_started
 
   # 6. 필수 인프라
   redis:

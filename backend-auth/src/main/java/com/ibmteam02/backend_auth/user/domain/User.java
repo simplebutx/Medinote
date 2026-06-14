@@ -94,6 +94,11 @@ public class User {
         this.role = role;
     }
 
+    //비밀번호 업데이트
+    public void updatePassword(String password) {
+        this.password = password;
+    }
+
     //기본 정보 수정
     public void updateBasicProfile(String username,LocalDate birthDate, Gender gender) {
         if (username != null && username.trim().isEmpty()) {

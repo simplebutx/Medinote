@@ -21,6 +21,7 @@ import {
   updateMedicationTimePresets,
   updateMedicationSchedule,
   updateMyProfile,
+  updatePassword,
   withdrawAccount,
 } from '../api'
 import { DOSAGE_UNIT_OPTIONS, MAX_TIMES_PER_DAY, TIMING_OPTIONS } from './schedule/constants'
@@ -269,6 +270,28 @@ function MyPage() {
   const [reason, setReason] = useState('ALLERGY')
   const [memo, setMemo] = useState('')
   const [message, setMessage] = useState('')
+  const [passwordData, setPasswordData] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' })
+
+  const handleUpdatePassword = async () => {
+    if (!passwordData.oldPassword || !passwordData.newPassword) {
+      alert('비밀번호를 입력해주세요.')
+      return
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      alert('새 비밀번호가 일치하지 않습니다.')
+      return
+    }
+    try {
+      await updatePassword({ 
+        oldPassword: passwordData.oldPassword, 
+        newPassword: passwordData.newPassword 
+      })
+      alert('비밀번호가 성공적으로 변경되었습니다.')
+      setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' })
+    } catch (err) {
+      alert(err.response?.data?.message || '비밀번호 변경 실패')
+    }
+  }
   const [prescriptions, setPrescriptions] = useState([])
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState(null)
   const [prescriptionMessage, setPrescriptionMessage] = useState('')
@@ -1640,6 +1663,46 @@ function MyPage() {
                 Save settings
               </button>
             </div>
+
+            <section className="app-card" style={{ marginBottom: '20px' }}>
+              <div>
+                <h2>비밀번호 변경</h2>
+                <p>보안을 위해 주기적으로 비밀번호를 변경하는 것이 좋습니다.</p>
+              </div>
+              <div style={{ marginTop: '15px' }}>
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px' }}>현재 비밀번호</label>
+                  <input 
+                    type="password" 
+                    value={passwordData.oldPassword} 
+                    onChange={(e) => setPasswordData({ ...passwordData, oldPassword: e.target.value })}
+                    placeholder="현재 비밀번호"
+                    style={{ width: '100%', padding: '8px' }}
+                  />
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px' }}>새 비밀번호</label>
+                  <input 
+                    type="password" 
+                    value={passwordData.newPassword} 
+                    onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                    placeholder="새 비밀번호"
+                    style={{ width: '100%', padding: '8px' }}
+                  />
+                </div>
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px' }}>새 비밀번호 확인</label>
+                  <input 
+                    type="password" 
+                    value={passwordData.confirmPassword} 
+                    onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                    placeholder="새 비밀번호 확인"
+                    style={{ width: '100%', padding: '8px' }}
+                  />
+                </div>
+                <button type="button" className="app-primary-button" onClick={handleUpdatePassword}>비밀번호 변경</button>
+              </div>
+            </section>
 
             <section className="app-card withdraw-card">
               <div>

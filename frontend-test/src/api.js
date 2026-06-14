@@ -48,6 +48,21 @@ export const withdrawAccount = async () => {
   return response.data
 }
 
+export const findPassword = async (payload) => {
+  const response = await api.post('/auth/password/find', payload)
+  return response.data
+}
+
+export const resetPassword = async (payload) => {
+  const response = await api.post('/auth/password/reset', payload)
+  return response.data
+}
+
+export const updatePassword = async (payload) => {
+  const response = await api.put('/auth/password', payload)
+  return response.data
+}
+
 export const saveAuthSession = (session) => {
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
 }

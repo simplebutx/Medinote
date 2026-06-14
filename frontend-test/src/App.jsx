@@ -20,6 +20,7 @@ import ScheduleEditPage from './pages/schedule/ScheduleEditPage'
 import ScheduleListPage from './pages/schedule/ScheduleListPage'
 import ScheduleOcrPage from './pages/schedule/ScheduleOcrPage'
 import Signup from './pages/Signup'
+import PasswordManagement from './pages/PasswordManagement'
 import ExtraInfo from './pages/ExtraInfo'
 import OAuth2Redirect from './pages/OAuth2Redirect'
 import SimplePlaceholderPage from './pages/SimplePlaceholderPage'
@@ -46,6 +47,7 @@ function App() {
 
         <Route path="/signup" element={<Signup />} />
         <Route path="/signup/extra-info" element={<ExtraInfo />} />
+        <Route path="/password-find" element={<PasswordManagement />} />
         <Route path="/oauth2/redirect" element={<OAuth2Redirect />} />
         <Route path="/login" element={<Login />} />
         <Route path="/yunjutest" element={<YunjuTest />} />
