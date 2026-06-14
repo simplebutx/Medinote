@@ -31,6 +31,7 @@ public class AuthService {
     private final UserChronicDiseaseRepository userChronicDiseaseRepository;
     private final PharmacistProfileRepository pharmacistProfileRepository;
     private final S3Service s3Service;
+    private final SmsService smsService;
 
     public List<String> suggestDiseaseNames(String keyword) {
         if (!StringUtils.hasText(keyword)) {
@@ -326,6 +327,58 @@ public class AuthService {
         refreshTokenRepository.deleteById(email);
 
         userRepository.delete(user);
+    }
+
+    // 비밀번호 재설정 문자 발송
+    public void sendPasswordResetSms(PasswordRequest.FindRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 소셜 로그인 유저 체크
+        if (user.getSocialType() != null) {
+            throw new CustomException(ErrorCode.IS_SOCIAL_USER);
+        }
+
+        smsService.sendSms(request.getPhoneNumber());
+    }
+
+    // 비밀번호 재설정 완료
+    @Transactional
+    public void resetPassword(PasswordRequest.ResetRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (user.getSocialType() != null) {
+            throw new CustomException(ErrorCode.IS_SOCIAL_USER);
+        }
+
+        // 인증 번호 검증
+        if (!smsService.verifySms(request.getPhoneNumber(), request.getCode())) {
+            throw new CustomException(ErrorCode.INVALID_VERIFICATION_CODE);
+        }
+
+        // 비밀번호 업데이트 (직접 필드 수정 대신 메서드 추가 권장하지만 현재 User.java에 없으므로 일단 reflection 느낌으로 하거나 User.java에 추가 필요)
+        // 일단 AuthService에서 직접 인코딩해서 처리하도록 User.java에 updatePassword 메서드 추가 예정
+        user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
+
+    // 로그인 상태에서 비밀번호 수정
+    @Transactional
+    public void updatePassword(String email, PasswordRequest.UpdateRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (user.getSocialType() != null) {
+            throw new CustomException(ErrorCode.IS_SOCIAL_USER);
+        }
+
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new CustomException(ErrorCode.INVALID_PASSWORD);
+        }
+
+        user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 
 

@@ -123,5 +123,28 @@ public class AuthController {
         return ResponseEntity.ok("회원 탈퇴가 완료되었습니다.");
     }
 
+    // 비밀번호 찾기 (문자 발송)
+    @PostMapping("/password/find")
+    public ResponseEntity<String> findPassword(@RequestBody PasswordRequest.FindRequest request) {
+        authService.sendPasswordResetSms(request);
+        return ResponseEntity.ok("인증 번호가 발송되었습니다.");
+    }
+
+    // 비밀번호 재설정
+    @PostMapping("/password/reset")
+    public ResponseEntity<String> resetPassword(@RequestBody PasswordRequest.ResetRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok("비밀번호가 재설정되었습니다.");
+    }
+
+    // 비밀번호 수정 (로그인 상태)
+    @PutMapping("/password")
+    public ResponseEntity<String> updatePassword(
+            @AuthenticationPrincipal String email,
+            @RequestBody PasswordRequest.UpdateRequest request) {
+        authService.updatePassword(email, request);
+        return ResponseEntity.ok("비밀번호가 변경되었습니다.");
+    }
+
 
 }

@@ -89,6 +89,15 @@ function Login() {
             회원가입
           </button>
 
+          <button
+            type="button"
+            className="login-secondary-button"
+            style={{ marginTop: '10px' }}
+            onClick={() => navigate('/password-find')}
+          >
+            비밀번호 찾기
+          </button>
+
           <div className="login-social-divider">
             <span>또는</span>
           </div>
@@ -97,21 +106,30 @@ function Login() {
             <button 
               type="button" 
               className="login-social-button google"
-              onClick={() => window.location.href = 'http://localhost:8080/oauth2/authorization/google'}
+              onClick={() => {
+                const backendUrl = 'http://localhost:8080';
+                window.location.href = `${backendUrl}/oauth2/authorization/google?redirect_uri=${window.location.origin}`;
+              }}
             >
               Google로 계속하기
             </button>
             <button 
               type="button" 
               className="login-social-button naver"
-              onClick={() => window.location.href = 'http://localhost:8080/oauth2/authorization/naver'}
+              onClick={() => {
+                const backendUrl = 'http://localhost:8080';
+                window.location.href = `${backendUrl}/oauth2/authorization/naver?redirect_uri=${window.location.origin}`;
+              }}
             >
               네이버로 계속하기
             </button>
             <button 
               type="button" 
               className="login-social-button kakao"
-              onClick={() => window.location.href = 'http://localhost:8080/oauth2/authorization/kakao'}
+              onClick={() => {
+                const backendUrl = 'http://localhost:8080';
+                window.location.href = `${backendUrl}/oauth2/authorization/kakao?redirect_uri=${window.location.origin}`;
+              }}
             >
               카카오로 계속하기
             </button>
