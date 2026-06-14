@@ -342,7 +342,7 @@ public class AuthService {
         smsService.sendSms(request.getPhoneNumber());
     }
 
-    // 비밀번호 재설정 완료
+    // 비밀번호 재설정 완료 (인증 번호 없이 간소화)
     @Transactional
     public void resetPassword(PasswordRequest.ResetRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
@@ -352,13 +352,11 @@ public class AuthService {
             throw new CustomException(ErrorCode.IS_SOCIAL_USER);
         }
 
-        // 인증 번호 검증
-        if (!smsService.verifySms(request.getPhoneNumber(), request.getCode())) {
-            throw new CustomException(ErrorCode.INVALID_VERIFICATION_CODE);
-        }
+        // 인증 번호 검증 제거
+        // if (!smsService.verifySms(request.getPhoneNumber(), request.getCode())) {
+        //     throw new CustomException(ErrorCode.INVALID_VERIFICATION_CODE);
+        // }
 
-        // 비밀번호 업데이트 (직접 필드 수정 대신 메서드 추가 권장하지만 현재 User.java에 없으므로 일단 reflection 느낌으로 하거나 User.java에 추가 필요)
-        // 일단 AuthService에서 직접 인코딩해서 처리하도록 User.java에 updatePassword 메서드 추가 예정
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
     }
