@@ -6,7 +6,6 @@ from google.auth import load_credentials_from_dict
 from google.cloud import vision
 import os
 import json
-import base64
 import io
 from PIL import Image
 import numpy as np
@@ -25,6 +24,7 @@ class OcrToken:
     y_min: float
     x_max: float
     y_max: float
+    confidence: float | None = None
 
     @property
     def center_x(self) -> float:
@@ -153,17 +153,13 @@ def _extract_tokens(image_array: np.ndarray) -> list[OcrToken]:
                             y_min=min(ys),
                             x_max=max(xs),
                             y_max=max(ys),
+                            confidence=word.confidence if word.confidence else None,
                         )
                     )
 
     return tokens
 
 
-
-# 이미지 배열을 브라우저 미리보기용 PNG data URL 문자열로 바꾸는 함수
-def _to_png_data_url(image_array: np.ndarray) -> str:
-    encoded = base64.b64encode(_to_png_bytes(image_array)).decode("ascii")
-    return f"data:image/png;base64,{encoded}"
 
 # 이미지 배열을 PNG 바이트 데이터로 변환하는 함수
 def _to_png_bytes(image_array: np.ndarray) -> bytes:

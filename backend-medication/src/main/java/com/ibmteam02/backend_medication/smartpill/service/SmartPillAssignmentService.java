@@ -53,11 +53,8 @@ public class SmartPillAssignmentService {
     }
 
     // 각 칸에 몇시의 약을 집어넣을지 연결
-    public SmartPillSlotAssignmentResponse saveAssignments(
-            Long userId,
-            String deviceId,
-            SmartPillSlotAssignmentSaveRequest request
-    ) {
+    public SmartPillSlotAssignmentResponse saveAssignments(Long userId, String deviceId,
+            SmartPillSlotAssignmentSaveRequest request) {
         requireUser(userId);
         SmartPillDevice device = findOrCreateDevice(userId, deviceId, request.name());
         device.updateName(request.name());

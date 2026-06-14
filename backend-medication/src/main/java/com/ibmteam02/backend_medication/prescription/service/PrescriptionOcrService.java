@@ -17,6 +17,7 @@ import org.springframework.web.client.RestClientException;
 import software.amazon.awssdk.services.s3.S3Client;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 @Service
@@ -99,10 +100,20 @@ public class PrescriptionOcrService {
                 }
 
                 String originalName = medicineObject.path("name").asText(null);
-                String matchedName = medicineMatchService.matchName(originalName);
+                MedicineNameMatchService.MatchResult matchResult = medicineMatchService.matchNameWithCandidates(originalName);
+                String matchedName = matchResult.matchedName();
 
                 medicineObject.put("originalName", originalName);
                 medicineObject.put("matchedName", matchedName != null ? matchedName : originalName);
+                medicineObject.put("matchScore", matchResult.score());
+                medicineObject.put("matchStatus", matchResult.status());
+                ArrayNode candidates = medicineObject.putArray("matchCandidates");
+                for (MedicineNameMatchService.MatchCandidate candidate : matchResult.candidates()) {
+                    ObjectNode candidateNode = candidates.addObject();
+                    candidateNode.put("name", candidate.name());
+                    candidateNode.put("score", candidate.score());
+                    candidateNode.put("reason", candidate.reason());
+                }
             }
 
             return objectMapper.writeValueAsString(root);
