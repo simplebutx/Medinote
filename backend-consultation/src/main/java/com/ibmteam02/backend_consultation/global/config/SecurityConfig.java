@@ -58,6 +58,7 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/ws-stomp/**").permitAll()
                         .requestMatchers("/api/chatbot/**", "/api/internal/**").permitAll()
                         .anyRequest().permitAll()
                 )
