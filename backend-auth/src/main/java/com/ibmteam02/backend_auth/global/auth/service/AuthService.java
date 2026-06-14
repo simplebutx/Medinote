@@ -308,24 +308,18 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(()->new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        userChronicDiseaseRepository.deleteByUser(user); //자식 데이터 먼저 삭제
-
-        userProfileHealthRepository.findByUser(user).ifPresent(health -> {
-            userProfileHealthRepository.delete(health);
-        });
-
-        if (user.getRole() == Role.PHARMACIST){
-            pharmacistProfileRepository.findByUser(user).ifPresent(profile -> {
-                String imageKey = profile.getLicenseImage();
-                if(imageKey != null && !imageKey.equals("DELETED_DUE_TO_PRIVACY")){
-                    s3Service.deleteFile(imageKey);
-                }
-                pharmacistProfileRepository.delete(profile);
-            });
+        // 1. S3 이미지 등 외부 리소스만 수동 정리 (DB는 Cascade로 자동 삭제)
+        if (user.getRole() == Role.PHARMACIST && user.getPharmacistProfile() != null){
+            String imageKey = user.getPharmacistProfile().getLicenseImage();
+            if(imageKey != null && !imageKey.equals("DELETED_DUE_TO_PRIVACY")){
+                s3Service.deleteFile(imageKey);
+            }
         }
 
+        // 2. 리프레시 토큰 정리
         refreshTokenRepository.deleteById(email);
 
+        // 3. 유저 삭제 (CascadeType.ALL에 의해 연관된 건강정보, 질병정보, 약사프로필 자동 삭제)
         userRepository.delete(user);
     }
 
