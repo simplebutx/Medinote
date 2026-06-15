@@ -303,6 +303,11 @@ export const runPrescriptionOcr = async (ocrResultId) => {
   return response.data
 }
 
+export const analyzePrescriptionSchedule = async (scheduleId) => {
+  const response = await api.post(`/prescriptions/${scheduleId}/analysis`)
+  return response.data
+}
+
 export const getMedicationIntakeLogs = async (medicationScheduleId) => {
   const response = await api.get('/medication-intake-logs', {
     params: { medicationScheduleId },

@@ -271,10 +271,16 @@ public class AuthService {
 
             if (profileUpdateRequest.getDiseases() != null) {
                 for (String diseaseName : profileUpdateRequest.getDiseases()) {
-                    diseaseMasterRepository.findByDiseaseName(diseaseName)
-                            .ifPresent(diseaseMaster -> {
-                                userChronicDiseaseRepository.save(new UserChronicDisease(user, diseaseMaster, diseaseMaster.getDiseaseName()));
-                            });
+                    if (!StringUtils.hasText(diseaseName)) {
+                        continue;
+                    }
+
+                    String normalizedDiseaseName = diseaseName.trim();
+                    DiseaseMaster diseaseMaster = diseaseMasterRepository.findByDiseaseName(normalizedDiseaseName)
+                            .orElse(null);
+                    userChronicDiseaseRepository.save(
+                            new UserChronicDisease(user, diseaseMaster, normalizedDiseaseName)
+                    );
                 }
             }
         }

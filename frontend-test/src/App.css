@@ -817,6 +817,68 @@
   border: 1px solid #fecaca;
 }
 
+.general-caution-details {
+  max-width: 100%;
+  color: #475569;
+}
+
+.general-caution-details summary {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  list-style: none;
+}
+
+.general-caution-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.general-caution-details summary::after {
+  content: '펼치기';
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.general-caution-details[open] summary::after {
+  content: '접기';
+}
+
+.general-caution-details > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.general-caution-details > div span {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.medicine-card-general-cautions {
+  flex-basis: 100%;
+}
+
 .medicine-card-company {
   margin: 0;
   color: #0f766e;
@@ -1722,6 +1784,10 @@
   .schedule-card-wide,
   .schedule-col-span-2 {
     grid-column: auto;
+  }
+
+  .medicine-card-title-main {
+    align-items: flex-start;
   }
 
   .schedule-form-grid {
@@ -4212,9 +4278,7 @@ body {
 }
 
 .mypage-prescription-sidebar {
-  display: grid;
-  gap: 16px;
-  align-content: start;
+  display: contents;
 }
 
 .mypage-prescription-card {
@@ -4238,11 +4302,340 @@ body {
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
 }
 
+.mypage-prescription-card:focus-visible {
+  outline: 3px solid #bfdbfe;
+  outline-offset: 2px;
+}
+
 .mypage-prescription-editor {
   padding: 20px;
   border: 1px solid #d9e2ef;
   border-radius: 24px;
   background: #f8fbff;
+}
+
+.prescription-read-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.prescription-read-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 18px;
+  border: 1px solid #d9e2ef;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.prescription-read-header p,
+.prescription-read-medicine-title span,
+.prescription-read-meta span,
+.prescription-read-medicine-facts span {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.prescription-read-header h2 {
+  margin: 6px 0 0;
+  color: #0f172a;
+  font-size: 24px;
+  line-height: 1.3;
+}
+
+.prescription-read-meta,
+.prescription-read-medicine-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.prescription-read-medicine-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.prescription-read-meta div,
+.prescription-read-medicine-facts div {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #d9e2ef;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.prescription-read-medicine-facts div {
+  display: inline;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.prescription-read-medicine-facts div:not(:last-child)::after {
+  content: '·';
+  margin: 0 6px;
+  color: #64748b;
+}
+
+.prescription-read-meta strong,
+.prescription-read-medicine-facts strong {
+  display: block;
+  margin-top: 8px;
+  color: #0f172a;
+  font-size: 16px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.prescription-read-medicine-facts span {
+  display: none;
+}
+
+.prescription-read-medicine-facts strong {
+  display: inline;
+  margin-top: 0;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.prescription-read-medicine-list {
+  display: grid;
+  gap: 8px;
+}
+
+.prescription-read-medicine-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 0;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.prescription-read-medicine-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.prescription-read-medicine-title > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.prescription-read-medicine-title > div > span {
+  display: none;
+}
+
+.prescription-read-medicine-title h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.prescription-analysis-panel {
+  display: none;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding: 18px;
+  border: 1px solid #d9e2ef;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.prescription-analysis-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.prescription-analysis-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.prescription-analysis-header p {
+  margin: 6px 0 0;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.prescription-analysis-summary {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.prescription-analysis-summary.clear {
+  background: #ecfdf5;
+  color: #15803d;
+}
+
+.prescription-analysis-summary.danger {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.prescription-analysis-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.prescription-analysis-medicine-list {
+  display: grid;
+  gap: 10px;
+}
+
+.prescription-analysis-medicine-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+
+.prescription-analysis-medicine-row strong {
+  display: block;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.prescription-analysis-medicine-row p {
+  margin: 4px 0 0;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.prescription-analysis-medicine-row.danger {
+  border-color: #fecaca;
+  background: #fffafa;
+}
+
+.prescription-analysis-empty {
+  padding: 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #f8fbff;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.prescription-analysis-empty.danger {
+  border-color: #fecaca;
+  color: #dc2626;
+  background: #fffafa;
+}
+
+.prescription-analysis-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+
+.prescription-analysis-row strong {
+  display: block;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.prescription-analysis-row p {
+  margin: 4px 0 0;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.prescription-analysis-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 0;
+}
+
+.prescription-analysis-badges span {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.prescription-analysis-badges span.clear {
+  background: #ecfdf5;
+  color: #15803d;
+}
+
+.prescription-analysis-warning-stack {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  min-width: 180px;
+}
+
+.prescription-read-warning-badges {
+  margin-top: 0;
+}
+
+.prescription-read-warning-badges span {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.prescription-read-general-cautions {
+  margin-top: 8px;
+}
+
+.prescription-analysis-row > span {
+  flex-shrink: 0;
+  min-width: 96px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.prescription-analysis-row.clear > span {
+  background: #ecfdf5;
+  color: #15803d;
+}
+
+.prescription-analysis-row.danger > span {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.prescription-analysis-row.muted > span {
+  background: #f1f5f9;
+  color: #64748b;
 }
 
 .prescription-message {
@@ -4774,16 +5167,6 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .mypage-prescription-workspace {
-    grid-template-columns: 320px minmax(0, 1fr);
-    align-items: start;
-  }
-
-  .mypage-prescription-sidebar {
-    position: sticky;
-    top: 24px;
-  }
-
   .login-card {
     grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
@@ -4805,6 +5188,8 @@ body {
 
   .schedule-panel-header,
   .register-medicine-header,
+  .prescription-read-header,
+  .prescription-read-medicine-title,
   .mypage-section-heading,
   .profile-summary-card,
   .withdraw-card,
@@ -4819,7 +5204,9 @@ body {
 
   .mypage-caution-list,
   .mypage-caution-layout,
-  .mypage-caution-inline-grid {
+  .mypage-caution-inline-grid,
+  .prescription-read-meta,
+  .prescription-read-medicine-facts {
     grid-template-columns: 1fr;
   }
 
@@ -4837,6 +5224,16 @@ body {
 
   .chat-message-stack {
     max-width: 100%;
+  }
+
+  .prescription-analysis-medicine-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .prescription-analysis-warning-stack {
+    justify-items: start;
+    min-width: 0;
   }
 }
 

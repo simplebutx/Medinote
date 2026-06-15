@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import {
+  analyzePrescriptionSchedule,
   clearAuthSession,
   createCaution,
   createMedicationSchedule,
@@ -256,6 +257,87 @@ function createSmartPillAssignmentsFromResponse(response, timeGroups) {
   return nextAssignments
 }
 
+function getMedicineDisplayName(medicine, index) {
+  return medicine.customMedicineName || medicine.matchedMedicineName || medicine.originalMedicineName || `약 ${index + 1}`
+}
+
+function findMedicineAnalysisItem(analysis, medicine, index) {
+  const medicineName = getMedicineDisplayName(medicine, index)
+
+  return (analysis?.items || []).find((item) => {
+    if (medicine.id && item.scheduleMedicineId === medicine.id) {
+      return true
+    }
+
+    if (medicine.medicineId && item.medicineId === medicine.medicineId) {
+      return true
+    }
+
+    return item.medicineName === medicineName
+  })
+}
+
+function buildMedicineAnalysisBadges(analysisItem) {
+  if (!analysisItem) {
+    return []
+  }
+
+  const badges = []
+  if (analysisItem.warningMedicine) {
+    badges.push({
+      label: '주의 약 일치',
+      detail: (analysisItem.matchedMedicineCautions || []).join(', '),
+    })
+  }
+  if (analysisItem.warningIngredient) {
+    badges.push({
+      label: '주의 성분 포함',
+      detail: (analysisItem.matchedIngredientCautions || []).join(', '),
+    })
+  }
+  ;(analysisItem.matchedDiseaseNames || []).forEach((name) => {
+    badges.push({
+      label: `${name} 주의`,
+      detail: name,
+    })
+  })
+  ;(analysisItem.matchedHealthInfoNames || []).forEach((name) => {
+    badges.push({
+      label: `${name} 주의`,
+      detail: name,
+    })
+  })
+  return badges
+}
+
+function buildGeneralCautionTags(analysisItem) {
+  return [...new Set(analysisItem?.generalCautionTags || [])]
+}
+
+function getPrescriptionAnalysisSummaryLabel(prescription, analysis, loading, error) {
+  if (!prescription) return '확인중'
+  if (prescription.isNew) return '저장필요'
+  if (loading) return '확인중'
+  if (error) return '확인실패'
+  if (analysis?.status === 'CAUTION') return '주의필요'
+  if (analysis?.status === 'CLEAR') return '겹침없음'
+  return '확인중'
+}
+
+function getOptionLabel(options, value, fallback = '-') {
+  return options.find((option) => option.value === value)?.label || fallback
+}
+
+function formatPrescriptionDate(value) {
+  return value ? String(value).replaceAll('-', '.') : '-'
+}
+
+function formatMedicineDose(medicine) {
+  const amount = medicine.dosageAmount || '-'
+  const unit = getOptionLabel(DOSAGE_UNIT_OPTIONS, medicine.dosageUnit, medicine.dosageUnit || '')
+  return `${amount}${unit ? ` ${unit}` : ''}`
+}
+
 function MyPage() {
   const navigate = useNavigate()
   const session = useMemo(() => getAuthSession(), [])
@@ -296,6 +378,10 @@ function MyPage() {
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState(null)
   const [prescriptionMessage, setPrescriptionMessage] = useState('')
   const [prescriptionSaving, setPrescriptionSaving] = useState(false)
+  const [prescriptionEditMode, setPrescriptionEditMode] = useState(false)
+  const [prescriptionAnalysisById, setPrescriptionAnalysisById] = useState({})
+  const [prescriptionAnalysisLoadingId, setPrescriptionAnalysisLoadingId] = useState(null)
+  const [prescriptionAnalysisErrors, setPrescriptionAnalysisErrors] = useState({})
   const [smartPillModalOpen, setSmartPillModalOpen] = useState(false)
   const [smartPillDeviceId, setSmartPillDeviceId] = useState(DEFAULT_SMARTPILL_DEVICE_ID)
   const [smartPillAssignments, setSmartPillAssignments] = useState(() => createDefaultSmartPillAssignments([]))
@@ -493,6 +579,22 @@ function MyPage() {
     }))
   }
 
+  const addCustomDisease = (rawName) => {
+    const diseaseName = rawName.trim()
+    if (!diseaseName) {
+      return
+    }
+
+    setHealthForm(prev => ({
+      ...prev,
+      chronicDiseases: prev.chronicDiseases.includes(diseaseName)
+        ? prev.chronicDiseases
+        : [...prev.chronicDiseases, diseaseName]
+    }))
+    setDiseaseKeyword('')
+    setDiseaseSuggestions([])
+  }
+
   useEffect(() => {
     const run = async () => {
       if (cautionKeyword.trim().length < 2) {
@@ -514,10 +616,58 @@ function MyPage() {
 
   const selectedPrescription =
     prescriptions.find((item) => item.id === selectedPrescriptionId) || prescriptions[0] || null
+  const selectedPrescriptionIndex = selectedPrescription
+    ? prescriptions.findIndex((item) => item.id === selectedPrescription.id)
+    : -1
   const smartPillTimeGroups = useMemo(
     () => buildSmartPillTimeGroups(selectedPrescription),
     [selectedPrescription],
   )
+  const selectedPrescriptionAnalysis = selectedPrescription
+    ? prescriptionAnalysisById[selectedPrescription.id]
+    : null
+  const selectedPrescriptionAnalysisError = selectedPrescription
+    ? prescriptionAnalysisErrors[selectedPrescription.id]
+    : ''
+  const selectedPrescriptionAnalysisSummaryLabel = getPrescriptionAnalysisSummaryLabel(
+    selectedPrescription,
+    selectedPrescriptionAnalysis,
+    selectedPrescription ? prescriptionAnalysisLoadingId === selectedPrescription.id : false,
+    selectedPrescriptionAnalysisError,
+  )
+
+  useEffect(() => {
+    const run = async () => {
+      if (!selectedPrescription || selectedPrescription.isNew || !selectedPrescription.scheduleId) {
+        return
+      }
+
+      setPrescriptionAnalysisLoadingId(selectedPrescription.id)
+      setPrescriptionAnalysisErrors((prev) => ({
+        ...prev,
+        [selectedPrescription.id]: '',
+      }))
+
+      try {
+        const analysis = await analyzePrescriptionSchedule(selectedPrescription.scheduleId)
+        setPrescriptionAnalysisById((prev) => ({
+          ...prev,
+          [selectedPrescription.id]: analysis,
+        }))
+      } catch (error) {
+        setPrescriptionAnalysisErrors((prev) => ({
+          ...prev,
+          [selectedPrescription.id]: error.response?.data?.message || error.message || '분석 결과를 불러오지 못했습니다.',
+        }))
+      } finally {
+        setPrescriptionAnalysisLoadingId((currentId) =>
+          currentId === selectedPrescription.id ? null : currentId,
+        )
+      }
+    }
+
+    run()
+  }, [selectedPrescription?.id, selectedPrescription?.scheduleId, selectedPrescription?.isNew])
 
   const handleAddCaution = async () => {
     if (!selectedSuggestion) {
@@ -652,6 +802,7 @@ function MyPage() {
     const nextPrescription = createEmptyPrescriptionRecord()
     setPrescriptions((prev) => [nextPrescription, ...prev])
     setSelectedPrescriptionId(nextPrescription.id)
+    setPrescriptionEditMode(true)
     setPrescriptionMessage('새 처방전 초안을 만들었습니다.')
   }
 
@@ -699,6 +850,7 @@ function MyPage() {
 
         await createTimesSequentially(selectedPrescription.medicines, createdMedicines)
         await loadPrescriptionRecords(`schedule-${createdSchedule.id}`)
+        setPrescriptionEditMode(false)
         setPrescriptionMessage('처방전을 저장했습니다.')
       } else {
         const updatedSchedule = await updateMedicationSchedule(selectedPrescription.scheduleId, payload)
@@ -711,6 +863,7 @@ function MyPage() {
         await deleteTimesSequentially(selectedPrescription.scheduleId)
         await createTimesSequentially(selectedPrescription.medicines, updatedMedicines)
         await loadPrescriptionRecords(`schedule-${selectedPrescription.scheduleId}`)
+        setPrescriptionEditMode(false)
         setPrescriptionMessage('처방전을 수정했습니다.')
       }
     } catch (error) {
@@ -729,6 +882,7 @@ function MyPage() {
       const remainingPrescriptions = prescriptions.filter((item) => item.id !== selectedPrescription.id)
       setPrescriptions(remainingPrescriptions)
       setSelectedPrescriptionId(remainingPrescriptions[0]?.id || null)
+      setPrescriptionEditMode(false)
       setPrescriptionMessage('초안 처방전을 삭제했습니다.')
       return
     }
@@ -739,6 +893,7 @@ function MyPage() {
     try {
       await deleteMedicationSchedule(selectedPrescription.scheduleId)
       await loadPrescriptionRecords()
+      setPrescriptionEditMode(false)
       setPrescriptionMessage('처방전을 삭제했습니다.')
     } catch (error) {
       setPrescriptionMessage(error.response?.data?.message || error.message || '처방전 삭제에 실패했습니다.')
@@ -1038,14 +1193,30 @@ function MyPage() {
                     <input 
                       className="register-field"
                       style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                      placeholder="질병명을 입력하여 검색 (예: 고혈압, 당뇨)"
+                      placeholder="질병명을 입력 후 Enter 또는 추가 (예: 고혈압, 당뇨)"
                       value={diseaseKeyword}
                       onChange={(e) => setDiseaseKeyword(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ',') {
+                          e.preventDefault()
+                          addCustomDisease(diseaseKeyword)
+                        }
+                      }}
                     />
+                    {diseaseKeyword.trim() ? (
+                      <button
+                        type="button"
+                        className="register-add-button"
+                        style={{ marginTop: '8px' }}
+                        onClick={() => addCustomDisease(diseaseKeyword)}
+                      >
+                        현재 입력값 추가
+                      </button>
+                    ) : null}
                     {diseaseSuggestions.length > 0 && (
                       <div className="mypage-suggestion-list" style={{ marginTop: '5px' }}>
                         {diseaseSuggestions.map((name) => (
-                          <button key={name} type="button" onClick={() => { toggleDisease(name); setDiseaseKeyword(''); setDiseaseSuggestions([]); }}>
+                          <button key={name} type="button" onClick={() => addCustomDisease(name)}>
                             + {name}
                           </button>
                         ))}
@@ -1270,13 +1441,26 @@ function MyPage() {
             <div className="mypage-prescription-workspace">
               <div className="mypage-prescription-sidebar">
                 {prescriptions.length ? (
-                  prescriptions.map((item) => (
-                    <button
+                  prescriptions.map((item, index) => (
+                    <div
                       key={item.id}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
+                      style={{ order: index * 2 }}
                       className={item.id === selectedPrescriptionId ? 'mypage-prescription-card selected' : 'mypage-prescription-card'}
                       onClick={() => {
                         setSelectedPrescriptionId(item.id)
+                        setPrescriptionEditMode(false)
+                        setPrescriptionMessage('')
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') {
+                          return
+                        }
+
+                        event.preventDefault()
+                        setSelectedPrescriptionId(item.id)
+                        setPrescriptionEditMode(false)
                         setPrescriptionMessage('')
                       }}
                     >
@@ -1297,16 +1481,87 @@ function MyPage() {
                           </span>
                         ))}
                       </div>
-                    </button>
+                    </div>
                   ))
                 ) : (
                   <div className="app-placeholder-card">등록된 처방전이 없습니다.</div>
                 )}
               </div>
 
-              <div className="mypage-prescription-editor">
+              <div
+                className="mypage-prescription-editor"
+                style={{ order: selectedPrescriptionIndex >= 0 ? selectedPrescriptionIndex * 2 + 1 : 0 }}
+              >
                 {selectedPrescription ? (
                   <>
+                    <section className="prescription-analysis-panel">
+                      <div className="prescription-analysis-header">
+                        <div>
+                          <h2>나의 처방전 분석</h2>
+                          <p>등록된 주의 정보와 처방 약을 정형 기준으로 비교합니다.</p>
+                        </div>
+                        <span className={`prescription-analysis-summary ${
+                          selectedPrescriptionAnalysis?.status === 'CAUTION' ? 'danger' : 'clear'
+                        }`}>
+                          {selectedPrescriptionAnalysisSummaryLabel}
+                        </span>
+                      </div>
+
+                      <div className="prescription-analysis-medicine-list">
+                        {selectedPrescription.isNew ? (
+                          <div className="prescription-analysis-empty">처방전을 저장하면 약별 주의 여부를 확인할 수 있습니다.</div>
+                        ) : selectedPrescriptionAnalysisError ? (
+                          <div className="prescription-analysis-empty danger">{selectedPrescriptionAnalysisError}</div>
+                        ) : prescriptionAnalysisLoadingId === selectedPrescription.id ? (
+                          <div className="prescription-analysis-empty">처방 약과 내 주의 약/성분을 확인하고 있습니다.</div>
+                        ) : (
+                          selectedPrescription.medicines.map((medicine, medicineIndex) => {
+                            const analysisItem = findMedicineAnalysisItem(selectedPrescriptionAnalysis, medicine, medicineIndex)
+                            const badges = buildMedicineAnalysisBadges(analysisItem)
+                            const generalTags = buildGeneralCautionTags(analysisItem)
+                            const medicineName = getMedicineDisplayName(medicine, medicineIndex)
+
+                            return (
+                              <div
+                                className={`prescription-analysis-medicine-row ${badges.length ? 'danger' : 'clear'}`}
+                                key={`${selectedPrescription.id}-analysis-${medicineIndex}`}
+                              >
+                                <div>
+                                  <strong>{medicineName}</strong>
+                                  <p>{badges.length ? '개인 주의 정보와 일치하는 항목이 있습니다.' : '개인 주의 정보와 일치하는 항목은 없습니다.'}</p>
+                                </div>
+                                <div className="prescription-analysis-warning-stack">
+                                  <div className="prescription-analysis-badges">
+                                    {badges.length ? (
+                                      badges.map((badge) => (
+                                        <span key={`${medicineName}-${badge.label}`} title={badge.detail || badge.label}>
+                                          {badge.label}
+                                        </span>
+                                      ))
+                                    ) : (
+                                      <span className="clear">해당 없음</span>
+                                    )}
+                                  </div>
+                                  {generalTags.length ? (
+                                    <details className="general-caution-details">
+                                      <summary>일반 주의 {generalTags.length}개</summary>
+                                      <div>
+                                        {generalTags.map((tag) => (
+                                          <span key={`${medicineName}-general-${tag}`}>{tag}</span>
+                                        ))}
+                                      </div>
+                                    </details>
+                                  ) : null}
+                                </div>
+                              </div>
+                            )
+                          })
+                        )}
+                      </div>
+                    </section>
+
+                    {prescriptionEditMode ? (
+                    <>
                     <div className="register-form-grid">
                       <label className="register-field register-span-full">
                         <span>처방전 제목</span>
@@ -1509,6 +1764,120 @@ function MyPage() {
                         {prescriptionSaving ? '저장 중...' : '수정 내용 저장'}
                       </button>
                     </div>
+                    </>
+                    ) : (
+                    <section className="prescription-read-panel">
+                      <div className="prescription-read-header">
+                        <div>
+                          <p>처방전</p>
+                          <h2>{selectedPrescription.title}</h2>
+                        </div>
+                        <span className={selectedPrescription.status === '종료' || selectedPrescription.status === '醫낅즺' ? 'profile-badge yellow' : 'profile-badge green'}>
+                          {selectedPrescription.status}
+                        </span>
+                      </div>
+
+                      <div className="prescription-read-meta">
+                        <div>
+                          <span>처방 병원</span>
+                          <strong>{selectedPrescription.hospitalName || '병원 정보 없음'}</strong>
+                        </div>
+                        <div>
+                          <span>조제 약국</span>
+                          <strong>{selectedPrescription.pharmacyName || '약국 정보 없음'}</strong>
+                        </div>
+                        <div>
+                          <span>조제일</span>
+                          <strong>{formatPrescriptionDate(selectedPrescription.dispensedDate)}</strong>
+                        </div>
+                        <div>
+                          <span>처방 약</span>
+                          <strong>{selectedPrescription.medicines.length}개</strong>
+                        </div>
+                      </div>
+
+                      <div className="prescription-read-medicine-list">
+                        {selectedPrescription.medicines.map((medicine, medicineIndex) => {
+                          const analysisItem = findMedicineAnalysisItem(selectedPrescriptionAnalysis, medicine, medicineIndex)
+                          const personalBadges = buildMedicineAnalysisBadges(analysisItem)
+                          const generalTags = buildGeneralCautionTags(analysisItem)
+                          const medicineName = getMedicineDisplayName(medicine, medicineIndex)
+
+                          return (
+                            <article className="prescription-read-medicine-card" key={`${selectedPrescription.id}-read-${medicineIndex}`}>
+                              <div className="prescription-read-medicine-title">
+                                <div>
+                                  <span>약 {medicineIndex + 1}</span>
+                                  <h3>{medicineName}</h3>
+                                  {personalBadges.length ? (
+                                    <div className="prescription-analysis-badges prescription-read-warning-badges">
+                                      {personalBadges.map((badge) => (
+                                        <span key={`${medicineName}-read-${badge.label}`} title={badge.detail || badge.label}>
+                                          {badge.label}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : null}
+                                  {generalTags.length ? (
+                                    <details className="general-caution-details prescription-read-general-cautions">
+                                      <summary>일반 주의 {generalTags.length}개</summary>
+                                      <div>
+                                        {generalTags.map((tag) => (
+                                          <span key={`${medicineName}-read-general-${tag}`}>{tag}</span>
+                                        ))}
+                                      </div>
+                                    </details>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              <div className="prescription-read-medicine-facts">
+                                <div>
+                                  <span>1회 복용량</span>
+                                  <strong>{formatMedicineDose(medicine)}</strong>
+                                </div>
+                                <div>
+                                  <span>하루 복용 횟수</span>
+                                  <strong>{medicine.timesPerDay || '-'}회</strong>
+                                </div>
+                                <div>
+                                  <span>총 복용 일수</span>
+                                  <strong>{medicine.durationDays || '-'}일</strong>
+                                </div>
+                              </div>
+
+                            </article>
+                          )
+                        })}
+                      </div>
+
+                      <div className="register-submit-row">
+                        <button
+                          type="button"
+                          className="register-remove-button"
+                          onClick={handleDeletePrescription}
+                          disabled={prescriptionSaving}
+                        >
+                          처방전 삭제
+                        </button>
+                        <button
+                          type="button"
+                          className="smartpill-link-button"
+                          onClick={handleOpenSmartPillModal}
+                          disabled={prescriptionSaving || selectedPrescription.isNew}
+                        >
+                          스마트 약통 연결
+                        </button>
+                        <button
+                          type="button"
+                          className="app-primary-button"
+                          onClick={() => setPrescriptionEditMode(true)}
+                        >
+                          수정
+                        </button>
+                      </div>
+                    </section>
+                    )}
                   </>
                 ) : (
                   <div className="app-placeholder-card">열어볼 처방전을 선택해 주세요.</div>

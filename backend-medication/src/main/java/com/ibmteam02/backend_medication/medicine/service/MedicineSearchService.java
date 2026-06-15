@@ -4,12 +4,15 @@ import com.ibmteam02.backend_medication.caution.domain.UserMedicationCaution;
 import com.ibmteam02.backend_medication.caution.repository.UserMedicationCautionRepository;
 import com.ibmteam02.backend_medication.medicine.domain.MedicineInfo;
 import com.ibmteam02.backend_medication.medicine.domain.MedicineIngredient;
+import com.ibmteam02.backend_medication.medicine.dto.MedicineGeneralCautionTagResponse;
 import com.ibmteam02.backend_medication.medicine.dto.MedicineSearchResponse;
+import com.ibmteam02.backend_medication.medicine.repository.MedicineCautionTagRepository;
 import com.ibmteam02.backend_medication.medicine.repository.MedicineInfoRepository;
 import com.ibmteam02.backend_medication.medicine.repository.MedicineIngredientRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -19,6 +22,7 @@ public class MedicineSearchService {
 
     private final MedicineInfoRepository medicineInfoRepository;
     private final MedicineIngredientRepository medicineIngredientRepository;
+    private final MedicineCautionTagRepository medicineCautionTagRepository;
     private final UserMedicationCautionRepository userMedicationCautionRepository;
 
 
@@ -75,8 +79,32 @@ public class MedicineSearchService {
                 medicine.getEfficacyDocumentId(),
                 medicine.getUsageDocumentId(),
                 medicine.getPrecautionDocumentId(),
-                warningMedicine, warningIngredient
+                warningMedicine,
+                warningIngredient,
+                findGeneralCautionTags(medicine.getItemSeq())
         );
+    }
+
+    private List<MedicineGeneralCautionTagResponse> findGeneralCautionTags(Long itemSeq) {
+        return medicineCautionTagRepository.findByItemSeq(itemSeq).stream()
+                .map(tag -> new MedicineGeneralCautionTagResponse(
+                        tag.getTagCode(),
+                        tag.getTagName(),
+                        splitKeywords(tag.getMatchedKeywords())
+                ))
+                .toList();
+    }
+
+    private List<String> splitKeywords(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(keyword -> !keyword.isBlank())
+                .distinct()
+                .toList();
     }
 
     private String formatIngredientSummary(Long itemSeq) {

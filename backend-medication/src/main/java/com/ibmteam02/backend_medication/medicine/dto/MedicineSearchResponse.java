@@ -1,5 +1,7 @@
 package com.ibmteam02.backend_medication.medicine.dto;
 
+import java.util.List;
+
 public record MedicineSearchResponse(
         Long itemSeq,
         String itemName,
@@ -18,6 +20,7 @@ public record MedicineSearchResponse(
         String usageDocumentId,
         String precautionDocumentId,
         boolean warningMedicine,
-        boolean warningIngredient
+        boolean warningIngredient,
+        List<MedicineGeneralCautionTagResponse> generalCautionTags
 ) {
 }

@@ -7,6 +7,8 @@ public record AuthUserHealthContextResponse(
         boolean isBreastfeeding,
         boolean isSmoking,
         boolean isDrinking,
+        boolean isChild,
+        boolean isElderly,
         List<String> chronicDiseases
 ) {
 }
