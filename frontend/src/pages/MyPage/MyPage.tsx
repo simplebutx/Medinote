@@ -561,6 +561,7 @@ function MyPage() {
   const [isHealthDiseaseSearchOpen, setIsHealthDiseaseSearchOpen] =
     useState(false);
 
+  const [isHealthEditing, setIsHealthEditing] = useState(false);
   const [healthDraft, setHealthDraft] = useState<HealthFormState | null>(null);
 
   const profileHealthForm = useMemo<HealthFormState>(() => {
@@ -606,6 +607,10 @@ function MyPage() {
   const updateHealthForm = (
     updater: (current: HealthFormState) => HealthFormState,
   ) => {
+    if (!isHealthEditing) {
+      return;
+    }
+
     setHealthDraft((prev) => updater(prev ?? profileHealthForm));
   };
 
@@ -684,6 +689,21 @@ function MyPage() {
     }));
   };
 
+  const handleStartEditHealthInfo = () => {
+    setHealthDraft({
+      ...profileHealthForm,
+      diseases: [...profileHealthForm.diseases],
+    });
+    setIsHealthEditing(true);
+  };
+
+  const handleCancelEditHealthInfo = () => {
+    setHealthDraft(null);
+    setHealthDiseaseKeyword('');
+    setIsHealthDiseaseSearchOpen(false);
+    setIsHealthEditing(false);
+  };
+
   const handleSaveHealthInfo = () => {
     updateMyProfileMutation.mutate(
       {
@@ -705,6 +725,9 @@ function MyPage() {
         onSuccess: () => {
           toast.success('건강 정보가 저장되었습니다.');
           setHealthDraft(null);
+          setHealthDiseaseKeyword('');
+          setIsHealthDiseaseSearchOpen(false);
+          setIsHealthEditing(false);
         },
         onError: (error) => {
           console.error('건강 정보 저장 실패:', error);
@@ -1419,12 +1442,26 @@ function MyPage() {
 
           {activeTab === 'health' && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">건강 정보</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  복약 안내와 약사 상담에 참고되는 건강 상태와 기저질환 정보를
-                  관리합니다.
-                </p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    건강 정보
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    복약 안내와 약사 상담에 참고되는 건강 상태와 기저질환
+                    정보를 관리합니다.
+                  </p>
+                </div>
+
+                {!isHealthEditing && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleStartEditHealthInfo}
+                  >
+                    수정
+                  </Button>
+                )}
               </div>
 
               <div>
@@ -1435,6 +1472,7 @@ function MyPage() {
                 <div className="grid gap-3 md:grid-cols-2">
                   <button
                     type="button"
+                    disabled={!isHealthEditing}
                     onClick={() =>
                       updateHealthForm((current) => ({
                         ...current,
@@ -1442,10 +1480,13 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
+                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
                       healthForm.isPregnant
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
+                      isHealthEditing
+                        ? 'cursor-pointer hover:border-blue-300'
+                        : 'cursor-default opacity-80',
                     ].join(' ')}
                   >
                     임산부
@@ -1453,6 +1494,7 @@ function MyPage() {
 
                   <button
                     type="button"
+                    disabled={!isHealthEditing}
                     onClick={() =>
                       updateHealthForm((current) => ({
                         ...current,
@@ -1460,10 +1502,13 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
+                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
                       healthForm.isBreastfeeding
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
+                      isHealthEditing
+                        ? 'cursor-pointer hover:border-blue-300'
+                        : 'cursor-default opacity-80',
                     ].join(' ')}
                   >
                     모유수유 중
@@ -1471,6 +1516,7 @@ function MyPage() {
 
                   <button
                     type="button"
+                    disabled={!isHealthEditing}
                     onClick={() =>
                       updateHealthForm((current) => ({
                         ...current,
@@ -1478,10 +1524,13 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
+                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
                       healthForm.isSmoking
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
+                      isHealthEditing
+                        ? 'cursor-pointer hover:border-blue-300'
+                        : 'cursor-default opacity-80',
                     ].join(' ')}
                   >
                     흡연
@@ -1489,6 +1538,7 @@ function MyPage() {
 
                   <button
                     type="button"
+                    disabled={!isHealthEditing}
                     onClick={() =>
                       updateHealthForm((current) => ({
                         ...current,
@@ -1496,10 +1546,13 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
+                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
                       healthForm.isDrinking
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
+                      isHealthEditing
+                        ? 'cursor-pointer hover:border-blue-300'
+                        : 'cursor-default opacity-80',
                     ].join(' ')}
                   >
                     음주
@@ -1507,6 +1560,7 @@ function MyPage() {
 
                   <button
                     type="button"
+                    disabled={!isHealthEditing}
                     onClick={() =>
                       updateHealthForm((current) => ({
                         ...current,
@@ -1514,10 +1568,13 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
+                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
                       healthForm.isChild
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
+                      isHealthEditing
+                        ? 'cursor-pointer hover:border-blue-300'
+                        : 'cursor-default opacity-80',
                     ].join(' ')}
                   >
                     소아
@@ -1525,6 +1582,7 @@ function MyPage() {
 
                   <button
                     type="button"
+                    disabled={!isHealthEditing}
                     onClick={() =>
                       updateHealthForm((current) => ({
                         ...current,
@@ -1532,10 +1590,13 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
+                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
                       healthForm.isElderly
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
+                      isHealthEditing
+                        ? 'cursor-pointer hover:border-blue-300'
+                        : 'cursor-default opacity-80',
                     ].join(' ')}
                   >
                     고령자
@@ -1550,32 +1611,52 @@ function MyPage() {
 
                 {healthForm.diseases.length > 0 && (
                   <div className="mb-3 flex flex-wrap gap-2">
-                    {healthForm.diseases.map((disease) => (
-                      <button
-                        key={disease.code}
-                        type="button"
-                        onClick={() => handleRemoveHealthDisease(disease.code)}
-                        className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700"
-                      >
-                        {disease.name} ×
-                      </button>
-                    ))}
+                    {healthForm.diseases.map((disease) =>
+                      isHealthEditing ? (
+                        <button
+                          key={disease.code}
+                          type="button"
+                          onClick={() =>
+                            handleRemoveHealthDisease(disease.code)
+                          }
+                          className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700"
+                        >
+                          {disease.name} ×
+                        </button>
+                      ) : (
+                        <span
+                          key={disease.code}
+                          className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700"
+                        >
+                          {disease.name}
+                        </span>
+                      ),
+                    )}
                   </div>
                 )}
 
                 <div className="relative">
                   <Input
-                    placeholder="예: 고혈압, 당뇨병, 위염"
+                    placeholder={
+                      isHealthEditing
+                        ? '예: 고혈압, 당뇨병, 위염'
+                        : '수정 버튼을 눌러 기저질환을 변경할 수 있습니다.'
+                    }
                     value={healthDiseaseKeyword}
+                    disabled={!isHealthEditing}
                     onChange={(event) =>
                       handleChangeHealthDiseaseKeyword(event.target.value)
                     }
-                    onFocus={() =>
-                      setIsHealthDiseaseSearchOpen(healthDiseaseKeyword.trim().length >= 2)
-                    }
+                    onFocus={() => {
+                      if (isHealthEditing) {
+                        setIsHealthDiseaseSearchOpen(
+                          healthDiseaseKeyword.trim().length >= 2,
+                        );
+                      }
+                    }}
                   />
 
-                  {isHealthDiseaseSearchOpen && (
+                  {isHealthEditing && isHealthDiseaseSearchOpen && (
                     <div className="absolute left-0 top-full z-10 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
                       <div className="mb-2 px-2 text-xs font-semibold text-slate-500">
                         기저질환 검색 결과
@@ -1622,15 +1703,29 @@ function MyPage() {
                 활용됩니다. 알레르기/주의 성분은 별도 탭에서 관리합니다.
               </div>
 
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  onClick={handleSaveHealthInfo}
-                  disabled={updateMyProfileMutation.isPending}
-                >
-                  {updateMyProfileMutation.isPending ? '저장 중...' : '건강 정보 저장'}
-                </Button>
-              </div>
+              {isHealthEditing && (
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="border border-slate-200"
+                    onClick={handleCancelEditHealthInfo}
+                    disabled={updateMyProfileMutation.isPending}
+                  >
+                    취소
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={handleSaveHealthInfo}
+                    disabled={updateMyProfileMutation.isPending}
+                  >
+                    {updateMyProfileMutation.isPending
+                      ? '저장 중...'
+                      : '건강 정보 저장'}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 

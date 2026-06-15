@@ -44,25 +44,13 @@ function getUpdateDate(medicine: MedicineSearchItem) {
 }
 
 function getSafetyInfo(medicine: MedicineSearchItem) {
-  const text = [
-    getMedicineName(medicine),
-    medicine.efficacy,
-    medicine.caution,
-    medicine.interaction,
-    getSideEffect(medicine),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  const hasWarningIngredient =
-    text.includes("아스피린") ||
-    text.includes("aspirin") ||
-    text.includes("nsaids") ||
-    text.includes("이부프로펜");
-
   return {
-    hasWarningIngredient,
+    hasWarningMedicine: Boolean(
+      medicine.warningMedicine ?? medicine.warning_medicine,
+    ),
+    hasWarningIngredient: Boolean(
+      medicine.warningIngredient ?? medicine.warning_ingredient,
+    ),
   };
 }
 
@@ -277,9 +265,15 @@ function DrugSearchPage() {
                         </p>
                       </div>
 
-                      {safetyInfo.hasWarningIngredient && (
-                        <Badge variant="red">주의 성분 포함</Badge>
-                      )}
+                      <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                        {safetyInfo.hasWarningMedicine && (
+                          <Badge variant="red">주의 약 포함</Badge>
+                        )}
+
+                        {safetyInfo.hasWarningIngredient && (
+                          <Badge variant="yellow">주의 성분 포함</Badge>
+                        )}
+                      </div>
                     </button>
                   );
                 })}
@@ -298,8 +292,12 @@ function DrugSearchPage() {
                     {getMedicineName(selectedMedicine)}
                   </h2>
 
+                  {getSafetyInfo(selectedMedicine).hasWarningMedicine && (
+                    <Badge variant="red">주의 약 포함</Badge>
+                  )}
+
                   {getSafetyInfo(selectedMedicine).hasWarningIngredient && (
-                    <Badge variant="red">주의 성분 포함</Badge>
+                    <Badge variant="yellow">주의 성분 포함</Badge>
                   )}
                 </div>
 
