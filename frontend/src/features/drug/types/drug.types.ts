@@ -20,6 +20,10 @@ export interface MedicineSearchItem {
   update_de?: string;
   imageUrl?: string;
   image_url?: string;
+  warningMedicine?: boolean;
+  warning_medicine?: boolean;
+  warningIngredient?: boolean;
+  warning_ingredient?: boolean;
   medicineName?: string | null;
   drugName?: string | null;
   entpName?: string | null;
