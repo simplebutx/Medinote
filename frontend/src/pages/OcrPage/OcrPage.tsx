@@ -172,7 +172,7 @@ function OcrPage() {
 
   const isRegistering =
     createScheduleMutation.isPending || createScheduleTimeMutation.isPending;
-  const [activeMode, setActiveMode] = useState<RegisterMode>('manual');
+  const [activeMode, setActiveMode] = useState<RegisterMode>('ocr');
 
   const [commonForm, setCommonForm] = useState<PrescriptionCommonForm>(() =>
     createInitialCommonForm(),
@@ -1125,19 +1125,6 @@ function OcrPage() {
         <div className="flex border-b border-slate-200">
           <button
             type="button"
-            onClick={() => setActiveMode('manual')}
-            className={[
-              'flex-1 px-5 py-4 text-sm font-semibold transition',
-              activeMode === 'manual'
-                ? 'border-b-2 border-blue-600 text-blue-700'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
-            ].join(' ')}
-          >
-            수동 입력
-          </button>
-
-          <button
-            type="button"
             onClick={() => setActiveMode('ocr')}
             className={[
               'flex-1 px-5 py-4 text-sm font-semibold transition',
@@ -1147,6 +1134,19 @@ function OcrPage() {
             ].join(' ')}
           >
             처방 내역 업로드
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveMode('manual')}
+            className={[
+              'flex-1 px-5 py-4 text-sm font-semibold transition',
+              activeMode === 'manual'
+                ? 'border-b-2 border-blue-600 text-blue-700'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
+            ].join(' ')}
+          >
+            수동 입력
           </button>
         </div>
 

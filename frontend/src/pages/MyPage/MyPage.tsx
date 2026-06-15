@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Badge, Button, Card, Input } from '../../components/ui';
+import { useUpdatePassword } from '../../features/auth/hooks';
 import {
   useCautionSuggest,
   useCreateMyCaution,
@@ -64,9 +65,53 @@ function getCautionSourceLabel(sourceType: CautionTargetType) {
   return sourceType === 'MEDICINE' ? '약' : '성분';
 }
 
+function getPasswordValidationMessage(value: string) {
+  if (!value) {
+    return '새 비밀번호를 입력해주세요.';
+  }
+
+  const hasAlphabet = /[A-Za-z]/.test(value);
+  const hasSpecialCharacter =
+    /[!@#$%^&*()_\-+=[\]{};':"\\|,.<>/?`~]/.test(value);
+  const hasValidLength = value.length >= 8 && value.length <= 20;
+  const hasNoWhitespace = !/\s/.test(value);
+
+  if (
+    !hasValidLength ||
+    !hasAlphabet ||
+    !hasSpecialCharacter ||
+    !hasNoWhitespace
+  ) {
+    return '비밀번호는 8자 이상 20자 이하이며 영문과 특수문자를 포함해야 합니다.';
+  }
+
+  return '';
+}
+
 interface DiseaseOption {
   code: string;
   name: string;
+}
+
+function normalizeDiseaseName(value: string) {
+  return value.trim().replace(/^@/, '');
+}
+
+function getUniqueDiseaseNames(values: string[]) {
+  const seen = new Set<string>();
+
+  return values.reduce<string[]>((result, value) => {
+    const diseaseName = normalizeDiseaseName(value);
+    const comparisonKey = diseaseName.toLocaleLowerCase();
+
+    if (!diseaseName || seen.has(comparisonKey)) {
+      return result;
+    }
+
+    seen.add(comparisonKey);
+    result.push(diseaseName);
+    return result;
+  }, []);
 }
 
 interface HealthFormState {
@@ -453,6 +498,12 @@ function MyPage() {
   } = useMyProfile();
 
   const updateMyProfileMutation = useUpdateMyProfile();
+  const updatePasswordMutation = useUpdatePassword();
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [hasTriedPasswordChange, setHasTriedPasswordChange] = useState(false);
 
   const {
     data: medicationSchedules = [],
@@ -660,10 +711,17 @@ function MyPage() {
     setIsHealthDiseaseSearchOpen(value.trim().length >= 2);
   };
 
-  const handleSelectHealthDisease = (disease: DiseaseOption) => {
+  const handleAddHealthDisease = (rawDiseaseName: string) => {
+    const diseaseName = normalizeDiseaseName(rawDiseaseName);
+
+    if (!diseaseName) {
+      return;
+    }
+
     updateHealthForm((current) => {
       const alreadySelected = current.diseases.some(
-        (item) => item.code === disease.code,
+        (item) =>
+          item.name.toLocaleLowerCase() === diseaseName.toLocaleLowerCase(),
       );
 
       if (alreadySelected) {
@@ -672,12 +730,22 @@ function MyPage() {
 
       return {
         ...current,
-        diseases: [...current.diseases, disease],
+        diseases: [
+          ...current.diseases,
+          {
+            code: diseaseName,
+            name: diseaseName,
+          },
+        ],
       };
     });
 
     setHealthDiseaseKeyword('');
     setIsHealthDiseaseSearchOpen(false);
+  };
+
+  const handleSelectHealthDisease = (disease: DiseaseOption) => {
+    handleAddHealthDisease(disease.name);
   };
 
   const handleRemoveHealthDisease = (diseaseCode: string) => {
@@ -705,6 +773,11 @@ function MyPage() {
   };
 
   const handleSaveHealthInfo = () => {
+    const diseaseNames = getUniqueDiseaseNames([
+      ...healthForm.diseases.map((disease) => disease.name),
+      healthDiseaseKeyword,
+    ]);
+
     updateMyProfileMutation.mutate(
       {
         username: profileInfo.name,
@@ -719,7 +792,7 @@ function MyPage() {
         isDrinking: healthForm.isDrinking,
         isChild: healthForm.isChild,
         isElderly: healthForm.isElderly,
-        diseases: healthForm.diseases.map((disease) => disease.name),
+        diseases: diseaseNames,
       },
       {
         onSuccess: () => {
@@ -1315,6 +1388,61 @@ function MyPage() {
     });
   };
 
+  const handleClosePasswordModal = () => {
+    if (updatePasswordMutation.isPending) {
+      return;
+    }
+
+    setIsPasswordModalOpen(false);
+    setOldPassword('');
+    setNewPassword('');
+    setNewPasswordConfirm('');
+    setHasTriedPasswordChange(false);
+  };
+
+  const handleUpdatePassword = () => {
+    setHasTriedPasswordChange(true);
+
+    const passwordValidationMessage =
+      getPasswordValidationMessage(newPassword);
+
+    if (!oldPassword) {
+      toast.error('현재 비밀번호를 입력해주세요.');
+      return;
+    }
+
+    if (passwordValidationMessage) {
+      toast.error(passwordValidationMessage);
+      return;
+    }
+
+    if (newPassword !== newPasswordConfirm) {
+      toast.error('새 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    updatePasswordMutation.mutate(
+      {
+        oldPassword,
+        newPassword,
+      },
+      {
+        onSuccess: () => {
+          toast.success('비밀번호가 변경되었습니다.');
+          setIsPasswordModalOpen(false);
+          setOldPassword('');
+          setNewPassword('');
+          setNewPasswordConfirm('');
+          setHasTriedPasswordChange(false);
+        },
+        onError: (error) => {
+          console.error('비밀번호 변경 실패:', error);
+          toast.error('비밀번호 변경에 실패했습니다. 다시 시도해주세요.');
+        },
+      },
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -1361,7 +1489,7 @@ function MyPage() {
             type="button"
             variant="ghost"
             className="border border-slate-200"
-            onClick={() => toast('비밀번호 변경 기능은 준비 중입니다.')}
+            onClick={() => setIsPasswordModalOpen(true)}
           >
             비밀번호 변경
           </Button>
@@ -1647,6 +1775,12 @@ function MyPage() {
                     onChange={(event) =>
                       handleChangeHealthDiseaseKeyword(event.target.value)
                     }
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ',') {
+                        event.preventDefault();
+                        handleAddHealthDisease(healthDiseaseKeyword);
+                      }
+                    }}
                     onFocus={() => {
                       if (isHealthEditing) {
                         setIsHealthDiseaseSearchOpen(
@@ -1694,7 +1828,8 @@ function MyPage() {
                 </div>
 
                 <p className="mt-2 text-xs text-slate-500">
-                  기저질환은 검색 결과에서 선택해 등록합니다.
+                  검색 결과를 선택하거나 직접 입력한 뒤 Enter 또는 쉼표로
+                  추가할 수 있습니다.
                 </p>
               </div>
 
@@ -2575,6 +2710,115 @@ function MyPage() {
           )}
         </div>
       </Card>
+
+      {isPasswordModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="password-modal-title"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2
+                  id="password-modal-title"
+                  className="text-xl font-bold text-slate-900"
+                >
+                  비밀번호 변경
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  현재 비밀번호를 확인한 후 새 비밀번호로 변경합니다.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={handleClosePasswordModal}
+                disabled={updatePasswordMutation.isPending}
+                aria-label="비밀번호 변경 창 닫기"
+              >
+                닫기
+              </Button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              <Input
+                label="현재 비밀번호"
+                type="password"
+                autoComplete="current-password"
+                value={oldPassword}
+                onChange={(event) => setOldPassword(event.target.value)}
+                errorMessage={
+                  hasTriedPasswordChange && !oldPassword
+                    ? '현재 비밀번호를 입력해주세요.'
+                    : undefined
+                }
+                disabled={updatePasswordMutation.isPending}
+              />
+
+              <Input
+                label="새 비밀번호"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                errorMessage={
+                  (hasTriedPasswordChange || newPassword.length > 0)
+                    ? getPasswordValidationMessage(newPassword)
+                    : undefined
+                }
+                disabled={updatePasswordMutation.isPending}
+              />
+
+              <Input
+                label="새 비밀번호 확인"
+                type="password"
+                autoComplete="new-password"
+                value={newPasswordConfirm}
+                onChange={(event) =>
+                  setNewPasswordConfirm(event.target.value)
+                }
+                errorMessage={
+                  (hasTriedPasswordChange ||
+                    newPasswordConfirm.length > 0) &&
+                  newPassword !== newPasswordConfirm
+                    ? '새 비밀번호가 일치하지 않습니다.'
+                    : undefined
+                }
+                disabled={updatePasswordMutation.isPending}
+              />
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                className="border border-slate-200"
+                onClick={handleClosePasswordModal}
+                disabled={updatePasswordMutation.isPending}
+              >
+                취소
+              </Button>
+
+              <Button
+                type="button"
+                onClick={handleUpdatePassword}
+                disabled={updatePasswordMutation.isPending}
+              >
+                {updatePasswordMutation.isPending
+                  ? '변경 중...'
+                  : '비밀번호 변경'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {smartPillModalSchedule && (
         <div

@@ -58,6 +58,16 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface PasswordUpdateRequest {
+  oldPassword: string;
+  newPassword: string;
+}
+
+export interface PasswordResetRequest {
+  email: string;
+  newPassword: string;
+}
+
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;

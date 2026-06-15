@@ -17,6 +17,27 @@ interface DiseaseOption {
   name: string;
 }
 
+function normalizeDiseaseName(value: string) {
+  return value.trim().replace(/^@/, "");
+}
+
+function getUniqueDiseaseNames(values: string[]) {
+  const seen = new Set<string>();
+
+  return values.reduce<string[]>((result, value) => {
+    const diseaseName = normalizeDiseaseName(value);
+    const comparisonKey = diseaseName.toLocaleLowerCase();
+
+    if (!diseaseName || seen.has(comparisonKey)) {
+      return result;
+    }
+
+    seen.add(comparisonKey);
+    result.push(diseaseName);
+    return result;
+  }, []);
+}
+
 function UserAdditionalInfoStep({
   email,
   onBack,
@@ -53,19 +74,38 @@ function UserAdditionalInfoStep({
     setIsDiseaseSearchOpen(value.trim().length >= 2);
   };
 
-  const handleSelectDisease = (disease: DiseaseOption) => {
+  const handleAddDisease = (rawDiseaseName: string) => {
+    const diseaseName = normalizeDiseaseName(rawDiseaseName);
+
+    if (!diseaseName) {
+      return;
+    }
+
     setSelectedDiseases((prev) => {
-      const alreadySelected = prev.some((item) => item.code === disease.code);
+      const alreadySelected = prev.some(
+        (item) =>
+          item.name.toLocaleLowerCase() === diseaseName.toLocaleLowerCase()
+      );
 
       if (alreadySelected) {
         return prev;
       }
 
-      return [...prev, disease];
+      return [
+        ...prev,
+        {
+          code: diseaseName,
+          name: diseaseName,
+        },
+      ];
     });
 
     setDiseaseKeyword("");
     setIsDiseaseSearchOpen(false);
+  };
+
+  const handleSelectDisease = (disease: DiseaseOption) => {
+    handleAddDisease(disease.name);
   };
 
   const handleRemoveDisease = (diseaseCode: string) => {
@@ -75,6 +115,11 @@ function UserAdditionalInfoStep({
   };
 
   const handleSubmit = () => {
+    const diseaseNames = getUniqueDiseaseNames([
+      ...selectedDiseases.map((disease) => disease.name),
+      diseaseKeyword,
+    ]);
+
     userAdditionalInfoMutation.mutate(
       {
         email,
@@ -82,7 +127,7 @@ function UserAdditionalInfoStep({
         isBreastfeeding,
         isSmoking,
         isDrinking,
-        diseaseNames: selectedDiseases.map((disease) => disease.name),
+        diseaseNames,
       },
       {
         onSuccess: () => {
@@ -190,11 +235,17 @@ function UserAdditionalInfoStep({
 
           <div className="relative">
             <Input
-              placeholder="기저질환명을 2자 이상 입력해 검색하세요. 예: 고혈압"
+              placeholder="기저질환을 검색하거나 직접 입력하세요. 예: 고혈압"
               value={diseaseKeyword}
               onChange={(event) =>
                 handleChangeDiseaseKeyword(event.target.value)
               }
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === ",") {
+                  event.preventDefault();
+                  handleAddDisease(diseaseKeyword);
+                }
+              }}
             />
 
             {isDiseaseSearchOpen && (
@@ -233,7 +284,8 @@ function UserAdditionalInfoStep({
           </div>
 
           <p className="mt-2 text-xs text-slate-500">
-            입력한 질환명은 DB 기준 검색 결과에서 선택할 수 있습니다.
+            검색 결과를 선택하거나 직접 입력한 뒤 Enter 또는 쉼표로 추가할
+            수 있습니다.
           </p>
         </div>
 

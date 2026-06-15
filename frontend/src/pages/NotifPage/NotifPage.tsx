@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -10,6 +10,11 @@ import {
   useReadAppNotification,
 } from '../../features/notification/hooks';
 import type { AppNotification } from '../../features/notification/types';
+import {
+  canUseBrowserNotifications,
+  getBrowserNotificationPermission,
+  type BrowserNotificationPermission,
+} from '../../features/notification/utils/browserNotification';
 import { useUserStore } from '../../store/useUserStore';
 
 function formatNotificationDate(createdAt?: string | null) {
@@ -38,8 +43,15 @@ function getNotificationTargetPath(
 function NotifPage() {
   const navigate = useNavigate();
   const role = useUserStore((state) => state.role);
+  const userId = useUserStore((state) => state.userId);
+  const [browserNotificationPermission, setBrowserNotificationPermission] =
+    useState<BrowserNotificationPermission>(() =>
+      getBrowserNotificationPermission(),
+    );
 
-  const { data: notifications = [], isLoading } = useAppNotifications(role);
+  const { data: notifications = [], isLoading } = useAppNotifications(role, {
+    userId,
+  });
 
   const readNotificationMutation = useReadAppNotification();
   const deleteNotificationMutation = useDeleteAppNotification();
@@ -122,6 +134,32 @@ function NotifPage() {
     });
   };
 
+  const handleRequestBrowserNotificationPermission = async () => {
+    if (!canUseBrowserNotifications()) {
+      toast.error('이 브라우저에서는 알림 기능을 사용할 수 없습니다.');
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    setBrowserNotificationPermission(permission);
+
+    if (permission === 'granted') {
+      toast.success('브라우저 알림이 허용되었습니다.');
+      return;
+    }
+
+    toast.error('브라우저 설정에서 알림 권한을 허용해주세요.');
+  };
+
+  const browserNotificationButtonLabel =
+    browserNotificationPermission === 'granted'
+      ? '브라우저 알림 허용됨'
+      : browserNotificationPermission === 'denied'
+        ? '브라우저 알림 차단됨'
+        : browserNotificationPermission === 'unsupported'
+          ? '브라우저 알림 미지원'
+          : '브라우저 알림 허용';
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -135,20 +173,32 @@ function NotifPage() {
           </p>
         </div>
 
-        <Button
-          type="button"
-          variant="ghost"
-          className="border border-slate-200"
-          onClick={handleDeleteAllNotifications}
-          disabled={
-            notifications.length === 0 ||
-            deleteAllNotificationsMutation.isPending
-          }
-        >
-          {deleteAllNotificationsMutation.isPending
-            ? '삭제 중...'
-            : '전체 삭제'}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            className="border border-slate-200"
+            onClick={handleRequestBrowserNotificationPermission}
+            disabled={browserNotificationPermission !== 'default'}
+          >
+            {browserNotificationButtonLabel}
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            className="border border-slate-200"
+            onClick={handleDeleteAllNotifications}
+            disabled={
+              notifications.length === 0 ||
+              deleteAllNotificationsMutation.isPending
+            }
+          >
+            {deleteAllNotificationsMutation.isPending
+              ? '삭제 중...'
+              : '전체 삭제'}
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

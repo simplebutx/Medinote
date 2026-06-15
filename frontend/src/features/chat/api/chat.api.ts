@@ -8,6 +8,8 @@ import type {
   UpdateChatbotRoomRequest,
 } from "../types/chat.types";
 
+const CHATBOT_RESPONSE_TIMEOUT_MS = 300_000;
+
 export const createChatbotRoom = async (
   body?: CreateChatbotRoomRequest
 ) => {
@@ -64,7 +66,10 @@ export const sendChatbotMessage = async (
 ) => {
   const response = await consultationInstance.post<SendChatbotMessageResponse>(
     "/api/chatbot/message",
-    body
+    body,
+    {
+      timeout: CHATBOT_RESPONSE_TIMEOUT_MS,
+    },
   );
 
   return response.data;
