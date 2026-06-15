@@ -98,7 +98,7 @@ const serviceFlow = [
   {
     step: '06',
     icon: '📍',
-    title: '약국 검색',
+    title: '재고 검색',
     description: '근처 약국과 재고 보유 약국을 확인합니다.',
   },
 ];
@@ -144,7 +144,7 @@ const faqs = [
   {
     question: 'Medinote는 어떤 서비스인가요?',
     answer:
-      '복약 일정, 약 정보, AI 상담, 약사 상담, 근처 약국 검색을 하나의 흐름으로 관리하는 AI 기반 스마트 복약 관리 플랫폼입니다.',
+      '복약 일정, 약 정보, AI 상담, 약사 상담, 근처 약국 재고 검색을 하나의 흐름으로 관리하는 AI 기반 스마트 복약 관리 플랫폼입니다.',
   },
   {
     question: 'AI 답변만으로 복약 판단을 해도 되나요?',
@@ -464,7 +464,7 @@ function LandingPage() {
               </h2>
 
               <p className={descriptionClass}>
-                약 등록부터 상담, 약국 검색까지 필요한 기능을 한 흐름으로 제공합니다.
+                약 등록부터 상담, 재고 검색까지 필요한 기능을 한 흐름으로 제공합니다.
               </p>
             </div>
 
@@ -501,7 +501,7 @@ function LandingPage() {
             </h2>
 
             <p className="mx-auto mt-4 max-w-2xl text-slate-500">
-              Medinote는 복약 데이터를 중심으로 일정, 상담, 약국 검색을 연결합니다.
+              Medinote는 복약 데이터를 중심으로 일정, 상담, 재고 검색을 연결합니다.
             </p>
 
             <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -672,7 +672,7 @@ function LandingPage() {
             </h2>
 
             <p className="mx-auto mt-4 max-w-2xl text-blue-100">
-              약 등록, 알림, AI 상담, 약사 상담, 근처 약국 검색을 따로 흩어두지
+              약 등록, 알림, AI 상담, 약사 상담, 근처 약국 재고 검색을 따로 흩어두지
               않고 Medinote에서 이어서 관리할 수 있습니다.
             </p>
 
@@ -721,7 +721,7 @@ function LandingPage() {
             <div>
               <p className="font-bold text-white">기능</p>
               <div className="mt-3 space-y-2">
-                <p>약국 검색</p>
+                <p>재고 검색</p>
                 <p>스마트 약통</p>
                 <p>복약 알림</p>
               </div>

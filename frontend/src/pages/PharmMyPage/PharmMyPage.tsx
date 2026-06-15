@@ -61,6 +61,20 @@ function toInputTime(value?: string | null) {
   return value;
 }
 
+function getBusinessHourText(
+  open?: string | null,
+  close?: string | null,
+) {
+  const openTime = toInputTime(open);
+  const closeTime = toInputTime(close);
+
+  if (!openTime || !closeTime) {
+    return '정보 없음';
+  }
+
+  return `${openTime} ~ ${closeTime}`;
+}
+
 function normalizePharmacyTimeForServer(
   form: PharmacyRegisterRequest,
 ): PharmacyRegisterRequest {
@@ -178,7 +192,16 @@ const pharmacyBusinessDays = [
   },
 ] as const;
 
+type PharmMyPageTab = 'profile' | 'license' | 'pharmacy';
+
+const pharmMyPageTabs: { label: string; value: PharmMyPageTab }[] = [
+  { label: '기본 정보', value: 'profile' },
+  { label: '약사 인증 정보', value: 'license' },
+  { label: '약국 정보', value: 'pharmacy' },
+];
+
 function PharmMyPage() {
+  const [activeTab, setActiveTab] = useState<PharmMyPageTab>('profile');
   const accessToken = useUserStore((state) => state.accessToken);
   const { data: profile, isLoading, isError } = useMyProfile();
   const updatePharmacistProfileMutation = useUpdateMyPharmacistProfile();
@@ -221,13 +244,16 @@ function PharmMyPage() {
     data: pharmacyDetail,
     isLoading: isPharmacyDetailLoading,
     isError: isPharmacyDetailError,
+    refetch: refetchPharmacyDetail,
   } = usePharmacyDetail(pharmacyHpid);
 
   const [licenseNumber, setLicenseNumber] = useState<string | undefined>();
   const [licenseImage, setLicenseImage] = useState<File | null>(null);
+  const [isLicenseEditing, setIsLicenseEditing] = useState(false);
 
   const [pharmacyForm, setPharmacyForm] =
     useState<PharmacyRegisterRequest>(defaultPharmacyForm);
+  const [isPharmacyEditing, setIsPharmacyEditing] = useState(false);
 
   const [pharmacyMessage, setPharmacyMessage] = useState('');
   const [isPharmacyMessageError, setIsPharmacyMessageError] = useState(false);
@@ -243,21 +269,36 @@ function PharmMyPage() {
   const currentLicenseNumber = profile?.licenseNumber ?? '';
   const displayedLicenseNumber = licenseNumber ?? currentLicenseNumber;
 
-  const displayedPharmacyName =
-    pharmacyForm.pharmacyName ||
-    pharmacyDetail?.pharmacyName ||
-    pharmacyDetail?.name ||
-    currentDocNumber ||
-    '';
-
   const pharmacyDetailTime = pharmacyDetail as
     | Partial<PharmacyRegisterRequest>
     | undefined;
+
+  const savedPharmacyForm: PharmacyRegisterRequest = {
+    ...defaultPharmacyForm,
+    ...pharmacyDetailTime,
+    pharmacyName:
+      pharmacyDetail?.pharmacyName ||
+      pharmacyDetail?.name ||
+      currentDocNumber ||
+      '',
+    address: pharmacyDetail?.address || '',
+    phone: pharmacyDetail?.phone || '',
+    latitude: pharmacyDetail?.latitude ?? defaultPharmacyForm.latitude,
+    longitude: pharmacyDetail?.longitude ?? defaultPharmacyForm.longitude,
+  };
+
+  const displayedPharmacyForm = isPharmacyEditing
+    ? pharmacyForm
+    : savedPharmacyForm;
 
   const handleChangePharmacyForm = (
     key: keyof PharmacyRegisterRequest,
     value: string,
   ) => {
+    if (!isPharmacyEditing) {
+      return;
+    }
+
     setPharmacyForm((prev) => ({
       ...prev,
       [key]:
@@ -265,7 +306,29 @@ function PharmMyPage() {
     }));
   };
 
+  const handleStartEditPharmacy = () => {
+    setPharmacyForm({
+      ...savedPharmacyForm,
+    });
+    setPharmacyMessage('');
+    setIsPharmacyMessageError(false);
+    setIsPharmacyEditing(true);
+  };
+
+  const handleCancelEditPharmacy = () => {
+    setPharmacyForm({
+      ...savedPharmacyForm,
+    });
+    setPharmacyMessage('');
+    setIsPharmacyMessageError(false);
+    setIsPharmacyEditing(false);
+  };
+
   const handleSavePharmacy = async () => {
+    if (!isPharmacyEditing) {
+      return;
+    }
+
     setPharmacyMessage('');
     setIsPharmacyMessageError(false);
 
@@ -282,7 +345,7 @@ function PharmMyPage() {
       ...pharmacyDetailForm,
       ...pharmacyForm,
       pharmacyName:
-        displayedPharmacyName ||
+        pharmacyForm.pharmacyName ||
         pharmacyDetailForm?.pharmacyName ||
         pharmacyDetailName ||
         currentDocNumber,
@@ -328,6 +391,8 @@ function PharmMyPage() {
         setPharmacyMessage('약국 정보가 수정되었습니다.');
         setIsPharmacyMessageError(false);
         toast.success('약국 정보가 수정되었습니다.');
+        await refetchPharmacyDetail();
+        setIsPharmacyEditing(false);
         return;
       }
 
@@ -336,6 +401,8 @@ function PharmMyPage() {
       setPharmacyMessage('약국 정보가 등록되었습니다.');
       setIsPharmacyMessageError(false);
       toast.success('약국 정보가 등록되었습니다.');
+      await refetchPharmacyDetail();
+      setIsPharmacyEditing(false);
     } catch (error) {
       console.error('약국 정보 저장 실패:', error);
       setPharmacyMessage(
@@ -347,6 +414,10 @@ function PharmMyPage() {
   };
 
   const handleSave = async () => {
+    if (!isLicenseEditing) {
+      return;
+    }
+
     const nextLicenseNumber = displayedLicenseNumber.trim();
 
     if (!nextLicenseNumber) {
@@ -363,11 +434,24 @@ function PharmMyPage() {
 
       setLicenseNumber(undefined);
       setLicenseImage(null);
+      setIsLicenseEditing(false);
       toast.success('약사 정보가 수정되었습니다.');
     } catch (error) {
       console.error('약사 정보 수정 실패:', error);
       toast.error('약사 정보 수정에 실패했습니다.');
     }
+  };
+
+  const handleStartEditLicense = () => {
+    setLicenseNumber(currentLicenseNumber);
+    setLicenseImage(null);
+    setIsLicenseEditing(true);
+  };
+
+  const handleCancelEditLicense = () => {
+    setLicenseNumber(undefined);
+    setLicenseImage(null);
+    setIsLicenseEditing(false);
   };
 
   return (
@@ -432,8 +516,32 @@ function PharmMyPage() {
             </div>
           </Card>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
+          <Card className="p-0">
+            <div className="flex overflow-x-auto border-b border-slate-200">
+              {pharmMyPageTabs.map((tab) => {
+                const isActive = activeTab === tab.value;
+
+                return (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    onClick={() => setActiveTab(tab.value)}
+                    className={[
+                      'min-w-fit px-5 py-4 text-sm font-semibold transition',
+                      isActive
+                        ? 'border-b-2 border-blue-600 text-blue-700'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
+                    ].join(' ')}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="p-6">
+              {activeTab === 'profile' && (
+                <div>
               <div>
                 <h2 className="text-xl font-bold text-slate-900">기본 정보</h2>
 
@@ -442,114 +550,171 @@ function PharmMyPage() {
                 </p>
               </div>
 
-              <div className="mt-5 space-y-4">
-                <div>
-                  <label className="text-sm font-semibold text-slate-600">
-                    이름
-                  </label>
-                  <Input value={pharmacistName} readOnly />
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-sm text-slate-500">이름</p>
+                  <p className="mt-2 font-semibold text-slate-900">
+                    {pharmacistName}
+                  </p>
                 </div>
 
-                <div>
-                  <label className="text-sm font-semibold text-slate-600">
-                    이메일
-                  </label>
-                  <Input value={pharmacistEmail} readOnly />
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-sm text-slate-500">이메일</p>
+                  <p className="mt-2 break-all font-semibold text-slate-900">
+                    {pharmacistEmail}
+                  </p>
                 </div>
 
-                <div>
-                  <label className="text-sm font-semibold text-slate-600">
-                    생년월일
-                  </label>
-                  <Input value={pharmacistBirthDate} readOnly />
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-sm text-slate-500">생년월일</p>
+                  <p className="mt-2 font-semibold text-slate-900">
+                    {pharmacistBirthDate}
+                  </p>
                 </div>
 
-                <div>
-                  <label className="text-sm font-semibold text-slate-600">
-                    성별
-                  </label>
-                  <Input value={pharmacistGender} readOnly />
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-sm text-slate-500">성별</p>
+                  <p className="mt-2 font-semibold text-slate-900">
+                    {pharmacistGender}
+                  </p>
                 </div>
               </div>
-            </Card>
+                </div>
+              )}
 
-            <Card>
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">
-                  약사 인증 정보
-                </h2>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  면허번호와 면허증 이미지를 확인하고 수정 요청할 수 있습니다.
-                </p>
-              </div>
-
-              <div className="mt-5 space-y-4">
+              {activeTab === 'license' && (
                 <div>
-                  <label className="text-sm font-semibold text-slate-600">
-                    면허번호
-                  </label>
-                  <Input
-                    value={displayedLicenseNumber}
-                    onChange={(event) => setLicenseNumber(event.target.value)}
-                    placeholder="면허번호를 입력하세요"
-                  />
-                </div>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900">
+                        약사 인증 정보
+                      </h2>
 
+                      <p className="mt-1 text-sm text-slate-500">
+                        면허번호와 면허증 이미지를 확인하고 수정 요청할 수
+                        있습니다.
+                      </p>
+                    </div>
+
+                    {!isLicenseEditing && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleStartEditLicense}
+                      >
+                        수정
+                      </Button>
+                    )}
+                  </div>
+
+                  {isLicenseEditing ? (
+                    <div className="mt-5 space-y-4">
+                      <div>
+                        <label className="text-sm font-semibold text-slate-600">
+                          면허번호
+                        </label>
+                        <Input
+                          value={displayedLicenseNumber}
+                          onChange={(event) =>
+                            setLicenseNumber(event.target.value)
+                          }
+                          placeholder="면허번호를 입력하세요"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-semibold text-slate-600">
+                          면허증 이미지
+                        </label>
+
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) =>
+                            setLicenseImage(event.target.files?.[0] ?? null)
+                          }
+                          className="mt-2 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-blue-700"
+                        />
+
+                        {licenseImage && (
+                          <p className="mt-2 text-xs text-blue-600">
+                            선택한 파일: {licenseImage.name}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                        약사 인증 정보를 수정하면 관리자 재승인이 필요할 수
+                        있습니다.
+                      </div>
+
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="border border-slate-200"
+                          onClick={handleCancelEditLicense}
+                          disabled={updatePharmacistProfileMutation.isPending}
+                        >
+                          취소
+                        </Button>
+
+                        <Button
+                          type="button"
+                          onClick={handleSave}
+                          disabled={updatePharmacistProfileMutation.isPending}
+                        >
+                          {updatePharmacistProfileMutation.isPending
+                            ? '수정 요청 중'
+                            : '정보 수정 요청'}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-5 grid gap-4 md:grid-cols-2">
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <p className="text-sm text-slate-500">면허번호</p>
+                        <p className="mt-2 font-semibold text-slate-900">
+                          {currentLicenseNumber || '등록 정보 없음'}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <p className="text-sm text-slate-500">면허증 이미지</p>
+                        <p className="mt-2 font-semibold text-slate-900">
+                          {profile?.licenseImage
+                            ? '등록 완료'
+                            : '등록 정보 없음'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'pharmacy' && (
                 <div>
-                  <label className="text-sm font-semibold text-slate-600">
-                    면허증 이미지
-                  </label>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    약국 정보
+                  </h2>
 
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) =>
-                      setLicenseImage(event.target.files?.[0] ?? null)
-                    }
-                    className="mt-2 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-blue-700"
-                  />
-
-                  {profile?.licenseImage && (
-                    <p className="mt-2 text-xs text-slate-500">
-                      기존 면허증 이미지가 등록되어 있습니다.
-                    </p>
-                  )}
-
-                  {licenseImage && (
-                    <p className="mt-2 text-xs text-blue-600">
-                      선택한 파일: {licenseImage.name}
-                    </p>
-                  )}
+                  <p className="mt-1 text-sm text-slate-500">
+                    가입 시 입력한 소속 약국명을 기준으로 상세 약국 정보를
+                    관리합니다.
+                  </p>
                 </div>
 
-                <div className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-                  약사 인증 정보를 수정하면 관리자 재승인이 필요할 수 있습니다.
-                </div>
-
-                <div className="flex justify-end">
-                  <button
+                {!isPharmacyEditing && !isPharmacyDetailLoading && (
+                  <Button
                     type="button"
-                    onClick={handleSave}
-                    disabled={updatePharmacistProfileMutation.isPending}
-                    className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    size="sm"
+                    onClick={handleStartEditPharmacy}
                   >
-                    {updatePharmacistProfileMutation.isPending
-                      ? '수정 요청 중'
-                      : '정보 수정 요청'}
-                  </button>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="lg:col-span-2">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">약국 정보</h2>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  가입 시 입력한 소속 약국명을 기준으로 상세 약국 정보를
-                  등록합니다.
-                </p>
+                    수정
+                  </Button>
+                )}
               </div>
 
               {pharmacyMessage && (
@@ -571,174 +736,255 @@ function PharmMyPage() {
                 </div>
               ) : pharmacyDetail ? (
                 <div className="mt-5 rounded-2xl bg-blue-50 p-4 text-sm text-blue-700">
-                  이미 연결된 약국 정보가 있습니다. 필요한 경우 아래 정보를
-                  수정해 저장할 수 있습니다.
+                  {isPharmacyEditing
+                    ? '약국 정보를 수정한 뒤 저장해주세요.'
+                    : '연결된 약국 정보를 확인할 수 있습니다.'}
                 </div>
               ) : isPharmacyDetailError ? (
                 <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
-                  아직 상세 약국 정보가 등록되지 않았습니다. 아래 정보를 입력해
-                  등록해주세요.
+                  아직 상세 약국 정보가 등록되지 않았습니다. 수정 버튼을 누른
+                  뒤 정보를 입력해주세요.
                 </div>
               ) : null}
 
-              <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                <div>
-                  <label className="text-sm font-semibold text-slate-600">
-                    약국명
-                  </label>
-                  <Input
-                    value={displayedPharmacyName}
-                    onChange={(event) =>
-                      handleChangePharmacyForm(
-                        'pharmacyName',
-                        event.target.value,
-                      )
-                    }
-                    placeholder="예: 메디노트 약국"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-slate-600">
-                    전화번호
-                  </label>
-                  <Input
-                    value={pharmacyForm.phone || pharmacyDetail?.phone || ''}
-                    onChange={(event) =>
-                      handleChangePharmacyForm('phone', event.target.value)
-                    }
-                    placeholder="예: 02-1234-5678"
-                  />
-                </div>
-
-                <div className="lg:col-span-2">
-                  <label className="text-sm font-semibold text-slate-600">
-                    주소
-                  </label>
-                  <Input
-                    value={
-                      pharmacyForm.address || pharmacyDetail?.address || ''
-                    }
-                    onChange={(event) =>
-                      handleChangePharmacyForm('address', event.target.value)
-                    }
-                    placeholder="약국 상세 주소"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-slate-600">
-                    위도
-                  </label>
-                  <Input
-                    type="number"
-                    value={pharmacyForm.latitude}
-                    onChange={(event) =>
-                      handleChangePharmacyForm('latitude', event.target.value)
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-slate-600">
-                    경도
-                  </label>
-                  <Input
-                    type="number"
-                    value={pharmacyForm.longitude}
-                    onChange={(event) =>
-                      handleChangePharmacyForm('longitude', event.target.value)
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">
-                    영업시간
-                  </h3>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    요일별 운영 시작 시간과 종료 시간을 입력합니다.
-                  </p>
-                </div>
-
-                <div className="mt-4 grid gap-3">
-                  {pharmacyBusinessDays.map((day) => (
-                    <div
-                      key={day.label}
-                      className="grid gap-3 rounded-2xl bg-slate-50 p-4 lg:grid-cols-[90px_1fr_1fr]"
-                    >
-                      <div className="flex items-center text-sm font-semibold text-slate-700">
-                        {day.label}
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-semibold text-slate-500">
-                          시작 시간
-                        </label>
-                        <Input
-                          type="time"
-                          value={toInputTime(
-                            String(pharmacyForm[day.openKey] || pharmacyDetailTime?.[day.openKey] || ''),
-                          )}
-                          onChange={(event) =>
-                            handleChangePharmacyForm(
-                              day.openKey,
-                              event.target.value,
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-semibold text-slate-500">
-                          종료 시간
-                        </label>
-                        <Input
-                          type="time"
-                          value={toInputTime(
-                            String(pharmacyForm[day.closeKey] || pharmacyDetailTime?.[day.closeKey] || ''),
-                          )}
-                          onChange={(event) =>
-                            handleChangePharmacyForm(
-                              day.closeKey,
-                              event.target.value,
-                            )
-                          }
-                        />
-                      </div>
+              {isPharmacyEditing ? (
+                <>
+                  <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-semibold text-slate-600">
+                        약국명
+                      </label>
+                      <Input
+                        value={displayedPharmacyForm.pharmacyName}
+                        onChange={(event) =>
+                          handleChangePharmacyForm(
+                            'pharmacyName',
+                            event.target.value,
+                          )
+                        }
+                        placeholder="예: 메디노트 약국"
+                      />
                     </div>
-                  ))}
-                </div>
-              </div>
 
-              <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-                입력한 약국 상세 정보와 영업시간이 함께 전송됩니다. 기존 약국
-                정보가 있으면 수정 요청으로 저장됩니다.
-              </div>
+                    <div>
+                      <label className="text-sm font-semibold text-slate-600">
+                        전화번호
+                      </label>
+                      <Input
+                        value={displayedPharmacyForm.phone}
+                        onChange={(event) =>
+                          handleChangePharmacyForm('phone', event.target.value)
+                        }
+                        placeholder="예: 02-1234-5678"
+                      />
+                    </div>
 
-              <div className="mt-5 flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleSavePharmacy}
-                  disabled={
-                    registerPharmacyMutation.isPending ||
+                    <div className="lg:col-span-2">
+                      <label className="text-sm font-semibold text-slate-600">
+                        주소
+                      </label>
+                      <Input
+                        value={displayedPharmacyForm.address}
+                        onChange={(event) =>
+                          handleChangePharmacyForm(
+                            'address',
+                            event.target.value,
+                          )
+                        }
+                        placeholder="약국 상세 주소"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-semibold text-slate-600">
+                        위도
+                      </label>
+                      <Input
+                        type="number"
+                        value={displayedPharmacyForm.latitude}
+                        onChange={(event) =>
+                          handleChangePharmacyForm(
+                            'latitude',
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-semibold text-slate-600">
+                        경도
+                      </label>
+                      <Input
+                        type="number"
+                        value={displayedPharmacyForm.longitude}
+                        onChange={(event) =>
+                          handleChangePharmacyForm(
+                            'longitude',
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <h3 className="text-base font-bold text-slate-900">
+                      영업시간
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      요일별 운영 시작 시간과 종료 시간을 입력합니다.
+                    </p>
+
+                    <div className="mt-4 grid gap-3">
+                      {pharmacyBusinessDays.map((day) => (
+                        <div
+                          key={day.label}
+                          className="grid gap-3 rounded-2xl bg-slate-50 p-4 lg:grid-cols-[90px_1fr_1fr]"
+                        >
+                          <div className="flex items-center text-sm font-semibold text-slate-700">
+                            {day.label}
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-500">
+                              시작 시간
+                            </label>
+                            <Input
+                              type="time"
+                              value={toInputTime(
+                                String(
+                                  displayedPharmacyForm[day.openKey] || '',
+                                ),
+                              )}
+                              onChange={(event) =>
+                                handleChangePharmacyForm(
+                                  day.openKey,
+                                  event.target.value,
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-500">
+                              종료 시간
+                            </label>
+                            <Input
+                              type="time"
+                              value={toInputTime(
+                                String(
+                                  displayedPharmacyForm[day.closeKey] || '',
+                                ),
+                              )}
+                              onChange={(event) =>
+                                handleChangePharmacyForm(
+                                  day.closeKey,
+                                  event.target.value,
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                    입력한 약국 상세 정보와 영업시간이 함께 저장됩니다.
+                  </div>
+
+                  <div className="mt-5 flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="border border-slate-200"
+                    onClick={handleCancelEditPharmacy}
+                    disabled={
+                      registerPharmacyMutation.isPending ||
+                      updatePharmacyMutation.isPending
+                    }
+                  >
+                    취소
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={handleSavePharmacy}
+                    disabled={
+                      registerPharmacyMutation.isPending ||
+                      updatePharmacyMutation.isPending
+                    }
+                  >
+                    {registerPharmacyMutation.isPending ||
                     updatePharmacyMutation.isPending
-                  }
-                  className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {registerPharmacyMutation.isPending ||
-                  updatePharmacyMutation.isPending
-                    ? '저장 중'
-                    : pharmacyDetail
-                      ? '약국 정보 수정'
-                      : '약국 정보 등록'}
-                </button>
-              </div>
-            </Card>
-          </div>
+                      ? '저장 중'
+                      : pharmacyDetail
+                        ? '약국 정보 저장'
+                        : '약국 정보 등록'}
+                  </Button>
+                </div>
+                </>
+              ) : (
+                <>
+                  <div className="mt-5 grid gap-4 md:grid-cols-2">
+                    <div className="rounded-2xl bg-slate-50 p-4">
+                      <p className="text-sm text-slate-500">약국명</p>
+                      <p className="mt-2 font-semibold text-slate-900">
+                        {savedPharmacyForm.pharmacyName || '등록 정보 없음'}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-slate-50 p-4">
+                      <p className="text-sm text-slate-500">전화번호</p>
+                      <p className="mt-2 font-semibold text-slate-900">
+                        {pharmacyDetail?.phone || '등록 정보 없음'}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-slate-50 p-4 md:col-span-2">
+                      <p className="text-sm text-slate-500">주소</p>
+                      <p className="mt-2 font-semibold leading-6 text-slate-900">
+                        {pharmacyDetail?.address || '등록 정보 없음'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <h3 className="text-base font-bold text-slate-900">
+                      영업시간
+                    </h3>
+                    <div className="mt-4 grid gap-3 md:grid-flow-col md:grid-cols-2 md:grid-rows-4">
+                      {pharmacyBusinessDays.map((day) => (
+                        <div
+                          key={day.label}
+                          className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3"
+                        >
+                          <span className="text-sm font-semibold text-slate-700">
+                            {day.label}
+                          </span>
+                          <span className="text-sm text-slate-500">
+                            {getBusinessHourText(
+                              pharmacyDetailTime?.[day.openKey] as
+                                | string
+                                | null
+                                | undefined,
+                              pharmacyDetailTime?.[day.closeKey] as
+                                | string
+                                | null
+                                | undefined,
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+                </div>
+              )}
+            </div>
+          </Card>
         </>
       )}
       <Card className="border-red-100 bg-red-50">

@@ -76,6 +76,8 @@ interface KakaoGlobal {
   maps: KakaoMaps;
 }
 
+type PharmacySearchMode = 'inventory' | 'pharmacy';
+
 declare global {
   interface Window {
     kakao?: KakaoGlobal;
@@ -232,19 +234,65 @@ function getMedicineCompanyName(medicine: MedicineSearchItem) {
   );
 }
 
+function normalizeSearchText(value?: string | null) {
+  return (value ?? '').replace(/\s+/g, '').toLowerCase();
+}
+
+function getPharmacyAddressSearchText(address?: string | null) {
+  const tokens = (address ?? '')
+    .replace(/[(),]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+  const roadNameIndex = tokens.findIndex((token) =>
+    /(?:대로|로|길)$/.test(token),
+  );
+
+  if (roadNameIndex < 0) {
+    return tokens.slice(0, 3).join(' ');
+  }
+
+  return tokens.slice(0, roadNameIndex + 1).join(' ');
+}
+
+function filterPharmaciesByKeyword(pharmacies: Pharmacy[], keyword: string) {
+  const normalizedKeyword = normalizeSearchText(keyword);
+
+  if (!normalizedKeyword) {
+    return pharmacies;
+  }
+
+  return pharmacies.filter((pharmacy) => {
+    const searchableValues = [
+      getPharmacyName(pharmacy),
+      getPharmacyAddressSearchText(getPharmacyAddress(pharmacy)),
+    ];
+
+    return searchableValues.some((value) =>
+      normalizeSearchText(value).includes(normalizedKeyword),
+    );
+  });
+}
+
 function MapPage() {
   const [selectedHpid, setSelectedHpid] = useState('');
+  const [searchMode, setSearchMode] =
+    useState<PharmacySearchMode>('inventory');
   const [medicineKeyword, setMedicineKeyword] = useState('');
   const [committedMedicineKeyword, setCommittedMedicineKeyword] = useState('');
   const [selectedMedicineName, setSelectedMedicineName] = useState('');
+  const [pharmacyKeyword, setPharmacyKeyword] = useState('');
+  const [committedPharmacyKeyword, setCommittedPharmacyKeyword] = useState('');
 
   const debouncedMedicineKeyword = useDebounce(medicineKeyword, 300);
 
   const isMedicineSuggestEnabled =
+    searchMode === 'inventory' &&
     debouncedMedicineKeyword.trim().length >= 2 &&
     !committedMedicineKeyword;
 
-  const isMedicineSearchEnabled = committedMedicineKeyword.trim().length >= 2;
+  const isMedicineSearchEnabled =
+    searchMode === 'inventory' &&
+    committedMedicineKeyword.trim().length >= 2;
 
   const {
     data: medicineSuggestions = [],
@@ -262,6 +310,7 @@ function MapPage() {
   );
 
   const shouldShowMedicineDropdown =
+    searchMode === 'inventory' &&
     medicineKeyword.trim().length >= 2 && !selectedMedicineName;
 
   const [bounds, setBounds] = useState(DEFAULT_BOUNDS);
@@ -273,7 +322,12 @@ function MapPage() {
   const [isMapReady, setIsMapReady] = useState(false);
   const [mapErrorMessage, setMapErrorMessage] = useState('');
 
-  const isMedicineSearchMode = committedMedicineKeyword.trim().length >= 2;
+  const isMedicineSearchMode =
+    searchMode === 'inventory' &&
+    committedMedicineKeyword.trim().length >= 2;
+  const isPharmacySearchMode =
+    searchMode === 'pharmacy' &&
+    committedPharmacyKeyword.trim().length >= 2;
 
   const {
     data: pharmaciesInBounds = [],
@@ -294,10 +348,25 @@ function MapPage() {
   );
 
   const pharmacies = useMemo(() => {
-    return isMedicineSearchMode
-      ? medicineSearchPharmacies
-      : pharmaciesInBounds;
-  }, [isMedicineSearchMode, medicineSearchPharmacies, pharmaciesInBounds]);
+    if (isMedicineSearchMode) {
+      return medicineSearchPharmacies;
+    }
+
+    if (isPharmacySearchMode) {
+      return filterPharmaciesByKeyword(
+        pharmaciesInBounds,
+        committedPharmacyKeyword,
+      );
+    }
+
+    return pharmaciesInBounds;
+  }, [
+    committedPharmacyKeyword,
+    isMedicineSearchMode,
+    isPharmacySearchMode,
+    medicineSearchPharmacies,
+    pharmaciesInBounds,
+  ]);
 
   const selectedPharmacyFromList = useMemo(() => {
     return pharmacies.find((pharmacy) => getPharmacyHpid(pharmacy) === selectedHpid);
@@ -311,13 +380,32 @@ function MapPage() {
 
   const selectedPharmacy = selectedPharmacyDetail ?? selectedPharmacyFromList;
 
-  const isListLoading = isMedicineSearchMode
+  const isPharmacyDataLoading = isMedicineSearchMode
     ? isMedicineSearchLoading
     : isPharmaciesLoading;
 
-  const isListError = isMedicineSearchMode
+  const isPharmacyDataError = isMedicineSearchMode
     ? isMedicineSearchError
     : isPharmaciesError;
+
+  const focusPharmacy = (pharmacy: Pharmacy) => {
+    const hpid = getPharmacyHpid(pharmacy);
+    const latitude = getPharmacyLatitude(pharmacy);
+    const longitude = getPharmacyLongitude(pharmacy);
+
+    setSelectedHpid(hpid);
+
+    if (
+      mapRef.current &&
+      window.kakao?.maps &&
+      latitude !== null &&
+      longitude !== null
+    ) {
+      mapRef.current.panTo(
+        new window.kakao.maps.LatLng(latitude, longitude),
+      );
+    }
+  };
 
   const handleSearchMedicine = () => {
     const keyword = medicineKeyword.trim();
@@ -349,31 +437,47 @@ function MapPage() {
     setSelectedHpid('');
   };
 
+  const handleSearchPharmacy = () => {
+    const keyword = pharmacyKeyword.trim();
+
+    if (keyword.length < 2) {
+      setCommittedPharmacyKeyword('');
+      setSelectedHpid('');
+      return;
+    }
+
+    const matchedPharmacies = filterPharmaciesByKeyword(
+      pharmaciesInBounds,
+      keyword,
+    );
+
+    setCommittedPharmacyKeyword(keyword);
+
+    if (matchedPharmacies.length > 0) {
+      focusPharmacy(matchedPharmacies[0]);
+      return;
+    }
+
+    setSelectedHpid('');
+  };
+
+  const handleChangeSearchMode = (mode: PharmacySearchMode) => {
+    setSearchMode(mode);
+    setMedicineKeyword('');
+    setCommittedMedicineKeyword('');
+    setSelectedMedicineName('');
+    setPharmacyKeyword('');
+    setCommittedPharmacyKeyword('');
+    setSelectedHpid('');
+  };
+
   const handleResetSearch = () => {
     setMedicineKeyword('');
     setCommittedMedicineKeyword('');
     setSelectedMedicineName('');
+    setPharmacyKeyword('');
+    setCommittedPharmacyKeyword('');
     setSelectedHpid('');
-  };
-
-  const handleSelectPharmacy = (pharmacy: Pharmacy) => {
-    const hpid = getPharmacyHpid(pharmacy);
-    const latitude = getPharmacyLatitude(pharmacy);
-    const longitude = getPharmacyLongitude(pharmacy);
-
-    setSelectedHpid(hpid);
-
-    if (
-      mapRef.current &&
-      window.kakao?.maps &&
-      latitude !== null &&
-      longitude !== null
-    ) {
-      const kakao = window.kakao;
-      const position = new kakao.maps.LatLng(latitude, longitude);
-
-      mapRef.current.panTo(position);
-    }
   };
 
   useEffect(() => {
@@ -501,7 +605,11 @@ function MapPage() {
         </div>
 
         <Badge variant="blue">
-          {isMedicineSearchMode ? '약 재고 검색' : '지도 범위 조회'}
+          {isMedicineSearchMode
+            ? '약 재고 검색'
+            : isPharmacySearchMode
+              ? '약국 검색'
+              : '지도 범위 조회'}
         </Badge>
       </div>
 
@@ -526,139 +634,219 @@ function MapPage() {
       <div className="grid gap-4 lg:grid-cols-[420px_1fr]">
         <div className="space-y-4">
           <Card>
-            <h2 className="text-xl font-bold text-slate-900">약국 검색</h2>
+            <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1">
+              <button
+                type="button"
+                onClick={() => handleChangeSearchMode('inventory')}
+                className={[
+                  'rounded-lg px-3 py-2 text-sm font-semibold transition',
+                  searchMode === 'inventory'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900',
+                ].join(' ')}
+              >
+                재고 검색
+              </button>
+              <button
+                type="button"
+                onClick={() => handleChangeSearchMode('pharmacy')}
+                className={[
+                  'rounded-lg px-3 py-2 text-sm font-semibold transition',
+                  searchMode === 'pharmacy'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900',
+                ].join(' ')}
+              >
+                약국 검색
+              </button>
+            </div>
+
+            <h2 className="mt-5 text-xl font-bold text-slate-900">
+              {searchMode === 'inventory' ? '재고 검색' : '약국 검색'}
+            </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              약 이름을 입력하면 해당 약 재고를 보유한 약국을 검색합니다.
+              {searchMode === 'inventory'
+                ? '약 이름을 입력하면 해당 약 재고를 보유한 약국을 검색합니다.'
+                : '현재 지도 범위에서 약국 이름이나 도로명까지의 주소로 검색합니다.'}
             </p>
 
-            <div className="mt-4 space-y-2">
-              <div className="flex gap-2">
-                <div className="relative flex-1">
+            {searchMode === 'inventory' ? (
+              <div className="mt-4 space-y-2">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      value={medicineKeyword}
+                      onChange={(event) => {
+                        setMedicineKeyword(event.target.value);
+                        setCommittedMedicineKeyword('');
+                        setSelectedMedicineName('');
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          handleSearchMedicine();
+                        }
+                      }}
+                      placeholder="예: 타이레놀"
+                    />
+
+                    {shouldShowMedicineDropdown && (
+                      <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+                        <div className="px-4 pt-2 pb-1">
+                          <p className="text-xs font-semibold text-slate-500">
+                            약 검색 결과
+                          </p>
+                        </div>
+
+                        <div className="max-h-64 overflow-y-auto py-2">
+                          {isMedicineSuggestLoading &&
+                            !committedMedicineKeyword && (
+                              <div className="px-4 py-4 text-sm text-blue-700">
+                                약 검색어를 불러오는 중입니다.
+                              </div>
+                            )}
+
+                          {!committedMedicineKeyword &&
+                            !isMedicineSuggestLoading &&
+                            medicineSuggestions.length === 0 && (
+                              <div className="px-4 py-4 text-sm text-slate-500">
+                                검색어 제안이 없습니다.
+                              </div>
+                            )}
+
+                          {!committedMedicineKeyword &&
+                            !isMedicineSuggestLoading &&
+                            medicineSuggestions.map((suggestion) => (
+                              <button
+                                key={suggestion}
+                                type="button"
+                                onClick={() =>
+                                  handleSelectMedicineKeyword(suggestion)
+                                }
+                                className="block w-full px-4 py-3 text-left transition hover:bg-blue-50"
+                              >
+                                <p className="font-semibold text-slate-900">
+                                  {suggestion}
+                                </p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  이 검색어로 약 정보 조회
+                                </p>
+                              </button>
+                            ))}
+
+                          {isMedicineSearchLoadingForDropdown && (
+                            <div className="px-4 py-4 text-sm text-blue-700">
+                              약 정보를 검색하고 있습니다.
+                            </div>
+                          )}
+
+                          {isMedicineSearchErrorForDropdown && (
+                            <div className="px-4 py-4 text-sm text-red-700">
+                              약 검색 결과를 불러오지 못했습니다.
+                            </div>
+                          )}
+
+                          {!isMedicineSearchLoadingForDropdown &&
+                            !isMedicineSearchErrorForDropdown &&
+                            committedMedicineKeyword &&
+                            medicineResults.length === 0 && (
+                              <div className="px-4 py-4 text-sm text-slate-500">
+                                검색 결과가 없습니다.
+                              </div>
+                            )}
+
+                          {!isMedicineSearchLoadingForDropdown &&
+                            !isMedicineSearchErrorForDropdown &&
+                            medicineResults.map((medicine, index) => {
+                              const itemSeq =
+                                getMedicineId(medicine) || String(index + 1);
+                              const itemName = getMedicineName(medicine);
+                              const companyName =
+                                getMedicineCompanyName(medicine);
+
+                              return (
+                                <button
+                                  key={`${itemSeq}-${itemName}`}
+                                  type="button"
+                                  onClick={() => handleSelectMedicine(medicine)}
+                                  className="block w-full px-4 py-3 text-left transition hover:bg-blue-50"
+                                >
+                                  <p className="font-semibold text-slate-900">
+                                    {itemName}
+                                  </p>
+
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {companyName || '제조사 정보 없음'}
+                                  </p>
+                                </button>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <Button
+                    type="button"
+                    onClick={handleSearchMedicine}
+                    disabled={medicineKeyword.trim().length < 2}
+                    className="shrink-0"
+                  >
+                    검색
+                  </Button>
+                </div>
+
+                <p className="text-xs text-slate-500">
+                  정확도를 높이려면 검색어 제안에서 약을 선택해주세요.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-2">
+                <div className="flex gap-2">
                   <Input
-                    value={medicineKeyword}
+                    value={pharmacyKeyword}
                     onChange={(event) => {
-                      setMedicineKeyword(event.target.value);
-                      setCommittedMedicineKeyword('');
-                      setSelectedMedicineName('');
+                      setPharmacyKeyword(event.target.value);
+                      setCommittedPharmacyKeyword('');
                     }}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
-                        handleSearchMedicine();
+                        handleSearchPharmacy();
                       }
                     }}
-                    placeholder="예: 타이레놀"
+                    placeholder="예: 중앙약국, 서울특별시 중구 서소문로"
                   />
-
-                  {shouldShowMedicineDropdown && (
-                    <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
-                      <div className="px-4 pt-2 pb-1">
-                        <p className="text-xs font-semibold text-slate-500">
-                          약 검색 결과
-                        </p>
-                      </div>
-
-                      <div className="max-h-64 overflow-y-auto py-2">
-                        {isMedicineSuggestLoading && !committedMedicineKeyword && (
-                          <div className="px-4 py-4 text-sm text-blue-700">
-                            약 검색어를 불러오는 중입니다.
-                          </div>
-                        )}
-
-                        {!committedMedicineKeyword &&
-                          !isMedicineSuggestLoading &&
-                          medicineSuggestions.length === 0 && (
-                            <div className="px-4 py-4 text-sm text-slate-500">
-                              검색어 제안이 없습니다.
-                            </div>
-                          )}
-
-                        {!committedMedicineKeyword &&
-                          !isMedicineSuggestLoading &&
-                          medicineSuggestions.map((suggestion) => (
-                            <button
-                              key={suggestion}
-                              type="button"
-                              onClick={() => handleSelectMedicineKeyword(suggestion)}
-                              className="block w-full px-4 py-3 text-left transition hover:bg-blue-50"
-                            >
-                              <p className="font-semibold text-slate-900">{suggestion}</p>
-                              <p className="mt-1 text-xs text-slate-500">
-                                이 검색어로 약 정보 조회
-                              </p>
-                            </button>
-                          ))}
-
-                        {isMedicineSearchLoadingForDropdown && (
-                          <div className="px-4 py-4 text-sm text-blue-700">
-                            약 정보를 검색하고 있습니다.
-                          </div>
-                        )}
-
-                        {isMedicineSearchErrorForDropdown && (
-                          <div className="px-4 py-4 text-sm text-red-700">
-                            약 검색 결과를 불러오지 못했습니다.
-                          </div>
-                        )}
-
-                        {!isMedicineSearchLoadingForDropdown &&
-                          !isMedicineSearchErrorForDropdown &&
-                          committedMedicineKeyword &&
-                          medicineResults.length === 0 && (
-                            <div className="px-4 py-4 text-sm text-slate-500">
-                              검색 결과가 없습니다.
-                            </div>
-                          )}
-
-                        {!isMedicineSearchLoadingForDropdown &&
-                          !isMedicineSearchErrorForDropdown &&
-                          medicineResults.map((medicine, index) => {
-                            const itemSeq = getMedicineId(medicine) || String(index + 1);
-                            const itemName = getMedicineName(medicine);
-                            const companyName = getMedicineCompanyName(medicine);
-
-                            return (
-                              <button
-                                key={`${itemSeq}-${itemName}`}
-                                type="button"
-                                onClick={() => handleSelectMedicine(medicine)}
-                                className="block w-full px-4 py-3 text-left transition hover:bg-blue-50"
-                              >
-                                <p className="font-semibold text-slate-900">{itemName}</p>
-
-                                <p className="mt-1 text-xs text-slate-500">
-                                  {companyName || '제조사 정보 없음'}
-                                </p>
-                              </button>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  )}
+                  <Button
+                    type="button"
+                    onClick={handleSearchPharmacy}
+                    disabled={pharmacyKeyword.trim().length < 2}
+                    className="shrink-0"
+                  >
+                    검색
+                  </Button>
                 </div>
 
-                <Button
-                  type="button"
-                  onClick={handleSearchMedicine}
-                  disabled={medicineKeyword.trim().length < 2}
-                  className="shrink-0"
-                >
-                  검색
-                </Button>
+                <p className="text-xs text-slate-500">
+                  지도를 이동하면 새 지도 범위에서 같은 검색어로 다시
+                  필터링됩니다.
+                </p>
               </div>
+            )}
 
-              <p className="text-xs text-slate-500">
-                정확도를 높이려면 검색어 제안에서 약을 선택한 뒤 약국을 검색해주세요.
-              </p>
-            </div>
-
-            {isMedicineSearchMode && (
+            {(isMedicineSearchMode || isPharmacySearchMode) && (
               <div className="mt-3 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
                 <p className="text-sm text-slate-600">
                   검색어:{' '}
                   <span className="font-bold text-slate-900">
-                    {selectedMedicineName || committedMedicineKeyword}
+                    {isMedicineSearchMode
+                      ? selectedMedicineName || committedMedicineKeyword
+                      : committedPharmacyKeyword}
                   </span>
+                  {isPharmacySearchMode && (
+                    <span className="ml-2 text-xs text-slate-500">
+                      {pharmacies.length}곳
+                    </span>
+                  )}
                 </p>
 
                 <button
@@ -672,75 +860,6 @@ function MapPage() {
             )}
           </Card>
 
-          <Card>
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">약국 목록</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  약국을 선택하면 상세 정보를 확인할 수 있습니다.
-                </p>
-              </div>
-
-              <Badge variant="blue">{pharmacies.length}곳</Badge>
-            </div>
-
-            <div className="mt-4 max-h-[560px] space-y-3 overflow-y-auto pr-1">
-              {isListError ? (
-                <div className="rounded-2xl bg-red-50 p-5 text-center text-sm text-red-600">
-                  약국 목록을 불러오지 못했습니다.
-                </div>
-              ) : isListLoading ? (
-                <div className="rounded-2xl bg-slate-50 p-5 text-center text-sm text-slate-500">
-                  약국 목록을 불러오는 중입니다.
-                </div>
-              ) : pharmacies.length === 0 ? (
-                <div className="rounded-2xl bg-slate-50 p-5 text-center text-sm text-slate-500">
-                  {isMedicineSearchMode
-                    ? '해당 약을 보유한 약국을 찾지 못했습니다. 약 검색에서 표시되는 정확한 품목명으로 다시 검색해보세요.'
-                    : '조회된 약국이 없습니다.'}
-                </div>
-              ) : (
-                pharmacies.map((pharmacy) => {
-                  const hpid = getPharmacyHpid(pharmacy);
-                  const isSelected = selectedHpid === hpid;
-
-                  return (
-                    <button
-                      key={hpid}
-                      type="button"
-                      onClick={() => handleSelectPharmacy(pharmacy)}
-                      className={[
-                        'block w-full rounded-2xl border p-4 text-left transition',
-                        isSelected
-                          ? 'border-blue-300 bg-blue-50'
-                          : 'border-slate-200 bg-white hover:bg-slate-50',
-                      ].join(' ')}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-bold text-slate-900">
-                            {getPharmacyName(pharmacy)}
-                          </p>
-
-                          <p className="mt-2 text-sm leading-5 text-slate-500">
-                            {getPharmacyAddress(pharmacy)}
-                          </p>
-
-                          <p className="mt-1 text-xs text-slate-400">
-                            {getPharmacyPhone(pharmacy)}
-                          </p>
-                        </div>
-
-                        <Badge variant={isSelected ? 'blue' : 'gray'}>
-                          선택
-                        </Badge>
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </Card>
         </div>
 
         <div className="space-y-4">
@@ -749,7 +868,7 @@ function MapPage() {
               <div>
                 <h2 className="text-xl font-bold text-slate-900">약국 지도</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  지도를 이동하면 현재 화면 범위의 약국 목록을 다시 조회합니다.
+                  지도를 이동하면 현재 화면 범위의 약국 위치를 다시 조회합니다.
                 </p>
               </div>
 
@@ -771,6 +890,29 @@ function MapPage() {
                 className="h-[340px] overflow-hidden rounded-3xl border border-slate-200 bg-slate-100"
               />
             )}
+
+            {isPharmacyDataLoading && (
+              <p className="mt-3 text-sm text-blue-700">
+                약국 위치를 불러오는 중입니다.
+              </p>
+            )}
+
+            {isPharmacyDataError && (
+              <p className="mt-3 text-sm text-red-700">
+                약국 위치를 불러오지 못했습니다.
+              </p>
+            )}
+
+            {!isPharmacyDataLoading &&
+              !isPharmacyDataError &&
+              (isMedicineSearchMode || isPharmacySearchMode) &&
+              pharmacies.length === 0 && (
+                <p className="mt-3 text-sm text-amber-700">
+                  {isMedicineSearchMode
+                    ? '현재 지도 범위에서 해당 약 재고를 보유한 약국을 찾지 못했습니다.'
+                    : '현재 지도 범위에서 일치하는 약국을 찾지 못했습니다.'}
+                </p>
+              )}
           </Card>
 
           <Card>
@@ -778,7 +920,7 @@ function MapPage() {
 
             {!selectedHpid ? (
               <div className="mt-4 rounded-2xl bg-slate-50 p-8 text-center text-sm text-slate-500">
-                왼쪽 목록에서 약국을 선택해주세요.
+                지도에서 약국 마커를 선택해주세요.
               </div>
             ) : isDetailLoading ? (
               <div className="mt-4 rounded-2xl bg-slate-50 p-8 text-center text-sm text-slate-500">

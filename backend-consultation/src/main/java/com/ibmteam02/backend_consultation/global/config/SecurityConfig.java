@@ -17,6 +17,9 @@ import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
+// ... (기존 임포트 유지)
+
 @Configuration
 @EnableWebSecurity
 @Slf4j
@@ -25,8 +28,13 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
-        log.info("SecurityConfig 로드됨");
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
+
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        // 웹소켓 엔드포인트는 보안 필터를 아예 거치지 않도록 설정 (500 에러 방지 핵심)
+        return (web) -> web.ignoring().requestMatchers("/api/ws-stomp/**");
     }
 
     @Bean
