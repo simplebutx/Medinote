@@ -28,6 +28,7 @@ import {
   useDeleteMedicationScheduleTime,
   useMedicationSchedules,
   useMedicationTimePresets,
+  usePrescriptionAnalysis,
   useUpdateMedicationSchedule,
   useUpdateMedicationTimePresets,
 } from '../../features/schedule/hooks';
@@ -39,6 +40,8 @@ import type {
   MedicationScheduleTime,
   MedicationTiming,
   MedicationTimePreset,
+  PrescriptionAnalysisResponse,
+  PrescriptionAnalysisResultItem,
 } from '../../features/schedule/types/schedule.types';
 import { getSmartPillSlotAssignments } from '../../features/smartpill/api/smartpill.api';
 import {
@@ -345,6 +348,92 @@ function getDosageText(medicine: MedicationScheduleMedicine) {
   }일`;
 }
 
+function getPrescriptionAnalysisStatusLabel(
+  analysis: PrescriptionAnalysisResponse,
+) {
+  return analysis.status === 'CAUTION' ? '주의 필요' : '특이사항 없음';
+}
+
+function getPrescriptionAnalysisStatusBadgeVariant(
+  analysis: PrescriptionAnalysisResponse,
+): 'yellow' | 'green' {
+  return analysis.status === 'CAUTION' ? 'yellow' : 'green';
+}
+
+function getPrescriptionAnalysisSummary(
+  analysis: PrescriptionAnalysisResponse,
+) {
+  if (analysis.status === 'CAUTION') {
+    return '등록된 주의 정보와 처방 약 사이에 확인이 필요한 항목이 있습니다.';
+  }
+
+  return '현재 등록된 주의 정보와 겹치는 항목은 발견되지 않았습니다.';
+}
+
+function getStringList(values?: string[] | null) {
+  return (values ?? []).filter(Boolean);
+}
+
+function getPrescriptionAnalysisItems(analysis: PrescriptionAnalysisResponse) {
+  return analysis.items ?? [];
+}
+
+function getAnalysisMedicineName(
+  item: PrescriptionAnalysisResultItem,
+  index: number,
+) {
+  return item.medicineName?.trim() || `약 ${index + 1}`;
+}
+
+function getAnalysisWarnings(item: PrescriptionAnalysisResultItem) {
+  const warnings: string[] = [];
+
+  if (item.warningMedicine) warnings.push('주의 약');
+  if (item.warningIngredient) warnings.push('주의 성분');
+  if (item.warningDisease) warnings.push('기저질환');
+  if (item.warningHealthInfo) warnings.push('건강 상태');
+
+  return warnings;
+}
+
+function getPersonalCautionLines(item: PrescriptionAnalysisResultItem) {
+  return [
+    ...getStringList(item.matchedMedicineCautions).map(
+      (value) => `주의 약: ${value}`,
+    ),
+    ...getStringList(item.matchedIngredientCautions).map(
+      (value) => `주의 성분: ${value}`,
+    ),
+    ...getStringList(item.matchedDiseaseNames).map(
+      (value) => `기저질환: ${value}`,
+    ),
+    ...getStringList(item.matchedHealthInfoNames).map(
+      (value) => `건강 상태: ${value}`,
+    ),
+  ].filter(Boolean);
+}
+
+function getAnalysisGeneralCautionTags(item: PrescriptionAnalysisResultItem) {
+  return getStringList(item.generalCautionTags);
+}
+
+function getPrescriptionGeneralCautionTags(
+  analysis: PrescriptionAnalysisResponse,
+) {
+  const seen = new Set<string>();
+
+  return getPrescriptionAnalysisItems(analysis)
+    .flatMap(getAnalysisGeneralCautionTags)
+    .filter((tag) => {
+      if (seen.has(tag)) {
+        return false;
+      }
+
+      seen.add(tag);
+      return true;
+    });
+}
+
 const dosageUnitOptions: { label: string; value: DosageUnit }[] = [
   { label: '정', value: 'TABLET' },
   { label: '캡슐', value: 'CAPSULE' },
@@ -557,6 +646,12 @@ function MyPage() {
   const deleteMedicationScheduleMutation = useDeleteMedicationSchedule();
   const deleteMedicationScheduleTimeMutation = useDeleteMedicationScheduleTime();
   const createScheduleTimeMutation = useCreateMedicationScheduleTime();
+  const prescriptionAnalysisMutation = usePrescriptionAnalysis();
+  const [prescriptionAnalysisByScheduleId, setPrescriptionAnalysisByScheduleId] =
+    useState<Record<number, PrescriptionAnalysisResponse>>({});
+  const [analyzingPrescriptionId, setAnalyzingPrescriptionId] = useState<
+    number | null
+  >(null);
   const { data: smartPillDevices = [] } = useSmartPillDevices();
   const saveSmartPillAssignmentsMutation =
     useSaveSmartPillSlotAssignments();
@@ -1112,6 +1207,11 @@ function MyPage() {
       }
 
       toast.success('처방 내역 정보가 수정되었습니다.');
+      setPrescriptionAnalysisByScheduleId((prev) => {
+        const next = { ...prev };
+        delete next[schedule.id];
+        return next;
+      });
       handleCancelEditPrescription();
     } catch (error) {
       console.error('처방 내역 수정 실패:', error);
@@ -1133,6 +1233,11 @@ function MyPage() {
     deleteMedicationScheduleMutation.mutate(schedule.id, {
       onSuccess: () => {
         toast.success('처방 내역이 삭제되었습니다.');
+        setPrescriptionAnalysisByScheduleId((prev) => {
+          const next = { ...prev };
+          delete next[schedule.id];
+          return next;
+        });
 
         if (editingPrescriptionId === schedule.id) {
           handleCancelEditPrescription();
@@ -1143,6 +1248,27 @@ function MyPage() {
         toast.error('처방 내역 삭제에 실패했습니다.');
       },
     });
+  };
+
+  const handleAnalyzePrescription = async (schedule: MedicationSchedule) => {
+    setAnalyzingPrescriptionId(schedule.id);
+
+    try {
+      const analysis = await prescriptionAnalysisMutation.mutateAsync(
+        schedule.id,
+      );
+
+      setPrescriptionAnalysisByScheduleId((prev) => ({
+        ...prev,
+        [schedule.id]: analysis,
+      }));
+      toast.success('처방 내역 분석이 완료되었습니다.');
+    } catch (error) {
+      console.error('처방 내역 분석 실패:', error);
+      toast.error('처방 내역 분석에 실패했습니다.');
+    } finally {
+      setAnalyzingPrescriptionId(null);
+    }
   };
 
   const loadSmartPillAssignments = async (
@@ -2309,6 +2435,16 @@ function MyPage() {
                   const medicines = getScheduleMedicines(schedule);
                   const status = getPrescriptionStatus(schedule);
                   const range = getPrescriptionRange(schedule);
+                  const prescriptionAnalysis =
+                    prescriptionAnalysisByScheduleId[schedule.id];
+                  const prescriptionAnalysisItems = prescriptionAnalysis
+                    ? getPrescriptionAnalysisItems(prescriptionAnalysis)
+                    : [];
+                  const prescriptionGeneralCautionTags = prescriptionAnalysis
+                    ? getPrescriptionGeneralCautionTags(prescriptionAnalysis)
+                    : [];
+                  const isAnalyzingPrescription =
+                    analyzingPrescriptionId === schedule.id;
 
                   return (
                     <div
@@ -2348,6 +2484,20 @@ function MyPage() {
                         </div>
 
                         <div className="flex flex-wrap justify-end gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="border border-amber-200 text-amber-700 hover:bg-amber-50"
+                            onClick={() => handleAnalyzePrescription(schedule)}
+                            disabled={
+                              isAnalyzingPrescription ||
+                              deleteMedicationScheduleMutation.isPending
+                            }
+                          >
+                            {isAnalyzingPrescription ? '분석 중...' : '주의 분석'}
+                          </Button>
+
                           <Button
                             type="button"
                             size="sm"
@@ -2703,6 +2853,125 @@ function MyPage() {
                           ))
                         )}
                       </div>
+
+                      {prescriptionAnalysis && (
+                        <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="font-bold text-slate-900">
+                                처방 내역 분석 결과
+                              </p>
+                              <p className="mt-1 text-sm text-slate-500">
+                                {getPrescriptionAnalysisSummary(
+                                  prescriptionAnalysis,
+                                )}
+                              </p>
+                            </div>
+
+                            <Badge
+                              variant={getPrescriptionAnalysisStatusBadgeVariant(
+                                prescriptionAnalysis,
+                              )}
+                            >
+                              {getPrescriptionAnalysisStatusLabel(
+                                prescriptionAnalysis,
+                              )}
+                            </Badge>
+                          </div>
+
+                          {prescriptionGeneralCautionTags.length > 0 && (
+                            <div className="mt-4 border-t border-slate-100 pt-3">
+                              <p className="text-xs font-semibold text-slate-500">
+                                전체 일반 복약 주의
+                              </p>
+
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {prescriptionGeneralCautionTags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {prescriptionAnalysisItems.length > 0 && (
+                            <div className="mt-4 divide-y divide-slate-100">
+                              {prescriptionAnalysisItems.map((item, index) => {
+                                const warnings = getAnalysisWarnings(item);
+                                const personalCautionLines =
+                                  getPersonalCautionLines(item);
+                                const generalCautionTags =
+                                  getAnalysisGeneralCautionTags(item);
+                                const medicineName = getAnalysisMedicineName(
+                                  item,
+                                  index,
+                                );
+
+                                return (
+                                  <div
+                                    key={`${item.scheduleMedicineId ?? index}-${medicineName}`}
+                                    className="py-3 first:pt-0 last:pb-0"
+                                  >
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <p className="font-semibold text-slate-900">
+                                        {medicineName}
+                                      </p>
+
+                                      {warnings.length === 0 && (
+                                        <span className="text-xs font-semibold text-slate-400">
+                                          개인화 주의 없음
+                                        </span>
+                                      )}
+
+                                      {warnings.map((warning) => (
+                                        <span
+                                          key={warning}
+                                          className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700"
+                                        >
+                                          {warning}
+                                        </span>
+                                      ))}
+                                    </div>
+
+                                    {personalCautionLines.length > 0 && (
+                                      <div className="mt-3 flex flex-wrap gap-2">
+                                        {personalCautionLines.map((line) => (
+                                          <span
+                                            key={line}
+                                            className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700"
+                                          >
+                                            {line}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    {generalCautionTags.length > 0 && (
+                                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                                        <p className="text-xs font-semibold text-slate-500">
+                                          일반 복약 주의
+                                        </p>
+                                        {generalCautionTags.map((tag) => (
+                                          <span
+                                            key={tag}
+                                            className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600"
+                                          >
+                                            {tag}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

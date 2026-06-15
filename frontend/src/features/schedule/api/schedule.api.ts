@@ -7,6 +7,7 @@ import type {
   CreateMedicationScheduleTimeRequest,
   DailyMedicationScheduleResponse,
   MedicationTimePreset,
+  PrescriptionAnalysisResponse,
   UpdateMedicationTimePresetsRequest,
 } from "../types/schedule.types";
 
@@ -177,4 +178,12 @@ export const deleteMedicationSchedule = async (id: number) => {
 
 export const deleteMedicationScheduleTime = async (id: number) => {
   await medicationInstance.delete(`/api/medication-schedule-times/${id}`);
+};
+
+export const analyzePrescription = async (scheduleId: number) => {
+  const response = await medicationInstance.post<PrescriptionAnalysisResponse>(
+    `/api/prescriptions/${scheduleId}/analysis`,
+  );
+
+  return response.data;
 };

@@ -1,3 +1,12 @@
+export interface MedicineGeneralCautionTag {
+  tagCode?: string | null;
+  tag_code?: string | null;
+  tagName?: string | null;
+  tag_name?: string | null;
+  matchedKeywords?: string[] | null;
+  matched_keywords?: string[] | null;
+}
+
 export interface MedicineSearchItem {
   itemSeq?: number | string;
   item_seq?: number | string;
@@ -24,6 +33,8 @@ export interface MedicineSearchItem {
   warning_medicine?: boolean;
   warningIngredient?: boolean;
   warning_ingredient?: boolean;
+  generalCautionTags?: MedicineGeneralCautionTag[] | null;
+  general_caution_tags?: MedicineGeneralCautionTag[] | null;
   medicineName?: string | null;
   drugName?: string | null;
   entpName?: string | null;

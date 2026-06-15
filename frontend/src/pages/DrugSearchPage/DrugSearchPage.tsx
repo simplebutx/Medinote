@@ -3,7 +3,10 @@ import { useSearchParams } from "react-router-dom";
 
 import { Badge, Card, Input } from "../../components/ui";
 import { useMedicineSearch, useMedicineSuggest } from "../../features/drug/hooks";
-import type { MedicineSearchItem } from "../../features/drug/types/drug.types";
+import type {
+  MedicineGeneralCautionTag,
+  MedicineSearchItem,
+} from "../../features/drug/types/drug.types";
 import { useDebounce } from "../../hooks/useDebounce";
 
 
@@ -52,6 +55,20 @@ function getSafetyInfo(medicine: MedicineSearchItem) {
       medicine.warningIngredient ?? medicine.warning_ingredient,
     ),
   };
+}
+
+function getGeneralCautionTags(medicine: MedicineSearchItem) {
+  return (medicine.generalCautionTags ?? medicine.general_caution_tags ?? []).filter(
+    Boolean,
+  );
+}
+
+function getGeneralCautionTagName(tag: MedicineGeneralCautionTag) {
+  return tag.tagName || tag.tag_name || "일반 주의";
+}
+
+function getGeneralCautionTagCode(tag: MedicineGeneralCautionTag) {
+  return tag.tagCode ?? tag.tag_code ?? getGeneralCautionTagName(tag);
 }
 
 function getEasySummary(medicine: MedicineSearchItem) {
@@ -240,6 +257,7 @@ function DrugSearchPage() {
                   const medicineId = getMedicineId(medicine) || String(index + 1);
                   const medicineName = getMedicineName(medicine);
                   const safetyInfo = getSafetyInfo(medicine);
+                  const generalCautionTags = getGeneralCautionTags(medicine);
 
                   const isSelected =
                     selectedMedicine !== null &&
@@ -273,6 +291,12 @@ function DrugSearchPage() {
                         {safetyInfo.hasWarningIngredient && (
                           <Badge variant="yellow">주의 성분 포함</Badge>
                         )}
+
+                        {generalCautionTags.length > 0 && (
+                          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                            일반 주의 {generalCautionTags.length}
+                          </span>
+                        )}
                       </div>
                     </button>
                   );
@@ -299,6 +323,7 @@ function DrugSearchPage() {
                   {getSafetyInfo(selectedMedicine).hasWarningIngredient && (
                     <Badge variant="yellow">주의 성분 포함</Badge>
                   )}
+
                 </div>
 
                 <p className="mt-2 text-sm text-slate-500">
@@ -318,6 +343,35 @@ function DrugSearchPage() {
                 {getEasySummary(selectedMedicine)}
               </p>
             </div>
+
+            {getGeneralCautionTags(selectedMedicine).length > 0 && (
+              <div className="rounded-2xl border border-amber-200 bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-bold text-slate-900">
+                    일반 복약 주의
+                  </p>
+
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                    {getGeneralCautionTags(selectedMedicine).length}건
+                  </span>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {getGeneralCautionTags(selectedMedicine).map((tag) => {
+                    const tagName = getGeneralCautionTagName(tag);
+
+                    return (
+                      <span
+                        key={`${getGeneralCautionTagCode(tag)}-${tagName}`}
+                        className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-800"
+                      >
+                        {tagName}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {getImageUrl(selectedMedicine) && (
               <div className="rounded-2xl bg-slate-50 p-4">
