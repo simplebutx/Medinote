@@ -2,14 +2,14 @@ import { Client } from '@stomp/stompjs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import SockJS from 'sockjs-client';
 
+import { CONSULTATION_BASE_URL } from '../../../api/axiosInstance';
 import { useUserStore } from '../../../store/useUserStore';
 import type {
   ConsultMessageSenderType,
   ConsultSocketMessage,
 } from '../types';
 
-const CONSULTATION_BASE_URL =
-  import.meta.env.VITE_CONSULTATION_API_URL || 'http://localhost:8082';
+const CONSULTATION_SOCKET_URL = `${CONSULTATION_BASE_URL}/api/ws-stomp`;
 
 function getUserIdFromAccessToken(accessToken?: string | null) {
   if (!accessToken) return 0;
@@ -70,7 +70,7 @@ export const useConsultSocket = ({
 
     const client = new Client({
       webSocketFactory: () =>
-        new SockJS(`${CONSULTATION_BASE_URL}/api/ws-stomp`),
+        new SockJS(CONSULTATION_SOCKET_URL),
       connectHeaders: {
         Authorization: `Bearer ${accessToken}`,
       },

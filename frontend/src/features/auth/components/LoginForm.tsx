@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { Button, Input } from "../../../components/ui";
 import type { UserRole } from "../../../types/common.types";
 import useLogin from "../hooks/useLogin";
+import { useResetPassword } from "../hooks";
 
 type SocialProvider = "google" | "naver" | "kakao";
 
@@ -87,12 +88,53 @@ function getRedirectPath(role: UserRole) {
   return "/admin/dashboard";
 }
 
+function getEmailValidationMessage(value: string) {
+  if (!value.trim()) {
+    return "이메일을 입력해주세요.";
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
+    return "이메일 형식이 올바르지 않습니다.";
+  }
+
+  return "";
+}
+
+function getPasswordValidationMessage(value: string) {
+  if (!value) {
+    return "새 비밀번호를 입력해주세요.";
+  }
+
+  const hasAlphabet = /[A-Za-z]/.test(value);
+  const hasSpecialCharacter =
+    /[!@#$%^&*()_\-+=[\]{};':"\\|,.<>/?`~]/.test(value);
+  const hasValidLength = value.length >= 8 && value.length <= 20;
+  const hasNoWhitespace = !/\s/.test(value);
+
+  if (
+    !hasValidLength ||
+    !hasAlphabet ||
+    !hasSpecialCharacter ||
+    !hasNoWhitespace
+  ) {
+    return "비밀번호는 8자 이상 20자 이하이며 영문과 특수문자를 포함해야 합니다.";
+  }
+
+  return "";
+}
+
 function LoginForm() {
   const navigate = useNavigate();
   const loginMutation = useLogin();
+  const resetPasswordMutation = useResetPassword();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const [hasTriedPasswordReset, setHasTriedPasswordReset] = useState(false);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -117,8 +159,75 @@ function LoginForm() {
     );
   };
 
+  const handleOpenPasswordReset = () => {
+    setResetEmail(email.trim());
+    setNewPassword("");
+    setNewPasswordConfirm("");
+    setHasTriedPasswordReset(false);
+    setIsPasswordResetOpen(true);
+  };
+
+  const handleClosePasswordReset = () => {
+    if (resetPasswordMutation.isPending) {
+      return;
+    }
+
+    setIsPasswordResetOpen(false);
+    setResetEmail("");
+    setNewPassword("");
+    setNewPasswordConfirm("");
+    setHasTriedPasswordReset(false);
+  };
+
+  const handlePasswordReset = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setHasTriedPasswordReset(true);
+
+    const emailValidationMessage = getEmailValidationMessage(resetEmail);
+    const passwordValidationMessage =
+      getPasswordValidationMessage(newPassword);
+
+    if (emailValidationMessage) {
+      toast.error(emailValidationMessage);
+      return;
+    }
+
+    if (passwordValidationMessage) {
+      toast.error(passwordValidationMessage);
+      return;
+    }
+
+    if (newPassword !== newPasswordConfirm) {
+      toast.error("새 비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    resetPasswordMutation.mutate(
+      {
+        email: resetEmail.trim(),
+        newPassword,
+      },
+      {
+        onSuccess: () => {
+          toast.success("비밀번호가 재설정되었습니다.");
+          setEmail(resetEmail.trim());
+          setIsPasswordResetOpen(false);
+          setResetEmail("");
+          setNewPassword("");
+          setNewPasswordConfirm("");
+          setHasTriedPasswordReset(false);
+        },
+        onError: (error) => {
+          console.error("비밀번호 재설정 실패:", error);
+          toast.error("비밀번호 재설정에 실패했습니다. 이메일을 확인해주세요.");
+        },
+      },
+    );
+  };
+
   return (
-    <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+    <>
+      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
       <p className="mb-3 text-sm font-bold text-blue-600">MEDINOTE</p>
       <h1 className="mb-2 text-3xl font-bold text-slate-900">로그인</h1>
 
@@ -141,6 +250,16 @@ function LoginForm() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={handleOpenPasswordReset}
+            className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+          >
+            비밀번호를 잊으셨나요?
+          </button>
+        </div>
 
         <Button
           type="submit"
@@ -191,7 +310,117 @@ function LoginForm() {
           회원가입
         </Button>
       </div>
-    </div>
+      </div>
+
+      {isPasswordResetOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+          role="presentation"
+        >
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="password-reset-title"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            onSubmit={handlePasswordReset}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2
+                  id="password-reset-title"
+                  className="text-xl font-bold text-slate-900"
+                >
+                  비밀번호 재설정
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  가입한 이메일과 새 비밀번호를 입력해주세요.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={handleClosePasswordReset}
+                disabled={resetPasswordMutation.isPending}
+                aria-label="비밀번호 재설정 창 닫기"
+              >
+                닫기
+              </Button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              <Input
+                label="이메일"
+                type="email"
+                autoComplete="email"
+                value={resetEmail}
+                onChange={(event) => setResetEmail(event.target.value)}
+                errorMessage={
+                  hasTriedPasswordReset || resetEmail.length > 0
+                    ? getEmailValidationMessage(resetEmail)
+                    : undefined
+                }
+                disabled={resetPasswordMutation.isPending}
+              />
+
+              <Input
+                label="새 비밀번호"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                errorMessage={
+                  hasTriedPasswordReset || newPassword.length > 0
+                    ? getPasswordValidationMessage(newPassword)
+                    : undefined
+                }
+                disabled={resetPasswordMutation.isPending}
+              />
+
+              <Input
+                label="새 비밀번호 확인"
+                type="password"
+                autoComplete="new-password"
+                value={newPasswordConfirm}
+                onChange={(event) =>
+                  setNewPasswordConfirm(event.target.value)
+                }
+                errorMessage={
+                  (hasTriedPasswordReset ||
+                    newPasswordConfirm.length > 0) &&
+                  newPassword !== newPasswordConfirm
+                    ? "새 비밀번호가 일치하지 않습니다."
+                    : undefined
+                }
+                disabled={resetPasswordMutation.isPending}
+              />
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                className="border border-slate-200"
+                onClick={handleClosePasswordReset}
+                disabled={resetPasswordMutation.isPending}
+              >
+                취소
+              </Button>
+
+              <Button
+                type="submit"
+                disabled={resetPasswordMutation.isPending}
+              >
+                {resetPasswordMutation.isPending
+                  ? "재설정 중..."
+                  : "비밀번호 재설정"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
+    </>
   );
 }
 

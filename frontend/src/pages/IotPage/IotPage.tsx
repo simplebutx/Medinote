@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { Badge, Button, Card } from '../../components/ui';
@@ -15,7 +16,6 @@ import type {
   SmartPillSlotAssignment,
   SmartPillSlotState,
 } from '../../features/smartpill/types/smartpill.types';
-import { useState } from 'react';
 
 const DEFAULT_DEVICE_ID = 'smartpill-prototype-1';
 
@@ -101,6 +101,9 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 function IotPage() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const hasSeenPillAfterStartRef = useRef(false);
+  const dismissedEmptyCycleKeyRef = useRef('');
+  const observedDeviceIdRef = useRef<string | null>(null);
 
   const healthQuery = useSmartPillHealth();
   const statusQuery = useSmartPillStatus();
@@ -129,23 +132,44 @@ function IotPage() {
       ? null
       : assignmentQuery.data;
 
-  const assignmentsBySlot = new Map(
-    (assignment?.slots ?? []).map((slot) => [slot.slotNumber, slot]),
+  const assignmentsBySlot = useMemo(
+    () =>
+      new Map(
+        (assignment?.slots ?? []).map((slot) => [slot.slotNumber, slot]),
+      ),
+    [assignment?.slots],
   );
 
-  const sensorSlotsByNumber = new Map(
-    (statusQuery.data?.slots ?? []).map((slot) => [slot.slotNumber, slot]),
+  const sensorSlotsByNumber = useMemo(
+    () =>
+      new Map(
+        (statusQuery.data?.slots ?? []).map((slot) => [
+          slot.slotNumber,
+          slot,
+        ]),
+      ),
+    [statusQuery.data?.slots],
   );
 
-  const slots = DEFAULT_SLOTS.map((fallback) => ({
-    ...fallback,
-    ...sensorSlotsByNumber.get(fallback.slotNumber),
-    assignment: assignmentsBySlot.get(fallback.slotNumber) ?? null,
-  }));
+  const slots = useMemo(
+    () =>
+      DEFAULT_SLOTS.map((fallback) => ({
+        ...fallback,
+        ...sensorSlotsByNumber.get(fallback.slotNumber),
+        assignment: assignmentsBySlot.get(fallback.slotNumber) ?? null,
+      })),
+    [assignmentsBySlot, sensorSlotsByNumber],
+  );
 
-  const connectedSlotCount = slots.filter(
-    (slot) => getAssignedMedicineNames(slot.assignment).length > 0,
-  ).length;
+  const connectedSlots = useMemo(
+    () =>
+      slots.filter(
+        (slot) => getAssignedMedicineNames(slot.assignment).length > 0,
+      ),
+    [slots],
+  );
+
+  const connectedSlotCount = connectedSlots.length;
 
   const isControlPending =
     startDetectionMutation.isPending ||
@@ -194,6 +218,19 @@ function IotPage() {
     }
   };
 
+  const executeResetConnection = useCallback(async () => {
+    try {
+      await resetConnectionMutation.mutateAsync(activeDeviceId);
+      await assignmentQuery.refetch();
+      toast.success('스마트 약통 연결을 초기화했습니다.');
+    } catch (error) {
+      console.error('스마트 약통 연결 초기화 실패:', error);
+      toast.error(
+        getErrorMessage(error, '스마트 약통 연결을 초기화하지 못했습니다.'),
+      );
+    }
+  }, [activeDeviceId, assignmentQuery, resetConnectionMutation]);
+
   const handleResetConnection = async () => {
     if (!assignment) {
       toast.error('초기화할 스마트 약통 연결 정보가 없습니다.');
@@ -208,17 +245,64 @@ function IotPage() {
       return;
     }
 
-    try {
-      await resetConnectionMutation.mutateAsync(activeDeviceId);
-      await assignmentQuery.refetch();
-      toast.success('스마트 약통 연결을 초기화했습니다.');
-    } catch (error) {
-      console.error('스마트 약통 연결 초기화 실패:', error);
-      toast.error(
-        getErrorMessage(error, '스마트 약통 연결을 초기화하지 못했습니다.'),
-      );
-    }
+    await executeResetConnection();
   };
+
+  useEffect(() => {
+    if (observedDeviceIdRef.current !== activeDeviceId) {
+      observedDeviceIdRef.current = activeDeviceId;
+      hasSeenPillAfterStartRef.current = false;
+      dismissedEmptyCycleKeyRef.current = '';
+    }
+
+    if (!assignment?.activeDetection) {
+      hasSeenPillAfterStartRef.current = false;
+      dismissedEmptyCycleKeyRef.current = '';
+      return;
+    }
+
+    const hasPresentPill = connectedSlots.some((slot) =>
+      Boolean(slot.pillPresent),
+    );
+
+    if (hasPresentPill) {
+      hasSeenPillAfterStartRef.current = true;
+      dismissedEmptyCycleKeyRef.current = '';
+      return;
+    }
+
+    if (
+      !hasSeenPillAfterStartRef.current ||
+      connectedSlots.length === 0 ||
+      resetConnectionMutation.isPending
+    ) {
+      return;
+    }
+
+    const emptyCycleKey = connectedSlots
+      .map((slot) => `${slot.slotNumber}:X`)
+      .join('|');
+
+    if (dismissedEmptyCycleKeyRef.current === emptyCycleKey) {
+      return;
+    }
+
+    dismissedEmptyCycleKeyRef.current = emptyCycleKey;
+
+    const shouldReset = window.confirm(
+      '연결된 약통 칸이 모두 비었습니다. 복약이 끝난 것으로 보고 연결 초기화할까요?',
+    );
+
+    if (shouldReset) {
+      void executeResetConnection();
+    }
+  }, [
+    activeDeviceId,
+    assignment?.activeDetection,
+    connectedSlots,
+    executeResetConnection,
+    resetConnectionMutation.isPending,
+  ]);
 
   const assignmentErrorMessage =
     assignmentQuery.isError &&

@@ -6,3 +6,5 @@ export { default as useUserAdditionalInfoSignup } from "./useUserAdditionalInfoS
 export { default as usePharmacistVerification } from "./usePharmacistVerification";
 export * from "./useSendSmsVerificationCode";
 export * from "./useVerifySmsCode";
+export * from './useUpdatePassword';
+export * from './useResetPassword';
