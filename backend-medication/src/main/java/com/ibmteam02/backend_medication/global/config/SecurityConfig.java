@@ -59,13 +59,21 @@ public class SecurityConfig {
                                 "/api/smartpill/test/**"
                         ).permitAll()
                         .requestMatchers(
+                                "/api/me/medication-time-presets",
                                 "/api/me/medication-time-presets/**",
+                                "/api/me/cautions",
                                 "/api/me/cautions/**",
+                                "/api/prescriptions",
                                 "/api/prescriptions/**",
+                                "/api/medication-schedules",
                                 "/api/medication-schedules/**",
+                                "/api/medication-schedule-times",
                                 "/api/medication-schedule-times/**",
+                                "/api/medication-intake-logs",
                                 "/api/medication-intake-logs/**",
+                                "/api/medication-notifications",
                                 "/api/medication-notifications/**",
+                                "/api/smartpill/devices",
                                 "/api/smartpill/devices/**"
                         ).authenticated()
                         .anyRequest().permitAll()

@@ -375,6 +375,8 @@ function MyPage() {
     }
   }
   const [prescriptions, setPrescriptions] = useState([])
+  const [prescriptionsPage, setPrescriptionsPage] = useState(0)
+  const [prescriptionsTotalPages, setPrescriptionsTotalPages] = useState(1)
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState(null)
   const [prescriptionMessage, setPrescriptionMessage] = useState('')
   const [prescriptionSaving, setPrescriptionSaving] = useState(false)
@@ -452,30 +454,48 @@ function MyPage() {
   }
 
   const loadPrescriptionRecords = async (preferredId, page = prescriptionsPage) => {
-    const response = await getMedicationSchedules(page, 5)
-    const schedules = response.content || response || []
-    setPrescriptionsTotalPages(response.totalPages || 1)
+    try {
+      console.log('Fetching prescription records for page:', page)
+      const response = await getMedicationSchedules(page, 5)
+      console.log('Prescription records response:', response)
+      // response가 배열이면 response 자체를, 객체면 content를 꺼냅니다.
+      const schedules = Array.isArray(response) ? response : (response?.content || [])
+      console.log('Extracted schedules:', schedules)
+      setPrescriptionsTotalPages(response?.totalPages || 1)
 
-    const timeEntries = await Promise.all(
-      schedules.map(async (schedule) => [schedule.id, await getMedicationScheduleTimes(schedule.id)]),
-    )
-    const timeMap = Object.fromEntries(timeEntries)
-    const records = schedules.map((schedule) =>
-      mapScheduleToPrescriptionRecord(schedule, timeMap[schedule.id] || []),
-    )
+      const timeEntries = await Promise.all(
+        schedules.map(async (schedule) => {
+          try {
+            const times = await getMedicationScheduleTimes(schedule.id)
+            return [schedule.id, times]
+          } catch (error) {
+            console.error(`Failed to load times for schedule ${schedule.id}:`, error)
+            return [schedule.id, []]
+          }
+        }),
+      )
+      const timeMap = Object.fromEntries(timeEntries)
+      const records = schedules.map((schedule) =>
+        mapScheduleToPrescriptionRecord(schedule, timeMap[schedule.id] || []),
+      )
+      console.log('Final records to set:', records)
 
-    setPrescriptions(records)
-    setSelectedPrescriptionId((currentId) => {
-      if (preferredId && records.some((record) => record.id === preferredId)) {
-        return preferredId
-      }
+      setPrescriptions(records)
+      setSelectedPrescriptionId((currentId) => {
+        if (preferredId && records.some((record) => record.id === preferredId)) {
+          return preferredId
+        }
 
-      if (currentId && records.some((record) => record.id === currentId)) {
-        return currentId
-      }
+        if (currentId && records.some((record) => record.id === currentId)) {
+          return currentId
+        }
 
-      return records[0]?.id || null
-    })
+        return records[0]?.id || null
+      })
+    } catch (error) {
+      console.error('Failed to load prescription records:', error)
+      setPrescriptions([])
+    }
   }
 
   const handlePrevPage = () => {
@@ -527,6 +547,12 @@ function MyPage() {
 
     load()
   }, [session])
+
+  useEffect(() => {
+    if (activeTab === 'prescription' && session?.accessToken) {
+      loadPrescriptionRecords()
+    }
+  }, [activeTab, session])
 
   // 질병 검색 로직
   useEffect(() => {
@@ -1460,48 +1486,6 @@ function MyPage() {
             <div className="mypage-prescription-workspace">
               <div className="mypage-prescription-sidebar">
                 {prescriptions.length ? (
-                  prescriptions.map((item, index) => (
-                    <div
-                      key={item.id}
-                      role="button"
-                      tabIndex={0}
-                      style={{ order: index * 2 }}
-                      className={item.id === selectedPrescriptionId ? 'mypage-prescription-card selected' : 'mypage-prescription-card'}
-                      onClick={() => {
-                        setSelectedPrescriptionId(item.id)
-                        setPrescriptionEditMode(false)
-                        setPrescriptionMessage('')
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter' && event.key !== ' ') {
-                          return
-                        }
-
-                        event.preventDefault()
-                        setSelectedPrescriptionId(item.id)
-                        setPrescriptionEditMode(false)
-                        setPrescriptionMessage('')
-                      }}
-                    >
-                      <div className="mypage-prescription-header">
-                        <div>
-                          <strong>{item.title}</strong>
-                          <p>{item.dispensedDate ? item.dispensedDate.replaceAll('-', '.') : '-'}</p>
-                        </div>
-                        <span className={item.status === '종료' ? 'profile-badge yellow' : 'profile-badge green'}>
-                          {item.status}
-                        </span>
-                      </div>
-                      <p>{item.hospitalName || '병원 정보 없음'}</p>
-                      <div className="profile-badge-row">
-                        {item.medicines.map((medicine, index) => (
-                          <span key={`${item.id}-${index}`} className="profile-badge blue">
-                            {medicine.customMedicineName || `약 ${index + 1}`}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))
                   <>
                     {prescriptions.map((item) => (
                       <button
