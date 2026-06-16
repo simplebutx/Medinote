@@ -7,21 +7,25 @@ const painPoints = [
     icon: '💊',
     title: '약 이름이 헷갈려요',
     description: '여러 약을 복용하다 보면 어떤 약인지 기억하기 어렵습니다.',
+    iconBg: 'bg-rose-500/20',
   },
   {
     icon: '⏰',
     title: '복용 시간을 자주 놓쳐요',
     description: '바쁜 일상 속에서 정해진 복약 시간을 놓치기 쉽습니다.',
+    iconBg: 'bg-yellow-500/20',
   },
   {
     icon: '🤔',
     title: '같이 먹어도 될지 걱정돼요',
     description: '복용 중인 약의 주의사항과 병용 여부가 궁금합니다.',
+    iconBg: 'bg-blue-500/20',
   },
   {
     icon: '👩‍⚕️',
     title: '전문가에게 묻고 싶어요',
     description: 'AI 답변만으로 부족할 때 약사 상담이 필요합니다.',
+    iconBg: 'bg-emerald-500/20',
   },
 ];
 
@@ -36,13 +40,13 @@ const features = [
     icon: '📅',
     title: '복약 일정 관리',
     description: '복용 시간과 주기를 관리하고 오늘 일정을 확인합니다.',
-    badge: 'Schedule',
+    badge: '일정',
   },
   {
     icon: '🔔',
     title: '복약 알림',
     description: '놓치기 쉬운 복약 시간을 알림으로 안내합니다.',
-    badge: 'Alarm',
+    badge: '알림',
   },
   {
     icon: '🤖',
@@ -54,13 +58,13 @@ const features = [
     icon: '🩺',
     title: '약사 상담 연결',
     description: 'AI 답변이 어려운 경우 약사 상담으로 이어집니다.',
-    badge: 'Consult',
+    badge: '상담',
   },
   {
     icon: '📍',
     title: '근처 약국 찾기',
     description: '지도와 약 검색으로 재고 보유 약국을 찾습니다.',
-    badge: 'Map',
+    badge: '지도',
   },
 ];
 
@@ -154,7 +158,7 @@ const faqs = [
   {
     question: '스마트 약통은 바로 사용할 수 있나요?',
     answer:
-      '현재는 연동 예정 기능으로 준비 중이며, 추후 약통 개폐 여부와 복약 완료 여부를 연결할 수 있도록 설계하고 있습니다.',
+      '네, 현재 사용 가능합니다. 4개 슬롯에 복약 일정을 연결하면 거리 센서가 약 복용 여부를 자동으로 감지합니다. 내 정보 페이지에서 처방 내역을 슬롯에 연결한 뒤 스마트 약통 페이지에서 측정을 시작하면 됩니다.',
   },
 ];
 
@@ -202,10 +206,12 @@ const schedulePreview = [
 
 const chatPreview = [
   {
+    sender: 'user',
     name: '사용자',
     message: '감기약이랑 평소 먹는 혈압약을 같이 먹어도 될까요?',
   },
   {
+    sender: 'ai',
     name: 'Medinote AI',
     message: '복용 중인 약 정보를 확인하고, 주의가 필요한 경우 약사 상담을 안내합니다.',
   },
@@ -215,17 +221,14 @@ const containerClass = 'mx-auto max-w-7xl px-5 sm:px-6 lg:px-8';
 
 const sectionClass = 'py-20 sm:py-24';
 
-const eyebrowClass =
-  'text-sm font-bold text-blue-600';
+const eyebrowClass = 'text-sm font-bold text-blue-600';
 
-const titleClass =
-  'mt-3 text-3xl font-extrabold text-slate-950 sm:text-4xl';
+const titleClass = 'mt-3 text-3xl font-extrabold text-slate-950 sm:text-4xl';
 
-const descriptionClass =
-  'mt-4 text-base leading-7 text-slate-500';
+const descriptionClass = 'mt-4 text-base leading-7 text-slate-500';
 
 const darkCardClass =
-  'rounded-2xl border border-white/10 bg-white/[0.06] p-5 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:bg-white/[0.09]';
+  'rounded-2xl border border-white/10 bg-white/[0.06] p-5 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:bg-white/[0.09] hover:border-white/20';
 
 const iconBadgeClass =
   'flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-xl';
@@ -236,6 +239,21 @@ const gradientButtonClass =
 const outlineButtonClass =
   '!border !border-slate-300 !bg-white !text-slate-700 hover:!bg-slate-50';
 
+const FlowArrow = () => (
+  <div className="hidden shrink-0 items-center justify-center sm:flex">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-5 w-5 text-slate-300"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
+  </div>
+);
+
 function LandingPage() {
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900">
@@ -245,9 +263,7 @@ function LandingPage() {
             to="/"
             className="flex items-center gap-2 text-xl font-extrabold text-blue-600"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-emerald-500 text-sm text-white shadow-sm">
-              M
-            </span>
+            <img src="/medinote-logo.svg" alt="Medinote" className="h-8 w-8" />
             Medinote
           </Link>
 
@@ -284,6 +300,7 @@ function LandingPage() {
       </header>
 
       <main>
+        {/* Hero */}
         <section className="overflow-hidden border-b border-slate-200 bg-white">
           <div className={`${containerClass} grid gap-12 py-16 sm:py-20 lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[0.95fr_1.05fr] lg:items-center`}>
             <div className="text-center lg:text-left">
@@ -294,7 +311,7 @@ function LandingPage() {
                 <br />
                 전문가 상담까지
                 <br />
-                <span className="text-blue-600">한 곳에서 관리</span>하세요.
+                <span className="whitespace-nowrap"><span className="text-blue-600">한 곳에서 관리</span>하세요.</span>
               </h1>
 
               <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-slate-600 lg:mx-0">
@@ -335,13 +352,14 @@ function LandingPage() {
               </div>
             </div>
 
+            {/* App preview card */}
             <div className="relative">
               <div className="rounded-2xl border border-slate-200 bg-slate-950 p-3 shadow-2xl shadow-slate-200">
                 <div className="rounded-xl bg-white">
                   <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-xs font-bold uppercase text-blue-600">
-                        Medinote care board
+                      <p className="text-xs font-bold text-blue-600">
+                        복약 관리 현황
                       </p>
                       <h2 className="mt-1 text-xl font-extrabold text-slate-950">
                         오늘의 복약 관리
@@ -393,16 +411,36 @@ function LandingPage() {
                         </p>
                       </div>
 
+                      {/* Chat bubbles */}
                       <div className="mt-4 space-y-3">
                         {chatPreview.map((chat) => (
                           <div
                             key={chat.name}
-                            className="rounded-xl border border-slate-200 bg-white p-4"
+                            className={[
+                              'flex',
+                              chat.sender === 'user' ? 'justify-end' : 'justify-start',
+                            ].join(' ')}
                           >
-                            <p className="text-xs font-bold text-blue-600">{chat.name}</p>
-                            <p className="mt-2 text-sm leading-6 text-slate-600">
-                              {chat.message}
-                            </p>
+                            <div
+                              className={[
+                                'max-w-[85%] rounded-2xl px-4 py-3',
+                                chat.sender === 'user'
+                                  ? 'rounded-tr-sm bg-blue-600 text-white'
+                                  : 'rounded-tl-sm bg-slate-100 text-slate-700',
+                              ].join(' ')}
+                            >
+                              <p
+                                className={[
+                                  'mb-1 text-xs font-bold',
+                                  chat.sender === 'user'
+                                    ? 'text-blue-200'
+                                    : 'text-blue-600',
+                                ].join(' ')}
+                              >
+                                {chat.name}
+                              </p>
+                              <p className="text-sm leading-6">{chat.message}</p>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -421,6 +459,7 @@ function LandingPage() {
           </div>
         </section>
 
+        {/* Pain Points */}
         <section className={`${sectionClass} bg-slate-950 text-white`}>
           <div className={containerClass}>
             <div className="text-center">
@@ -435,11 +474,8 @@ function LandingPage() {
 
             <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {painPoints.map((point) => (
-                <div
-                  key={point.title}
-                  className={darkCardClass}
-                >
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-xl">
+                <div key={point.title} className={darkCardClass}>
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-2xl text-xl ${point.iconBg}`}>
                     {point.icon}
                   </div>
 
@@ -454,6 +490,7 @@ function LandingPage() {
           </div>
         </section>
 
+        {/* Features */}
         <section id="features" className={`${sectionClass} bg-white`}>
           <div className={containerClass}>
             <div className="max-w-2xl">
@@ -492,6 +529,7 @@ function LandingPage() {
           </div>
         </section>
 
+        {/* Service Flow */}
         <section id="flow" className={`${sectionClass} bg-slate-50`}>
           <div className={`${containerClass} text-center`}>
             <p className="text-sm font-semibold text-blue-600">서비스 흐름</p>
@@ -504,27 +542,48 @@ function LandingPage() {
               Medinote는 복약 데이터를 중심으로 일정, 상담, 재고 검색을 연결합니다.
             </p>
 
-            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {serviceFlow.map((flow) => (
-                <div
-                  key={flow.step}
-                  className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-md"
-                >
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-blue-50 text-2xl transition group-hover:bg-blue-100">
-                    {flow.icon}
+            <div className="mt-12 space-y-3">
+              {/* Row 1: steps 1–3 */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-2">
+                {serviceFlow.slice(0, 3).map((flow, idx) => (
+                  <div key={flow.step} className="flex flex-1 items-center gap-2">
+                    <div className="group flex-1 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-md">
+                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-blue-50 text-2xl transition group-hover:bg-blue-100">
+                        {flow.icon}
+                      </div>
+                      <p className="mt-4 text-xs font-extrabold text-blue-600">
+                        {flow.step}
+                      </p>
+                      <h3 className="mt-2 font-bold text-slate-900">{flow.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        {flow.description}
+                      </p>
+                    </div>
+                    {idx < 2 && <FlowArrow />}
                   </div>
+                ))}
+              </div>
 
-                  <p className="mt-4 text-xs font-extrabold text-blue-600">
-                    {flow.step}
-                  </p>
-
-                  <h3 className="mt-2 font-bold text-slate-900">{flow.title}</h3>
-
-                  <p className="mt-2 text-sm leading-6 text-slate-500">
-                    {flow.description}
-                  </p>
-                </div>
-              ))}
+              {/* Row 2: steps 4–6 */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-2">
+                {serviceFlow.slice(3).map((flow, idx) => (
+                  <div key={flow.step} className="flex flex-1 items-center gap-2">
+                    <div className="group flex-1 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-md">
+                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-blue-50 text-2xl transition group-hover:bg-blue-100">
+                        {flow.icon}
+                      </div>
+                      <p className="mt-4 text-xs font-extrabold text-blue-600">
+                        {flow.step}
+                      </p>
+                      <h3 className="mt-2 font-bold text-slate-900">{flow.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        {flow.description}
+                      </p>
+                    </div>
+                    {idx < 2 && <FlowArrow />}
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="mt-10">
@@ -535,6 +594,7 @@ function LandingPage() {
           </div>
         </section>
 
+        {/* Pharmacist */}
         <section
           id="pharmacist"
           className={`${sectionClass} bg-gradient-to-br from-slate-950 via-blue-950 to-emerald-900 text-white`}
@@ -561,7 +621,7 @@ function LandingPage() {
               {pharmacistItems.map((item) => (
                 <div
                   key={item.title}
-                  className="rounded-2xl border border-white/10 bg-white/[0.08] p-5 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:bg-white/[0.12]"
+                  className="rounded-2xl border border-white/10 bg-white/[0.08] p-5 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.12]"
                 >
                   <h3 className="font-bold text-white">{item.title}</h3>
 
@@ -574,10 +634,7 @@ function LandingPage() {
 
             <div className="mt-8">
               <Link to="/signup">
-                <Button
-                  type="button"
-                  className={gradientButtonClass}
-                >
+                <Button type="button" className={gradientButtonClass}>
                   약사로 가입하기
                 </Button>
               </Link>
@@ -585,6 +642,7 @@ function LandingPage() {
           </div>
         </section>
 
+        {/* Safety */}
         <section id="safety" className={`${sectionClass} bg-white`}>
           <div className={containerClass}>
             <div className="text-center">
@@ -626,6 +684,7 @@ function LandingPage() {
           </div>
         </section>
 
+        {/* FAQ */}
         <section id="faq" className="bg-slate-50 py-20">
           <div className="mx-auto max-w-3xl px-6">
             <div className="text-center">
@@ -644,9 +703,16 @@ function LandingPage() {
                 >
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-bold text-slate-900">
                     {faq.question}
-                    <span className="text-slate-400 transition group-open:rotate-180">
-                      ˅
-                    </span>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
                   </summary>
 
                   <p className="mt-3 text-sm leading-6 text-slate-500">
@@ -658,13 +724,14 @@ function LandingPage() {
           </div>
         </section>
 
+        {/* CTA */}
         <section
           id="start"
           className="bg-gradient-to-br from-blue-600 via-blue-700 to-emerald-700 px-6 py-20 text-white"
         >
           <div className="mx-auto max-w-7xl text-center">
             <p className="text-sm font-semibold text-blue-100">
-              Start Medication Care
+              복약 관리 시작
             </p>
 
             <h2 className="mt-3 text-3xl font-extrabold">

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 
-import { Badge, Button, Card, Input } from '../../components/ui';
+import { Button, Card, Input } from '../../components/ui';
 import {
   useChatbotRoomMessages,
   useChatbotRooms,
@@ -88,13 +88,6 @@ function getSenderLabel(sender: MessageSender) {
   return '시스템';
 }
 
-function getSenderBadge(sender: MessageSender) {
-  if (sender === 'USER') return 'blue';
-  if (sender === 'AI') return 'green';
-  if (sender === 'PHARMACIST') return 'yellow';
-  return 'gray';
-}
-
 function getDrugOptionId(name: string) {
   return name.split('').reduce((hash, char) => {
     return hash + char.charCodeAt(0);
@@ -107,6 +100,19 @@ function formatChatTime(createdAt?: string | null) {
   }
 
   return createdAt.slice(11, 16);
+}
+
+function formatDisplayTime(chat: ChatMessage) {
+  if (chat.createdAt === '방금') return '방금';
+  if (chat.sortTime && chat.sortTime > 0) {
+    return new Intl.DateTimeFormat('ko-KR', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(chat.sortTime));
+  }
+  return chat.createdAt;
 }
 
 function getMessageSortTime(createdAt?: string | null) {
@@ -194,13 +200,13 @@ function mapApiChatbotMessageToChatMessage(
   message: ApiChatbotMessage,
   index: number,
 ): ChatMessage {
-  const isFallback = message.answerType === 'FALLBACK';
+  const isConsultRecommended = message.answerType === 'CONSULT_RECOMMENDED';
 
   return {
     id: message.messageId ?? index + 1,
     apiMessageId: message.messageId ?? null,
     sender: message.senderType === 'USER' ? 'USER' : 'AI',
-    content: isFallback
+    content: isConsultRecommended
       ? PHARMACIST_GUIDE_MESSAGE
       : message.content ??
         message.answer ??
@@ -381,7 +387,7 @@ function getChatDisplayParts(chat: ChatMessage) {
     return {
       drugNames: [],
       content:
-        chat.answerType === 'FALLBACK'
+        chat.answerType === 'CONSULT_RECOMMENDED'
           ? PHARMACIST_GUIDE_MESSAGE
           : chat.content,
     };
@@ -430,6 +436,57 @@ function getChatDisplayParts(chat: ChatMessage) {
   };
 }
 
+const tabBaseClass =
+  'rounded-lg px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none';
+const tabActiveClass = 'bg-white text-blue-700 shadow-sm';
+const tabInactiveClass = 'text-slate-500 hover:text-slate-900';
+const sidebarPanelClass =
+  'rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-950/5';
+const emptyPanelClass =
+  'rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-sm leading-6 text-slate-500';
+const roomItemBaseClass =
+  'w-full rounded-xl border p-3 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-100';
+const roomItemSelectedClass =
+  'border-blue-200 bg-blue-50/80 shadow-sm shadow-blue-500/10';
+const roomItemDefaultClass =
+  'border-slate-200 bg-white hover:border-blue-100 hover:bg-blue-50/40';
+const noticePanelClass =
+  'rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 text-sm leading-6 text-emerald-700';
+const messageNoticeClass =
+  'rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm leading-6 text-slate-500 shadow-sm';
+const inputPanelClass =
+  'shrink-0 border-t border-slate-200/80 bg-white/95 p-4';
+const textareaClass =
+  'mt-3 min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100';
+
+function getMessageAlignmentClass(sender: MessageSender) {
+  if (sender === 'USER') {
+    return 'justify-end';
+  }
+
+  if (sender === 'SYSTEM') {
+    return 'justify-center';
+  }
+
+  return 'justify-start';
+}
+
+function getMessageBubbleClass(sender: MessageSender) {
+  if (sender === 'USER') {
+    return 'max-w-[84%] rounded-tl-2xl rounded-bl-2xl rounded-br-2xl rounded-tr-none bg-blue-600 p-4 text-white shadow-sm shadow-blue-600/15 lg:max-w-[680px]';
+  }
+
+  if (sender === 'PHARMACIST') {
+    return 'max-w-[84%] rounded-tr-2xl rounded-bl-2xl rounded-br-2xl rounded-tl-none bg-emerald-600 p-4 text-white shadow-sm shadow-emerald-600/15 lg:max-w-[720px]';
+  }
+
+  if (sender === 'SYSTEM') {
+    return 'max-w-[88%] rounded-2xl border border-slate-200 bg-white p-4 text-slate-600 shadow-sm lg:max-w-[720px]';
+  }
+
+  return 'max-w-[84%] rounded-tr-2xl rounded-bl-2xl rounded-br-2xl rounded-tl-none border border-slate-200/80 bg-slate-50 p-4 text-slate-700 shadow-sm lg:max-w-[720px]';
+}
+
 function ChatPage() {
   const messageIdRef = useRef(100);
   const chatMessagesContainerRef = useRef<HTMLDivElement | null>(null);
@@ -447,6 +504,8 @@ function ChatPage() {
   const [feedbackComment, setFeedbackComment] = useState('');
   const [locallyClosedConsultRoomIds, setLocallyClosedConsultRoomIds] =
     useState<number[]>([]);
+
+  const [pharmacistSocketName, setPharmacistSocketName] = useState<string | null>(null);
 
   const createMessageId = () => {
     messageIdRef.current += 1;
@@ -681,11 +740,11 @@ function ChatPage() {
           return true;
         }
 
-        // 전송 응답에서 받은 FALLBACK 메타데이터와 상담 draft는
+        // 전송 응답에서 받은 CONSULT_RECOMMENDED 메타데이터와 상담 draft는
         // 과거 메시지 조회 응답에 같은 정보가 없더라도 유지한다.
         if (
           chat.sender === 'AI' &&
-          chat.answerType === 'FALLBACK' &&
+          chat.answerType === 'CONSULT_RECOMMENDED' &&
           chat.escalationDraft
         ) {
           return true;
@@ -803,6 +862,10 @@ function ChatPage() {
       // 사용자가 보낸 메시지는 전송 직후 optimistic append로 이미 표시함
       if (socketMessage.senderType === 'USER') {
         return;
+      }
+
+      if (socketMessage.senderType === 'PHARMACIST' && socketMessage.senderName) {
+        setPharmacistSocketName(socketMessage.senderName);
       }
 
       setConsultSocketMessages((prev) => [
@@ -990,20 +1053,20 @@ function ChatPage() {
           const answerText =
             data.answer || data.content || '응답 내용을 불러오지 못했습니다.';
 
-          const isFallback = data.answerType === 'FALLBACK';
+          const isConsultRecommended = data.answerType === 'CONSULT_RECOMMENDED';
 
           const aiMessage: ChatMessage = {
             id: data.messageId ?? createMessageId(),
             apiMessageId: data.messageId ?? null,
             sender: 'AI',
-            content: isFallback ? PHARMACIST_GUIDE_MESSAGE : answerText,
+            content: isConsultRecommended ? PHARMACIST_GUIDE_MESSAGE : answerText,
             createdAt: data.createdAt ? data.createdAt.slice(11, 16) : '방금',
             sortTime: getMessageSortTime(data.createdAt),
             answerType: data.answerType,
-            escalationDraft: isFallback
+            escalationDraft: isConsultRecommended
               ? buildPharmacistDraftText(question, drugs)
               : undefined,
-            escalationDrugs: isFallback ? drugs : undefined,
+            escalationDrugs: isConsultRecommended ? drugs : undefined,
           };
 
           setAiMessagesByRoomId((prev) => ({
@@ -1314,30 +1377,17 @@ function ChatPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-sm font-semibold text-blue-600">Chat & Consult</p>
+    <div className="space-y-5">
 
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">
-          챗봇 & 약사 상담
-        </h1>
-
-        <p className="mt-2 text-slate-500">
-          AI 챗봇으로 복약 정보를 확인하고, 필요하면 약사 상담으로 이어갈 수
-          있습니다.
-        </p>
-      </div>
-
-      <Card className="p-0">
-        <div className="flex border-b border-slate-200">
+      <Card className="overflow-hidden p-0">
+        <div className="border-b border-slate-200 px-3 py-3">
+          <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1">
           <button
             type="button"
             onClick={() => setActiveMode('ai')}
             className={[
-              'flex-1 px-5 py-4 text-sm font-semibold transition',
-              activeMode === 'ai'
-                ? 'border-b-2 border-blue-600 text-blue-700'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
+              tabBaseClass,
+              activeMode === 'ai' ? tabActiveClass : tabInactiveClass,
             ].join(' ')}
           >
             AI 챗봇
@@ -1350,23 +1400,24 @@ function ChatPage() {
               applyPendingPharmacistDraft();
             }}
             className={[
-              'flex-1 px-5 py-4 text-sm font-semibold transition',
+              tabBaseClass,
               activeMode === 'pharmacist'
-                ? 'border-b-2 border-blue-600 text-blue-700'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
+                ? tabActiveClass
+                : tabInactiveClass,
             ].join(' ')}
           >
             약사 상담
           </button>
+          </div>
         </div>
 
-        <div className="grid h-[700px] min-h-0 gap-0 lg:grid-cols-[320px_minmax(0,1fr)]">
-          <aside className="h-full min-h-0 space-y-4 overflow-y-auto border-r border-slate-100 bg-slate-50 p-5">
+        <div className="grid min-h-[720px] gap-0 lg:h-[calc(100vh-220px)] lg:min-h-[640px] lg:max-h-[860px] lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
+          <aside className="min-h-0 flex flex-col overflow-hidden border-b border-slate-200/80 bg-slate-50/70 p-4 lg:h-full lg:border-b-0 lg:border-r">
             {activeMode === 'ai' && (
               <>
-                <Card>
+                <div className={[sidebarPanelClass, 'flex flex-1 flex-col overflow-hidden'].join(' ')}>
                   <div className="flex items-center justify-between gap-2">
-                    <h2 className="text-lg font-bold text-slate-900">대화방</h2>
+                    <h2 className="text-base font-bold text-slate-900">대화방</h2>
 
                     <Button
                       type="button"
@@ -1378,15 +1429,15 @@ function ChatPage() {
                     </Button>
                   </div>
 
-                  <div className="mt-4 space-y-2">
+                  <div className="mt-4 flex-1 overflow-y-auto space-y-2">
                     {isChatbotRoomsLoading && (
-                      <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
+                      <div className={emptyPanelClass}>
                         대화방을 불러오는 중입니다.
                       </div>
                     )}
 
                     {!isChatbotRoomsLoading && chatbotRooms.length === 0 && (
-                      <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
+                      <div className={emptyPanelClass}>
                         아직 생성된 대화방이 없습니다.
                       </div>
                     )}
@@ -1400,10 +1451,10 @@ function ChatPage() {
                           <div
                             key={room.roomId}
                             className={[
-                              'rounded-xl border p-3',
+                              'rounded-xl border p-3 shadow-sm transition',
                               isSelected
-                                ? 'border-blue-200 bg-blue-50'
-                                : 'border-slate-200 bg-white',
+                                ? roomItemSelectedClass
+                                : roomItemDefaultClass,
                             ].join(' ')}
                           >
                             {isEditing ? (
@@ -1420,29 +1471,22 @@ function ChatPage() {
                                   }}
                                 />
 
-                                <div className="flex justify-end gap-2">
-                                  <Button
+                                <div className="flex justify-end gap-3">
+                                  <button
                                     type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    className="border border-slate-200"
                                     onClick={handleCancelEditRoomTitle}
+                                    className="text-xs text-slate-400 transition hover:text-slate-700"
                                   >
                                     취소
-                                  </Button>
-
-                                  <Button
+                                  </button>
+                                  <button
                                     type="button"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleSaveRoomTitle(room.roomId)
-                                    }
-                                    disabled={
-                                      updateChatbotRoomMutation.isPending
-                                    }
+                                    onClick={() => handleSaveRoomTitle(room.roomId)}
+                                    disabled={updateChatbotRoomMutation.isPending}
+                                    className="text-xs font-semibold text-blue-600 transition hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
                                   >
                                     저장
-                                  </Button>
+                                  </button>
                                 </div>
                               </div>
                             ) : (
@@ -1454,7 +1498,7 @@ function ChatPage() {
                                   }
                                   className="w-full text-left"
                                 >
-                                  <p className="font-semibold text-slate-900">
+                                  <p className="truncate font-semibold text-slate-900">
                                     {room.title || '새 대화'}
                                   </p>
 
@@ -1467,36 +1511,27 @@ function ChatPage() {
                                   </p>
                                 </button>
 
-                                <div className="mt-3 flex gap-2">
-                                  <Button
+                                <div className="mt-2 flex gap-3">
+                                  <button
                                     type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    className="border border-slate-200"
                                     onClick={() =>
                                       handleStartEditRoomTitle(
                                         room.roomId,
                                         room.title || '새 대화',
                                       )
                                     }
+                                    className="text-xs text-slate-400 transition hover:text-blue-600"
                                   >
-                                    이름 수정
-                                  </Button>
-
-                                  <Button
+                                    수정
+                                  </button>
+                                  <button
                                     type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    className="border border-red-200 text-red-600 hover:bg-red-50"
-                                    onClick={() =>
-                                      handleDeleteChatbotRoom(room.roomId)
-                                    }
-                                    disabled={
-                                      deleteChatbotRoomMutation.isPending
-                                    }
+                                    onClick={() => handleDeleteChatbotRoom(room.roomId)}
+                                    disabled={deleteChatbotRoomMutation.isPending}
+                                    className="text-xs text-slate-400 transition hover:text-red-500 disabled:cursor-not-allowed"
                                   >
                                     삭제
-                                  </Button>
+                                  </button>
                                 </div>
                               </div>
                             )}
@@ -1504,73 +1539,16 @@ function ChatPage() {
                         );
                       })}
                   </div>
-                </Card>
+                </div>
 
-                <Card>
-                  <h2 className="text-lg font-bold text-slate-900">
-                    빠른 질문
-                  </h2>
-
-                  <div className="mt-4 space-y-2">
-                    {[
-                      '복용법 확인',
-                      '부작용 확인',
-                      '내가 복용 중인 약인지 확인',
-                      '같이 먹어도 되는지 확인',
-                      '임산부 주의사항 확인',
-                    ].map((question) => (
-                      <button
-                        key={question}
-                        type="button"
-                        onClick={() => handleQuickQuestion(question)}
-                        className="w-full rounded-xl bg-white px-3 py-3 text-left text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-700"
-                      >
-                        {question}
-                      </button>
-                    ))}
-                  </div>
-                </Card>
-
-                <Card className="border-yellow-100 bg-yellow-50">
-                  <h2 className="text-lg font-bold text-yellow-700">
-                    약사 상담 연결
-                  </h2>
-
-                  <p className="mt-2 text-sm leading-6 text-yellow-700">
-                    복용 중단, 용량 변경, 심한 부작용 의심 등은 AI 답변만으로
-                    판단하지 않고 약사 상담을 권장합니다.
-                  </p>
-
-                  <Button
-                    type="button"
-                    className="mt-4 w-full"
-                    onClick={
-                      activeConsultRoom
-                        ? handleMoveToPharmacist
-                        : handleCreateConsultRoom
-                    }
-                    disabled={
-                      createConsultRoomMutation.isPending ||
-                      isMyConsultRoomsLoading
-                    }
-                  >
-                    {createConsultRoomMutation.isPending
-                      ? '상담 요청 중...'
-                      : activeConsultRoom?.status === 'PENDING'
-                        ? '상담 대기방으로 이동'
-                        : activeConsultRoom
-                          ? '진행 중인 상담으로 이동'
-                          : '약사 상담 요청'}
-                  </Button>
-                </Card>
               </>
             )}
 
             {activeMode === 'pharmacist' && (
               <>
-                <Card>
+                <div className={[sidebarPanelClass, 'flex flex-1 flex-col overflow-hidden'].join(' ')}>
                   <div className="flex items-center justify-between gap-2">
-                    <h2 className="text-lg font-bold text-slate-900">
+                    <h2 className="text-base font-bold text-slate-900">
                       내 상담 내역
                     </h2>
 
@@ -1584,14 +1562,14 @@ function ChatPage() {
                     </Button>
                   </div>
 
-                  <div className="mt-4 space-y-4">
+                  <div className="mt-4 flex-1 overflow-y-auto space-y-4">
                     <div>
                       <p className="mb-2 text-xs font-bold text-slate-500">
                         진행 중
                       </p>
 
                       {activeConsultRooms.length === 0 ? (
-                        <div className="rounded-xl bg-white p-3 text-sm text-slate-500">
+                        <div className={emptyPanelClass}>
                           진행 중인 상담이 없습니다.
                         </div>
                       ) : (
@@ -1609,10 +1587,10 @@ function ChatPage() {
                                   setActiveMode('pharmacist');
                                 }}
                                 className={[
-                                  'w-full rounded-xl border p-3 text-left text-sm transition',
+                                  roomItemBaseClass,
                                   isSelected
-                                    ? 'border-blue-200 bg-blue-50'
-                                    : 'border-slate-200 bg-white hover:bg-slate-50',
+                                    ? roomItemSelectedClass
+                                    : roomItemDefaultClass,
                                 ].join(' ')}
                               >
                                 <div className="flex items-center justify-between gap-2">
@@ -1620,14 +1598,17 @@ function ChatPage() {
                                     상담방 #{room.roomId}
                                   </p>
 
-                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                                    {room.status === 'PENDING'
-                                      ? '대기'
-                                      : '진행'}
+                                  <span className={[
+                                    'rounded-full px-2 py-0.5 text-xs font-semibold',
+                                    room.status === 'PENDING'
+                                      ? 'bg-yellow-100 text-yellow-700'
+                                      : 'bg-blue-100 text-blue-700',
+                                  ].join(' ')}>
+                                    {room.status === 'PENDING' ? '대기' : '진행 중'}
                                   </span>
                                 </div>
 
-                                <p className="mt-1 line-clamp-2 text-slate-500">
+                                <p className="mt-1 truncate text-slate-500">
                                   {room.firstMessage || '상담 메시지 없음'}
                                 </p>
 
@@ -1649,11 +1630,11 @@ function ChatPage() {
                       </p>
 
                       {completedConsultRooms.length === 0 ? (
-                        <div className="rounded-xl bg-white p-3 text-sm text-slate-500">
+                        <div className={emptyPanelClass}>
                           종료된 상담이 없습니다.
                         </div>
                       ) : (
-                        <div className="max-h-56 space-y-2 overflow-y-auto">
+                        <div className="space-y-2">
                           {completedConsultRooms.map((room) => {
                             const isSelected =
                               activeConsultRoom?.roomId === room.roomId;
@@ -1667,17 +1648,23 @@ function ChatPage() {
                                   setActiveMode('pharmacist');
                                 }}
                                 className={[
-                                  'w-full rounded-xl border p-3 text-left text-sm transition',
+                                  roomItemBaseClass,
                                   isSelected
-                                    ? 'border-blue-200 bg-blue-50'
-                                    : 'border-slate-200 bg-white hover:bg-slate-50',
+                                    ? roomItemSelectedClass
+                                    : roomItemDefaultClass,
                                 ].join(' ')}
                               >
-                                <p className="font-semibold text-slate-900">
-                                  상담방 #{room.roomId}
-                                </p>
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="font-semibold text-slate-900">
+                                    상담방 #{room.roomId}
+                                  </p>
 
-                                <p className="mt-1 line-clamp-2 text-slate-500">
+                                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                                    완료
+                                  </span>
+                                </div>
+
+                                <p className="mt-1 truncate text-slate-500">
                                   {room.firstMessage || '상담 메시지 없음'}
                                 </p>
 
@@ -1693,15 +1680,15 @@ function ChatPage() {
                       )}
                     </div>
                   </div>
-                </Card>
+                </div>
               </>
             )}
           </aside>
 
-          <div className="flex h-full min-h-0 flex-col">
+          <div className="flex min-h-0 flex-col bg-white lg:h-full">
             {activeMode === 'pharmacist' && (
-              <div className="border-b border-slate-100 p-4">
-                <div className="rounded-2xl bg-yellow-50 p-4 text-sm leading-6 text-yellow-700">
+              <div className="border-b border-slate-200/80 bg-white p-4">
+                <div className={noticePanelClass}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-bold">
                       {getConsultRoomStatusLabel(activeConsultRoom?.status)}
@@ -1709,7 +1696,7 @@ function ChatPage() {
 
                     <div className="flex flex-wrap items-center gap-2">
                       {activeConsultRoom && (
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-yellow-700">
+                        <span className="rounded-full border border-emerald-100 bg-white px-3 py-1 text-xs font-semibold text-emerald-700">
                           상담방 #{activeConsultRoom.roomId}
                         </span>
                       )}
@@ -1719,7 +1706,7 @@ function ChatPage() {
                           type="button"
                           onClick={handleCloseConsultRoom}
                           disabled={closeConsultRoomMutation.isPending}
-                          className="rounded-full bg-yellow-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-yellow-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {closeConsultRoomMutation.isPending
                             ? '종료 중'
@@ -1734,7 +1721,7 @@ function ChatPage() {
                   </p>
 
                   {activeConsultRoom?.status === 'PENDING' && (
-                    <p className="mt-2 text-xs text-yellow-600">
+                    <p className="mt-2 text-xs text-emerald-600">
                       약사가 수락하면 상태가 자동으로 갱신됩니다.
                     </p>
                   )}
@@ -1744,11 +1731,11 @@ function ChatPage() {
 
             <div
               ref={chatMessagesContainerRef}
-              className="min-h-0 flex-1 overflow-y-auto p-6"
+              className="min-h-0 flex-1 overflow-y-auto bg-slate-50/40 p-4 sm:p-6"
             >
               <div className="space-y-4">
                 {activeMode === 'ai' && isChatbotRoomMessagesLoading && (
-                  <div className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-700">
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4 text-sm text-blue-700">
                     대화 내용을 불러오는 중입니다.
                   </div>
                 )}
@@ -1756,7 +1743,7 @@ function ChatPage() {
                 {activeMode === 'ai' &&
                   !activeChatbotRoomId &&
                   chatbotRooms.length > 0 && (
-                    <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+                    <div className={messageNoticeClass}>
                       왼쪽 대화방 목록에서 대화방을 선택하거나 새 대화를
                       시작해주세요.
                     </div>
@@ -1770,7 +1757,7 @@ function ChatPage() {
                   const shouldShowPharmacistButton =
                     activeMode === 'ai' &&
                     chat.sender === 'AI' &&
-                    chat.answerType === 'FALLBACK';
+                    chat.answerType === 'CONSULT_RECOMMENDED';
 
                   const pharmacistDraft =
                     chat.escalationDraft ??
@@ -1784,90 +1771,95 @@ function ChatPage() {
                   return (
                     <div
                       key={chat.id}
-                      className={[
-                        'flex',
-                        chat.sender === 'USER'
-                          ? 'justify-end'
-                          : 'justify-start',
-                      ].join(' ')}
+                      className={['flex', getMessageAlignmentClass(chat.sender)].join(' ')}
                     >
-                      <div
-                        className={[
-                          'max-w-[80%] rounded-2xl p-4',
-                          chat.sender === 'USER'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-slate-100 text-slate-700',
-                        ].join(' ')}
-                      >
-                        <div className="mb-2 flex items-center gap-2">
-                          <Badge variant={getSenderBadge(chat.sender)}>
-                            {getSenderLabel(chat.sender)}
-                          </Badge>
-
-                          <span
-                            className={[
-                              'text-xs',
-                              chat.sender === 'USER'
-                                ? 'text-blue-100'
-                                : 'text-slate-400',
-                            ].join(' ')}
-                          >
-                            {chat.createdAt}
-                          </span>
+                      {chat.sender === 'SYSTEM' ? (
+                        <div className={getMessageBubbleClass(chat.sender)}>
+                          {displayParts.content && (
+                            <p className="whitespace-pre-line text-sm leading-6">
+                              {displayParts.content}
+                            </p>
+                          )}
                         </div>
+                      ) : (
+                        <div className={['flex flex-col', chat.sender === 'USER' ? 'items-end' : 'items-start'].join(' ')}>
+                          {chat.sender !== 'USER' && (
+                            <span className={[
+                              'mb-1 text-xs font-semibold',
+                              chat.sender === 'PHARMACIST'
+                                ? 'text-emerald-600'
+                                : 'text-slate-500',
+                            ].join(' ')}>
+                              {chat.sender === 'PHARMACIST'
+                                ? (isConsultRoomMatched && pharmacistSocketName
+                                    ? `${pharmacistSocketName} 약사`
+                                    : '약사')
+                                : getSenderLabel(chat.sender)}
+                            </span>
+                          )}
 
-                        {displayParts.drugNames.length > 0 && (
-                          <div className="mb-3 space-y-1">
-                            {displayParts.drugNames.map((drugName) => (
-                              <p
-                                key={drugName}
-                                className="text-sm font-bold leading-6"
-                              >
-                                {drugName}
+                          <div className={getMessageBubbleClass(chat.sender)}>
+                            {displayParts.drugNames.length > 0 && (
+                              <div className="mb-3 space-y-1">
+                                {displayParts.drugNames.map((drugName) => (
+                                  <p key={drugName} className="text-sm font-bold leading-6">
+                                    {drugName}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+
+                            {displayParts.content && (
+                              <p className="whitespace-pre-line text-sm leading-6">
+                                {displayParts.content}
                               </p>
-                            ))}
-                          </div>
-                        )}
+                            )}
 
-                        {displayParts.content && (
-                          <p className="whitespace-pre-line text-sm leading-6">
-                            {displayParts.content}
-                          </p>
-                        )}
-                        {shouldShowPharmacistButton && pharmacistDraft && (
-                          <div className="mt-3">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleContinueToPharmacist(
-                                  pharmacistDraft,
-                                  chat.escalationDrugs ?? previousUserMessage?.drugs ?? [],
-                                )
-                              }
-                              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                            >
-                              약사 상담으로 이어가기
-                            </button>
+                            {shouldShowPharmacistButton && pharmacistDraft && (
+                              <div className="mt-3">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleContinueToPharmacist(
+                                      pharmacistDraft,
+                                      chat.escalationDrugs ?? previousUserMessage?.drugs ?? [],
+                                    )
+                                  }
+                                  className="rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+                                >
+                                  약사 상담으로 이어가기
+                                </button>
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {activeMode === 'ai' && chat.apiMessageId && (
-                          <div className="mt-3 flex justify-end">
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteChatbotMessage(chat)}
-                              disabled={deleteChatbotMessageMutation.isPending}
-                              className={[
-                                'text-xs font-semibold',
-                                chat.sender === 'USER'
-                                  ? 'text-blue-100 hover:text-white'
-                                  : 'text-slate-400 hover:text-red-600',
-                              ].join(' ')}
-                            >
-                              삭제
-                            </button>
+
+                          <div className="mt-1 flex items-center gap-3">
+                            {activeMode === 'ai' && chat.apiMessageId && chat.sender === 'USER' && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteChatbotMessage(chat)}
+                                disabled={deleteChatbotMessageMutation.isPending}
+                                className="text-xs text-slate-300 transition hover:text-red-500 disabled:cursor-not-allowed"
+                              >
+                                삭제
+                              </button>
+                            )}
+                            <span className="text-xs text-slate-400">
+                              {formatDisplayTime(chat)}
+                            </span>
+                            {activeMode === 'ai' && chat.apiMessageId && chat.sender !== 'USER' && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteChatbotMessage(chat)}
+                                disabled={deleteChatbotMessageMutation.isPending}
+                                className="text-xs text-slate-300 transition hover:text-red-500 disabled:cursor-not-allowed"
+                              >
+                                삭제
+                              </button>
+                            )}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1875,7 +1867,7 @@ function ChatPage() {
                 {activeMode === 'ai' &&
                   sendChatbotMessageMutation.isPending && (
                     <div className="flex justify-start">
-                      <div className="rounded-2xl bg-slate-100 p-4 text-sm text-slate-500">
+                      <div className={messageNoticeClass}>
                         AI가 답변을 생성하고 있습니다...
                       </div>
                     </div>
@@ -1884,8 +1876,8 @@ function ChatPage() {
             </div>
 
             {activeMode === 'pharmacist' && activeConsultRoom && isConsultRoomClosed && (
-              <div className="shrink-0 border-t border-slate-100 p-4">
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+              <div className={inputPanelClass}>
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4 shadow-sm">
                   <p className="text-sm font-bold text-blue-800">
                     AI 상담 요약
                   </p>
@@ -1904,8 +1896,8 @@ function ChatPage() {
             )}
 
             {shouldShowConsultFeedbackForm && activeConsultRoom && (
-              <div className="shrink-0 border-t border-slate-100 p-4">
-                <div className="rounded-2xl bg-slate-50 p-4">
+              <div className={inputPanelClass}>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-sm">
                   <p className="text-sm font-bold text-slate-900">
                     상담은 어떠셨나요?
                   </p>
@@ -1919,8 +1911,8 @@ function ChatPage() {
                         className={[
                           'rounded-full px-3 py-2 text-sm font-bold transition',
                           feedbackRating >= rating
-                            ? 'bg-yellow-400 text-white'
-                            : 'bg-white text-slate-400',
+                            ? 'bg-amber-400 text-white shadow-sm shadow-amber-400/20'
+                            : 'border border-slate-200 bg-white text-slate-400 hover:bg-slate-50',
                         ].join(' ')}
                       >
                         ★
@@ -1932,7 +1924,7 @@ function ChatPage() {
                     value={feedbackComment}
                     onChange={(event) => setFeedbackComment(event.target.value)}
                     placeholder="상담에 대한 한줄평을 남겨주세요."
-                    className="mt-3 min-h-24 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                    className={textareaClass}
                   />
 
                   <div className="mt-3 flex justify-end">
@@ -1951,13 +1943,13 @@ function ChatPage() {
             )}
 
             {shouldShowSubmittedConsultFeedback && activeConsultRoom && (
-              <div className="shrink-0 border-t border-slate-100 p-4">
-                <div className="rounded-2xl bg-slate-50 p-4">
+              <div className={inputPanelClass}>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-sm">
                   <p className="text-sm font-bold text-slate-900">
                     내가 남긴 상담 평가
                   </p>
 
-                  <p className="mt-2 text-sm text-yellow-500">
+                  <p className="mt-2 text-sm text-amber-500">
                     {'★'.repeat(activeConsultRoom.rating ?? 0)}
                     <span className="text-slate-300">
                       {'★'.repeat(5 - (activeConsultRoom.rating ?? 0))}
@@ -1971,7 +1963,7 @@ function ChatPage() {
               </div>
             )}
 
-            <div className="shrink-0 border-t border-slate-100 p-4">
+            <div className={inputPanelClass}>
               <div className="relative">
                 <div className="flex w-full gap-2">
                   <div className="flex-1">
@@ -1991,7 +1983,7 @@ function ChatPage() {
 
                   <Button
                     type="button"
-                    className="w-24 shrink-0"
+                    className="w-24 shrink-0 rounded-xl"
                     onClick={handleSendMessage}
                     disabled={
                       sendChatbotMessageMutation.isPending ||
@@ -2017,7 +2009,7 @@ function ChatPage() {
                 </div>
 
                 {isDrugSearchOpen && (
-                  <div className="absolute bottom-full left-0 z-10 mb-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
+                  <div className="absolute bottom-full left-0 z-10 mb-3 w-full rounded-2xl border border-slate-200/90 bg-white p-2 shadow-2xl shadow-slate-950/10">
                     <div className="mb-2 px-2 text-xs font-semibold text-slate-500">
                       약 검색 결과
                     </div>
@@ -2049,7 +2041,7 @@ function ChatPage() {
                           key={drug.name}
                           type="button"
                           onClick={() => handleSelectDrug(drug)}
-                          className="w-full rounded-xl px-3 py-3 text-left hover:bg-slate-50"
+                          className="w-full rounded-xl px-3 py-3 text-left transition hover:bg-blue-50/70"
                         >
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-semibold text-slate-900">

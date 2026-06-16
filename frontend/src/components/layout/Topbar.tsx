@@ -1,32 +1,33 @@
-import { useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
 import { useUserStore } from "../../store/useUserStore";
 
-function Topbar() {
-  const navigate = useNavigate();
-  const role = useUserStore((state) => state.role);
-  const logout = useUserStore((state) => state.logout);
+function getRoleLabel(role: string | null) {
+  if (role === "PHARMACIST") return "약사";
+  if (role === "ADMIN") return "관리자";
+  if (role === "USER") return "사용자";
+  return "비로그인";
+}
 
-  const handleLogout = () => {
-    logout();
-    toast.success("로그아웃되었습니다.");
-    navigate("/login");
-  };
+function getRoleBadgeClass(role: string | null) {
+  if (role === "PHARMACIST")
+    return "border-emerald-300 bg-emerald-100 text-emerald-900";
+  if (role === "ADMIN")
+    return "border-slate-300 bg-slate-100 text-slate-800";
+  return "border-blue-300 bg-blue-100 text-blue-900";
+}
+
+function Topbar() {
+  const role = useUserStore((state) => state.role);
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-8">
-      <div>
-        <p className="text-sm text-slate-500">현재 역할</p>
-        <p className="font-semibold text-slate-900">{role ?? "비로그인"}</p>
-      </div>
-
-      <button
-        type="button"
-        onClick={handleLogout}
-        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+    <header className="sticky top-0 z-20 flex h-14 items-center border-b border-slate-200 bg-white/95 px-6 shadow-sm backdrop-blur-xl lg:px-8">
+      <span
+        className={[
+          "inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold",
+          getRoleBadgeClass(role),
+        ].join(" ")}
       >
-        로그아웃
-      </button>
+        {getRoleLabel(role)}
+      </span>
     </header>
   );
 }

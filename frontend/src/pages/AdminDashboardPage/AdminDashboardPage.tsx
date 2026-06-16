@@ -188,18 +188,6 @@ function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-semibold text-blue-600">Admin Dashboard</p>
-
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">
-          관리자 대시보드
-        </h1>
-
-        <p className="mt-2 text-slate-500">
-          전체 회원 현황과 약사 승인 대기 현황을 확인합니다.
-        </p>
-      </div>
-
       {isAdminStatsError && (
         <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-700">
           관리자 통계를 불러오지 못했습니다. 관리자 권한과 로그인 상태를
@@ -214,12 +202,12 @@ function AdminDashboardPage() {
         >
           <p className="text-sm font-medium text-slate-500">전체 회원 수</p>
 
-          <p className="mt-3 text-3xl font-bold text-slate-900">
+          <p className="mt-3 text-3xl font-bold text-slate-700">
             {isAdminStatsLoading ? '-' : `${adminStats?.totalUserCount ?? 0}명`}
           </p>
 
           <p className="mt-2 text-sm text-slate-500">
-            일반 사용자, 약사, 관리자를 포함한 전체 계정입니다.
+            전체 가입 계정 수입니다.
           </p>
         </Card>
 
@@ -229,7 +217,7 @@ function AdminDashboardPage() {
         >
           <p className="text-sm font-medium text-slate-500">전체 약사 수</p>
 
-          <p className="mt-3 text-3xl font-bold text-slate-900">
+          <p className="mt-3 text-3xl font-bold text-blue-600">
             {isAdminStatsLoading
               ? '-'
               : `${adminStats?.totalPharmacistCount ?? 0}명`}
@@ -246,7 +234,12 @@ function AdminDashboardPage() {
         >
           <p className="text-sm font-medium text-slate-500">승인 대기 약사</p>
 
-          <p className="mt-3 text-3xl font-bold text-slate-900">
+          <p className={[
+            'mt-3 text-3xl font-bold',
+            (adminStats?.pendingPharmacistCount ?? 0) > 0
+              ? 'text-yellow-500'
+              : 'text-slate-400',
+          ].join(' ')}>
             {isAdminStatsLoading
               ? '-'
               : `${adminStats?.pendingPharmacistCount ?? 0}명`}
@@ -276,7 +269,7 @@ function AdminDashboardPage() {
 
           <div className="mt-4 space-y-3">
             {isPendingPharmacistsLoading && (
-              <div className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-700">
+              <div className="rounded-2xl bg-slate-100 p-4 text-sm text-slate-600">
                 승인 대기 약사 목록을 불러오는 중입니다.
               </div>
             )}
@@ -302,7 +295,7 @@ function AdminDashboardPage() {
                   key={pharmacist.userId}
                   type="button"
                   onClick={() => navigate('/admin/pharmacists')}
-                  className="block w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:border-blue-200 hover:bg-blue-50/40"
+                  className="block w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:border-slate-300 hover:bg-slate-50"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-bold text-slate-900">
@@ -331,11 +324,11 @@ function AdminDashboardPage() {
               <h2 className="text-xl font-bold text-slate-900">회원 현황</h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                일반 사용자와 약사 계정 상태를 요약하고 최근 계정 일부를 표시합니다.
+                계정 상태 요약 및 최근 가입 현황입니다.
               </p>
             </div>
 
-            <Badge variant="blue">{dashboardAccounts.length}명</Badge>
+            <Badge variant="gray">{dashboardAccounts.length}명</Badge>
           </div>
 
           <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -368,12 +361,12 @@ function AdminDashboardPage() {
                   key={user.id}
                   type="button"
                   onClick={() => navigate(getAccountManagePath(user.role))}
-                  className="block w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:border-blue-200 hover:bg-blue-50/40"
+                  className="block w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:border-slate-300 hover:bg-slate-50"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-bold text-slate-900">{user.username}</p>
 
-                    <Badge variant="blue">{getRoleLabel(user.role)}</Badge>
+                    <Badge variant="gray">{getRoleLabel(user.role)}</Badge>
 
                     <Badge variant={getStatusBadge(user.role, user.status)}>
                       {getStatusLabel(user.role, user.status)}
@@ -390,15 +383,11 @@ function AdminDashboardPage() {
           </div>
         </Card>
 
-        <Card>
+        <Card className="lg:col-span-2">
           <div className="space-y-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="text-sm font-semibold text-blue-600">
-                  System Management
-                </p>
-
-                <h2 className="mt-1 text-xl font-bold text-slate-900">약 DB 갱신</h2>
+                <h2 className="text-xl font-bold text-slate-900">약 DB 갱신</h2>
 
                 <p className="mt-2 text-sm text-slate-500">
                   약 정보 데이터를 최신 상태로 동기화합니다. 갱신 중에는 시간이 걸릴 수 있습니다.
@@ -413,6 +402,7 @@ function AdminDashboardPage() {
 
               <Button
                 type="button"
+                variant="slate"
                 onClick={handleSyncMedicines}
                 disabled={
                   syncMedicinesMutation.isPending || isMedicineSyncStatusLoading
@@ -455,10 +445,6 @@ function AdminDashboardPage() {
         </Card>
       </div>
 
-      <div className="rounded-2xl bg-blue-50 p-4 text-sm leading-6 text-blue-700">
-        관리자 대시보드는 회원 통계와 승인 대기 상태를 빠르게 확인하는
-        요약 화면입니다. 약사 승인/거절은 약사 관리 화면에서 처리합니다.
-      </div>
     </div>
   );
 }

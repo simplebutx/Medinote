@@ -8,7 +8,7 @@ function Card({ children, className = "", ...props }: CardProps) {
   return (
     <div
       className={[
-        "rounded-2xl border border-slate-200 bg-white p-6 shadow-sm",
+        "rounded-2xl border border-slate-200 bg-white p-5 shadow-sm",
         className,
       ].join(" ")}
       {...props}
