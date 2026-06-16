@@ -26,7 +26,7 @@ import {
   useCreateMedicationScheduleTime,
   useDeleteMedicationSchedule,
   useDeleteMedicationScheduleTime,
-  useMedicationSchedules,
+  usePaginatedMedicationSchedules,
   useMedicationTimePresets,
   usePrescriptionAnalysis,
   useUpdateMedicationSchedule,
@@ -621,11 +621,28 @@ function MyPage() {
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
   const [hasTriedPasswordChange, setHasTriedPasswordChange] = useState(false);
 
+  // 처방 내역 페이지 상태
+  const [prescriptionPage, setPrescriptionPage] = useState(0);
+  const PRESCRIPTION_PAGE_SIZE = 5;
+
   const {
-    data: medicationSchedules = [],
+    data: paginatedSchedules,
     isLoading: isMedicationScheduleLoading,
     isError: isMedicationScheduleError,
-  } = useMedicationSchedules();
+    refetch: refetchMedicationSchedules,
+  } = usePaginatedMedicationSchedules(prescriptionPage, PRESCRIPTION_PAGE_SIZE);
+
+  const medicationSchedules = paginatedSchedules?.content ?? [];
+  const prescriptionTotalPages = paginatedSchedules?.totalPages ?? 1;
+
+  // 처방전 탭 활성화 시 첫 페이지부터 재조회
+  useEffect(() => {
+    if (activeTab === 'prescription') {
+      setPrescriptionPage(0);
+      refetchMedicationSchedules();
+    }
+  }, [activeTab]);
+
 
   const {
     data: medicationTimePresets = [],
@@ -2992,6 +3009,45 @@ function MyPage() {
                     </div>
                   );
                 })}
+            </div>
+          )}
+
+          {/* 처방 내역 페이지네이션 */}
+          {!isMedicationScheduleLoading && !isMedicationScheduleError && prescriptionTotalPages > 1 && (
+            <div className="flex items-center justify-center gap-1 pt-2">
+              <button
+                type="button"
+                onClick={() => setPrescriptionPage((p) => Math.max(0, p - 1))}
+                disabled={prescriptionPage === 0}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                이전
+              </button>
+
+              {Array.from({ length: prescriptionTotalPages }, (_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setPrescriptionPage(i)}
+                  className={[
+                    'rounded-lg px-3 py-1.5 text-sm font-semibold transition',
+                    prescriptionPage === i
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                  ].join(' ')}
+                >
+                  {i + 1}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setPrescriptionPage((p) => Math.min(prescriptionTotalPages - 1, p + 1))}
+                disabled={prescriptionPage >= prescriptionTotalPages - 1}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                다음
+              </button>
             </div>
           )}
         </div>
