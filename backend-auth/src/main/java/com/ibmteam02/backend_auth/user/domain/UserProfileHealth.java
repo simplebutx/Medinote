@@ -17,11 +17,13 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 @Entity
 @Getter
 @Table(name = "user_profile_health")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class UserProfileHealth {
 
     private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");

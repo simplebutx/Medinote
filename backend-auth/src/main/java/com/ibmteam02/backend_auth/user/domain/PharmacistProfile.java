@@ -1,15 +1,25 @@
 package com.ibmteam02.backend_auth.user.domain;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 @Getter
 @Entity
 @Table(name = "pharmacist_profile")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class PharmacistProfile {
 
     @Id
@@ -34,7 +44,7 @@ public class PharmacistProfile {
         this.user = user;
         this.docNumber = docNumber; //약국명
         this.licenseNumber = licenseNumber; //면허번호
-        this.licenseImage = licenseImage; //면허증ㅜ 이미지
+        this.licenseImage = licenseImage; //면허증 이미지
     }
 
     //약사 마이페이지 약국명 수정

@@ -11,9 +11,14 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User,Long> {
     //회원가입
-    boolean existsByEmail(String email);
+    boolean existsByEmailHash(String emailHash);
     //로그인
-    Optional<User> findByEmail(String email);
+    Optional<User> findByEmailHash(String emailHash);
+
+    // 기존 가입자(평문 데이터)를 위한 네이티브 쿼리
+    @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM users WHERE email = :email", nativeQuery = true)
+    Optional<User> findByRawEmail(@org.springframework.data.repository.query.Param("email") String email);
+
     //약사 승인 대기중인 리스트
     List<User> findByStatus(UserStatus status);
 }

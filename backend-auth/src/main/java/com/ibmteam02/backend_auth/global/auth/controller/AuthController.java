@@ -27,6 +27,7 @@ public class AuthController {
     // 공통 회원가입 1단계
     @PostMapping("/signup")
     public ResponseEntity<String> signup(@RequestBody SignupRequest signupRequest) {
+        System.out.println("username = " + signupRequest.getUsername());
         log.info("signup request: email={}, username={}, birthDate={}, gender={}, role={}",
                 signupRequest.getEmail(),
                 signupRequest.getUsername(),

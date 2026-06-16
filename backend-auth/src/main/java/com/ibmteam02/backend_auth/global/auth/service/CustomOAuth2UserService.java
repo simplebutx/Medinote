@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private final UserRepository userRepository;
+    private final com.ibmteam02.backend_auth.global.util.EncryptionUtils encryptionUtils;
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -42,12 +43,19 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private User saveOrUpdate(OAuthAttributes attributes) {
-        User user = userRepository.findByEmail(attributes.getEmail())
-                .map(entity -> {
-                    // 기존 유저가 있다면 소셜 정보 연결
-                    return entity;
-                })
-                .orElseGet(() -> attributes.toEntity()); // 신규 유저 생성
+        String emailHash = encryptionUtils.hash(attributes.getEmail());
+        
+        // 1. 먼저 해시로 검색
+        User user = userRepository.findByEmailHash(emailHash)
+                .orElseGet(() -> {
+                    // 2. 없으면 평문 이메일로 검색 (기존 소셜 가입자 마이그레이션)
+                    return userRepository.findByRawEmail(attributes.getEmail())
+                            .map(legacyUser -> {
+                                legacyUser.updateEmailHash(emailHash);
+                                return legacyUser;
+                            })
+                            .orElseGet(() -> attributes.toEntity(emailHash)); // 3. 아예 없으면 신규 생성
+                });
 
         return userRepository.save(user);
 

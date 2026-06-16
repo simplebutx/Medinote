@@ -1,6 +1,8 @@
 package com.ibmteam02.backend_auth.user.domain;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import com.ibmteam02.backend_auth.global.util.StringEncryptionConverter;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -39,6 +41,7 @@ public class UserChronicDisease {
     private DiseaseMaster diseaseMaster;
 
     @Column(nullable = false)
+    @Convert(converter = StringEncryptionConverter.class)
     private String diseaseName;
 
     @Column(name = "created_at", updatable = false)

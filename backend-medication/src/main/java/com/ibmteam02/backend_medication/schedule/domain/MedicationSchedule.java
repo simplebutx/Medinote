@@ -1,6 +1,7 @@
 package com.ibmteam02.backend_medication.schedule.domain;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -8,6 +9,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import com.ibmteam02.backend_medication.global.util.StringEncryptionConverter;
+import com.ibmteam02.backend_medication.global.util.LocalDateEncryptionConverter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -31,13 +34,16 @@ public class MedicationSchedule {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "hospital_name")
+    @Column(name = "hospital_name", nullable = false, columnDefinition = "VARCHAR(512)")
+    @Convert(converter = StringEncryptionConverter.class)
     private String hospitalName;
 
-    @Column(name = "pharmacy_name")
+    @Column(name = "pharmacy_name", columnDefinition = "VARCHAR(512)")
+    @Convert(converter = StringEncryptionConverter.class)
     private String pharmacyName;
 
-    @Column(name = "dispensed_date")
+    @Column(name = "dispensed_date", columnDefinition = "VARCHAR(512)")
+    @Convert(converter = LocalDateEncryptionConverter.class)
     private LocalDate dispensedDate;
 
     @Column(name = "is_active", nullable = false)

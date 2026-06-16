@@ -1,10 +1,12 @@
 package com.ibmteam02.backend_consultation.consultation.controller;
 
-import com.ibmteam02.backend_consultation.ai.dto.AiConsultationSummaryRequest;
 import com.ibmteam02.backend_consultation.consultation.dto.*;
 import com.ibmteam02.backend_consultation.consultation.service.ConsultationService;
 import com.ibmteam02.backend_consultation.global.auth.JwtProvider;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -73,8 +75,7 @@ public class ConsultationController {
             String token = bearerToken.substring(7);
             String role = jwtProvider.getRoleFromToken(token);
 
-            List<ConsultationRoomResponse> pendingRooms = consultationService.getPendingRooms(role);
-            return ResponseEntity.ok(pendingRooms);
+            return ResponseEntity.ok(consultationService.getPendingRooms(role));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("서버 내부 에러 발생: " + e.getMessage());
@@ -83,7 +84,8 @@ public class ConsultationController {
 
     //약사 상담 진행 중 목록
     @GetMapping("/rooms/active")
-    public ResponseEntity<?> getActiveRooms(@RequestHeader("Authorization") String bearerToken){
+    public ResponseEntity<?> getActiveRooms(
+            @RequestHeader("Authorization") String bearerToken){
         try{
             String token = bearerToken.substring(7);
             Long userId = jwtProvider.getUserIdFromToken(token);
@@ -97,7 +99,8 @@ public class ConsultationController {
 
     //약사 상담 완료된 목록
     @GetMapping("/rooms/completed")
-    public ResponseEntity<?> getCompletedRooms(@RequestHeader("Authorization") String bearerToken){
+    public ResponseEntity<?> getCompletedRooms(
+            @RequestHeader("Authorization") String bearerToken){
         try{
             String token = bearerToken.substring(7);
             Long userId = jwtProvider.getUserIdFromToken(token);
@@ -111,7 +114,9 @@ public class ConsultationController {
 
     // 일반 유저 본인 상담 목록 조회
     @GetMapping("/rooms/my")
-    public ResponseEntity<?> getMyRooms(@RequestHeader("Authorization") String bearerToken) {
+    public ResponseEntity<?> getMyRooms(
+            @RequestHeader("Authorization") String bearerToken
+    ) {
         try {
             String token = bearerToken.substring(7);
             Long userId = jwtProvider.getUserIdFromToken(token);
