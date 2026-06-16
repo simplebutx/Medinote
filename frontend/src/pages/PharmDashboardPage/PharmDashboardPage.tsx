@@ -100,20 +100,6 @@ function PharmDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-semibold text-blue-600">
-          Pharmacist Dashboard
-        </p>
-
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">
-          약사 대시보드
-        </h1>
-
-        <p className="mt-2 text-slate-500">
-          상담 요청과 환자 정보를 빠르게 확인하고 관리합니다.
-        </p>
-      </div>
-
       {isError && (
         <Card className="border-red-100 bg-red-50">
           <p className="text-sm font-semibold text-red-700">
@@ -132,7 +118,7 @@ function PharmDashboardPage() {
         >
           <p className="text-sm font-medium text-slate-500">상담 대기</p>
 
-          <p className="mt-3 text-3xl font-bold text-slate-900">
+          <p className="mt-3 text-3xl font-bold text-yellow-500">
             {isLoading ? '-' : `${pendingRooms.length}건`}
           </p>
 
@@ -147,7 +133,7 @@ function PharmDashboardPage() {
         >
           <p className="text-sm font-medium text-slate-500">진행 중 상담</p>
 
-          <p className="mt-3 text-3xl font-bold text-slate-900">
+          <p className="mt-3 text-3xl font-bold text-emerald-600">
             {isLoading ? '-' : `${activeRooms.length}건`}
           </p>
 
@@ -203,7 +189,7 @@ function PharmDashboardPage() {
                   key={room.roomId}
                   type="button"
                   onClick={() => navigate('/pharmacist/consults')}
-                  className="block w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:border-blue-200 hover:bg-blue-50/40"
+                  className="block w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:border-emerald-200 hover:bg-emerald-50/40"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-bold text-slate-900">
@@ -215,7 +201,7 @@ function PharmDashboardPage() {
                     </Badge>
                   </div>
 
-                  <p className="mt-2 line-clamp-2 font-semibold text-slate-800">
+                  <p className="mt-2 truncate text-slate-800">
                     {getConsultTitle(room)}
                   </p>
 
@@ -238,35 +224,34 @@ function PharmDashboardPage() {
               </p>
             </div>
 
-            <Badge variant="blue">
-              총 {pendingRooms.length + activeRooms.length + completedRooms.length}
-              건
+            <Badge variant="green">
+              총 {pendingRooms.length + activeRooms.length + completedRooms.length}건
             </Badge>
           </div>
 
           <div className="mt-5 space-y-3">
-            <div className="rounded-2xl border border-slate-200 p-4">
+            <div className="rounded-2xl bg-yellow-50 p-4">
               <div className="flex items-center justify-between">
-                <p className="font-semibold text-slate-700">상담 대기</p>
-                <p className="text-lg font-bold text-slate-900">
+                <p className="font-semibold text-yellow-700">상담 대기</p>
+                <p className="text-lg font-bold text-yellow-600">
                   {pendingRooms.length}건
                 </p>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 p-4">
+            <div className="rounded-2xl bg-emerald-50 p-4">
               <div className="flex items-center justify-between">
-                <p className="font-semibold text-slate-700">진행 중</p>
-                <p className="text-lg font-bold text-slate-900">
+                <p className="font-semibold text-emerald-700">진행 중</p>
+                <p className="text-lg font-bold text-emerald-600">
                   {activeRooms.length}건
                 </p>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 p-4">
+            <div className="rounded-2xl bg-slate-100 p-4">
               <div className="flex items-center justify-between">
-                <p className="font-semibold text-slate-700">완료</p>
-                <p className="text-lg font-bold text-slate-900">
+                <p className="font-semibold text-slate-600">완료</p>
+                <p className="text-lg font-bold text-slate-700">
                   {completedRooms.length}건
                 </p>
               </div>
@@ -278,7 +263,7 @@ function PharmDashboardPage() {
       <Card>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-sm font-semibold text-blue-600">Quick Access</p>
+            <p className="text-sm font-semibold text-emerald-600">Quick Access</p>
 
             <h2 className="mt-1 text-xl font-bold text-slate-900">
               약사 업무 바로가기
@@ -293,7 +278,7 @@ function PharmDashboardPage() {
             <button
               type="button"
               onClick={() => navigate('/pharmacist/consults')}
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+              className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
             >
               상담 관리
             </button>
@@ -301,7 +286,7 @@ function PharmDashboardPage() {
             <button
               type="button"
               onClick={() => navigate('/pharmacist/patients')}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="rounded-xl border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
             >
               환자 조회
             </button>
@@ -309,7 +294,7 @@ function PharmDashboardPage() {
             <button
               type="button"
               onClick={() => navigate('/pharmacist/drugs')}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="rounded-xl border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
             >
               약 검색
             </button>
@@ -317,7 +302,7 @@ function PharmDashboardPage() {
             <button
               type="button"
               onClick={() => navigate('/pharmacist/inventory')}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="rounded-xl border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
             >
               재고 관리
             </button>

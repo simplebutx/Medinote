@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 
-import { Badge, Card, Input } from '../../components/ui';
+import { Badge, Card, PharmInput } from '../../components/ui';
 import { useDebounce } from '../../hooks/useDebounce';
 import {
   useMedicineSearch,
@@ -132,6 +132,12 @@ function PharmInventoryPage() {
     }, 0);
   }, [inventories]);
 
+  const lowStockCount = useMemo(() => {
+    return inventories.filter(
+      (inventory) => Number(getInventoryStockQuantity(inventory)) < 10,
+    ).length;
+  }, [inventories]);
+
   const handleChangeInventoryForm = (
     key: keyof typeof defaultInventoryForm,
     value: string,
@@ -247,43 +253,40 @@ function PharmInventoryPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-semibold text-blue-600">
-          Pharmacist Inventory
-        </p>
-
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">재고 관리</h1>
-
-        <p className="mt-2 text-slate-500">
-          약국에서 보유 중인 의약품 재고를 조회하고 관리합니다.
-        </p>
-      </div>
-
       {message && (
-        <Card className="border-blue-100 bg-blue-50">
-          <p className="text-sm font-semibold text-blue-700">{message}</p>
+        <Card className="border-emerald-100 bg-emerald-50">
+          <p className="text-sm font-semibold text-emerald-700">{message}</p>
         </Card>
       )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <p className="text-sm font-medium text-slate-500">약국 HPID</p>
-          <p className="mt-3 text-2xl font-bold text-slate-900">
-            {currentPharmacyHpid || '-'}
-          </p>
-        </Card>
-
-        <Card>
           <p className="text-sm font-medium text-slate-500">등록 재고</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">
+          <p className="mt-3 text-3xl font-bold text-emerald-600">
             {isInventoryLoading ? '-' : `${inventories.length}건`}
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            현재 약국에 등록된 의약품 종류 수입니다.
           </p>
         </Card>
 
         <Card>
           <p className="text-sm font-medium text-slate-500">총 재고 수량</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">
+          <p className="mt-3 text-3xl font-bold text-emerald-600">
             {isInventoryLoading ? '-' : `${totalStockQuantity}개`}
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            등록된 모든 의약품의 재고 수량 합계입니다.
+          </p>
+        </Card>
+
+        <Card>
+          <p className="text-sm font-medium text-slate-500">재고 부족</p>
+          <p className={['mt-3 text-3xl font-bold', lowStockCount > 0 ? 'text-yellow-500' : 'text-slate-400'].join(' ')}>
+            {isInventoryLoading ? '-' : `${lowStockCount}건`}
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            재고 수량 10개 미만 의약품 수입니다.
           </p>
         </Card>
       </div>
@@ -302,7 +305,7 @@ function PharmInventoryPage() {
             <label className="text-sm font-semibold text-slate-600">
               약국명
             </label>
-            <Input
+            <PharmInput
               value={pharmacyForm.pharmacyName}
               onChange={(event) =>
                 handleChangePharmacyForm('pharmacyName', event.target.value)
@@ -315,7 +318,7 @@ function PharmInventoryPage() {
             <label className="text-sm font-semibold text-slate-600">
               전화번호
             </label>
-            <Input
+            <PharmInput
               value={pharmacyForm.phone}
               onChange={(event) =>
                 handleChangePharmacyForm('phone', event.target.value)
@@ -328,7 +331,7 @@ function PharmInventoryPage() {
             <label className="text-sm font-semibold text-slate-600">
               주소
             </label>
-            <Input
+            <PharmInput
               value={pharmacyForm.address}
               onChange={(event) =>
                 handleChangePharmacyForm('address', event.target.value)
@@ -341,7 +344,7 @@ function PharmInventoryPage() {
             <label className="text-sm font-semibold text-slate-600">
               위도
             </label>
-            <Input
+            <PharmInput
               type="number"
               value={pharmacyForm.latitude}
               onChange={(event) =>
@@ -354,7 +357,7 @@ function PharmInventoryPage() {
             <label className="text-sm font-semibold text-slate-600">
               경도
             </label>
-            <Input
+            <PharmInput
               type="number"
               value={pharmacyForm.longitude}
               onChange={(event) =>
@@ -376,7 +379,7 @@ function PharmInventoryPage() {
                 <p className="font-semibold text-slate-800">{day.label}</p>
 
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <Input
+                  <PharmInput
                     type="time"
                     value={pharmacyForm[day.openKey]}
                     onChange={(event) =>
@@ -384,7 +387,7 @@ function PharmInventoryPage() {
                     }
                   />
 
-                  <Input
+                  <PharmInput
                     type="time"
                     value={pharmacyForm[day.closeKey]}
                     onChange={(event) =>
@@ -402,7 +405,7 @@ function PharmInventoryPage() {
             type="button"
             onClick={handleRegisterPharmacy}
             disabled={registerPharmacyMutation.isPending}
-            className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-xl bg-emerald-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {registerPharmacyMutation.isPending
               ? '등록 중'
@@ -424,23 +427,10 @@ function PharmInventoryPage() {
           <div className="mt-5 space-y-4">
             <div>
               <label className="text-sm font-semibold text-slate-600">
-                약국 HPID
-              </label>
-              <Input
-                value={inventoryForm.pharmacyHpid || currentPharmacyHpid}
-                onChange={(event) =>
-                  handleChangeInventoryForm('pharmacyHpid', event.target.value)
-                }
-                placeholder="약국 등록 후 자동 입력됩니다"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-slate-600">
                 약 검색
               </label>
 
-              <Input
+              <PharmInput
                 value={medicineKeyword}
                 onChange={(event) => {
                   setMedicineKeyword(event.target.value);
@@ -465,7 +455,7 @@ function PharmInventoryPage() {
 
                   <div className="max-h-56 overflow-y-auto py-2">
                     {isMedicineSuggestLoading && !committedMedicineKeyword && (
-                      <div className="px-4 py-4 text-sm text-blue-700">
+                      <div className="px-4 py-4 text-sm text-emerald-700">
                         약 검색 결과를 불러오는 중입니다.
                       </div>
                     )}
@@ -485,7 +475,7 @@ function PharmInventoryPage() {
                           key={suggestion}
                           type="button"
                           onClick={() => handleSelectMedicineKeyword(suggestion)}
-                          className="block w-full px-4 py-3 text-left transition hover:bg-blue-50"
+                          className="block w-full px-4 py-3 text-left transition hover:bg-emerald-50"
                         >
                           <p className="font-semibold text-slate-900">{suggestion}</p>
                           <p className="mt-1 text-xs text-slate-500">약</p>
@@ -493,7 +483,7 @@ function PharmInventoryPage() {
                       ))}
 
                     {isMedicineSearchLoading && (
-                      <div className="px-4 py-4 text-sm text-blue-700">
+                      <div className="px-4 py-4 text-sm text-emerald-700">
                         약 정보를 검색하고 있습니다.
                       </div>
                     )}
@@ -525,10 +515,9 @@ function PharmInventoryPage() {
                             key={`${itemSeq}-${itemName}`}
                             type="button"
                             onClick={() => handleSelectMedicine(medicine)}
-                            className="block w-full px-4 py-3 text-left transition hover:bg-blue-50"
+                            className="block w-full px-4 py-3 text-left transition hover:bg-emerald-50"
                           >
                             <p className="font-semibold text-slate-900">{itemName}</p>
-
                             <p className="mt-1 text-xs text-slate-500">
                               {companyName || '제조사 정보 없음'}
                             </p>
@@ -540,44 +529,24 @@ function PharmInventoryPage() {
               )}
             </div>
 
-            <div>
-              <label className="text-sm font-semibold text-slate-600">
-                품목코드 itemSeq
-              </label>
-              <Input
-                value={inventoryForm.itemSeq}
-                readOnly
-                placeholder="약 선택 시 자동 입력됩니다"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-slate-600">
-                약 이름
-              </label>
-              <Input
-                value={inventoryForm.itemName}
-                readOnly
-                placeholder="약 선택 시 자동 입력됩니다"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-slate-600">
-                제조사
-              </label>
-              <Input
-                value={inventoryForm.companyName}
-                readOnly
-                placeholder="약 선택 시 자동 입력됩니다"
-              />
-            </div>
+            {inventoryForm.itemSeq ? (
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                <p className="text-xs font-semibold text-emerald-600">선택된 약</p>
+                <p className="mt-2 font-bold text-slate-900">{inventoryForm.itemName}</p>
+                <p className="mt-1 text-sm text-slate-500">{inventoryForm.companyName || '제조사 정보 없음'}</p>
+                <p className="mt-1 text-xs text-slate-400">품목코드: {inventoryForm.itemSeq}</p>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-center text-sm text-slate-400">
+                위 검색창에서 약을 선택해주세요
+              </div>
+            )}
 
             <div>
               <label className="text-sm font-semibold text-slate-600">
                 재고 수량
               </label>
-              <Input
+              <PharmInput
                 type="number"
                 value={inventoryForm.stockQuantity}
                 onChange={(event) =>
@@ -591,7 +560,7 @@ function PharmInventoryPage() {
                 type="button"
                 onClick={handleSubmitInventory}
                 disabled={upsertInventoryMutation.isPending}
-                className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-emerald-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {upsertInventoryMutation.isPending
                   ? '저장 중'
@@ -634,27 +603,36 @@ function PharmInventoryPage() {
                 const itemSeq = getInventoryItemSeq(inventory);
                 const companyName = getInventoryCompanyName(inventory);
                 const stockQuantity = getInventoryStockQuantity(inventory);
-                const pharmacyHpid = getInventoryPharmacyHpid(inventory);
+
+                const isLowStock = stockQuantity < 10;
 
                 return (
                   <div
                     key={`${inventoryId}-${itemSeq}`}
-                    className="rounded-2xl border border-slate-200 p-4"
+                    className={[
+                      'rounded-2xl border p-4',
+                      isLowStock
+                        ? 'border-yellow-200 bg-yellow-50'
+                        : 'border-slate-200',
+                    ].join(' ')}
                   >
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-bold text-slate-900">{itemName}</p>
-
-                          <Badge variant="green">{stockQuantity}개</Badge>
+                          {isLowStock && (
+                            <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-700">
+                              재고 부족
+                            </span>
+                          )}
                         </div>
 
                         <p className="mt-2 text-sm text-slate-500">
                           {companyName || '제조사 미등록'}
                         </p>
 
-                        <p className="mt-1 text-xs text-slate-400">
-                          itemSeq: {itemSeq || '-'} · HPID: {pharmacyHpid || '-'}
+                        <p className={['mt-2 text-lg font-bold', isLowStock ? 'text-yellow-600' : 'text-emerald-600'].join(' ')}>
+                          {stockQuantity}개
                         </p>
                       </div>
 

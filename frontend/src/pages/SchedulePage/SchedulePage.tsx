@@ -174,18 +174,18 @@ function getMonthDays(baseDate: Date) {
 
 function getCalendarDayClass(rate: number | null) {
   if (rate === null) {
-    return 'bg-slate-50 text-slate-400';
+    return 'border border-slate-200 bg-white text-slate-400';
   }
 
   if (rate >= 80) {
-    return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200';
+    return 'border border-emerald-200 bg-emerald-50/80 text-emerald-700';
   }
 
   if (rate >= 50) {
-    return 'bg-yellow-50 text-yellow-700 ring-1 ring-yellow-200';
+    return 'border border-amber-200 bg-amber-50/80 text-amber-700';
   }
 
-  return 'bg-red-50 text-red-700 ring-1 ring-red-200';
+  return 'border border-red-200 bg-red-50/80 text-red-700';
 }
 
 function getScheduleMedicines(schedule?: MedicationSchedule | null) {
@@ -758,22 +758,12 @@ function SchedulePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-semibold text-blue-600">
-          Medication Schedule
-        </p>
-
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">복약 일정</h1>
-
-        <p className="mt-2 text-slate-500">
-          오늘 복용해야 할 약과 주간 복약 현황을 확인합니다.
-        </p>
-      </div>
-
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <p className="text-sm text-slate-500">선택 날짜 복약 완료율</p>
-          <p className="mt-3 text-3xl font-bold text-blue-600">
+          <p className="text-sm font-semibold text-slate-500">
+            선택 날짜 복약 완료율
+          </p>
+          <p className="mt-3 text-3xl font-extrabold text-blue-600">
             {selectedCompletionRate}%
           </p>
           <p className="mt-2 text-sm text-slate-500">
@@ -783,8 +773,10 @@ function SchedulePage() {
         </Card>
 
         <Card>
-          <p className="text-sm text-slate-500">선택 날짜 남은 복약</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">
+          <p className="text-sm font-semibold text-slate-500">
+            선택 날짜 남은 복약
+          </p>
+          <p className="mt-3 text-3xl font-extrabold text-slate-950">
             {selectedPendingMedications}개
           </p>
           <p className="mt-2 text-sm text-slate-500">
@@ -793,8 +785,10 @@ function SchedulePage() {
         </Card>
 
         <Card>
-          <p className="text-sm text-slate-500">등록된 복약 일정</p>
-          <p className="mt-3 text-3xl font-bold text-amber-600">
+          <p className="text-sm font-semibold text-slate-500">
+            등록된 복약 일정
+          </p>
+          <p className="mt-3 text-3xl font-extrabold text-amber-600">
             {activeMedicationScheduleCount}개
           </p>
           <p className="mt-2 text-sm text-slate-500">
@@ -804,7 +798,7 @@ function SchedulePage() {
       </div>
 
       {isMedicationScheduleLoading && (
-        <Card>
+        <Card className="border-blue-100 bg-blue-50/70">
           <p className="text-sm text-blue-700">
             서버에서 복약 일정을 불러오는 중입니다.
           </p>
@@ -812,7 +806,7 @@ function SchedulePage() {
       )}
 
       {isMedicationScheduleError && (
-        <Card>
+        <Card className="border-red-100 bg-red-50/70">
           <p className="text-sm text-red-700">
             복약 일정을 불러오지 못했습니다. 로그인 상태와 8081 서버를
             확인해주세요.
@@ -821,7 +815,7 @@ function SchedulePage() {
       )}
 
       {isMedicationScheduleTimeLoading && (
-        <Card>
+        <Card className="border-blue-100 bg-blue-50/70">
           <p className="text-sm text-blue-700">
             복약 시간 정보를 불러오는 중입니다.
           </p>
@@ -829,7 +823,7 @@ function SchedulePage() {
       )}
 
       {isMedicationScheduleTimeError && (
-        <Card>
+        <Card className="border-red-100 bg-red-50/70">
           <p className="text-sm text-red-700">
             복약 시간 정보를 불러오지 못했습니다.
           </p>
@@ -837,7 +831,7 @@ function SchedulePage() {
       )}
 
       {isMedicationIntakeLogLoading && (
-        <Card>
+        <Card className="border-blue-100 bg-blue-50/70">
           <p className="text-sm text-blue-700">
             복용 기록을 불러오는 중입니다.
           </p>
@@ -845,7 +839,7 @@ function SchedulePage() {
       )}
 
       {isMedicationIntakeLogError && (
-        <Card>
+        <Card className="border-red-100 bg-red-50/70">
           <p className="text-sm text-red-700">
             복용 기록을 불러오지 못했습니다.
           </p>
@@ -853,69 +847,63 @@ function SchedulePage() {
       )}
 
       <Card>
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="lg:grid lg:grid-cols-[1fr_360px] lg:items-start lg:gap-x-6">
+          <div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-slate-900">
               {calendarBaseDate.getFullYear()}년{' '}
               {calendarBaseDate.getMonth() + 1}월 복약 달력
             </h2>
-
             <p className="mt-1 text-sm text-slate-500">
-              날짜를 클릭하면 아래 복약 목록이 선택한 날짜 기준으로 표시됩니다.
+              날짜를 클릭하면 아래 목록이 해당 날짜 기준으로 표시됩니다.
             </p>
           </div>
 
-          <div className="flex flex-col items-start gap-3 md:items-end">
-            <div className="flex flex-wrap justify-start gap-2 text-xs md:justify-end">
-              <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
-                80% 이상
-              </span>
-              <span className="rounded-full bg-yellow-50 px-3 py-1 font-semibold text-yellow-700">
-                50% 이상
-              </span>
-              <span className="rounded-full bg-red-50 px-3 py-1 font-semibold text-red-700">
-                50% 미만
-              </span>
-              <span className="rounded-full bg-slate-50 px-3 py-1 font-semibold text-slate-500">
-                일정 없음
-              </span>
-            </div>
-
-            <div className="flex flex-wrap justify-start gap-2 md:justify-end">
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="border border-slate-200"
-                onClick={() => handleChangeMonth(-1)}
-              >
-                이전 달
-              </Button>
-
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="border border-slate-200"
-                onClick={handleMoveToday}
-              >
-                오늘
-              </Button>
-
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="border border-slate-200"
-                onClick={() => handleChangeMonth(1)}
-              >
-                다음 달
-              </Button>
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => handleChangeMonth(-1)}
+            >
+              이전 달
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={handleMoveToday}
+            >
+              오늘
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => handleChangeMonth(1)}
+            >
+              다음 달
+            </Button>
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-7 gap-2 text-center">
+        <div className="mt-4 flex flex-wrap gap-2 text-xs">
+          <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
+            80% 이상
+          </span>
+          <span className="rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1 font-semibold text-amber-700">
+            50% 이상
+          </span>
+          <span className="rounded-full border border-red-100 bg-red-50 px-2.5 py-1 font-semibold text-red-700">
+            50% 미만
+          </span>
+          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 font-semibold text-slate-500">
+            일정 없음
+          </span>
+        </div>
+
+        <div className="mt-5 grid grid-cols-7 gap-1.5 text-center">
           {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
             <div key={day} className="py-2 text-sm font-bold text-slate-500">
               {day}
@@ -947,9 +935,9 @@ function SchedulePage() {
                 type="button"
                 onClick={() => setSelectedDate(day.date)}
                 className={[
-                  'min-h-16 rounded-2xl p-2 text-left transition hover:scale-[1.02]',
+                  'min-h-14 rounded-xl p-2 text-left transition hover:border-blue-300 hover:bg-blue-50/60',
                   getCalendarDayClass(rate),
-                  isSelected ? 'ring-2 ring-blue-500' : '',
+                  isSelected ? 'ring-2 ring-blue-500 ring-offset-1' : '',
                 ].join(' ')}
               >
                 <div className="flex items-center justify-between">
@@ -969,33 +957,31 @@ function SchedulePage() {
             );
           })}
         </div>
-      </Card>
-
-      <Card>
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">
-              {formatMedicationDateTitle(selectedDate)}
-            </h2>
           </div>
 
-          <Badge variant="blue">
-            {selectedDate === todayText ? '오늘' : '선택일'}
-          </Badge>
-        </div>
+          <div className="mt-6 border-t border-slate-200 pt-6 lg:mt-0 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-900">
+              {formatMedicationDateTitle(selectedDate)}
+            </h2>
 
-        <div className="space-y-4">
+            <Badge variant="blue">
+              {selectedDate === todayText ? '오늘' : '선택일'}
+            </Badge>
+          </div>
+
+          <div className="space-y-3 lg:max-h-[520px] lg:overflow-y-auto lg:pr-1">
           {selectedDateMedications.length === 0 ? (
-            <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-6 text-center text-sm text-slate-500">
               선택한 날짜에 등록된 복약 일정이 없습니다.
             </div>
           ) : (
             selectedMedicationGroups.map((group) => (
               <div
                 key={group.time}
-                className="rounded-2xl border border-slate-200 bg-white p-4"
+                className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
               >
-                <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="mb-3 flex flex-col gap-2">
                   <div>
                     <p className="text-sm font-semibold text-blue-600">
                       {group.time}
@@ -1006,11 +992,12 @@ function SchedulePage() {
                   </div>
 
                   {group.items.length > 1 && (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <Button
                         type="button"
                         size="sm"
                         variant="primary"
+                        className="w-full"
                         onClick={() =>
                           handleChangeGroupStatus(group.items, 'TAKEN')
                         }
@@ -1020,14 +1007,14 @@ function SchedulePage() {
                           deleteIntakeLogMutation.isPending
                         }
                       >
-                        이 시간 전체 복용 완료
+                        전체 복용 완료
                       </Button>
 
                       <Button
                         type="button"
                         size="sm"
                         variant="ghost"
-                        className="border border-slate-200"
+                        className="w-full border border-slate-200"
                         onClick={() =>
                           handleChangeGroupStatus(group.items, 'SKIPPED')
                         }
@@ -1037,7 +1024,7 @@ function SchedulePage() {
                           deleteIntakeLogMutation.isPending
                         }
                       >
-                        이 시간 전체 건너뜀
+                        전체 건너뜀
                       </Button>
                     </div>
                   )}
@@ -1047,30 +1034,32 @@ function SchedulePage() {
                   {group.items.map((medication) => (
                     <div
                       key={`${medication.medicationScheduleId}-${medication.id}`}
-                      className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 md:flex-row md:items-center md:justify-between"
+                      className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3"
                     >
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-start gap-1.5">
                           <button
                             type="button"
                             onClick={() =>
                               handleMoveDrugSearch(medication.drugName)
                             }
-                            className="font-bold text-slate-900 hover:text-blue-700 hover:underline"
+                            className="min-w-0 flex-1 text-left text-sm font-bold text-slate-900 hover:text-blue-700 hover:underline"
                           >
                             {medication.drugName}
                           </button>
 
-                          {getStatusBadge(medication, currentTimestamp)}
+                          <span className="mt-0.5 shrink-0">
+                            {getStatusBadge(medication, currentTimestamp)}
+                          </span>
                         </div>
 
-                        <p className="mt-2 text-sm text-slate-500">
+                        <p className="mt-1 text-xs text-slate-500">
                           {medication.time} · {medication.dosage} ·{' '}
                           {medication.timing}
                         </p>
                       </div>
 
-                      <div className="flex flex-wrap gap-2">
+                      <div className="grid grid-cols-2 gap-2">
                         <Button
                           type="button"
                           size="sm"
@@ -1079,8 +1068,8 @@ function SchedulePage() {
                           }
                           className={
                             medication.status === 'TAKEN'
-                              ? 'ring-2 ring-blue-200'
-                              : 'border border-slate-200'
+                              ? 'w-full ring-2 ring-blue-200'
+                              : 'w-full border border-slate-200'
                           }
                           onClick={() =>
                             handleChangeStatus(medication, 'TAKEN')
@@ -1099,9 +1088,9 @@ function SchedulePage() {
                           size="sm"
                           variant="ghost"
                           className={[
-                            'border',
+                            'w-full border',
                             medication.status === 'SKIPPED'
-                              ? 'border-yellow-300 bg-yellow-100 font-bold text-yellow-700 ring-2 ring-yellow-200'
+                              ? 'border-amber-300 bg-amber-50 font-bold text-amber-700 ring-2 ring-amber-100'
                               : 'border-slate-200',
                           ].join(' ')}
                           onClick={() =>
@@ -1122,6 +1111,8 @@ function SchedulePage() {
               </div>
             ))
           )}
+          </div>
+          </div>
         </div>
       </Card>
 
@@ -1142,9 +1133,9 @@ function SchedulePage() {
                   <span className="text-slate-500">{stat.rate}%</span>
                 </div>
 
-                <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-3 overflow-hidden rounded-full border border-slate-100 bg-slate-100">
                   <div
-                    className="h-full rounded-full bg-blue-600"
+                    className="h-full rounded-full bg-blue-600 shadow-sm shadow-blue-600/20"
                     style={{ width: `${stat.rate}%` }}
                   />
                 </div>
@@ -1158,12 +1149,15 @@ function SchedulePage() {
 
           <div className="mt-6 space-y-4">
             {recentIntakeItems.length === 0 ? (
-              <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-500">
                 최근 복용 기록이 없습니다.
               </div>
             ) : (
               recentIntakeItems.map((item) => (
-                <div key={item.id} className="rounded-xl bg-slate-50 p-4">
+                <div
+                  key={item.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50/70 p-4"
+                >
                   <p className="font-semibold text-slate-900">
                     {item.drugName}
                   </p>

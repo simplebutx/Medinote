@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 
-import { Badge, Card, Input } from '../../components/ui';
+import { Badge, Card, PharmInput } from '../../components/ui';
 import {
   useActiveConsultRooms,
   useCompletedConsultRooms,
@@ -15,13 +15,13 @@ import type {
 
 function getConsultStatusLabel(status: ConsultRoomStatus) {
   if (status === 'PENDING') return '대기';
-  if (status === 'ACTIVE') return '진행 중';
+  if (status === 'MATCHED' || status === 'ACTIVE') return '진행 중';
   return '완료';
 }
 
 function getConsultStatusBadge(status: ConsultRoomStatus) {
   if (status === 'PENDING') return 'yellow';
-  if (status === 'ACTIVE') return 'blue';
+  if (status === 'MATCHED' || status === 'ACTIVE') return 'blue';
   return 'green';
 }
 
@@ -49,6 +49,23 @@ function formatDateTime(value?: string) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date);
+}
+
+function getGenderLabel(gender?: string | null) {
+  if (gender === 'MALE') return '남성';
+  if (gender === 'FEMALE') return '여성';
+  return gender ?? '-';
+}
+
+function calcKoreanAge(birthDate?: string | null) {
+  if (!birthDate) return null;
+  const today = new Date();
+  const birth = new Date(birthDate);
+  if (Number.isNaN(birth.getTime())) return null;
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
 }
 
 function getPatientDisplayName(
@@ -82,49 +99,93 @@ function getPatientHealthBadges(patientInfo: ConsultPatientInfo | null | undefin
   return badges;
 }
 
-function getMedicationName(schedule: unknown) {
+function getMedicationName(schedule: unknown): string {
   if (!schedule || typeof schedule !== 'object') return '복약 정보';
-
   const data = schedule as Record<string, unknown>;
 
-  return String(
-    data.medicineName ??
-      data.medicationName ??
-      data.drugName ??
-      data.itemName ??
-      '복약 정보',
-  );
-}
+  // 직접 등록한 약 이름
+  if (data.customMedicineName) return String(data.customMedicineName);
 
-function getMedicationDosage(schedule: unknown) {
-  if (!schedule || typeof schedule !== 'object') return '-';
-
-  const data = schedule as Record<string, unknown>;
-
-  return String(data.dosage ?? data.dose ?? data.amount ?? '-');
-}
-
-function getMedicationTime(schedule: unknown) {
-  if (!schedule || typeof schedule !== 'object') return '-';
-
-  const data = schedule as Record<string, unknown>;
-
-  return String(data.time ?? data.times ?? data.frequency ?? data.scheduleTime ?? '-');
-}
-
-function getMedicationPeriod(schedule: unknown) {
-  if (!schedule || typeof schedule !== 'object') return '-';
-
-  const data = schedule as Record<string, unknown>;
-
-  const startDate = data.startDate ?? data.start_date;
-  const endDate = data.endDate ?? data.end_date;
-
-  if (startDate && endDate) {
-    return `${String(startDate)} ~ ${String(endDate)}`;
+  // medicines 배열에서 첫 번째 약 이름
+  if (Array.isArray(data.medicines) && data.medicines.length > 0) {
+    const first = data.medicines[0] as Record<string, unknown>;
+    if (first?.customMedicineName) return String(first.customMedicineName);
   }
 
-  return String(data.period ?? data.duration ?? '-');
+  return '복약 정보';
+}
+
+function getMedicationDosage(schedule: unknown): string {
+  if (!schedule || typeof schedule !== 'object') return '-';
+  const data = schedule as Record<string, unknown>;
+
+  const amount = data.dosageAmount;
+  const unit = data.dosageUnit;
+
+  if (amount != null && unit != null) return `${amount}${unit}`;
+  if (amount != null) return String(amount);
+  return '-';
+}
+
+function getMedicationFrequency(schedule: unknown): string {
+  if (!schedule || typeof schedule !== 'object') return '-';
+  const data = schedule as Record<string, unknown>;
+
+  if (data.timesPerDay != null) return `하루 ${data.timesPerDay}회`;
+  return '-';
+}
+
+function getMedicationPeriod(schedule: unknown): string {
+  if (!schedule || typeof schedule !== 'object') return '-';
+  const data = schedule as Record<string, unknown>;
+
+  const startDate = data.startDate;
+  const endDate = data.endDate;
+
+  if (startDate && endDate) return `${String(startDate)} ~ ${String(endDate)}`;
+  if (data.durationDays != null) return `${data.durationDays}일`;
+  return '-';
+}
+
+function getMedicationSource(schedule: unknown): string | null {
+  if (!schedule || typeof schedule !== 'object') return null;
+  const data = schedule as Record<string, unknown>;
+
+  if (data.hospitalName) return String(data.hospitalName);
+  if (data.pharmacyName) return String(data.pharmacyName);
+  return null;
+}
+
+function isMedicationActive(schedule: unknown): boolean {
+  if (!schedule || typeof schedule !== 'object') return true;
+
+  const data = schedule as Record<string, unknown>;
+
+  // 명시적 boolean 필드 우선 확인
+  if (typeof data.isActive === 'boolean') return data.isActive;
+  if (typeof data.active === 'boolean') return data.active;
+  if (typeof data.isCurrent === 'boolean') return data.isCurrent;
+
+  // 상태 문자열 필드 확인
+  const status = data.status ?? data.medicationStatus ?? data.scheduleStatus;
+  if (status != null) {
+    const s = String(status).toUpperCase();
+    if (['COMPLETED', 'ENDED', 'EXPIRED', 'INACTIVE', 'DONE', 'PAST', 'HISTORY', 'FINISHED'].includes(s)) return false;
+    if (['ACTIVE', 'ONGOING', 'CURRENT', 'IN_PROGRESS', 'TAKING'].includes(s)) return true;
+  }
+
+  // 종료일 기준 비교
+  const endDate = data.endDate ?? data.end_date ?? data.endAt ?? data.end_at ?? data.scheduleEndDate;
+  if (!endDate) return true;
+
+  const end = new Date(String(endDate));
+  if (Number.isNaN(end.getTime())) return true;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+
+  return end >= today;
 }
 
 function PatientPage() {
@@ -222,6 +283,8 @@ function PatientPage() {
   const patientHealthBadges = getPatientHealthBadges(patientInfo);
 
   const medicationSchedules = patientInfo?.medicationSchedules ?? [];
+  const activeMedications = medicationSchedules.filter(isMedicationActive);
+  const pastMedications = medicationSchedules.filter((s) => !isMedicationActive(s));
 
   const selectedPatientConsultRooms = useMemo(() => {
     if (!selectedRoom) return [];
@@ -240,18 +303,6 @@ function PatientPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-semibold text-blue-600">
-          Pharmacist Patient
-        </p>
-
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">환자 조회</h1>
-
-        <p className="mt-2 text-slate-500">
-          상담 이력이 있는 환자의 건강 정보와 복약 정보를 확인합니다.
-        </p>
-      </div>
-
       {isError && (
         <Card className="border-red-100 bg-red-50">
           <p className="text-sm font-semibold text-red-700">
@@ -266,22 +317,31 @@ function PatientPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <p className="text-sm font-medium text-slate-500">상담 환자</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">
+          <p className="mt-3 text-3xl font-bold text-emerald-600">
             {isLoading ? '-' : `${patientRooms.length}명`}
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            상담 이력이 있는 환자 기준으로 집계합니다.
           </p>
         </Card>
 
         <Card>
           <p className="text-sm font-medium text-slate-500">선택 환자 복약</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">
+          <p className="mt-3 text-3xl font-bold text-slate-700">
             {isPatientInfoLoading ? '-' : `${medicationSchedules.length}건`}
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            선택한 환자의 등록된 복약 일정 수입니다.
           </p>
         </Card>
 
         <Card>
           <p className="text-sm font-medium text-slate-500">선택 환자 상담</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">
+          <p className="mt-3 text-3xl font-bold text-slate-700">
             {selectedPatientConsultRooms.length}건
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            선택한 환자의 전체 상담 이력 건수입니다.
           </p>
         </Card>
       </div>
@@ -296,7 +356,7 @@ function PatientPage() {
           </div>
 
           <div className="mt-4">
-            <Input
+            <PharmInput
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
               placeholder="환자명 또는 환자 ID 검색"
@@ -324,8 +384,8 @@ function PatientPage() {
                     className={[
                       'block w-full rounded-2xl border p-4 text-left transition',
                       isSelected
-                        ? 'border-blue-300 bg-blue-50'
-                        : 'border-slate-200 hover:border-blue-200 hover:bg-blue-50/40',
+                        ? 'border-emerald-300 bg-emerald-50'
+                        : 'border-slate-200 hover:border-emerald-200 hover:bg-emerald-50/40',
                     ].join(' ')}
                   >
                     <div className="flex flex-wrap items-center gap-2">
@@ -340,10 +400,6 @@ function PatientPage() {
 
                     <p className="mt-2 text-xs text-slate-400">
                       최근 상담: {formatDateTime(room.createdAt)}
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-400">
-                      Room ID: {room.roomId}
                     </p>
                   </button>
                 );
@@ -367,14 +423,6 @@ function PatientPage() {
                     </Badge>
                   </div>
 
-                  <p className="mt-2 text-sm text-slate-500">
-                    환자 ID:{' '}
-                    {patientInfo?.customerId ??
-                      patientInfo?.userId ??
-                      selectedRoom.customerId ??
-                      selectedRoom.customId ??
-                      '-'}
-                  </p>
                 </div>
               </div>
 
@@ -389,20 +437,25 @@ function PatientPage() {
               ) : (
                 <>
                   <section className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border border-slate-200 p-4">
+                    <div className="rounded-2xl bg-slate-50 p-4">
                       <h3 className="text-sm font-semibold text-slate-500">
                         기본 정보
                       </h3>
 
                       <div className="mt-3 space-y-2 text-sm text-slate-700">
                         <p>이름: {getPatientDisplayName(patientInfo, selectedRoom)}</p>
-                        <p>이메일: {patientInfo?.email ?? '-'}</p>
-                        <p>성별: {patientInfo?.gender ?? '-'}</p>
-                        <p>생년월일: {patientInfo?.birthDate ?? '-'}</p>
+                        <p>성별: {getGenderLabel(patientInfo?.gender)}</p>
+                        <p>
+                          생년월일: {patientInfo?.birthDate ?? '-'}
+                          {(() => {
+                            const age = calcKoreanAge(patientInfo?.birthDate);
+                            return age !== null ? ` (만 ${age}세)` : '';
+                          })()}
+                        </p>
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 p-4">
+                    <div className="rounded-2xl bg-slate-50 p-4">
                       <h3 className="text-sm font-semibold text-slate-500">
                         건강 정보
                       </h3>
@@ -421,37 +474,81 @@ function PatientPage() {
                     </div>
                   </section>
 
-                  <section>
-                    <h3 className="text-lg font-bold text-slate-900">
-                      복약 일정 요약
-                    </h3>
+                  <section className="space-y-5">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">
+                        현재 복약 중
+                      </h3>
 
-                    <div className="mt-3 space-y-3">
-                      {medicationSchedules.length === 0 ? (
-                        <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                          표시할 복약 일정이 없습니다.
-                        </div>
-                      ) : (
-                        medicationSchedules.map((schedule, index) => (
-                          <div
-                            key={index}
-                            className="rounded-2xl border border-slate-200 p-4"
-                          >
-                            <p className="font-bold text-slate-900">
-                              {getMedicationName(schedule)}
-                            </p>
-
-                            <p className="mt-2 text-sm text-slate-500">
-                              {getMedicationDosage(schedule)} ·{' '}
-                              {getMedicationTime(schedule)}
-                            </p>
-
-                            <p className="mt-1 text-xs text-slate-400">
-                              복용 기간: {getMedicationPeriod(schedule)}
-                            </p>
+                      <div className="mt-3 space-y-3">
+                        {activeMedications.length === 0 ? (
+                          <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                            현재 복약 중인 약이 없습니다.
                           </div>
-                        ))
-                      )}
+                        ) : (
+                          activeMedications.map((schedule, index) => (
+                            <div key={index} className="rounded-2xl bg-slate-50 p-4">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="font-bold text-slate-900">
+                                  {getMedicationName(schedule)}
+                                </p>
+                                <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                                  복약 중
+                                </span>
+                              </div>
+                              <p className="mt-2 text-sm text-slate-500">
+                                {getMedicationDosage(schedule)} · {getMedicationFrequency(schedule)}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-400">
+                                복용 기간: {getMedicationPeriod(schedule)}
+                              </p>
+                              {getMedicationSource(schedule) && (
+                                <p className="mt-1 text-xs text-slate-400">
+                                  처방처: {getMedicationSource(schedule)}
+                                </p>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">
+                        복약 이력
+                      </h3>
+
+                      <div className="mt-3 space-y-3">
+                        {pastMedications.length === 0 ? (
+                          <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                            복약 이력이 없습니다.
+                          </div>
+                        ) : (
+                          pastMedications.map((schedule, index) => (
+                            <div key={index} className="rounded-2xl bg-slate-50 p-4">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="font-bold text-slate-900">
+                                  {getMedicationName(schedule)}
+                                </p>
+                                <span className="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                                  완료
+                                </span>
+                              </div>
+                              <p className="mt-2 text-sm text-slate-500">
+                                {getMedicationDosage(schedule)} · {getMedicationFrequency(schedule)}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-400">
+                                복용 기간: {getMedicationPeriod(schedule)}
+                              </p>
+                              {getMedicationSource(schedule) && (
+                                <p className="mt-1 text-xs text-slate-400">
+                                  처방처: {getMedicationSource(schedule)}
+                                </p>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
                     </div>
                   </section>
 
@@ -464,10 +561,10 @@ function PatientPage() {
                       {selectedPatientConsultRooms.map((room) => (
                         <div
                           key={room.roomId}
-                          className="rounded-2xl border border-slate-200 p-4"
+                          className="rounded-2xl bg-slate-50 p-4"
                         >
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-bold text-slate-900">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate font-bold text-slate-900">
                               {room.firstMessage || '복약 상담 요청'}
                             </p>
 
@@ -483,6 +580,7 @@ function PatientPage() {
                       ))}
                     </div>
                   </section>
+
                 </>
               )}
             </div>

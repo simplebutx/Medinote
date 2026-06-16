@@ -143,6 +143,33 @@ const initialManualForm: MedicationForm = {
   doseTimes: getDefaultDoseTimes(3),
 };
 
+const sectionPanelClass =
+  'rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5';
+
+const selectClass =
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
+
+const choiceBaseClass =
+  'rounded-xl border px-4 py-3 text-sm font-semibold transition';
+
+const choiceSelectedClass =
+  'border-blue-500 bg-blue-50 text-blue-700 shadow-sm shadow-blue-500/10';
+
+const choiceDefaultClass =
+  'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50/40';
+
+const noticeClass =
+  'rounded-xl border border-blue-100 bg-blue-50/70 p-4 text-sm leading-6 text-blue-700';
+
+const warningNoticeClass =
+  'rounded-xl border border-amber-100 bg-amber-50/70 p-4 text-sm leading-6 text-amber-700';
+
+const emptyStateClass =
+  'rounded-xl border border-slate-200 bg-slate-50/70 p-6 text-center text-sm text-slate-500';
+
+const dropdownPanelClass =
+  'absolute left-0 top-full z-20 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-950/10';
+
 function mapDosageUnit(unit: DosageUnit): ApiDosageUnit {
   if (unit === '정') return 'TABLET';
   if (unit === '캡슐') return 'CAPSULE';
@@ -1033,7 +1060,7 @@ function OcrPage() {
     return (
       <div
         key={item.id}
-        className="rounded-2xl border border-slate-200 bg-white p-4"
+        className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
       >
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
@@ -1060,7 +1087,7 @@ function OcrPage() {
               {item.doseTimes.map((doseTime, index) => (
                 <span
                   key={`${doseTime.takeTime}-${index}`}
-                  className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600"
+                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600"
                 >
                   {index + 1}회차 {doseTime.takeTime} · {doseTime.timing}
                 </span>
@@ -1068,7 +1095,7 @@ function OcrPage() {
             </div>
 
             {item.cautionMessage && (
-              <div className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+              <div className="mt-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
                 {item.cautionMessage}
               </div>
             )}
@@ -1108,29 +1135,17 @@ function OcrPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-semibold text-blue-600">
-          Medication Register
-        </p>
 
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">복약 등록</h1>
-
-        <p className="mt-2 text-slate-500">
-          복용할 약을 직접 입력하거나 처방 내역/약봉투 이미지를 업로드해 복약
-          일정을 등록합니다.
-        </p>
-      </div>
-
-      <Card className="p-0">
-        <div className="flex border-b border-slate-200">
+      <Card>
+        <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1">
           <button
             type="button"
             onClick={() => setActiveMode('ocr')}
             className={[
-              'flex-1 px-5 py-4 text-sm font-semibold transition',
+              'rounded-lg px-4 py-2.5 text-sm font-semibold transition',
               activeMode === 'ocr'
-                ? 'border-b-2 border-blue-600 text-blue-700'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
+                ? 'bg-white text-blue-700 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900',
             ].join(' ')}
           >
             처방 내역 업로드
@@ -1140,28 +1155,28 @@ function OcrPage() {
             type="button"
             onClick={() => setActiveMode('manual')}
             className={[
-              'flex-1 px-5 py-4 text-sm font-semibold transition',
+              'rounded-lg px-4 py-2.5 text-sm font-semibold transition',
               activeMode === 'manual'
-                ? 'border-b-2 border-blue-600 text-blue-700'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
+                ? 'bg-white text-blue-700 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900',
             ].join(' ')}
           >
             수동 입력
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="mt-6">
           {activeMode === 'manual' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">수동 입력</h2>
+                <h2 className="text-lg font-bold text-slate-900">수동 입력</h2>
 
                 <p className="mt-1 text-sm text-slate-500">
                   약 이름, 복용량, 복용 횟수와 기간을 직접 입력합니다.
                 </p>
               </div>
 
-              <Card>
+              <div className={sectionPanelClass}>
                 <h3 className="text-lg font-bold text-slate-900">
                   처방 공통 정보
                 </h3>
@@ -1171,7 +1186,7 @@ function OcrPage() {
                   공통으로 적용됩니다.
                 </p>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
                   <Input
                     label="병원명"
                     placeholder="예: 나무병원"
@@ -1200,7 +1215,7 @@ function OcrPage() {
                   />
 
                   <Input
-                    label="복용 기간"
+                    label="복용 기간 (일)"
                     placeholder="예: 3"
                     value={commonForm.durationDays}
                     onChange={(event) =>
@@ -1208,9 +1223,10 @@ function OcrPage() {
                     }
                   />
                 </div>
-              </Card>
+              </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-4">
+                {/* 약 이름 */}
                 <div className="relative">
                   <Input
                     label="약 이름"
@@ -1236,7 +1252,7 @@ function OcrPage() {
 
                   {isMedicineSearchOpen &&
                     manualForm.medicineName.trim().length >= 2 && (
-                      <div className="absolute left-0 top-full z-20 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
+                      <div className={dropdownPanelClass}>
                         <div className="mb-2 px-2 text-xs font-semibold text-slate-500">
                           약 검색 결과
                         </div>
@@ -1287,6 +1303,7 @@ function OcrPage() {
                   )}
                 </div>
 
+                {/* 1회 복용량 — 1 col */}
                 <Input
                   label="1회 복용량"
                   placeholder="예: 1"
@@ -1296,6 +1313,7 @@ function OcrPage() {
                   }
                 />
 
+                {/* 복용 단위 — 1 col */}
                 <div>
                   <p className="mb-2 text-sm font-medium text-slate-700">
                     복용 단위
@@ -1309,7 +1327,7 @@ function OcrPage() {
                         event.target.value as DosageUnit,
                       )
                     }
-                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    className={selectClass}
                   >
                     <option value="정">정</option>
                     <option value="캡슐">캡슐</option>
@@ -1318,6 +1336,7 @@ function OcrPage() {
                   </select>
                 </div>
 
+                {/* 하루 복용 횟수 */}
                 <div>
                   <p className="mb-2 text-sm font-medium text-slate-700">
                     하루 복용 횟수
@@ -1336,10 +1355,10 @@ function OcrPage() {
                             handleChangeManualTimesPerDay(String(count))
                           }
                           className={[
-                            'rounded-xl border px-4 py-3 text-sm font-semibold transition',
+                            choiceBaseClass,
                             isSelected
-                              ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                              ? choiceSelectedClass
+                              : choiceDefaultClass,
                           ].join(' ')}
                         >
                           {count}회
@@ -1350,20 +1369,20 @@ function OcrPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className={sectionPanelClass}>
                 <h4 className="font-bold text-slate-900">회차별 복용 시간</h4>
 
                 <p className="mt-1 text-sm text-slate-500">
                   하루 복용 횟수에 따라 기본 시간이 자동 설정됩니다.
                 </p>
 
-                <div className="mt-4 space-y-3">
+                <div className="mt-4 flex gap-3">
                   {manualForm.doseTimes.map((doseTime, index) => (
                     <div
                       key={`manual-dose-time-${index}`}
-                      className="grid gap-3 rounded-xl bg-white p-3 md:grid-cols-[100px_1fr_1fr]"
+                      className="flex flex-1 flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
                     >
-                      <div className="flex items-center text-sm font-semibold text-slate-700">
+                      <div className="text-sm font-semibold text-slate-700">
                         {index + 1}회차
                       </div>
 
@@ -1388,7 +1407,7 @@ function OcrPage() {
                             event.target.value,
                           )
                         }
-                        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        className={selectClass}
                       >
                         <option value="식후">식후</option>
                         <option value="식전">식전</option>
@@ -1427,7 +1446,7 @@ function OcrPage() {
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-slate-900">
+                  <h3 className="text-base font-bold text-slate-900">
                     등록 예정 목록
                   </h3>
 
@@ -1435,7 +1454,7 @@ function OcrPage() {
                 </div>
 
                 {manualItems.length === 0 ? (
-                  <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                  <div className={emptyStateClass}>
                     아직 추가된 복약 정보가 없습니다.
                   </div>
                 ) : (
@@ -1449,7 +1468,7 @@ function OcrPage() {
                 )}
               </div>
 
-              <div className="rounded-2xl bg-blue-50 p-4 text-sm leading-6 text-blue-700">
+              <div className={noticeClass}>
                 수동 입력 정보는 복약 일정과 복약 시간으로 저장됩니다. 복용
                 시간은 하루 복용 횟수에 따라 기본 시간으로 자동 생성됩니다.
               </div>
@@ -1469,7 +1488,7 @@ function OcrPage() {
           {activeMode === 'ocr' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">
+                <h2 className="text-lg font-bold text-slate-900">
                   처방 내역 업로드
                 </h2>
 
@@ -1479,17 +1498,23 @@ function OcrPage() {
                 </p>
               </div>
 
-              <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-                <p className="text-lg font-bold text-slate-900">
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center transition hover:border-blue-200 hover:bg-blue-50/30">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+                  <svg className="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                </div>
+
+                <p className="text-base font-bold text-slate-900">
                   처방 내역 또는 약봉투 이미지 업로드
                 </p>
 
-                <p className="mt-2 text-sm text-slate-500">
-                  jpg, png 파일을 선택할 수 있습니다.
+                <p className="mt-1.5 text-sm text-slate-500">
+                  JPG, PNG 파일을 선택하세요
                 </p>
 
-                <label className="mt-5 inline-flex cursor-pointer rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700">
-                  이미지 선택
+                <label className="mt-5 inline-flex cursor-pointer rounded-xl border border-blue-600 bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-600/15 transition hover:border-blue-700 hover:bg-blue-700">
+                  {selectedFileName ? '파일 변경' : '파일 선택'}
                   <input
                     type="file"
                     accept="image/*"
@@ -1509,13 +1534,16 @@ function OcrPage() {
                 </label>
 
                 {selectedFileName && (
-                  <p className="mt-4 text-sm font-medium text-blue-700">
-                    선택된 파일: {selectedFileName}
+                  <p className="mt-3 text-sm text-slate-500">
+                    <span className="font-medium text-slate-700">{selectedFileName}</span>
                   </p>
                 )}
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+                <p className="text-sm text-slate-500">
+                  이미지를 선택한 후 분석을 시작하세요
+                </p>
                 <Button
                   type="button"
                   onClick={handleAnalyzeOcr}
@@ -1526,27 +1554,27 @@ function OcrPage() {
               </div>
 
               {ocrStep === 'analyzing' && (
-                <Card className="bg-blue-50">
+                <div className={noticeClass}>
                   <p className="font-bold text-blue-700">OCR 분석 중입니다.</p>
 
                   <p className="mt-2 text-sm text-blue-700">
                     이미지에서 약 이름, 복용량, 복용 횟수와 복용 기간을 추출하고
                     있습니다.
                   </p>
-                </Card>
+                </div>
               )}
 
               {ocrStep === 'completed' && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-slate-900">
+                    <h3 className="text-base font-bold text-slate-900">
                       OCR 분석 결과
                     </h3>
 
                     <Badge variant="green">{ocrResults.length}건 추출</Badge>
                   </div>
 
-                  <Card>
+                  <div className={sectionPanelClass}>
                     <h3 className="text-lg font-bold text-slate-900">
                       OCR 공통 정보 확인
                     </h3>
@@ -1556,7 +1584,7 @@ function OcrPage() {
                       확인하고 수정할 수 있습니다.
                     </p>
 
-                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
                       <Input
                         label="병원명"
                         placeholder="예: 나무병원"
@@ -1594,7 +1622,7 @@ function OcrPage() {
                       />
 
                       <Input
-                        label="복용 기간"
+                        label="복용 기간 (일)"
                         placeholder="예: 14"
                         value={commonForm.durationDays}
                         onChange={(event) =>
@@ -1605,10 +1633,10 @@ function OcrPage() {
                         }
                       />
                     </div>
-                  </Card>
+                  </div>
 
                   {editingOcrItemId !== null && (
-                    <Card className="border-blue-100 bg-blue-50">
+                    <div className={sectionPanelClass}>
                       <div>
                         <h4 className="font-bold text-slate-900">
                           OCR 결과 수정
@@ -1619,19 +1647,23 @@ function OcrPage() {
                         </p>
                       </div>
 
-                      <div className="mt-4 grid gap-4 md:grid-cols-2">
-                        <Input
-                          label="약 이름"
-                          placeholder="예: 타이레놀정 500mg"
-                          value={ocrEditForm.medicineName}
-                          onChange={(event) =>
-                            handleChangeOcrEditForm(
-                              'medicineName',
-                              event.target.value,
-                            )
-                          }
-                        />
+                      <div className="mt-4 grid gap-4 md:grid-cols-4">
+                        {/* 약 이름 */}
+                        <div>
+                          <Input
+                            label="약 이름"
+                            placeholder="예: 타이레놀정 500mg"
+                            value={ocrEditForm.medicineName}
+                            onChange={(event) =>
+                              handleChangeOcrEditForm(
+                                'medicineName',
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </div>
 
+                        {/* 1회 복용량 — 1 col */}
                         <Input
                           label="1회 복용량"
                           placeholder="예: 1"
@@ -1644,6 +1676,7 @@ function OcrPage() {
                           }
                         />
 
+                        {/* 복용 단위 — 1 col */}
                         <div>
                           <p className="mb-2 text-sm font-medium text-slate-700">
                             복용 단위
@@ -1657,7 +1690,7 @@ function OcrPage() {
                                 event.target.value as DosageUnit,
                               )
                             }
-                            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                            className={selectClass}
                           >
                             <option value="정">정</option>
                             <option value="캡슐">캡슐</option>
@@ -1666,6 +1699,7 @@ function OcrPage() {
                           </select>
                         </div>
 
+                        {/* 하루 복용 횟수 */}
                         <div>
                           <p className="mb-2 text-sm font-medium text-slate-700">
                             하루 복용 횟수
@@ -1684,10 +1718,10 @@ function OcrPage() {
                                     handleChangeOcrTimesPerDay(String(count))
                                   }
                                   className={[
-                                    'rounded-xl border px-4 py-3 text-sm font-semibold transition',
+                                    choiceBaseClass,
                                     isSelected
-                                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                                      ? choiceSelectedClass
+                                      : choiceDefaultClass,
                                   ].join(' ')}
                                 >
                                   {count}회
@@ -1698,18 +1732,18 @@ function OcrPage() {
                         </div>
                       </div>
 
-                      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                         <h5 className="font-bold text-slate-900">
                           회차별 복용 시간
                         </h5>
 
-                        <div className="mt-4 space-y-3">
+                        <div className="mt-4 flex gap-3">
                           {ocrEditForm.doseTimes.map((doseTime, index) => (
                             <div
                               key={`ocr-dose-time-${index}`}
-                              className="grid gap-3 rounded-xl bg-slate-50 p-3 md:grid-cols-[100px_1fr_1fr]"
+                              className="flex flex-1 flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3"
                             >
-                              <div className="flex items-center text-sm font-semibold text-slate-700">
+                              <div className="text-sm font-semibold text-slate-700">
                                 {index + 1}회차
                               </div>
 
@@ -1734,7 +1768,7 @@ function OcrPage() {
                                     event.target.value,
                                   )
                                 }
-                                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                className={selectClass}
                               >
                                 <option value="식후">식후</option>
                                 <option value="식전">식전</option>
@@ -1765,7 +1799,7 @@ function OcrPage() {
                           OCR 결과 수정 완료
                         </Button>
                       </div>
-                    </Card>
+                    </div>
                   )}
 
                   <div className="space-y-3">
@@ -1778,7 +1812,7 @@ function OcrPage() {
                     )}
                   </div>
 
-                  <div className="rounded-2xl bg-yellow-50 p-4 text-sm leading-6 text-yellow-700">
+                  <div className={warningNoticeClass}>
                     OCR 결과는 실제 처방과 다를 수 있으므로, 복약 일정 등록 전
                     약 이름과 복용법을 반드시 확인해주세요.
                   </div>
