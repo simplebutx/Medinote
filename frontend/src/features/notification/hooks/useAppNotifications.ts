@@ -16,6 +16,13 @@ export const APP_NOTIFICATIONS_QUERY_KEY = ['app-notifications'];
 const ENABLE_MEDICATION_NOTIFICATIONS = true;
 const ENABLE_CONSULTATION_NOTIFICATIONS = true;
 
+interface UseAppNotificationsOptions {
+  enabled?: boolean;
+  userId?: number | null;
+  refetchInterval?: number | false;
+  refetchIntervalInBackground?: boolean;
+}
+
 function mapMedicationNotification(
   notification: MedicationNotification,
 ): AppNotification {
@@ -52,10 +59,23 @@ function sortNotifications(notifications: AppNotification[]) {
   });
 }
 
-export const useAppNotifications = (role: UserRole | null) => {
+export const useAppNotifications = (
+  role: UserRole | null,
+  options: UseAppNotificationsOptions = {},
+) => {
+  const isSupportedRole = role === 'USER' || role === 'PHARMACIST';
+  const isEnabled = isSupportedRole && (options.enabled ?? true);
+
   return useQuery({
-    queryKey: [...APP_NOTIFICATIONS_QUERY_KEY, role],
-    enabled: Boolean(role),
+    queryKey: [
+      ...APP_NOTIFICATIONS_QUERY_KEY,
+      role,
+      options.userId ?? null,
+    ],
+    enabled: isEnabled,
+    refetchInterval: isEnabled ? (options.refetchInterval ?? false) : false,
+    refetchIntervalInBackground:
+      options.refetchIntervalInBackground ?? false,
     retry: false,
     queryFn: async () => {
       if (role === 'PHARMACIST') {
@@ -74,6 +94,10 @@ export const useAppNotifications = (role: UserRole | null) => {
           console.error('상담 알림 조회 실패:', error);
           return [];
         }
+      }
+
+      if (role !== 'USER') {
+        return [];
       }
 
       const notifications: AppNotification[] = [];

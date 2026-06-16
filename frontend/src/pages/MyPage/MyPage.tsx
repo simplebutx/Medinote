@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Badge, Button, Card, Input } from '../../components/ui';
+import { useUpdatePassword } from '../../features/auth/hooks';
 import {
   useCautionSuggest,
   useCreateMyCaution,
@@ -27,6 +28,7 @@ import {
   useDeleteMedicationScheduleTime,
   useMedicationSchedules,
   useMedicationTimePresets,
+  usePrescriptionAnalysis,
   useUpdateMedicationSchedule,
   useUpdateMedicationTimePresets,
 } from '../../features/schedule/hooks';
@@ -38,6 +40,8 @@ import type {
   MedicationScheduleTime,
   MedicationTiming,
   MedicationTimePreset,
+  PrescriptionAnalysisResponse,
+  PrescriptionAnalysisResultItem,
 } from '../../features/schedule/types/schedule.types';
 import { getSmartPillSlotAssignments } from '../../features/smartpill/api/smartpill.api';
 import {
@@ -64,9 +68,53 @@ function getCautionSourceLabel(sourceType: CautionTargetType) {
   return sourceType === 'MEDICINE' ? '약' : '성분';
 }
 
+function getPasswordValidationMessage(value: string) {
+  if (!value) {
+    return '새 비밀번호를 입력해주세요.';
+  }
+
+  const hasAlphabet = /[A-Za-z]/.test(value);
+  const hasSpecialCharacter =
+    /[!@#$%^&*()_\-+=[\]{};':"\\|,.<>/?`~]/.test(value);
+  const hasValidLength = value.length >= 8 && value.length <= 20;
+  const hasNoWhitespace = !/\s/.test(value);
+
+  if (
+    !hasValidLength ||
+    !hasAlphabet ||
+    !hasSpecialCharacter ||
+    !hasNoWhitespace
+  ) {
+    return '비밀번호는 8자 이상 20자 이하이며 영문과 특수문자를 포함해야 합니다.';
+  }
+
+  return '';
+}
+
 interface DiseaseOption {
   code: string;
   name: string;
+}
+
+function normalizeDiseaseName(value: string) {
+  return value.trim().replace(/^@/, '');
+}
+
+function getUniqueDiseaseNames(values: string[]) {
+  const seen = new Set<string>();
+
+  return values.reduce<string[]>((result, value) => {
+    const diseaseName = normalizeDiseaseName(value);
+    const comparisonKey = diseaseName.toLocaleLowerCase();
+
+    if (!diseaseName || seen.has(comparisonKey)) {
+      return result;
+    }
+
+    seen.add(comparisonKey);
+    result.push(diseaseName);
+    return result;
+  }, []);
 }
 
 interface HealthFormState {
@@ -300,6 +348,92 @@ function getDosageText(medicine: MedicationScheduleMedicine) {
   }일`;
 }
 
+function getPrescriptionAnalysisStatusLabel(
+  analysis: PrescriptionAnalysisResponse,
+) {
+  return analysis.status === 'CAUTION' ? '주의 필요' : '특이사항 없음';
+}
+
+function getPrescriptionAnalysisStatusBadgeVariant(
+  analysis: PrescriptionAnalysisResponse,
+): 'yellow' | 'green' {
+  return analysis.status === 'CAUTION' ? 'yellow' : 'green';
+}
+
+function getPrescriptionAnalysisSummary(
+  analysis: PrescriptionAnalysisResponse,
+) {
+  if (analysis.status === 'CAUTION') {
+    return '등록된 주의 정보와 처방 약 사이에 확인이 필요한 항목이 있습니다.';
+  }
+
+  return '현재 등록된 주의 정보와 겹치는 항목은 발견되지 않았습니다.';
+}
+
+function getStringList(values?: string[] | null) {
+  return (values ?? []).filter(Boolean);
+}
+
+function getPrescriptionAnalysisItems(analysis: PrescriptionAnalysisResponse) {
+  return analysis.items ?? [];
+}
+
+function getAnalysisMedicineName(
+  item: PrescriptionAnalysisResultItem,
+  index: number,
+) {
+  return item.medicineName?.trim() || `약 ${index + 1}`;
+}
+
+function getAnalysisWarnings(item: PrescriptionAnalysisResultItem) {
+  const warnings: string[] = [];
+
+  if (item.warningMedicine) warnings.push('주의 약');
+  if (item.warningIngredient) warnings.push('주의 성분');
+  if (item.warningDisease) warnings.push('기저질환');
+  if (item.warningHealthInfo) warnings.push('건강 상태');
+
+  return warnings;
+}
+
+function getPersonalCautionLines(item: PrescriptionAnalysisResultItem) {
+  return [
+    ...getStringList(item.matchedMedicineCautions).map(
+      (value) => `주의 약: ${value}`,
+    ),
+    ...getStringList(item.matchedIngredientCautions).map(
+      (value) => `주의 성분: ${value}`,
+    ),
+    ...getStringList(item.matchedDiseaseNames).map(
+      (value) => `기저질환: ${value}`,
+    ),
+    ...getStringList(item.matchedHealthInfoNames).map(
+      (value) => `건강 상태: ${value}`,
+    ),
+  ].filter(Boolean);
+}
+
+function getAnalysisGeneralCautionTags(item: PrescriptionAnalysisResultItem) {
+  return getStringList(item.generalCautionTags);
+}
+
+function getPrescriptionGeneralCautionTags(
+  analysis: PrescriptionAnalysisResponse,
+) {
+  const seen = new Set<string>();
+
+  return getPrescriptionAnalysisItems(analysis)
+    .flatMap(getAnalysisGeneralCautionTags)
+    .filter((tag) => {
+      if (seen.has(tag)) {
+        return false;
+      }
+
+      seen.add(tag);
+      return true;
+    });
+}
+
 const dosageUnitOptions: { label: string; value: DosageUnit }[] = [
   { label: '정', value: 'TABLET' },
   { label: '캡슐', value: 'CAPSULE' },
@@ -453,6 +587,12 @@ function MyPage() {
   } = useMyProfile();
 
   const updateMyProfileMutation = useUpdateMyProfile();
+  const updatePasswordMutation = useUpdatePassword();
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [hasTriedPasswordChange, setHasTriedPasswordChange] = useState(false);
 
   const {
     data: medicationSchedules = [],
@@ -506,6 +646,12 @@ function MyPage() {
   const deleteMedicationScheduleMutation = useDeleteMedicationSchedule();
   const deleteMedicationScheduleTimeMutation = useDeleteMedicationScheduleTime();
   const createScheduleTimeMutation = useCreateMedicationScheduleTime();
+  const prescriptionAnalysisMutation = usePrescriptionAnalysis();
+  const [prescriptionAnalysisByScheduleId, setPrescriptionAnalysisByScheduleId] =
+    useState<Record<number, PrescriptionAnalysisResponse>>({});
+  const [analyzingPrescriptionId, setAnalyzingPrescriptionId] = useState<
+    number | null
+  >(null);
   const { data: smartPillDevices = [] } = useSmartPillDevices();
   const saveSmartPillAssignmentsMutation =
     useSaveSmartPillSlotAssignments();
@@ -561,6 +707,7 @@ function MyPage() {
   const [isHealthDiseaseSearchOpen, setIsHealthDiseaseSearchOpen] =
     useState(false);
 
+  const [isHealthEditing, setIsHealthEditing] = useState(false);
   const [healthDraft, setHealthDraft] = useState<HealthFormState | null>(null);
 
   const profileHealthForm = useMemo<HealthFormState>(() => {
@@ -606,6 +753,10 @@ function MyPage() {
   const updateHealthForm = (
     updater: (current: HealthFormState) => HealthFormState,
   ) => {
+    if (!isHealthEditing) {
+      return;
+    }
+
     setHealthDraft((prev) => updater(prev ?? profileHealthForm));
   };
 
@@ -655,10 +806,17 @@ function MyPage() {
     setIsHealthDiseaseSearchOpen(value.trim().length >= 2);
   };
 
-  const handleSelectHealthDisease = (disease: DiseaseOption) => {
+  const handleAddHealthDisease = (rawDiseaseName: string) => {
+    const diseaseName = normalizeDiseaseName(rawDiseaseName);
+
+    if (!diseaseName) {
+      return;
+    }
+
     updateHealthForm((current) => {
       const alreadySelected = current.diseases.some(
-        (item) => item.code === disease.code,
+        (item) =>
+          item.name.toLocaleLowerCase() === diseaseName.toLocaleLowerCase(),
       );
 
       if (alreadySelected) {
@@ -667,12 +825,22 @@ function MyPage() {
 
       return {
         ...current,
-        diseases: [...current.diseases, disease],
+        diseases: [
+          ...current.diseases,
+          {
+            code: diseaseName,
+            name: diseaseName,
+          },
+        ],
       };
     });
 
     setHealthDiseaseKeyword('');
     setIsHealthDiseaseSearchOpen(false);
+  };
+
+  const handleSelectHealthDisease = (disease: DiseaseOption) => {
+    handleAddHealthDisease(disease.name);
   };
 
   const handleRemoveHealthDisease = (diseaseCode: string) => {
@@ -684,7 +852,27 @@ function MyPage() {
     }));
   };
 
+  const handleStartEditHealthInfo = () => {
+    setHealthDraft({
+      ...profileHealthForm,
+      diseases: [...profileHealthForm.diseases],
+    });
+    setIsHealthEditing(true);
+  };
+
+  const handleCancelEditHealthInfo = () => {
+    setHealthDraft(null);
+    setHealthDiseaseKeyword('');
+    setIsHealthDiseaseSearchOpen(false);
+    setIsHealthEditing(false);
+  };
+
   const handleSaveHealthInfo = () => {
+    const diseaseNames = getUniqueDiseaseNames([
+      ...healthForm.diseases.map((disease) => disease.name),
+      healthDiseaseKeyword,
+    ]);
+
     updateMyProfileMutation.mutate(
       {
         username: profileInfo.name,
@@ -699,12 +887,15 @@ function MyPage() {
         isDrinking: healthForm.isDrinking,
         isChild: healthForm.isChild,
         isElderly: healthForm.isElderly,
-        diseases: healthForm.diseases.map((disease) => disease.name),
+        diseases: diseaseNames,
       },
       {
         onSuccess: () => {
           toast.success('건강 정보가 저장되었습니다.');
           setHealthDraft(null);
+          setHealthDiseaseKeyword('');
+          setIsHealthDiseaseSearchOpen(false);
+          setIsHealthEditing(false);
         },
         onError: (error) => {
           console.error('건강 정보 저장 실패:', error);
@@ -1016,6 +1207,11 @@ function MyPage() {
       }
 
       toast.success('처방 내역 정보가 수정되었습니다.');
+      setPrescriptionAnalysisByScheduleId((prev) => {
+        const next = { ...prev };
+        delete next[schedule.id];
+        return next;
+      });
       handleCancelEditPrescription();
     } catch (error) {
       console.error('처방 내역 수정 실패:', error);
@@ -1037,6 +1233,11 @@ function MyPage() {
     deleteMedicationScheduleMutation.mutate(schedule.id, {
       onSuccess: () => {
         toast.success('처방 내역이 삭제되었습니다.');
+        setPrescriptionAnalysisByScheduleId((prev) => {
+          const next = { ...prev };
+          delete next[schedule.id];
+          return next;
+        });
 
         if (editingPrescriptionId === schedule.id) {
           handleCancelEditPrescription();
@@ -1047,6 +1248,27 @@ function MyPage() {
         toast.error('처방 내역 삭제에 실패했습니다.');
       },
     });
+  };
+
+  const handleAnalyzePrescription = async (schedule: MedicationSchedule) => {
+    setAnalyzingPrescriptionId(schedule.id);
+
+    try {
+      const analysis = await prescriptionAnalysisMutation.mutateAsync(
+        schedule.id,
+      );
+
+      setPrescriptionAnalysisByScheduleId((prev) => ({
+        ...prev,
+        [schedule.id]: analysis,
+      }));
+      toast.success('처방 내역 분석이 완료되었습니다.');
+    } catch (error) {
+      console.error('처방 내역 분석 실패:', error);
+      toast.error('처방 내역 분석에 실패했습니다.');
+    } finally {
+      setAnalyzingPrescriptionId(null);
+    }
   };
 
   const loadSmartPillAssignments = async (
@@ -1292,6 +1514,61 @@ function MyPage() {
     });
   };
 
+  const handleClosePasswordModal = () => {
+    if (updatePasswordMutation.isPending) {
+      return;
+    }
+
+    setIsPasswordModalOpen(false);
+    setOldPassword('');
+    setNewPassword('');
+    setNewPasswordConfirm('');
+    setHasTriedPasswordChange(false);
+  };
+
+  const handleUpdatePassword = () => {
+    setHasTriedPasswordChange(true);
+
+    const passwordValidationMessage =
+      getPasswordValidationMessage(newPassword);
+
+    if (!oldPassword) {
+      toast.error('현재 비밀번호를 입력해주세요.');
+      return;
+    }
+
+    if (passwordValidationMessage) {
+      toast.error(passwordValidationMessage);
+      return;
+    }
+
+    if (newPassword !== newPasswordConfirm) {
+      toast.error('새 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    updatePasswordMutation.mutate(
+      {
+        oldPassword,
+        newPassword,
+      },
+      {
+        onSuccess: () => {
+          toast.success('비밀번호가 변경되었습니다.');
+          setIsPasswordModalOpen(false);
+          setOldPassword('');
+          setNewPassword('');
+          setNewPasswordConfirm('');
+          setHasTriedPasswordChange(false);
+        },
+        onError: (error) => {
+          console.error('비밀번호 변경 실패:', error);
+          toast.error('비밀번호 변경에 실패했습니다. 다시 시도해주세요.');
+        },
+      },
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -1338,7 +1615,7 @@ function MyPage() {
             type="button"
             variant="ghost"
             className="border border-slate-200"
-            onClick={() => toast('비밀번호 변경 기능은 준비 중입니다.')}
+            onClick={() => setIsPasswordModalOpen(true)}
           >
             비밀번호 변경
           </Button>
@@ -1419,12 +1696,26 @@ function MyPage() {
 
           {activeTab === 'health' && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">건강 정보</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  복약 안내와 약사 상담에 참고되는 건강 상태와 기저질환 정보를
-                  관리합니다.
-                </p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    건강 정보
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    복약 안내와 약사 상담에 참고되는 건강 상태와 기저질환
+                    정보를 관리합니다.
+                  </p>
+                </div>
+
+                {!isHealthEditing && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleStartEditHealthInfo}
+                  >
+                    수정
+                  </Button>
+                )}
               </div>
 
               <div>
@@ -1435,6 +1726,7 @@ function MyPage() {
                 <div className="grid gap-3 md:grid-cols-2">
                   <button
                     type="button"
+                    disabled={!isHealthEditing}
                     onClick={() =>
                       updateHealthForm((current) => ({
                         ...current,
@@ -1442,10 +1734,13 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
+                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
                       healthForm.isPregnant
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
+                      isHealthEditing
+                        ? 'cursor-pointer hover:border-blue-300'
+                        : 'cursor-default opacity-80',
                     ].join(' ')}
                   >
                     임산부
@@ -1453,6 +1748,7 @@ function MyPage() {
 
                   <button
                     type="button"
+                    disabled={!isHealthEditing}
                     onClick={() =>
                       updateHealthForm((current) => ({
                         ...current,
@@ -1460,10 +1756,13 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
+                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
                       healthForm.isBreastfeeding
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
+                      isHealthEditing
+                        ? 'cursor-pointer hover:border-blue-300'
+                        : 'cursor-default opacity-80',
                     ].join(' ')}
                   >
                     모유수유 중
@@ -1471,6 +1770,7 @@ function MyPage() {
 
                   <button
                     type="button"
+                    disabled={!isHealthEditing}
                     onClick={() =>
                       updateHealthForm((current) => ({
                         ...current,
@@ -1478,10 +1778,13 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
+                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
                       healthForm.isSmoking
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
+                      isHealthEditing
+                        ? 'cursor-pointer hover:border-blue-300'
+                        : 'cursor-default opacity-80',
                     ].join(' ')}
                   >
                     흡연
@@ -1489,6 +1792,7 @@ function MyPage() {
 
                   <button
                     type="button"
+                    disabled={!isHealthEditing}
                     onClick={() =>
                       updateHealthForm((current) => ({
                         ...current,
@@ -1496,10 +1800,13 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
+                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
                       healthForm.isDrinking
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
+                      isHealthEditing
+                        ? 'cursor-pointer hover:border-blue-300'
+                        : 'cursor-default opacity-80',
                     ].join(' ')}
                   >
                     음주
@@ -1507,6 +1814,7 @@ function MyPage() {
 
                   <button
                     type="button"
+                    disabled={!isHealthEditing}
                     onClick={() =>
                       updateHealthForm((current) => ({
                         ...current,
@@ -1514,10 +1822,13 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
+                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
                       healthForm.isChild
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
+                      isHealthEditing
+                        ? 'cursor-pointer hover:border-blue-300'
+                        : 'cursor-default opacity-80',
                     ].join(' ')}
                   >
                     소아
@@ -1525,6 +1836,7 @@ function MyPage() {
 
                   <button
                     type="button"
+                    disabled={!isHealthEditing}
                     onClick={() =>
                       updateHealthForm((current) => ({
                         ...current,
@@ -1532,10 +1844,13 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold',
+                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
                       healthForm.isElderly
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-600',
+                      isHealthEditing
+                        ? 'cursor-pointer hover:border-blue-300'
+                        : 'cursor-default opacity-80',
                     ].join(' ')}
                   >
                     고령자
@@ -1550,32 +1865,58 @@ function MyPage() {
 
                 {healthForm.diseases.length > 0 && (
                   <div className="mb-3 flex flex-wrap gap-2">
-                    {healthForm.diseases.map((disease) => (
-                      <button
-                        key={disease.code}
-                        type="button"
-                        onClick={() => handleRemoveHealthDisease(disease.code)}
-                        className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700"
-                      >
-                        {disease.name} ×
-                      </button>
-                    ))}
+                    {healthForm.diseases.map((disease) =>
+                      isHealthEditing ? (
+                        <button
+                          key={disease.code}
+                          type="button"
+                          onClick={() =>
+                            handleRemoveHealthDisease(disease.code)
+                          }
+                          className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700"
+                        >
+                          {disease.name} ×
+                        </button>
+                      ) : (
+                        <span
+                          key={disease.code}
+                          className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700"
+                        >
+                          {disease.name}
+                        </span>
+                      ),
+                    )}
                   </div>
                 )}
 
                 <div className="relative">
                   <Input
-                    placeholder="예: 고혈압, 당뇨병, 위염"
+                    placeholder={
+                      isHealthEditing
+                        ? '예: 고혈압, 당뇨병, 위염'
+                        : '수정 버튼을 눌러 기저질환을 변경할 수 있습니다.'
+                    }
                     value={healthDiseaseKeyword}
+                    disabled={!isHealthEditing}
                     onChange={(event) =>
                       handleChangeHealthDiseaseKeyword(event.target.value)
                     }
-                    onFocus={() =>
-                      setIsHealthDiseaseSearchOpen(healthDiseaseKeyword.trim().length >= 2)
-                    }
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ',') {
+                        event.preventDefault();
+                        handleAddHealthDisease(healthDiseaseKeyword);
+                      }
+                    }}
+                    onFocus={() => {
+                      if (isHealthEditing) {
+                        setIsHealthDiseaseSearchOpen(
+                          healthDiseaseKeyword.trim().length >= 2,
+                        );
+                      }
+                    }}
                   />
 
-                  {isHealthDiseaseSearchOpen && (
+                  {isHealthEditing && isHealthDiseaseSearchOpen && (
                     <div className="absolute left-0 top-full z-10 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
                       <div className="mb-2 px-2 text-xs font-semibold text-slate-500">
                         기저질환 검색 결과
@@ -1613,7 +1954,8 @@ function MyPage() {
                 </div>
 
                 <p className="mt-2 text-xs text-slate-500">
-                  기저질환은 검색 결과에서 선택해 등록합니다.
+                  검색 결과를 선택하거나 직접 입력한 뒤 Enter 또는 쉼표로
+                  추가할 수 있습니다.
                 </p>
               </div>
 
@@ -1622,15 +1964,29 @@ function MyPage() {
                 활용됩니다. 알레르기/주의 성분은 별도 탭에서 관리합니다.
               </div>
 
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  onClick={handleSaveHealthInfo}
-                  disabled={updateMyProfileMutation.isPending}
-                >
-                  {updateMyProfileMutation.isPending ? '저장 중...' : '건강 정보 저장'}
-                </Button>
-              </div>
+              {isHealthEditing && (
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="border border-slate-200"
+                    onClick={handleCancelEditHealthInfo}
+                    disabled={updateMyProfileMutation.isPending}
+                  >
+                    취소
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={handleSaveHealthInfo}
+                    disabled={updateMyProfileMutation.isPending}
+                  >
+                    {updateMyProfileMutation.isPending
+                      ? '저장 중...'
+                      : '건강 정보 저장'}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
@@ -2079,6 +2435,16 @@ function MyPage() {
                   const medicines = getScheduleMedicines(schedule);
                   const status = getPrescriptionStatus(schedule);
                   const range = getPrescriptionRange(schedule);
+                  const prescriptionAnalysis =
+                    prescriptionAnalysisByScheduleId[schedule.id];
+                  const prescriptionAnalysisItems = prescriptionAnalysis
+                    ? getPrescriptionAnalysisItems(prescriptionAnalysis)
+                    : [];
+                  const prescriptionGeneralCautionTags = prescriptionAnalysis
+                    ? getPrescriptionGeneralCautionTags(prescriptionAnalysis)
+                    : [];
+                  const isAnalyzingPrescription =
+                    analyzingPrescriptionId === schedule.id;
 
                   return (
                     <div
@@ -2118,6 +2484,20 @@ function MyPage() {
                         </div>
 
                         <div className="flex flex-wrap justify-end gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="border border-amber-200 text-amber-700 hover:bg-amber-50"
+                            onClick={() => handleAnalyzePrescription(schedule)}
+                            disabled={
+                              isAnalyzingPrescription ||
+                              deleteMedicationScheduleMutation.isPending
+                            }
+                          >
+                            {isAnalyzingPrescription ? '분석 중...' : '주의 분석'}
+                          </Button>
+
                           <Button
                             type="button"
                             size="sm"
@@ -2473,6 +2853,125 @@ function MyPage() {
                           ))
                         )}
                       </div>
+
+                      {prescriptionAnalysis && (
+                        <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="font-bold text-slate-900">
+                                처방 내역 분석 결과
+                              </p>
+                              <p className="mt-1 text-sm text-slate-500">
+                                {getPrescriptionAnalysisSummary(
+                                  prescriptionAnalysis,
+                                )}
+                              </p>
+                            </div>
+
+                            <Badge
+                              variant={getPrescriptionAnalysisStatusBadgeVariant(
+                                prescriptionAnalysis,
+                              )}
+                            >
+                              {getPrescriptionAnalysisStatusLabel(
+                                prescriptionAnalysis,
+                              )}
+                            </Badge>
+                          </div>
+
+                          {prescriptionGeneralCautionTags.length > 0 && (
+                            <div className="mt-4 border-t border-slate-100 pt-3">
+                              <p className="text-xs font-semibold text-slate-500">
+                                전체 일반 복약 주의
+                              </p>
+
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {prescriptionGeneralCautionTags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {prescriptionAnalysisItems.length > 0 && (
+                            <div className="mt-4 divide-y divide-slate-100">
+                              {prescriptionAnalysisItems.map((item, index) => {
+                                const warnings = getAnalysisWarnings(item);
+                                const personalCautionLines =
+                                  getPersonalCautionLines(item);
+                                const generalCautionTags =
+                                  getAnalysisGeneralCautionTags(item);
+                                const medicineName = getAnalysisMedicineName(
+                                  item,
+                                  index,
+                                );
+
+                                return (
+                                  <div
+                                    key={`${item.scheduleMedicineId ?? index}-${medicineName}`}
+                                    className="py-3 first:pt-0 last:pb-0"
+                                  >
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <p className="font-semibold text-slate-900">
+                                        {medicineName}
+                                      </p>
+
+                                      {warnings.length === 0 && (
+                                        <span className="text-xs font-semibold text-slate-400">
+                                          개인화 주의 없음
+                                        </span>
+                                      )}
+
+                                      {warnings.map((warning) => (
+                                        <span
+                                          key={warning}
+                                          className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700"
+                                        >
+                                          {warning}
+                                        </span>
+                                      ))}
+                                    </div>
+
+                                    {personalCautionLines.length > 0 && (
+                                      <div className="mt-3 flex flex-wrap gap-2">
+                                        {personalCautionLines.map((line) => (
+                                          <span
+                                            key={line}
+                                            className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700"
+                                          >
+                                            {line}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    {generalCautionTags.length > 0 && (
+                                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                                        <p className="text-xs font-semibold text-slate-500">
+                                          일반 복약 주의
+                                        </p>
+                                        {generalCautionTags.map((tag) => (
+                                          <span
+                                            key={tag}
+                                            className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600"
+                                          >
+                                            {tag}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -2480,6 +2979,115 @@ function MyPage() {
           )}
         </div>
       </Card>
+
+      {isPasswordModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="password-modal-title"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2
+                  id="password-modal-title"
+                  className="text-xl font-bold text-slate-900"
+                >
+                  비밀번호 변경
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  현재 비밀번호를 확인한 후 새 비밀번호로 변경합니다.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={handleClosePasswordModal}
+                disabled={updatePasswordMutation.isPending}
+                aria-label="비밀번호 변경 창 닫기"
+              >
+                닫기
+              </Button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              <Input
+                label="현재 비밀번호"
+                type="password"
+                autoComplete="current-password"
+                value={oldPassword}
+                onChange={(event) => setOldPassword(event.target.value)}
+                errorMessage={
+                  hasTriedPasswordChange && !oldPassword
+                    ? '현재 비밀번호를 입력해주세요.'
+                    : undefined
+                }
+                disabled={updatePasswordMutation.isPending}
+              />
+
+              <Input
+                label="새 비밀번호"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                errorMessage={
+                  (hasTriedPasswordChange || newPassword.length > 0)
+                    ? getPasswordValidationMessage(newPassword)
+                    : undefined
+                }
+                disabled={updatePasswordMutation.isPending}
+              />
+
+              <Input
+                label="새 비밀번호 확인"
+                type="password"
+                autoComplete="new-password"
+                value={newPasswordConfirm}
+                onChange={(event) =>
+                  setNewPasswordConfirm(event.target.value)
+                }
+                errorMessage={
+                  (hasTriedPasswordChange ||
+                    newPasswordConfirm.length > 0) &&
+                  newPassword !== newPasswordConfirm
+                    ? '새 비밀번호가 일치하지 않습니다.'
+                    : undefined
+                }
+                disabled={updatePasswordMutation.isPending}
+              />
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                className="border border-slate-200"
+                onClick={handleClosePasswordModal}
+                disabled={updatePasswordMutation.isPending}
+              >
+                취소
+              </Button>
+
+              <Button
+                type="button"
+                onClick={handleUpdatePassword}
+                disabled={updatePasswordMutation.isPending}
+              >
+                {updatePasswordMutation.isPending
+                  ? '변경 중...'
+                  : '비밀번호 변경'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {smartPillModalSchedule && (
         <div

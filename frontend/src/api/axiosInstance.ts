@@ -1,12 +1,34 @@
 import axios from "axios";
 import { useUserStore } from "../store/useUserStore";
 
-const isProd = import.meta.env.PROD;
+const LOCAL_API_URL_PATTERN =
+  /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\/?$/i;
 
-const AUTH_BASE_URL = import.meta.env.VITE_AUTH_API_URL || (isProd ? "" : "http://localhost:8080");
-const MEDICATION_BASE_URL = import.meta.env.VITE_MEDICATION_API_URL || (isProd ? "" : "http://localhost:8081");
-const CONSULTATION_BASE_URL = import.meta.env.VITE_CONSULTATION_API_URL || (isProd ? "" : "http://localhost:8082");
-const AI_BASE_URL = import.meta.env.VITE_AI_API_URL || (isProd ? "" : "http://localhost:8000");
+function resolveApiBaseUrl(configuredUrl?: string) {
+  const normalizedUrl = configuredUrl?.trim().replace(/\/$/, "") ?? "";
+
+  if (
+    import.meta.env.DEV &&
+    LOCAL_API_URL_PATTERN.test(normalizedUrl)
+  ) {
+    return "";
+  }
+
+  return normalizedUrl;
+}
+
+export const AUTH_BASE_URL = resolveApiBaseUrl(
+  import.meta.env.VITE_AUTH_API_URL,
+);
+export const MEDICATION_BASE_URL = resolveApiBaseUrl(
+  import.meta.env.VITE_MEDICATION_API_URL,
+);
+export const CONSULTATION_BASE_URL = resolveApiBaseUrl(
+  import.meta.env.VITE_CONSULTATION_API_URL,
+);
+export const AI_BASE_URL = resolveApiBaseUrl(
+  import.meta.env.VITE_AI_API_URL,
+);
 
 const createInstance = (baseURL: string) => {
   const instance = axios.create({

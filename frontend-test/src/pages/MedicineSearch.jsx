@@ -185,7 +185,10 @@ function MedicineSearch() {
 
         {results.length > 0 && (
           <div className="medicine-search-grid">
-            {results.map((medicine) => (
+            {results.map((medicine) => {
+              const generalTags = medicine.generalCautionTags || []
+
+              return (
               <article className="medicine-card" key={medicine.itemSeq}>
                 <div className="medicine-card-title-row">
                   <div className="medicine-card-title-main">
@@ -200,6 +203,21 @@ function MedicineSearch() {
                         주의 성분 포함
                       </span>
                     )}
+                    {generalTags.length ? (
+                      <details className="general-caution-details medicine-card-general-cautions">
+                        <summary>일반 주의 {generalTags.length}개</summary>
+                        <div>
+                          {generalTags.map((tag) => (
+                            <span
+                              key={`${medicine.itemSeq}-${tag.tagCode || tag.tagName}`}
+                              title={(tag.matchedKeywords || []).join(', ') || tag.tagName}
+                            >
+                              {tag.tagName}
+                            </span>
+                          ))}
+                        </div>
+                      </details>
+                    ) : null}
                   </div>
                   <div className="medicine-card-title-meta">
                   </div>
@@ -241,7 +259,8 @@ function MedicineSearch() {
                   </div>
                 </div>
               </article>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

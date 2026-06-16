@@ -63,15 +63,6 @@ const initialAiMessages: ChatMessage[] = [
 const PHARMACIST_DRAFT_STORAGE_KEY = 'pendingPharmacistConsultQuestion';
 const PHARMACIST_GUIDE_MESSAGE =
   '입력하신 내용은 전문가의 확인이 필요해요. 약사 상담을 통해 확인해주세요.';
-const LEGACY_INCONCLUSIVE_ANSWER_MARKERS = [
-  '답변드리기 어렵습니다',
-  '확인할 수 없',
-  '확인이 어려',
-  '답변이 어려',
-  '정답을 드릴 수 없',
-  '문서에 포함되어 있지 않',
-  '직접 관련된 내용을 찾기 어려',
-];
 const PENDING_CONSULT_MESSAGE_LIMIT = 2;
 
 interface PharmacistDraftStorageValue {
@@ -199,24 +190,11 @@ function getConsultRoomStatusDescription(status?: string) {
   return '약사 상담이 필요한 경우 상담 요청을 생성해주세요.';
 }
 
-function isLegacyDocumentFallback(message: ApiChatbotMessage) {
-  if (message.answerType) {
-    return false;
-  }
-
-  const answerText = message.answer ?? message.content ?? '';
-
-  return LEGACY_INCONCLUSIVE_ANSWER_MARKERS.some((marker) =>
-    answerText.includes(marker),
-  );
-}
-
 function mapApiChatbotMessageToChatMessage(
   message: ApiChatbotMessage,
   index: number,
 ): ChatMessage {
-  const isFallback =
-    message.answerType === 'FALLBACK' || isLegacyDocumentFallback(message);
+  const isFallback = message.answerType === 'FALLBACK';
 
   return {
     id: message.messageId ?? index + 1,
@@ -229,7 +207,7 @@ function mapApiChatbotMessageToChatMessage(
         '메시지 내용을 불러오지 못했습니다.',
     createdAt: formatChatTime(message.createdAt),
     sortTime: getMessageSortTime(message.createdAt),
-    answerType: isFallback ? 'FALLBACK' : message.answerType,
+    answerType: message.answerType,
   };
 }
 
@@ -402,7 +380,10 @@ function getChatDisplayParts(chat: ChatMessage) {
   if (chat.sender !== 'USER') {
     return {
       drugNames: [],
-      content: chat.content,
+      content:
+        chat.answerType === 'FALLBACK'
+          ? PHARMACIST_GUIDE_MESSAGE
+          : chat.content,
     };
   }
 
@@ -979,6 +960,7 @@ function ChatPage() {
       sender: 'USER',
       content: displayQuestion || '선택한 약에 대해 상담하고 싶어요.',
       createdAt: '방금',
+      sortTime: new Date().getTime(),
       drugs,
     };
 
@@ -1008,8 +990,7 @@ function ChatPage() {
           const answerText =
             data.answer || data.content || '응답 내용을 불러오지 못했습니다.';
 
-          const isFallback =
-            data.answerType === 'FALLBACK' || isLegacyDocumentFallback(data);
+          const isFallback = data.answerType === 'FALLBACK';
 
           const aiMessage: ChatMessage = {
             id: data.messageId ?? createMessageId(),
@@ -1018,7 +999,7 @@ function ChatPage() {
             content: isFallback ? PHARMACIST_GUIDE_MESSAGE : answerText,
             createdAt: data.createdAt ? data.createdAt.slice(11, 16) : '방금',
             sortTime: getMessageSortTime(data.createdAt),
-            answerType: isFallback ? 'FALLBACK' : data.answerType,
+            answerType: data.answerType,
             escalationDraft: isFallback
               ? buildPharmacistDraftText(question, drugs)
               : undefined,
@@ -1865,7 +1846,7 @@ function ChatPage() {
                               }
                               className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
                             >
-                              약사 상담 이어가기
+                              약사 상담으로 이어가기
                             </button>
                           </div>
                         )}

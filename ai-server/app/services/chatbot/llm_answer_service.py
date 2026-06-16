@@ -7,8 +7,17 @@ from app.core.config import settings
 MAX_CONTEXT_CHUNKS = 6
 MAX_CONTEXT_CHARS = 7000
 ANSWER_TYPE_NORMAL = "NORMAL"
+ANSWER_TYPE_CONSULT_RECOMMENDED = "CONSULT_RECOMMENDED"
 ANSWER_TYPE_FALLBACK = "FALLBACK"
 DRUG_INFO_FALLBACK_ANSWER = "답변드리기 어렵습니다. 자세한 내용은 약사 상담으로 이어갈 수 있습니다."
+CONSULT_RECOMMENDED_MARKERS = (
+    "답변드리기 어렵습니다",
+    "확인이 어렵습니다",
+    "확인하기 어렵습니다",
+    "전문가와 상담",
+    "약사와 상담",
+    "의사나 약사",
+)
 
 
 @dataclass(frozen=True)
@@ -146,7 +155,7 @@ def generate_answer_from_context(question: str,results: list[dict],drug_name: st
     if not schedule_context.strip() and not llm_context.has_grounded_match:
         return LlmAnswerResult(
             answer=DRUG_INFO_FALLBACK_ANSWER,
-            answer_type=ANSWER_TYPE_FALLBACK,
+            answer_type=ANSWER_TYPE_CONSULT_RECOMMENDED,
         )
 
     client = get_llm_client()
@@ -173,6 +182,11 @@ def generate_answer_from_context(question: str,results: list[dict],drug_name: st
     answer = normalize_answer_text(response.choices[0].message.content or "")  # 답변 전처리
     # llm 답변이 있을 때
     if answer:
+        if not schedule_context.strip() and is_consult_recommended_answer(answer):
+            return LlmAnswerResult(
+                answer=answer,
+                answer_type=ANSWER_TYPE_CONSULT_RECOMMENDED,
+            )
         return LlmAnswerResult(answer=answer)
 
     # llm 답변이 비어있을때 
@@ -181,7 +195,7 @@ def generate_answer_from_context(question: str,results: list[dict],drug_name: st
 
     return LlmAnswerResult(
         answer=DRUG_INFO_FALLBACK_ANSWER,
-        answer_type=ANSWER_TYPE_FALLBACK,
+        answer_type=ANSWER_TYPE_CONSULT_RECOMMENDED,
     )
 
 
@@ -191,3 +205,7 @@ def normalize_answer_text(answer: str) -> str:
     while "\n\n\n" in normalized:
         normalized = normalized.replace("\n\n\n", "\n\n")
     return normalized.strip()
+
+
+def is_consult_recommended_answer(answer: str) -> bool:
+    return any(marker in answer for marker in CONSULT_RECOMMENDED_MARKERS)

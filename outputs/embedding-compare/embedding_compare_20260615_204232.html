@@ -1,0 +1,3187 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Medinote Embedding Model Comparison</title>
+  <style>
+    :root {
+      --navy: #0b1324;
+      --ink: #172033;
+      --muted: #5b667a;
+      --line: #d8e2ee;
+      --light: #f7fafc;
+      --white: #ffffff;
+      --mint: #00a88f;
+      --mint-soft: #e6f4f1;
+      --blue-soft: #edf6ff;
+      --amber: #ffb020;
+      --red: #e5484d;
+      --purple-soft: #f1edff;
+      --gray-soft: #f1f5f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--light);
+      color: var(--ink);
+      font-family: Arial, "Malgun Gothic", sans-serif;
+    }
+    .page {
+      width: 1720px;
+      margin: 0 auto;
+      padding: 34px 44px 48px;
+    }
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 32px;
+      margin-bottom: 24px;
+    }
+    .eyebrow {
+      color: var(--mint);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      margin-bottom: 12px;
+    }
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: 44px;
+      line-height: 1.12;
+    }
+    .hero p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 17px;
+    }
+    .meta {
+      text-align: right;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .summary {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 10px 28px rgba(11, 19, 36, .06);
+      margin-bottom: 18px;
+      padding: 22px 24px;
+    }
+    .summary h2 {
+      margin: 0 0 14px;
+      color: var(--navy);
+      font-size: 24px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 15px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 13px 10px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      align-items: start;
+    }
+    .model-card {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 28px rgba(11, 19, 36, .06);
+    }
+    .card-head {
+      min-height: 118px;
+      padding: 18px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--mint-soft);
+    }
+    .model-openai-large .card-head, .model-gemini .card-head {
+      background: var(--blue-soft);
+    }
+    .model-upstage-solar .card-head {
+      background: var(--purple-soft);
+    }
+    .model-bge-m3 .card-head {
+      background: var(--gray-soft);
+    }
+    .card-head h2 {
+      margin: 0;
+      color: var(--navy);
+      font-size: 19px;
+      line-height: 1.15;
+    }
+    .card-head p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .badge {
+      display: inline-block;
+      min-width: 76px;
+      padding: 7px 9px;
+      border-radius: 999px;
+      background: var(--muted);
+      color: var(--white);
+      text-align: center;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .badge-demo, .badge-ok { background: var(--mint); }
+    .badge-error { background: var(--red); }
+    .metric-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1px;
+      background: var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .metric-list div {
+      min-height: 48px;
+      background: var(--white);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .metric-list span {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+    .metric-list strong {
+      color: var(--navy);
+      font-size: 18px;
+      line-height: 1.1;
+      text-align: right;
+      word-break: keep-all;
+    }
+    .metric-list .good strong { color: var(--mint); }
+    .metric-list .mid strong { color: var(--amber); }
+    .metric-list .bad strong { color: var(--red); }
+    .queries {
+      height: 560px;
+      overflow-y: scroll;
+      scrollbar-gutter: stable;
+      background: #fbfcfe;
+      padding: 14px;
+    }
+    .query-block {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 14px;
+      margin-bottom: 14px;
+    }
+    .query-block:last-child {
+      border-bottom: 0;
+      margin-bottom: 0;
+    }
+    .query-block h3 {
+      margin: 0 0 8px;
+      color: var(--navy);
+      font-size: 15px;
+      line-height: 1.35;
+    }
+    .answer-ids {
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 9px;
+      word-break: break-all;
+    }
+    ol {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 8px;
+    }
+    li {
+      display: grid;
+      grid-template-columns: 26px 1fr;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
+      padding: 8px;
+    }
+    li.answer {
+      border-color: rgba(0, 168, 143, .55);
+      background: #f1fbf8;
+    }
+    .rank {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: var(--navy);
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 12px;
+    }
+    li.answer .rank {
+      background: var(--mint);
+    }
+    li strong {
+      display: block;
+      color: var(--navy);
+      font-size: 13px;
+      line-height: 1.25;
+    }
+    li span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    li p {
+      margin: 6px 0 0;
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .footnote {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    @media print {
+      .page { width: auto; padding: 24px; }
+      .queries { height: auto; overflow: visible; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">MEDINOTE EMBEDDING MODEL TEST</div>
+        <h1>Retrieval Quality Comparison</h1>
+        <p>Same chunks, same questions, and answer chunk IDs are used for every embedding model.</p>
+      </div>
+      <div class="meta">
+        Generated: 2026-06-15 20:42:32<br>
+        JSON: embedding_compare_20260615_204232.json
+      </div>
+    </section>
+
+    <section class="summary">
+      <h2>Comparison Snapshot</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Status</th>
+            <th>Top-1 Accuracy</th>
+            <th>Top-3 Hit Rate</th>
+            <th>MRR</th>
+            <th>Avg Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td>OpenAI text-embedding-3-small</td>
+              <td><span class="badge badge-ok">OK</span></td>
+              <td>10.0%</td>
+              <td>25.0%</td>
+              <td>0.17</td>
+              <td>308 ms</td>
+            </tr>
+            
+            <tr>
+              <td>OpenAI text-embedding-3-large</td>
+              <td><span class="badge badge-ok">OK</span></td>
+              <td>15.0%</td>
+              <td>25.0%</td>
+              <td>0.19</td>
+              <td>508 ms</td>
+            </tr>
+            
+            <tr>
+              <td>Upstage Solar Embedding</td>
+              <td><span class="badge badge-ok">OK</span></td>
+              <td>55.0%</td>
+              <td>65.0%</td>
+              <td>0.59</td>
+              <td>93 ms</td>
+            </tr>
+            
+            <tr>
+              <td>BAAI bge-m3</td>
+              <td><span class="badge badge-ok">OK</span></td>
+              <td>25.0%</td>
+              <td>45.0%</td>
+              <td>0.34</td>
+              <td>106 ms</td>
+            </tr>
+            
+        </tbody>
+      </table>
+    </section>
+
+    <section class="cards">
+      
+      <section class="model-card model-openai-small">
+        <div class="card-head">
+          <div>
+            <h2>OpenAI text-embedding-3-small</h2>
+            <p>Current Medinote baseline</p>
+          </div>
+          <span class="badge badge-ok">OK</span>
+        </div>
+        <div class="metric-list">
+          <div class="bad">
+            <span>1. Top-1 Accuracy</span><strong>10.0%</strong>
+          </div>
+          <div class="bad">
+            <span>2. Top-3 Hit Rate</span><strong>25.0%</strong>
+          </div>
+          <div class="bad">
+            <span>3. MRR</span><strong>0.17</strong>
+          </div>
+          <div class="mid">
+            <span>4. Avg Response Time</span><strong>308ms</strong>
+          </div>
+        </div>
+        <div class="queries">
+          
+      <section class="query-block">
+        <h3>q001. 게보린정 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: 4114783728281071724, 9393523322034460910, 11080217091236786401, 16393081699557592079</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>비타메진캡슐50밀리그램 / precaution / chunk 0</strong>
+                <span>3730280287589608633 / score 0.482 </span>
+                <p>사용상의주의사항 1. 다음과 같은 사람은 이 약을 복용(사용)하기 전에 의사, 치과의사, 약사와 상의할 것. 이 약은 황색5호(선셋옐로우 FCF, Sunset Yellow FCF)를 함유하고 있으므로 이 성분에 과민하거나 알레르 기 병력이 있는 환자에는 신중히 투여한다. 2. 복용시 다음 사항에 주의할 것. 1) 정해진 용법•용량을 지킬 것. 2) 소아에 투여할 경우에는 보호자의 지도감독하에...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>삐콤정 / precaution / chunk 0</strong>
+                <span>14806358566013449228 / score 0.477 </span>
+                <p>사용상의주의사항 1. 다음과 같은 사람은 이 약을 복용하지 말 것. 1) 이 약 및 이 약에 포함된 성분에 과민반응이 있는 환자 2) 만 3개월 미만의 젖먹이 3) 이 약은 유당(젖당)을 함유하고 있으므로, 갈락토오스 불내성(galactose intolerance), Lapp 유당(젖당) 분해효소 결핍증(Lapp lactose deficiency) 또는 포도당-갈락토오스 흡수장애(glucos...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>활명수 / precaution / chunk 0</strong>
+                <span>12061448059564628723 / score 0.444 </span>
+                <p>사용상의주의사항 1) 다음과 같은 사람은 이 약을 복용하지 말 것. (1) 만 3개월 미만의 젖먹이에게 투여하지 않는다. 또 만 3개월 이상이라도 만 1세 미만의 젖먹이는 의사의  진료를 받는 것을 우선으로 하며, 부득이한 경우를 제외하고 복용시키지 않는 것이 바람직하다. 2) 다음과 같은 사람은 이 약을 복용하기 전에 의사, 치과의사, 약사와 상의 할 것. (1) 다른 약물을 복용하고 있는...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q002. 게보린정 어떻게 복용해?</h3>
+        <div class="answer-ids">Answer chunk: 18321330971571329628</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>비타메진캡슐50밀리그램 / precaution / chunk 0</strong>
+                <span>3730280287589608633 / score 0.335 </span>
+                <p>사용상의주의사항 1. 다음과 같은 사람은 이 약을 복용(사용)하기 전에 의사, 치과의사, 약사와 상의할 것. 이 약은 황색5호(선셋옐로우 FCF, Sunset Yellow FCF)를 함유하고 있으므로 이 성분에 과민하거나 알레르 기 병력이 있는 환자에는 신중히 투여한다. 2. 복용시 다음 사항에 주의할 것. 1) 정해진 용법•용량을 지킬 것. 2) 소아에 투여할 경우에는 보호자의 지도감독하에...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>게보린정(수출명:돌로린정) / usage / chunk 0</strong>
+                <span>18321330971571329628 / score 0.325 ANSWER</span>
+                <p>용법용량   성인 1회 1정 1일 3회까지 공복(빈속)시를 피하여 복용한다. 복용간격은 4시간 이상으로 한다. 이 약은 원칙적으로 단기 복용한다. 15세 미만의 소아는 이 약을 복용하지 않는다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>게보린정(수출명:돌로린정) / precaution / chunk 3</strong>
+                <span>11080217091236786401 / score 0.321 </span>
+                <p>열을 수반하는 소아 및 고령자(노인) 또는 소모성 질환 환자의 경우, 복용 후 의 상태를 충분히 살펴야한다. (5) 다른 소염(항염)진통제와 함께 복용하는 것은 피한다. (6) 의사 또는 약사의 지시없이 통증에 10일 이상(성인)또는 5일 이상(소아) 복용하지 않고 발열에 3일 이상  복용하지 않는다. 통증이나 발열 증상이 지속되거나 악화될 경우, 또는 새로운 증상이 나타날 경우 의사 또는 ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q003. 게보린정는 어떤 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 14157358700803435556</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / precaution / chunk 13</strong>
+                <span>6668454544697244817 / score 0.299 </span>
+                <p> 없이 혹은 약간의 체중 감소와 함 의 위험을 감소시킨다. 성인과 소아에 대한 임상시험에서 이 약은 체중증가 없이 혹은 약간의 체중 감소와 함 께 혈당 조절을 개선시켰다. 13. 보관 및 취급상의 주의사항 1) 어린이의 손이 닿지 않는 곳에 보관한다. 2) 다른 용기에 바꾸어 넣는 것은 사고원인이 되거나 품질유지면에서 바람직하지 않으므로 이를 주의한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>비타민케이1주사액(피토나디온주사액) / precaution / chunk 2</strong>
+                <span>1485499396054414748 / score 0.298 </span>
+                <p>고빌리루빈혈증이 나타날 수 있으므로 과량(10∼20 mg) 투여하 지 않는다. 2) 소아투여 시는 혈액학자의 자문을 구하도록 한다. 3) 비타민 K 주사 투여로 소아에게서 발암가능성이 있다는 역학조사연구 보고가 있으므로 경구투여가 부적 절한 경우 외에는 주사제를 사용하지 않도록 한다. 9. 고령자에 대한 투여 고령자는 이 약의 투여로 항응고작용을 역전시키는데 보다 민감하므로 추천용량범위의 하...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / precaution / chunk 0</strong>
+                <span>13110943297876712269 / score 0.295 </span>
+                <p>사용상의주의사항 1. 경고 1) 자살충동과 자살행동 항뇌전증약을 복용한 환자에서 자살충동 또는 자살행동을 보이는 위험성이 증가되므로 항뇌전증약을 치료받 은 환자는 자살충동 또는 자살행동, 우울증의 발현 또는 악화 및 기분과 행동의 비정상적 변화에 대하여 모니 터링되어야 한다. 항뇌전증약을 처방받는 뇌전증과 다른 많은 질병은 그 자체가 이환 및 사망, 치료기간 동안의 자살충동과 자 살행동의 위...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q004. 넥시움정20밀리그램(에스오메프라졸마그네슘) 먹을 때 조심해야 하는 사람은?</h3>
+        <div class="answer-ids">Answer chunk: 7168960786129972648, 7688971279981262734, 8282856429527230610, 8334017553176997607, 11673328677068352709, 13257914897951149630, 14013297096293548578, 14341943575432549709, 15893794466901346891, 15953310533218469962</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / precaution / chunk 7</strong>
+                <span>15893794466901346891 / score 0.282 ANSWER</span>
+                <p>3A4 저해제인 클래리트로마이신(500 mg  1일 2회 투여)을 동시에 투여하면 이 약의 AUC가 2배로 증가된다. 이 약과 CYP2C19, CYP3A4 저해제와 의 병용투여는 이 약의 노출을 두 배 이상 증가시킬 수 있다. CYP2C19, CYP3A4 억제제인 보리코나졸은 오 메프라졸의 AUCτ를 280 %까지 증가시켰다. 이 때문에 이 약의 용량을 조절할 필요는 없다. 그러나 중증의 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>포리부틴정(트리메부틴말레산염) / usage / chunk 0</strong>
+                <span>13165525996530241209 / score 0.280 </span>
+                <p>용법용량 성인 : 트리메부틴말레산염으로서 1회 100-200mg 1일 3회 식전에 경구투여한다. 연령, 증상에 따라 적절 히 증감한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>세토펜8시간이알서방정(아세트아미노펜) / precaution / chunk 3</strong>
+                <span>8733933765262147206 / score 0.280 </span>
+                <p>s, HAGMA)이 보고되었다. 가장 위험도가 높은 환자는 패혈증,  중증의 신기능 장애, 영양실조 등 기저질환이 있는 환자이며, 이 환자들은 한 가지 또는 두 가지 약물을 모 두 중단한 후에 호전되었다. 이 약과 플루클록사실린을 동시에 복용할 경우 주의를 기울여야 하고  HAGMA가 의심되면 이 약 및/또는 플루클록사실린 투여를 중단한다. 2) 과량투여시의 처치 이 약을 과량복용시 어떠한 ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q005. 넥시움정20밀리그램(에스오메프라졸마그네슘) 용법과 용량 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 11661787397856991843, 12969300826889712601, 16127882188061360616</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / precaution / chunk 7</strong>
+                <span>15893794466901346891 / score 0.361 </span>
+                <p>3A4 저해제인 클래리트로마이신(500 mg  1일 2회 투여)을 동시에 투여하면 이 약의 AUC가 2배로 증가된다. 이 약과 CYP2C19, CYP3A4 저해제와 의 병용투여는 이 약의 노출을 두 배 이상 증가시킬 수 있다. CYP2C19, CYP3A4 억제제인 보리코나졸은 오 메프라졸의 AUCτ를 280 %까지 증가시켰다. 이 때문에 이 약의 용량을 조절할 필요는 없다. 그러나 중증의 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>포리부틴정(트리메부틴말레산염) / usage / chunk 0</strong>
+                <span>13165525996530241209 / score 0.319 </span>
+                <p>용법용량 성인 : 트리메부틴말레산염으로서 1회 100-200mg 1일 3회 식전에 경구투여한다. 연령, 증상에 따라 적절 히 증감한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>세토펜8시간이알서방정(아세트아미노펜) / usage / chunk 0</strong>
+                <span>6600933181644049685 / score 0.315 </span>
+                <p>용법용량 12세 이상의 소아 및 성인 : 매 8시간마다 2정씩 복용. 24시간 동안 6정을 초과하지 말 것.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q006. 넥시움정20밀리그램(에스오메프라졸마그네슘) 효능이 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: 7441460709711525741</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>부루펜정200밀리그램(이부프로펜) / efficacy / chunk 0</strong>
+                <span>7852016112828776604 / score 0.338 </span>
+                <p>효능효과 1. 주효능 효과 류마티양 관절염, 연소성 류마티양 관절염, 골관절염(퇴행성 관절질환), 감기로 인한 발열 및 동통, 요통, 월 경곤란증, 수술후 동통 2. 다음 질환에도 사용할 수 있다. 강직성 척추염, 두통, 치통, 근육통, 신경통, 급성통풍, 건선성 관절염, 연조직손상(염좌, 좌상), 비관절 류마티 스질환(건염, 건초염, 활액낭염)</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>키미테패취(스코폴라민)(수출명:可弥特止暈貼濟) / efficacy / chunk 0</strong>
+                <span>12239363922812303041 / score 0.331 </span>
+                <p>효능효과 1. 주효능 효과 멀미에 의한 구역•구토의 예방</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / precaution / chunk 7</strong>
+                <span>15893794466901346891 / score 0.329 </span>
+                <p>3A4 저해제인 클래리트로마이신(500 mg  1일 2회 투여)을 동시에 투여하면 이 약의 AUC가 2배로 증가된다. 이 약과 CYP2C19, CYP3A4 저해제와 의 병용투여는 이 약의 노출을 두 배 이상 증가시킬 수 있다. CYP2C19, CYP3A4 억제제인 보리코나졸은 오 메프라졸의 AUCτ를 280 %까지 증가시켰다. 이 때문에 이 약의 용량을 조절할 필요는 없다. 그러나 중증의 ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q007. 노바스크정5밀리그람(암로디핀베실산염) 부작용이나 주의사항 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 1092516700474643446, 6063706250184928354, 9559796468510097291, 10621383854542130708, 14817639084781568797, 15104990811212706243, 16708979953147344313</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 1</strong>
+                <span>15104990811212706243 / score 0.442 ANSWER</span>
+                <p>관부종, 다형성홍반을 포함한 알레르기반응이 보고되었다. 3) 다른 칼슘채널 저해제에서와 마찬가지로, 다음의 이상반응들이 드물게 보고되었는데 이들이 기저질환으 로 인한 것인지 약물에 의한 것인지는 구별을 할 수 없었다. 심근경색, 부정맥(서맥, 심실성빈맥, 심방성세동 포함), 흉통 4) 기타 다음과 같은 이상반응이 관찰되었다. 심혈관계: 때때로 혈압강하, 동방블록 또는 방실블록, 드물게 복부불...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / precaution / chunk 6</strong>
+                <span>4145004101323710976 / score 0.419 </span>
+                <p>, 양성Romberg test 드물게: 늑연골염, 골다공증, 주머니염, 구축 - 신경계: 자주: 어지러움, 운동과다, 감각이상, 반사 감소 또는 상실, 반사 증가, 불안, 적개심 때때로: CNS 종양, 실신, 꿈이상, 실어증, 감각저하, 두개내출혈, 저긴장증, 이상감각, 불완전마비, 근긴장이 상, 편마비, 안면마비, 혼미, 소뇌기능이상, 양성Babinski증후, 위치감각감소, 경뇌막하혈종, ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>부루펜정200밀리그램(이부프로펜) / precaution / chunk 0</strong>
+                <span>3846860737551675150 / score 0.419 </span>
+                <p>사용상의주의사항 1. 경고 1) 매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의 사 또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 위장출혈이 유발될 수 있다. 2) 심혈관계 위험: 이 약을 포함한 비스테로이드성 소염진통제 복용시 치명적일 수 있는 중대한 심혈관계 혈 전 반응, 심근경색증 및 뇌졸중의 위험이 증가한다. 심혈관...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q008. 노바스크정5밀리그람(암로디핀베실산염) 하루에 몇 번 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: 2135793112587007329</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / usage / chunk 1</strong>
+                <span>16127882188061360616 / score 0.415 </span>
+                <p>1회 20 mg - 식도염 환자의 재발 방지를 위한 장기간 유지요법 : 1일 1회, 1회 20 mg - 식도염이 없는 위식도 역류질환의 증상치료요법 : · 1일 1회, 1회 20 mg. 4주후에도 증상 조절이 되지 않을 경우 추가 진료가 필요하다. · 일단 증상이 완화되면 그 후 연속되는 증상은 1일 1회, 1회 20 mg을 투여하여 조절한다. · 성인에서, 1일 1회, 1회 20 mg을 필...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 4</strong>
+                <span>1092516700474643446 / score 0.402 </span>
+                <p>조절하여 타크로리무스 독성을 피하도록 해야 한다 (7) mTOR 억제제: mTOR 억제제(예, 시롤리무스, 템시롤리무스, 에베로리무스)는 CYP3A의 기질이다. 암 로디핀은 약한 CYP3A 저해제이며, mTOR 억제제와 병용투여시 암로디핀이 mTOR 억제제에 대한 노출을  증가시킬 수 있다. (8) 심바스타틴: 암로디핀 10 mg과 심바스타틴 80 mg의 다회용량 병용투여는 심바스타틴 단독투...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / usage / chunk 2</strong>
+                <span>11661787397856991843 / score 0.400 </span>
+                <p>미란성 역류식도염의 치료 : 4주동안 1일 1회, 1회 40 mg을 투여한다. 식도염이 치료되지 않거나 증상이 계속되는 환자의 경우 4주 더 복용한다. - 식도염이 없는 위식도 역류질환의 증상치료요법 : · 1일 1회, 1회 20 mg. 4주후에도 증상 조절이 되지 않을 경우 추가 진료가 필요하다. · 일단 증상이 완화되면 그 후 연속되는 증상은 1일 1회, 1회 20 mg을 투여하여 조절한...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q009. 노바스크정5밀리그람(암로디핀베실산염)는 어디에 쓰는 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 12077540634490791825</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 3</strong>
+                <span>10621383854542130708 / score 0.335 </span>
+                <p>출을 57%까지 증가 시켰다. 건강한 지원자 (만 18-43세)에서 에리트 로마이신의 병용투여는 암로디핀의 전신노출을 유의적으로 변화시키지 않았다(AUC의 22% 증가). 비록, 이 에 대한 임상적 연관성은 밝혀지지는 않았으나, 고령자에서 약동학적 변화가 더 나타날 수 있다. 강력한 시토 크롬 P3A4 저해제 (예, 케토코나졸, 이트라코나졸, 리토나비어)가 암로디핀의 혈장 농도를 딜티아젬과의...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 1</strong>
+                <span>15104990811212706243 / score 0.319 </span>
+                <p>관부종, 다형성홍반을 포함한 알레르기반응이 보고되었다. 3) 다른 칼슘채널 저해제에서와 마찬가지로, 다음의 이상반응들이 드물게 보고되었는데 이들이 기저질환으 로 인한 것인지 약물에 의한 것인지는 구별을 할 수 없었다. 심근경색, 부정맥(서맥, 심실성빈맥, 심방성세동 포함), 흉통 4) 기타 다음과 같은 이상반응이 관찰되었다. 심혈관계: 때때로 혈압강하, 동방블록 또는 방실블록, 드물게 복부불...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 4</strong>
+                <span>1092516700474643446 / score 0.316 </span>
+                <p>조절하여 타크로리무스 독성을 피하도록 해야 한다 (7) mTOR 억제제: mTOR 억제제(예, 시롤리무스, 템시롤리무스, 에베로리무스)는 CYP3A의 기질이다. 암 로디핀은 약한 CYP3A 저해제이며, mTOR 억제제와 병용투여시 암로디핀이 mTOR 억제제에 대한 노출을  증가시킬 수 있다. (8) 심바스타틴: 암로디핀 10 mg과 심바스타틴 80 mg의 다회용량 병용투여는 심바스타틴 단독투...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q010. 뉴렙톨캡슐300밀리그램(가바펜틴) 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: 391954824172367011, 2642547173236767414, 4145004101323710976, 6554997746415154617, 6953004963713792798, 8305397834920008363, 8743588384513740676, 8871522851348034088, 10937835917334718689, 11097684918725973609, 11261153157853713243, 12685841692191804303, 12907397173154724671, 13110943297876712269, 13816227936786667527, 14060773141545052008, 14195218309899436980, 14866329411365988908, 15029854230673634493, 18032251520597816703</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 1</strong>
+                <span>150273103998418099 / score 0.412 </span>
+                <p>(가바펜틴 600 mg /day) - 셋째날부터 : 이 약 300 mg 캡슐을 1일 3회 투여 혹은 이 약 100 mg 3캡슐을 1일 3회 투여(가바펜틴  900 mg/day) 혹은 위의 방법 외에 시작용량으로 이 약 300 mg 1캡슐을 1일 3회 투여 할 수도 있다(가바펜틴 900 mg /day). 필요시, 일주일내에 가바펜틴으로서 1,800 mg/day까지 증량할 수 있으며, 1일 총 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / usage / chunk 1</strong>
+                <span>15388467760111358533 / score 0.400 </span>
+                <p>50mg을 투여한다. 1일 최대 투여 용량은 1000mg으로, 2회로 분할하 여 투여한다. 신기능을 3-6개월 마다 면밀히 관찰해야 한다. 크레아티닌 청소율 또는 사구체 여과율이 45ml /min 또는 45ml/min/1.73㎡ 미만으로 저하될 경우, 이 약의 투여는 즉각 중단되어야 한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>삐콤정 / precaution / chunk 0</strong>
+                <span>14806358566013449228 / score 0.398 </span>
+                <p>사용상의주의사항 1. 다음과 같은 사람은 이 약을 복용하지 말 것. 1) 이 약 및 이 약에 포함된 성분에 과민반응이 있는 환자 2) 만 3개월 미만의 젖먹이 3) 이 약은 유당(젖당)을 함유하고 있으므로, 갈락토오스 불내성(galactose intolerance), Lapp 유당(젖당) 분해효소 결핍증(Lapp lactose deficiency) 또는 포도당-갈락토오스 흡수장애(glucos...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q011. 뉴렙톨캡슐300밀리그램(가바펜틴) 어떻게 복용해?</h3>
+        <div class="answer-ids">Answer chunk: 150273103998418099, 543824242633008187, 3042881147566346822</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / usage / chunk 1</strong>
+                <span>15388467760111358533 / score 0.365 </span>
+                <p>50mg을 투여한다. 1일 최대 투여 용량은 1000mg으로, 2회로 분할하 여 투여한다. 신기능을 3-6개월 마다 면밀히 관찰해야 한다. 크레아티닌 청소율 또는 사구체 여과율이 45ml /min 또는 45ml/min/1.73㎡ 미만으로 저하될 경우, 이 약의 투여는 즉각 중단되어야 한다.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 1</strong>
+                <span>150273103998418099 / score 0.363 ANSWER</span>
+                <p>(가바펜틴 600 mg /day) - 셋째날부터 : 이 약 300 mg 캡슐을 1일 3회 투여 혹은 이 약 100 mg 3캡슐을 1일 3회 투여(가바펜틴  900 mg/day) 혹은 위의 방법 외에 시작용량으로 이 약 300 mg 1캡슐을 1일 3회 투여 할 수도 있다(가바펜틴 900 mg /day). 필요시, 일주일내에 가바펜틴으로서 1,800 mg/day까지 증량할 수 있으며, 1일 총 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>후시딘연고(퓨시드산나트륨) / usage / chunk 0</strong>
+                <span>5518447129276287182 / score 0.334 </span>
+                <p>용법용량 환부를 깨끗이 하고 1일 1~2회 적당량을 환부에 직접 바르거나 무균거즈에 넓게 펴발라 붙인다. 두껍게 바르 지 않고 보통 1주 정도로 투여기간을 제한한다. 도포 후 남은약은 버린다(포 포장 제품에 한함).</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q012. 뉴렙톨캡슐300밀리그램(가바펜틴)는 어떤 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 9745780303849100937</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 1</strong>
+                <span>150273103998418099 / score 0.401 </span>
+                <p>(가바펜틴 600 mg /day) - 셋째날부터 : 이 약 300 mg 캡슐을 1일 3회 투여 혹은 이 약 100 mg 3캡슐을 1일 3회 투여(가바펜틴  900 mg/day) 혹은 위의 방법 외에 시작용량으로 이 약 300 mg 1캡슐을 1일 3회 투여 할 수도 있다(가바펜틴 900 mg /day). 필요시, 일주일내에 가바펜틴으로서 1,800 mg/day까지 증량할 수 있으며, 1일 총 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / precaution / chunk 19</strong>
+                <span>12907397173154724671 / score 0.382 </span>
+                <p>으로 생존율에 영향을 미치지 않았고 주위 조직으로 전이되지 않았으며 대조군에서 나타난 것과 유사하였 다. 수컷 랫드에서 이 췌장세엽선암종과 인체에서 발암성과의 상관성은 명확하지 않다. (2) 돌연변이성 가바펜틴은 유전독성의 잠재성이 없다고 입증되었다. 세균 또는 포유동물 세포를 이용한 실험실상 표준방식 에서 변이원성이 없었다. 가바펜틴은 실험실상 또는 생체내에서 포유동물세포에 구조적 염색체 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 5</strong>
+                <span>16708979953147344313 / score 0.358 </span>
+                <p>되어 쇽상태에 이르게 되거나 쇽이 일어나는  치명적인 결과가 초래되었다고 보고되었다. 건강한 지원자에게 암로디핀 10 mg을 투여한 즉시 혹은 2시간  후까지 약용탄 (activated charcoal) 을 투여하였을 때 암로디핀의 흡수가 유의하게 감소되었다. 일부 경우에 는 위세척이 유용할 수 있다. 이 약의 과량투여로 인한 임상적으로 심각한 저혈압은 심장과 호흡기능을 자주  모니터링하고,...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q013. 다이아벡스정500밀리그램(메트포르민염산염) 먹을 때 조심해야 하는 사람은?</h3>
+        <div class="answer-ids">Answer chunk: 2108611419396988490, 3776385938322214418, 5276426883577359891, 6668454544697244817, 7152769487705033341, 7531514133758429065, 8362049961833648428, 10024231030563386253, 11708333168440253462, 12095530466011741798, 13417958229687339292, 16334980138335419350, 16397889975742164987, 18360556845013207964</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>포리부틴정(트리메부틴말레산염) / usage / chunk 0</strong>
+                <span>13165525996530241209 / score 0.383 </span>
+                <p>용법용량 성인 : 트리메부틴말레산염으로서 1회 100-200mg 1일 3회 식전에 경구투여한다. 연령, 증상에 따라 적절 히 증감한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 5</strong>
+                <span>16708979953147344313 / score 0.365 </span>
+                <p>되어 쇽상태에 이르게 되거나 쇽이 일어나는  치명적인 결과가 초래되었다고 보고되었다. 건강한 지원자에게 암로디핀 10 mg을 투여한 즉시 혹은 2시간  후까지 약용탄 (activated charcoal) 을 투여하였을 때 암로디핀의 흡수가 유의하게 감소되었다. 일부 경우에 는 위세척이 유용할 수 있다. 이 약의 과량투여로 인한 임상적으로 심각한 저혈압은 심장과 호흡기능을 자주  모니터링하고,...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / precaution / chunk 6</strong>
+                <span>4145004101323710976 / score 0.353 </span>
+                <p>, 양성Romberg test 드물게: 늑연골염, 골다공증, 주머니염, 구축 - 신경계: 자주: 어지러움, 운동과다, 감각이상, 반사 감소 또는 상실, 반사 증가, 불안, 적개심 때때로: CNS 종양, 실신, 꿈이상, 실어증, 감각저하, 두개내출혈, 저긴장증, 이상감각, 불완전마비, 근긴장이 상, 편마비, 안면마비, 혼미, 소뇌기능이상, 양성Babinski증후, 위치감각감소, 경뇌막하혈종, ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q014. 다이아벡스정500밀리그램(메트포르민염산염) 용법과 용량 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 6169995643239069803, 15388467760111358533</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 5</strong>
+                <span>16708979953147344313 / score 0.440 </span>
+                <p>되어 쇽상태에 이르게 되거나 쇽이 일어나는  치명적인 결과가 초래되었다고 보고되었다. 건강한 지원자에게 암로디핀 10 mg을 투여한 즉시 혹은 2시간  후까지 약용탄 (activated charcoal) 을 투여하였을 때 암로디핀의 흡수가 유의하게 감소되었다. 일부 경우에 는 위세척이 유용할 수 있다. 이 약의 과량투여로 인한 임상적으로 심각한 저혈압은 심장과 호흡기능을 자주  모니터링하고,...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>포리부틴정(트리메부틴말레산염) / usage / chunk 0</strong>
+                <span>13165525996530241209 / score 0.437 </span>
+                <p>용법용량 성인 : 트리메부틴말레산염으로서 1회 100-200mg 1일 3회 식전에 경구투여한다. 연령, 증상에 따라 적절 히 증감한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>지르텍정(세티리진염산염) / usage / chunk 0</strong>
+                <span>8640656365726380202 / score 0.403 </span>
+                <p>용법용량 1. 성인 및 6세 이상의 소아 : 세티리진염산염으로서 1일 1회 10mg 취침 전에 경구 투여한다. 2. 이상반응에 민감한 환자의 경우는 5mg씩을 아침, 저녁에 분할 투여한다. 3. 연령, 증상에 따라 적절히 증감한다. 4. 신장애 환자 : 투여 간격은 환자의 신기능에 따라 조절되어야 한다. 다음 표를 참조하여 용량을 조절한다. 이  용량 표를 사용하기 위해서는 mL/min 단위...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q015. 다이아벡스정500밀리그램(메트포르민염산염) 효능이 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: 15775770991533720635</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>토브라점안액(토브라마이신) / efficacy / chunk 0</strong>
+                <span>7987783542947688737 / score 0.439 </span>
+                <p>효능효과 ○ 유효균종 포도구균(황색포도구균, 표피포도구균, 페니실린 내성균 포함), 연쇄구균(일부 그룹 A-베타용혈성 연쇄구 균, 비용혈성 연쇄구균, 폐렴구균 포함), 녹농균, 대장균, 폐렴간균, 엔테로박터 에로제니스, 프로테우스 미 라빌리스, 프로테우스 불가리스, 모르가넬라 모르가니, 인플루엔자균, 코흐-위크스균, 결막염 호혈균, 아시 네토박터 칼코아세티쿠스, 일부 나이세리아 ○ 적응증 안...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>포리부틴정(트리메부틴말레산염) / efficacy / chunk 0</strong>
+                <span>6842168126974293169 / score 0.384 </span>
+                <p>효능효과 1. 주효능 효과 1) 식도역류 및 열공헤르니아  위 십이지장염, 위 십이지장궤양에 있어서의 소화기능이상 (복통, 소화불량,구, 역, 구토) 2) 과민성대장증후군 및 경련성 결장 3) 소아 질환 : 습관성 구토, 비감염성 장관통과장애 (변비, 설사)</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / precaution / chunk 6</strong>
+                <span>4145004101323710976 / score 0.380 </span>
+                <p>, 양성Romberg test 드물게: 늑연골염, 골다공증, 주머니염, 구축 - 신경계: 자주: 어지러움, 운동과다, 감각이상, 반사 감소 또는 상실, 반사 증가, 불안, 적개심 때때로: CNS 종양, 실신, 꿈이상, 실어증, 감각저하, 두개내출혈, 저긴장증, 이상감각, 불완전마비, 근긴장이 상, 편마비, 안면마비, 혼미, 소뇌기능이상, 양성Babinski증후, 위치감각감소, 경뇌막하혈종, ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q016. 듀락칸시럽(락툴로오즈농축액) 부작용이나 주의사항 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 6712264635085016821, 8291078133271349960, 13387737834249630963</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>부루펜정200밀리그램(이부프로펜) / precaution / chunk 3</strong>
+                <span>11492615853056716775 / score 0.428 </span>
+                <p>고가 있다) 2) 리튬 (혈청 리튬의 농도를 증가시키고 리튬의 신클리어런스를 감소시킬 수 있다.) 3) 푸로세미드 및 치아짓계 이뇨제 (임상시험 및 시판 후 조사 결과 이 약의 신장에서의 프로스타글란딘 합 성 억제에 의해 일부 환자에서 푸로세미드 및 치아짓계 이뇨제의 나트륨 뇨배설 효과가 감소할 수 있음이  확인되었다.) 4) 메토트렉세이트 (신세뇨관에서 메토트렉세이트의 배설이 지연되어 치명...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 1</strong>
+                <span>15104990811212706243 / score 0.425 </span>
+                <p>관부종, 다형성홍반을 포함한 알레르기반응이 보고되었다. 3) 다른 칼슘채널 저해제에서와 마찬가지로, 다음의 이상반응들이 드물게 보고되었는데 이들이 기저질환으 로 인한 것인지 약물에 의한 것인지는 구별을 할 수 없었다. 심근경색, 부정맥(서맥, 심실성빈맥, 심방성세동 포함), 흉통 4) 기타 다음과 같은 이상반응이 관찰되었다. 심혈관계: 때때로 혈압강하, 동방블록 또는 방실블록, 드물게 복부불...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>쎄레스톤지크림 / precaution / chunk 0</strong>
+                <span>8229272618849503696 / score 0.417 </span>
+                <p>사용상의주의사항 1. 다음과 같은 사람은 이 약을 사용하지 말 것. 1) 세균(결핵, 매독 등)ㆍ진균(칸디다증, 백선 등)ㆍ스피로헤타속ㆍ효모ㆍ바이러스(대상포진(물집), 단순포 진(물집), 수두, 종두증 등)ㆍ동물(옴, 사면발이 등)성 피부감염증 환자(증상이 악화될 수 있다) 2) 이 약 또는 이 약 성분에 과민증 및 그 병력이 있는 환자 3) 고막천공(뚫림)이 있는 습진성 외이도(바깥귀길)염...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q017. 듀락칸시럽(락툴로오즈농축액) 하루에 몇 번 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: 15268956608481438715</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>포리부틴정(트리메부틴말레산염) / usage / chunk 0</strong>
+                <span>13165525996530241209 / score 0.363 </span>
+                <p>용법용량 성인 : 트리메부틴말레산염으로서 1회 100-200mg 1일 3회 식전에 경구투여한다. 연령, 증상에 따라 적절 히 증감한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 5</strong>
+                <span>16708979953147344313 / score 0.361 </span>
+                <p>되어 쇽상태에 이르게 되거나 쇽이 일어나는  치명적인 결과가 초래되었다고 보고되었다. 건강한 지원자에게 암로디핀 10 mg을 투여한 즉시 혹은 2시간  후까지 약용탄 (activated charcoal) 을 투여하였을 때 암로디핀의 흡수가 유의하게 감소되었다. 일부 경우에 는 위세척이 유용할 수 있다. 이 약의 과량투여로 인한 임상적으로 심각한 저혈압은 심장과 호흡기능을 자주  모니터링하고,...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / usage / chunk 1</strong>
+                <span>16127882188061360616 / score 0.360 </span>
+                <p>1회 20 mg - 식도염 환자의 재발 방지를 위한 장기간 유지요법 : 1일 1회, 1회 20 mg - 식도염이 없는 위식도 역류질환의 증상치료요법 : · 1일 1회, 1회 20 mg. 4주후에도 증상 조절이 되지 않을 경우 추가 진료가 필요하다. · 일단 증상이 완화되면 그 후 연속되는 증상은 1일 1회, 1회 20 mg을 투여하여 조절한다. · 성인에서, 1일 1회, 1회 20 mg을 필...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q018. 듀락칸시럽(락툴로오즈농축액)는 어디에 쓰는 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 4863464160810138960</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 5</strong>
+                <span>16708979953147344313 / score 0.299 </span>
+                <p>되어 쇽상태에 이르게 되거나 쇽이 일어나는  치명적인 결과가 초래되었다고 보고되었다. 건강한 지원자에게 암로디핀 10 mg을 투여한 즉시 혹은 2시간  후까지 약용탄 (activated charcoal) 을 투여하였을 때 암로디핀의 흡수가 유의하게 감소되었다. 일부 경우에 는 위세척이 유용할 수 있다. 이 약의 과량투여로 인한 임상적으로 심각한 저혈압은 심장과 호흡기능을 자주  모니터링하고,...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>지르텍정(세티리진염산염) / precaution / chunk 3</strong>
+                <span>7746337177841037823 / score 0.264 </span>
+                <p>간에 어떠한 부작용도 나타내지  않았으나 운전이나 기계조작 시에는 용량을 초과하지 않는다. 라세미체(광학이성질체)가 알코올의 영향을 증 가시키지 않을 것으로 보여지나(0.5 g/L 혈액 수준), 알코올 또는 기타 CNS 억제제를 병용 투여하면 경계심 이 추가로 감소될 수 있고 수행 장애를 야기할 수 있다. 3) 증상에 따라 이 약으로서 1일 10mg 투여로 개선이 없을 경우, 의사 또는 약사...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>지르텍정(세티리진염산염) / precaution / chunk 2</strong>
+                <span>4486908285303079626 / score 0.259 </span>
+                <p>자살관념, 악몽이 나타날 수 있다. 3) 소화기계 : 때때로 목마름, 입술건조감, 구역, 식욕부진, 위부불쾌감, 소화불량, 복통, 위통, 복부불쾌감, 설 사, 드물게 구토, 위장장애, 입술염, 미각이상, 식욕증진이 나타날 수 있다. 4) 순환기계 : 드물게 빠른맥, 부정맥, 혈압상승, 때때로 두근거림이 나타날 수 있다. 5) 혈액 : 혈관염, 때때로 백혈구 감소, 호중구 감소, 림프구 증가,...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q019. 부루펜정200밀리그램(이부프로펜) 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: 2089949503133795786, 3442085768321897727, 3846860737551675150, 9202492948219783795, 9696618416125688403, 10832960768891388215, 10905631141550019097, 11492615853056716775, 16634901288146742378</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 1</strong>
+                <span>150273103998418099 / score 0.445 </span>
+                <p>(가바펜틴 600 mg /day) - 셋째날부터 : 이 약 300 mg 캡슐을 1일 3회 투여 혹은 이 약 100 mg 3캡슐을 1일 3회 투여(가바펜틴  900 mg/day) 혹은 위의 방법 외에 시작용량으로 이 약 300 mg 1캡슐을 1일 3회 투여 할 수도 있다(가바펜틴 900 mg /day). 필요시, 일주일내에 가바펜틴으로서 1,800 mg/day까지 증량할 수 있으며, 1일 총 ...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>부루펜정200밀리그램(이부프로펜) / precaution / chunk 0</strong>
+                <span>3846860737551675150 / score 0.439 ANSWER</span>
+                <p>사용상의주의사항 1. 경고 1) 매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의 사 또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 위장출혈이 유발될 수 있다. 2) 심혈관계 위험: 이 약을 포함한 비스테로이드성 소염진통제 복용시 치명적일 수 있는 중대한 심혈관계 혈 전 반응, 심근경색증 및 뇌졸중의 위험이 증가한다. 심혈관...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>후시딘연고(퓨시드산나트륨) / usage / chunk 0</strong>
+                <span>5518447129276287182 / score 0.419 </span>
+                <p>용법용량 환부를 깨끗이 하고 1일 1~2회 적당량을 환부에 직접 바르거나 무균거즈에 넓게 펴발라 붙인다. 두껍게 바르 지 않고 보통 1주 정도로 투여기간을 제한한다. 도포 후 남은약은 버린다(포 포장 제품에 한함).</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q020. 부루펜정200밀리그램(이부프로펜) 어떻게 복용해?</h3>
+        <div class="answer-ids">Answer chunk: 506689484405840801</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 1</strong>
+                <span>150273103998418099 / score 0.434 </span>
+                <p>(가바펜틴 600 mg /day) - 셋째날부터 : 이 약 300 mg 캡슐을 1일 3회 투여 혹은 이 약 100 mg 3캡슐을 1일 3회 투여(가바펜틴  900 mg/day) 혹은 위의 방법 외에 시작용량으로 이 약 300 mg 1캡슐을 1일 3회 투여 할 수도 있다(가바펜틴 900 mg /day). 필요시, 일주일내에 가바펜틴으로서 1,800 mg/day까지 증량할 수 있으며, 1일 총 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>후시딘연고(퓨시드산나트륨) / usage / chunk 0</strong>
+                <span>5518447129276287182 / score 0.417 </span>
+                <p>용법용량 환부를 깨끗이 하고 1일 1~2회 적당량을 환부에 직접 바르거나 무균거즈에 넓게 펴발라 붙인다. 두껍게 바르 지 않고 보통 1주 정도로 투여기간을 제한한다. 도포 후 남은약은 버린다(포 포장 제품에 한함).</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / usage / chunk 1</strong>
+                <span>15388467760111358533 / score 0.395 </span>
+                <p>50mg을 투여한다. 1일 최대 투여 용량은 1000mg으로, 2회로 분할하 여 투여한다. 신기능을 3-6개월 마다 면밀히 관찰해야 한다. 크레아티닌 청소율 또는 사구체 여과율이 45ml /min 또는 45ml/min/1.73㎡ 미만으로 저하될 경우, 이 약의 투여는 즉각 중단되어야 한다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+        </div>
+      </section>
+    
+
+      <section class="model-card model-openai-large">
+        <div class="card-head">
+          <div>
+            <h2>OpenAI text-embedding-3-large</h2>
+            <p>Same vendor high-performance candidate</p>
+          </div>
+          <span class="badge badge-ok">OK</span>
+        </div>
+        <div class="metric-list">
+          <div class="bad">
+            <span>1. Top-1 Accuracy</span><strong>15.0%</strong>
+          </div>
+          <div class="bad">
+            <span>2. Top-3 Hit Rate</span><strong>25.0%</strong>
+          </div>
+          <div class="bad">
+            <span>3. MRR</span><strong>0.19</strong>
+          </div>
+          <div class="mid">
+            <span>4. Avg Response Time</span><strong>508ms</strong>
+          </div>
+        </div>
+        <div class="queries">
+          
+      <section class="query-block">
+        <h3>q001. 게보린정 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: 4114783728281071724, 9393523322034460910, 11080217091236786401, 16393081699557592079</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>세토펜8시간이알서방정(아세트아미노펜) / precaution / chunk 1</strong>
+                <span>6227628672982003622 / score 0.507 </span>
+                <p>이지 말고 그대로 삼켜서 복용해야 한다. 4. 다음과 같은 사람은 이약을 복용하기 전에 의사, 치과의사, 약사와 상의할 것 1) 간장애 또는 그 병력이 있는 환자 2) 신장장애 또는 그 병력이 있는 환자 3) 소화성궤양의 병력이 있는 환자 4) 혈액이상 또는 그 병력이 있는 환자 5) 출혈경향이 있는 환자(혈소판기능이상이 나타날 수 있다.) 6) 심장기능이상이 있는 환자 7) 과민증의 병력이...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>삐콤정 / precaution / chunk 0</strong>
+                <span>14806358566013449228 / score 0.493 </span>
+                <p>사용상의주의사항 1. 다음과 같은 사람은 이 약을 복용하지 말 것. 1) 이 약 및 이 약에 포함된 성분에 과민반응이 있는 환자 2) 만 3개월 미만의 젖먹이 3) 이 약은 유당(젖당)을 함유하고 있으므로, 갈락토오스 불내성(galactose intolerance), Lapp 유당(젖당) 분해효소 결핍증(Lapp lactose deficiency) 또는 포도당-갈락토오스 흡수장애(glucos...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>비타메진캡슐50밀리그램 / precaution / chunk 0</strong>
+                <span>3730280287589608633 / score 0.488 </span>
+                <p>사용상의주의사항 1. 다음과 같은 사람은 이 약을 복용(사용)하기 전에 의사, 치과의사, 약사와 상의할 것. 이 약은 황색5호(선셋옐로우 FCF, Sunset Yellow FCF)를 함유하고 있으므로 이 성분에 과민하거나 알레르 기 병력이 있는 환자에는 신중히 투여한다. 2. 복용시 다음 사항에 주의할 것. 1) 정해진 용법•용량을 지킬 것. 2) 소아에 투여할 경우에는 보호자의 지도감독하에...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q002. 게보린정 어떻게 복용해?</h3>
+        <div class="answer-ids">Answer chunk: 18321330971571329628</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>활명수 / usage / chunk 0</strong>
+                <span>4793219341361738046 / score 0.508 </span>
+                <p>용법용량 다음 용량을 1일 3회 식후에 복용한다. 복용간격은 4시간 이상으로 한다. 만15세이상 : 1회 1병 (75ml) 만11세이상 - 만15세미만 : 1회 2/3병 (50ml) 만8세 이상-만11세 미만 : 1회 1/2병 (37.5ml) 만5세 이상-만8세 미만 : 1회 1/3병 (25ml) 만3세 이상-만5세 미만 : 1회 1/4병 (18.75ml) 만1세 이상-만3세 미만 : 1회 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>판콜에이내복액 / usage / chunk 0</strong>
+                <span>13725745134353284858 / score 0.505 </span>
+                <p>용법용량 성인 1회 30ml 1일 3회 식후 30분에 복용한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / usage / chunk 0</strong>
+                <span>12969300826889712601 / score 0.473 </span>
+                <p>용법용량 이 약은 물 등의 액체와 함께 삼켜야 하며 씹거나 부수어서는 안된다. 정제를 삼키기 어려운 환자들은 이 약을 비탄산수 반 컵에 붕해시켜 복용할 수 있다. 다른 음료는 장용피를 용 해시킬 수 있으므로 사용해서는 안된다. 정제가 붕해될 때까지 저은 후, 즉시 또는 30분 이내에 씹지 말고 그대로 마시고, 복용한 컵을 비탄산수 반 컵 으로 헹구어 이를 다시 마신다. 물에 떠있는 약 알갱이...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q003. 게보린정는 어떤 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 14157358700803435556</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>판콜에이내복액 / efficacy / chunk 0</strong>
+                <span>18439073398038533974 / score 0.376 </span>
+                <p>효능효과 감기 제증상(여러 증상) [콧물, 코막힘, 재채기, 인후(목구멍)통, 기침, 가래, 오한(춥고 떨리는 증상), 발열, 두 통, 관절통, 근육통]의 완화</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / efficacy / chunk 0</strong>
+                <span>7441460709711525741 / score 0.375 </span>
+                <p>효능효과 1. 위식도 역류질환(GERD) - 미란성 역류식도염의 치료 - 식도염 환자의 재발방지를 위한 장기간 유지요법 - 식도염이 없는 위식도 역류질환의 증상치료요법 2. 헬리코박터필로리 박멸을 위한 항생제 병용요법 - 헬리코박터필로리 양성인 십이지장궤양의 치료 - 헬리코박터필로리 양성인 소화성궤양 환자의 재발방지 3. 비스테로이드소염진통제(COX-2 비선택성, 선택성) 투여와 관련된 상부...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>쎄레스톤지크림 / precaution / chunk 0</strong>
+                <span>8229272618849503696 / score 0.369 </span>
+                <p>사용상의주의사항 1. 다음과 같은 사람은 이 약을 사용하지 말 것. 1) 세균(결핵, 매독 등)ㆍ진균(칸디다증, 백선 등)ㆍ스피로헤타속ㆍ효모ㆍ바이러스(대상포진(물집), 단순포 진(물집), 수두, 종두증 등)ㆍ동물(옴, 사면발이 등)성 피부감염증 환자(증상이 악화될 수 있다) 2) 이 약 또는 이 약 성분에 과민증 및 그 병력이 있는 환자 3) 고막천공(뚫림)이 있는 습진성 외이도(바깥귀길)염...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q004. 넥시움정20밀리그램(에스오메프라졸마그네슘) 먹을 때 조심해야 하는 사람은?</h3>
+        <div class="answer-ids">Answer chunk: 7168960786129972648, 7688971279981262734, 8282856429527230610, 8334017553176997607, 11673328677068352709, 13257914897951149630, 14013297096293548578, 14341943575432549709, 15893794466901346891, 15953310533218469962</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>판콜에이내복액 / precaution / chunk 1</strong>
+                <span>6625657139723781767 / score 0.414 </span>
+                <p>, 양친 또는 형제 등이 두드러기, 접촉성피부염, 기관지천식, 알레르기성비염, 편두통, 음식물 알레르 2) 본인, 양친 또는 형제 등이 두드러기, 접촉성피부염, 기관지천식, 알레르기성비염, 편두통, 음식물 알레르 기 등을 일으키기 쉬운 체질을 갖고 있는 사람 3) 지금까지 약에 의해 알레르기 증상(예 : 발열, 발진, 관절통, 천식, 가려움증 등)을 일으킨 적이 있는 사람 4) 간장질환, 신...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / precaution / chunk 3</strong>
+                <span>11673328677068352709 / score 0.390 ANSWER</span>
+                <p>방받은 경우 이 약의 혈중농도 변동으로 인한 다른 약물과의 상호작용을 고려해야 한다. 4) 헬리코박터필로리 박멸을 위한 항생제 병용요법으로 이 약과 같이 투여하는 항균제의 사용설명서를 참조 해야 한다. 클래리트로마이신은 강력한 CYP3A4억제제이므로 시사프리드와 같이 CYP3A4에 의해 대사되 는 다른 약물을 복용하고 있는 환자에게 박멸요법을 실시할 경우에는 클래리트로마이신의 금기 및 상호작...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / precaution / chunk 0</strong>
+                <span>10024231030563386253 / score 0.381 </span>
+                <p>사용상의주의사항 1. 경고 심한 유산산증 또는 저혈당증을 일으킬 수 있다. 유산산증으로 인한 사망 사례가 보고된 바 있다. 2. 다음 환자에게는 투여하지 말 것. 1) 중등도(stage3b) 및 중증의 신장애환자(크레아티닌 청소율&lt;45ml/min 또는 사구체 여과율&lt;45ml/min /1.73m ), 탈수, 심각한 감염,심혈관계 허탈(쇽), 급성 심근경색, 패혈증과 같은 신기능에 영향을 줄 수...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q005. 넥시움정20밀리그램(에스오메프라졸마그네슘) 용법과 용량 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 11661787397856991843, 12969300826889712601, 16127882188061360616</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>활명수 / usage / chunk 0</strong>
+                <span>4793219341361738046 / score 0.387 </span>
+                <p>용법용량 다음 용량을 1일 3회 식후에 복용한다. 복용간격은 4시간 이상으로 한다. 만15세이상 : 1회 1병 (75ml) 만11세이상 - 만15세미만 : 1회 2/3병 (50ml) 만8세 이상-만11세 미만 : 1회 1/2병 (37.5ml) 만5세 이상-만8세 미만 : 1회 1/3병 (25ml) 만3세 이상-만5세 미만 : 1회 1/4병 (18.75ml) 만1세 이상-만3세 미만 : 1회 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>판콜에이내복액 / usage / chunk 0</strong>
+                <span>13725745134353284858 / score 0.376 </span>
+                <p>용법용량 성인 1회 30ml 1일 3회 식후 30분에 복용한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>비타메진캡슐50밀리그램 / usage / chunk 0</strong>
+                <span>16107724787165321427 / score 0.358 </span>
+                <p>용법용량 성인 1회 1캅셀, 1일 1 ~ 2회 복용한다. 연령, 증상에 따라 적절히 증감한다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q006. 넥시움정20밀리그램(에스오메프라졸마그네슘) 효능이 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: 7441460709711525741</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>후시딘연고(퓨시드산나트륨) / efficacy / chunk 0</strong>
+                <span>18134406211077493007 / score 0.387 </span>
+                <p>효능효과 (정제) ○ 유효균종 포도구균 ○ 적응증 - 골수염 - 패혈증 - 심내막염, 낭포성섬유증 - 기관지 폐렴 - 창상감염, 부스럼, 옹종 등 피부감염증 (연고제) ○ 유효균종 포도구균, 연쇄구균, 코리네박테륨, 클로스트리듐 ○ 적응증 - 농피증(농가진, 감염성습진양피부염, 심상성여드름(보통여드름), 모낭염, 종기 및 종기증, 화농성한선 염, 농가진성습진), 화상ㆍ외상ㆍ봉합창ㆍ식피창에 의...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>키미테패취(스코폴라민)(수출명:可弥特止暈貼濟) / efficacy / chunk 0</strong>
+                <span>12239363922812303041 / score 0.382 </span>
+                <p>효능효과 1. 주효능 효과 멀미에 의한 구역•구토의 예방</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>오라메디연고{수출명:오라메디파스타(ORAMEDYPASTE)} / efficacy / chunk 0</strong>
+                <span>1774901181454454075 / score 0.376 </span>
+                <p>효능효과 (구강 : 0.1% 연고제, 파스타제) 1. 주효능 효과 다음 질환에 의한 염증의 완화 : 만성 박리성 치은염, 미란 또는 궤양을 수반하는 난치성 구내염 및 설염</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q007. 노바스크정5밀리그람(암로디핀베실산염) 부작용이나 주의사항 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 1092516700474643446, 6063706250184928354, 9559796468510097291, 10621383854542130708, 14817639084781568797, 15104990811212706243, 16708979953147344313</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>세토펜8시간이알서방정(아세트아미노펜) / precaution / chunk 1</strong>
+                <span>6227628672982003622 / score 0.498 </span>
+                <p>이지 말고 그대로 삼켜서 복용해야 한다. 4. 다음과 같은 사람은 이약을 복용하기 전에 의사, 치과의사, 약사와 상의할 것 1) 간장애 또는 그 병력이 있는 환자 2) 신장장애 또는 그 병력이 있는 환자 3) 소화성궤양의 병력이 있는 환자 4) 혈액이상 또는 그 병력이 있는 환자 5) 출혈경향이 있는 환자(혈소판기능이상이 나타날 수 있다.) 6) 심장기능이상이 있는 환자 7) 과민증의 병력이...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>키미테패취(스코폴라민)(수출명:可弥特止暈貼濟) / precaution / chunk 0</strong>
+                <span>13365318646111372472 / score 0.445 </span>
+                <p>사용상의주의사항 1. 다음과 같은 사람은 이 약을 사용하지 말 것 1) 이 약에 과민증 환자 2) 연고기제에 과민증 환자 3) 협우각형 녹내장 환자 4) 서맥 환자 5) 전립선비대 등 배뇨장애 환자 6) 임부, 수유부 7) 7세 이하의 영∙유아 2. 이 약을 사용하는 동안 다음의 행위를 하지 말 것 1) 이 약을 사용 중인 환자는 졸음, 방향감각상실, 착란 등이 나타날 수 있으므로 자동차 운...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / precaution / chunk 0</strong>
+                <span>8334017553176997607 / score 0.441 </span>
+                <p>사용상의주의사항 1. 다음 환자에는 투여하지 말 것. 1) 이 약, 이 약의 구성성분 또는 벤즈이미다졸류에 과민반응 및 그 병력이 있는 환자 2) 페니실린계 항생제에 과민반응 환자(헬리코박터필로리 박멸을 위해 아목시실린과 병용요법시) 3) 마크로라이드계 항생제 과민반응 환자(헬리코박터필로리 박멸을 위해 클래리트로마이신과 병용시에 한 함.) 4) 테르페나딘, 시사프리드, 피모지드, 아스테미졸을...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q008. 노바스크정5밀리그람(암로디핀베실산염) 하루에 몇 번 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: 2135793112587007329</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>포리부틴정(트리메부틴말레산염) / usage / chunk 0</strong>
+                <span>13165525996530241209 / score 0.477 </span>
+                <p>용법용량 성인 : 트리메부틴말레산염으로서 1회 100-200mg 1일 3회 식전에 경구투여한다. 연령, 증상에 따라 적절 히 증감한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>활명수 / usage / chunk 0</strong>
+                <span>4793219341361738046 / score 0.467 </span>
+                <p>용법용량 다음 용량을 1일 3회 식후에 복용한다. 복용간격은 4시간 이상으로 한다. 만15세이상 : 1회 1병 (75ml) 만11세이상 - 만15세미만 : 1회 2/3병 (50ml) 만8세 이상-만11세 미만 : 1회 1/2병 (37.5ml) 만5세 이상-만8세 미만 : 1회 1/3병 (25ml) 만3세 이상-만5세 미만 : 1회 1/4병 (18.75ml) 만1세 이상-만3세 미만 : 1회 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>판콜에이내복액 / usage / chunk 0</strong>
+                <span>13725745134353284858 / score 0.430 </span>
+                <p>용법용량 성인 1회 30ml 1일 3회 식후 30분에 복용한다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q009. 노바스크정5밀리그람(암로디핀베실산염)는 어디에 쓰는 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 12077540634490791825</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>포리부틴정(트리메부틴말레산염) / usage / chunk 0</strong>
+                <span>13165525996530241209 / score 0.435 </span>
+                <p>용법용량 성인 : 트리메부틴말레산염으로서 1회 100-200mg 1일 3회 식전에 경구투여한다. 연령, 증상에 따라 적절 히 증감한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>판콜에이내복액 / precaution / chunk 2</strong>
+                <span>972679023091701527 / score 0.425 </span>
+                <p>사용해(리엘증후군) : 고열을 동반하고, 발진·발적 (충혈되어 붉어짐), 화상과 같이 물집이 생기는 등의 심한 증상이 전신피부, 입이나 눈점막에 나타날 수 있다. ③ 천식 ④ 간기능장애 : 전신의 나른함, 황달(피부 또는 눈의 흰자위가 황색을 띄게 됨)등이 나타날 수 있다. ⑤ 간질성폐렴 : 기침을 동반하고, 숨이 차고, 호흡곤란, 발열 등이 나타난다. 3) 5∼6회 복용하여도 증상이 좋아지...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>세토펜8시간이알서방정(아세트아미노펜) / precaution / chunk 1</strong>
+                <span>6227628672982003622 / score 0.398 </span>
+                <p>이지 말고 그대로 삼켜서 복용해야 한다. 4. 다음과 같은 사람은 이약을 복용하기 전에 의사, 치과의사, 약사와 상의할 것 1) 간장애 또는 그 병력이 있는 환자 2) 신장장애 또는 그 병력이 있는 환자 3) 소화성궤양의 병력이 있는 환자 4) 혈액이상 또는 그 병력이 있는 환자 5) 출혈경향이 있는 환자(혈소판기능이상이 나타날 수 있다.) 6) 심장기능이상이 있는 환자 7) 과민증의 병력이...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q010. 뉴렙톨캡슐300밀리그램(가바펜틴) 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: 391954824172367011, 2642547173236767414, 4145004101323710976, 6554997746415154617, 6953004963713792798, 8305397834920008363, 8743588384513740676, 8871522851348034088, 10937835917334718689, 11097684918725973609, 11261153157853713243, 12685841692191804303, 12907397173154724671, 13110943297876712269, 13816227936786667527, 14060773141545052008, 14195218309899436980, 14866329411365988908, 15029854230673634493, 18032251520597816703</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 0</strong>
+                <span>3042881147566346822 / score 0.469 </span>
+                <p>용법용량 1. 뇌전증 1) 만 13세 이상 환자의 단독요법 및 부가요법 유지 용량을 가바펜틴으로서 900 mg/day로 하기 위해 단계적 적정을 투여의 처음 3일에 걸쳐 다음과 같이  시행한다. - 첫째날 : 이 약 300 mg 캡슐을 1일 1회 혹은 이 약 100 mg 1캡슐을 1일 3회 투여(가바펜틴 300 mg /day) - 둘째날 : 이 약 300 mg 캡슐을 1일 2회 혹은 이 약 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 1</strong>
+                <span>150273103998418099 / score 0.460 </span>
+                <p>(가바펜틴 600 mg /day) - 셋째날부터 : 이 약 300 mg 캡슐을 1일 3회 투여 혹은 이 약 100 mg 3캡슐을 1일 3회 투여(가바펜틴  900 mg/day) 혹은 위의 방법 외에 시작용량으로 이 약 300 mg 1캡슐을 1일 3회 투여 할 수도 있다(가바펜틴 900 mg /day). 필요시, 일주일내에 가바펜틴으로서 1,800 mg/day까지 증량할 수 있으며, 1일 총 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>비타메진캡슐50밀리그램 / usage / chunk 0</strong>
+                <span>16107724787165321427 / score 0.443 </span>
+                <p>용법용량 성인 1회 1캅셀, 1일 1 ~ 2회 복용한다. 연령, 증상에 따라 적절히 증감한다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q011. 뉴렙톨캡슐300밀리그램(가바펜틴) 어떻게 복용해?</h3>
+        <div class="answer-ids">Answer chunk: 150273103998418099, 543824242633008187, 3042881147566346822</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 1</strong>
+                <span>150273103998418099 / score 0.483 ANSWER</span>
+                <p>(가바펜틴 600 mg /day) - 셋째날부터 : 이 약 300 mg 캡슐을 1일 3회 투여 혹은 이 약 100 mg 3캡슐을 1일 3회 투여(가바펜틴  900 mg/day) 혹은 위의 방법 외에 시작용량으로 이 약 300 mg 1캡슐을 1일 3회 투여 할 수도 있다(가바펜틴 900 mg /day). 필요시, 일주일내에 가바펜틴으로서 1,800 mg/day까지 증량할 수 있으며, 1일 총 ...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 0</strong>
+                <span>3042881147566346822 / score 0.482 ANSWER</span>
+                <p>용법용량 1. 뇌전증 1) 만 13세 이상 환자의 단독요법 및 부가요법 유지 용량을 가바펜틴으로서 900 mg/day로 하기 위해 단계적 적정을 투여의 처음 3일에 걸쳐 다음과 같이  시행한다. - 첫째날 : 이 약 300 mg 캡슐을 1일 1회 혹은 이 약 100 mg 1캡슐을 1일 3회 투여(가바펜틴 300 mg /day) - 둘째날 : 이 약 300 mg 캡슐을 1일 2회 혹은 이 약 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>비타메진캡슐50밀리그램 / usage / chunk 0</strong>
+                <span>16107724787165321427 / score 0.475 </span>
+                <p>용법용량 성인 1회 1캅셀, 1일 1 ~ 2회 복용한다. 연령, 증상에 따라 적절히 증감한다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q012. 뉴렙톨캡슐300밀리그램(가바펜틴)는 어떤 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 9745780303849100937</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 0</strong>
+                <span>3042881147566346822 / score 0.434 </span>
+                <p>용법용량 1. 뇌전증 1) 만 13세 이상 환자의 단독요법 및 부가요법 유지 용량을 가바펜틴으로서 900 mg/day로 하기 위해 단계적 적정을 투여의 처음 3일에 걸쳐 다음과 같이  시행한다. - 첫째날 : 이 약 300 mg 캡슐을 1일 1회 혹은 이 약 100 mg 1캡슐을 1일 3회 투여(가바펜틴 300 mg /day) - 둘째날 : 이 약 300 mg 캡슐을 1일 2회 혹은 이 약 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 1</strong>
+                <span>150273103998418099 / score 0.407 </span>
+                <p>(가바펜틴 600 mg /day) - 셋째날부터 : 이 약 300 mg 캡슐을 1일 3회 투여 혹은 이 약 100 mg 3캡슐을 1일 3회 투여(가바펜틴  900 mg/day) 혹은 위의 방법 외에 시작용량으로 이 약 300 mg 1캡슐을 1일 3회 투여 할 수도 있다(가바펜틴 900 mg /day). 필요시, 일주일내에 가바펜틴으로서 1,800 mg/day까지 증량할 수 있으며, 1일 총 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>포리부틴정(트리메부틴말레산염) / usage / chunk 0</strong>
+                <span>13165525996530241209 / score 0.396 </span>
+                <p>용법용량 성인 : 트리메부틴말레산염으로서 1회 100-200mg 1일 3회 식전에 경구투여한다. 연령, 증상에 따라 적절 히 증감한다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q013. 다이아벡스정500밀리그램(메트포르민염산염) 먹을 때 조심해야 하는 사람은?</h3>
+        <div class="answer-ids">Answer chunk: 2108611419396988490, 3776385938322214418, 5276426883577359891, 6668454544697244817, 7152769487705033341, 7531514133758429065, 8362049961833648428, 10024231030563386253, 11708333168440253462, 12095530466011741798, 13417958229687339292, 16334980138335419350, 16397889975742164987, 18360556845013207964</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>판콜에이내복액 / precaution / chunk 1</strong>
+                <span>6625657139723781767 / score 0.448 </span>
+                <p>, 양친 또는 형제 등이 두드러기, 접촉성피부염, 기관지천식, 알레르기성비염, 편두통, 음식물 알레르 2) 본인, 양친 또는 형제 등이 두드러기, 접촉성피부염, 기관지천식, 알레르기성비염, 편두통, 음식물 알레르 기 등을 일으키기 쉬운 체질을 갖고 있는 사람 3) 지금까지 약에 의해 알레르기 증상(예 : 발열, 발진, 관절통, 천식, 가려움증 등)을 일으킨 적이 있는 사람 4) 간장질환, 신...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>삐콤정 / precaution / chunk 0</strong>
+                <span>14806358566013449228 / score 0.441 </span>
+                <p>사용상의주의사항 1. 다음과 같은 사람은 이 약을 복용하지 말 것. 1) 이 약 및 이 약에 포함된 성분에 과민반응이 있는 환자 2) 만 3개월 미만의 젖먹이 3) 이 약은 유당(젖당)을 함유하고 있으므로, 갈락토오스 불내성(galactose intolerance), Lapp 유당(젖당) 분해효소 결핍증(Lapp lactose deficiency) 또는 포도당-갈락토오스 흡수장애(glucos...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>세토펜8시간이알서방정(아세트아미노펜) / precaution / chunk 1</strong>
+                <span>6227628672982003622 / score 0.431 </span>
+                <p>이지 말고 그대로 삼켜서 복용해야 한다. 4. 다음과 같은 사람은 이약을 복용하기 전에 의사, 치과의사, 약사와 상의할 것 1) 간장애 또는 그 병력이 있는 환자 2) 신장장애 또는 그 병력이 있는 환자 3) 소화성궤양의 병력이 있는 환자 4) 혈액이상 또는 그 병력이 있는 환자 5) 출혈경향이 있는 환자(혈소판기능이상이 나타날 수 있다.) 6) 심장기능이상이 있는 환자 7) 과민증의 병력이...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q014. 다이아벡스정500밀리그램(메트포르민염산염) 용법과 용량 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 6169995643239069803, 15388467760111358533</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>포리부틴정(트리메부틴말레산염) / usage / chunk 0</strong>
+                <span>13165525996530241209 / score 0.399 </span>
+                <p>용법용량 성인 : 트리메부틴말레산염으로서 1회 100-200mg 1일 3회 식전에 경구투여한다. 연령, 증상에 따라 적절 히 증감한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>활명수 / usage / chunk 0</strong>
+                <span>4793219341361738046 / score 0.396 </span>
+                <p>용법용량 다음 용량을 1일 3회 식후에 복용한다. 복용간격은 4시간 이상으로 한다. 만15세이상 : 1회 1병 (75ml) 만11세이상 - 만15세미만 : 1회 2/3병 (50ml) 만8세 이상-만11세 미만 : 1회 1/2병 (37.5ml) 만5세 이상-만8세 미만 : 1회 1/3병 (25ml) 만3세 이상-만5세 미만 : 1회 1/4병 (18.75ml) 만1세 이상-만3세 미만 : 1회 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>비타메진캡슐50밀리그램 / usage / chunk 0</strong>
+                <span>16107724787165321427 / score 0.380 </span>
+                <p>용법용량 성인 1회 1캅셀, 1일 1 ~ 2회 복용한다. 연령, 증상에 따라 적절히 증감한다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q015. 다이아벡스정500밀리그램(메트포르민염산염) 효능이 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: 15775770991533720635</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>후시딘연고(퓨시드산나트륨) / efficacy / chunk 0</strong>
+                <span>18134406211077493007 / score 0.419 </span>
+                <p>효능효과 (정제) ○ 유효균종 포도구균 ○ 적응증 - 골수염 - 패혈증 - 심내막염, 낭포성섬유증 - 기관지 폐렴 - 창상감염, 부스럼, 옹종 등 피부감염증 (연고제) ○ 유효균종 포도구균, 연쇄구균, 코리네박테륨, 클로스트리듐 ○ 적응증 - 농피증(농가진, 감염성습진양피부염, 심상성여드름(보통여드름), 모낭염, 종기 및 종기증, 화농성한선 염, 농가진성습진), 화상ㆍ외상ㆍ봉합창ㆍ식피창에 의...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>포리부틴정(트리메부틴말레산염) / usage / chunk 0</strong>
+                <span>13165525996530241209 / score 0.400 </span>
+                <p>용법용량 성인 : 트리메부틴말레산염으로서 1회 100-200mg 1일 3회 식전에 경구투여한다. 연령, 증상에 따라 적절 히 증감한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>키미테패취(스코폴라민)(수출명:可弥特止暈貼濟) / efficacy / chunk 0</strong>
+                <span>12239363922812303041 / score 0.395 </span>
+                <p>효능효과 1. 주효능 효과 멀미에 의한 구역•구토의 예방</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q016. 듀락칸시럽(락툴로오즈농축액) 부작용이나 주의사항 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 6712264635085016821, 8291078133271349960, 13387737834249630963</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 2</strong>
+                <span>6712264635085016821 / score 0.503 ANSWER</span>
+                <p> 약과 병용투여할 경우 이 약의 효능이 감소되어  필요한 만큼 결장 pH 감소가 이루어지지 않을 수 있으므로 병용투여 시 이를 고려하여야 한다. 6. 임부 및 수유부에 대한 투여 임부 임산부에 대한 락툴로오즈의 전신적인 노출은 무시해도 될 정도이므로, 임신 중 복용은 태아에 영향이 없 을 것으로 예상된다. 임산부에게 사용된 후향적 조사(1000명이상 노출)에서 락툴로오즈의 태아/신생아 독성 ...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 1</strong>
+                <span>8291078133271349960 / score 0.497 ANSWER</span>
+                <p>다수에서 자발적으로 보고되어 발현 빈도를 예측하기 어려움)] 분류 빈도 매우 흔 함 흔함 드묾 매우 드묾 빈도 불명 면역계         과민증 소화기계 이상 설사 복부팽만감, 복통, 구역,  구토     식욕부진, 트 림, 체액손실 피부및피하조 직         발진, 가려움 증, 두드러기,  홍반 조사     설사로 인한 전해질 이 상     시판후 조사에 있어서 소아 및 청소년에서의 이...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">3</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 0</strong>
+                <span>13387737834249630963 / score 0.493 ANSWER</span>
+                <p>사용상의주의사항 1. 다음 환자에는 투여하지 말 것. 1) 염증성 대장 질환 환자(궤양성 대장염, 크론병) 2) 위장관 폐색 환자 3) 소화관 천공 환자 또는 그 위험이 있는 환자 4) 원인불명의 복통 환자 5) 저갈락토스 식이요법(갈락토스 혈증) 환자 6) 이 약 또는 이 약의 구성성분에 과민반응 환자 7) 이 약은 유당을 함유하고 있으므로, 갈락토오스 불내성(galactose intole...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q017. 듀락칸시럽(락툴로오즈농축액) 하루에 몇 번 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: 15268956608481438715</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>활명수 / usage / chunk 0</strong>
+                <span>4793219341361738046 / score 0.524 </span>
+                <p>용법용량 다음 용량을 1일 3회 식후에 복용한다. 복용간격은 4시간 이상으로 한다. 만15세이상 : 1회 1병 (75ml) 만11세이상 - 만15세미만 : 1회 2/3병 (50ml) 만8세 이상-만11세 미만 : 1회 1/2병 (37.5ml) 만5세 이상-만8세 미만 : 1회 1/3병 (25ml) 만3세 이상-만5세 미만 : 1회 1/4병 (18.75ml) 만1세 이상-만3세 미만 : 1회 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>판콜에이내복액 / usage / chunk 0</strong>
+                <span>13725745134353284858 / score 0.509 </span>
+                <p>용법용량 성인 1회 30ml 1일 3회 식후 30분에 복용한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>비타메진캡슐50밀리그램 / usage / chunk 0</strong>
+                <span>16107724787165321427 / score 0.454 </span>
+                <p>용법용량 성인 1회 1캅셀, 1일 1 ~ 2회 복용한다. 연령, 증상에 따라 적절히 증감한다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q018. 듀락칸시럽(락툴로오즈농축액)는 어디에 쓰는 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 4863464160810138960</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 2</strong>
+                <span>6712264635085016821 / score 0.404 </span>
+                <p> 약과 병용투여할 경우 이 약의 효능이 감소되어  필요한 만큼 결장 pH 감소가 이루어지지 않을 수 있으므로 병용투여 시 이를 고려하여야 한다. 6. 임부 및 수유부에 대한 투여 임부 임산부에 대한 락툴로오즈의 전신적인 노출은 무시해도 될 정도이므로, 임신 중 복용은 태아에 영향이 없 을 것으로 예상된다. 임산부에게 사용된 후향적 조사(1000명이상 노출)에서 락툴로오즈의 태아/신생아 독성 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 0</strong>
+                <span>13387737834249630963 / score 0.392 </span>
+                <p>사용상의주의사항 1. 다음 환자에는 투여하지 말 것. 1) 염증성 대장 질환 환자(궤양성 대장염, 크론병) 2) 위장관 폐색 환자 3) 소화관 천공 환자 또는 그 위험이 있는 환자 4) 원인불명의 복통 환자 5) 저갈락토스 식이요법(갈락토스 혈증) 환자 6) 이 약 또는 이 약의 구성성분에 과민반응 환자 7) 이 약은 유당을 함유하고 있으므로, 갈락토오스 불내성(galactose intole...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>포리부틴정(트리메부틴말레산염) / usage / chunk 0</strong>
+                <span>13165525996530241209 / score 0.390 </span>
+                <p>용법용량 성인 : 트리메부틴말레산염으로서 1회 100-200mg 1일 3회 식전에 경구투여한다. 연령, 증상에 따라 적절 히 증감한다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q019. 부루펜정200밀리그램(이부프로펜) 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: 2089949503133795786, 3442085768321897727, 3846860737551675150, 9202492948219783795, 9696618416125688403, 10832960768891388215, 10905631141550019097, 11492615853056716775, 16634901288146742378</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>부루펜정200밀리그램(이부프로펜) / precaution / chunk 0</strong>
+                <span>3846860737551675150 / score 0.520 ANSWER</span>
+                <p>사용상의주의사항 1. 경고 1) 매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의 사 또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 위장출혈이 유발될 수 있다. 2) 심혈관계 위험: 이 약을 포함한 비스테로이드성 소염진통제 복용시 치명적일 수 있는 중대한 심혈관계 혈 전 반응, 심근경색증 및 뇌졸중의 위험이 증가한다. 심혈관...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>부루펜정200밀리그램(이부프로펜) / precaution / chunk 5</strong>
+                <span>10905631141550019097 / score 0.504 ANSWER</span>
+                <p>치료법의 잠재적인 위험성과 유익성을 고려해야 한다. 이 약 은 각 환자의 치료 목적과 일치하도록 가능한 최단 기간동안 최소 유효용량으로 투여한다. (2) 과민증상을 예측하기 위해 충분한 상담을 받아야 한다. (3) 소염진통제에 의한 치료는 원인요법이 아닌 대증요법(증상별로 치료하는 방법)이다. (3) 소염진통제에 의한 치료는 원인요법이 아닌 대증요법(증상별로 치료하는 방법)이다. (4) 만성...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>비타민케이1주사액(피토나디온주사액) / precaution / chunk 0</strong>
+                <span>13183160521151880419 / score 0.498 </span>
+                <p>사용상의주의사항 1. 경고 1) 치명적인 반응을 포함한 중대반응이 이 약을 희석사용하거나 급속한 주입을 하지 않았음에도 불구하고 정 맥주사 동안 또는 직후에 발생되었으며 근육주사시 또한 보고되었다. 전형적으로 이러한 반응은 과민증, 쇽,  심장 그리고/또는 호흡정지와 같은 아나필락시와 유사하다. 이 약을 처음 투여 받을 때 일부환자에서 중대반 응이 나타났다. 따라서 피하투여를 실시하기에 부적...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q020. 부루펜정200밀리그램(이부프로펜) 어떻게 복용해?</h3>
+        <div class="answer-ids">Answer chunk: 506689484405840801</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>판콜에이내복액 / usage / chunk 0</strong>
+                <span>13725745134353284858 / score 0.521 </span>
+                <p>용법용량 성인 1회 30ml 1일 3회 식후 30분에 복용한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>활명수 / usage / chunk 0</strong>
+                <span>4793219341361738046 / score 0.510 </span>
+                <p>용법용량 다음 용량을 1일 3회 식후에 복용한다. 복용간격은 4시간 이상으로 한다. 만15세이상 : 1회 1병 (75ml) 만11세이상 - 만15세미만 : 1회 2/3병 (50ml) 만8세 이상-만11세 미만 : 1회 1/2병 (37.5ml) 만5세 이상-만8세 미만 : 1회 1/3병 (25ml) 만3세 이상-만5세 미만 : 1회 1/4병 (18.75ml) 만1세 이상-만3세 미만 : 1회 ...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">3</div>
+              <div>
+                <strong>부루펜정200밀리그램(이부프로펜) / usage / chunk 0</strong>
+                <span>506689484405840801 / score 0.501 ANSWER</span>
+                <p>용법용량 ·류마티양 관절염, 골관절염, 강직성 척추염, 연조직손상, 비관절 류마티스질환, 급성통풍, 건선성 관절염 : 성 인 이부프로펜으로서 1회 200-600mg 1일 3-4회 경구투여한다. 1일 최고 3200mg까지 투여할 수 있다. ·연소성 류마티양 관절염 : 1일 체중 kg당 30-40mg을 3-4회 분할 경구투여한다. ·경증 및 중등도의 동통, 감기 : 성인 1회 200-400mg ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+        </div>
+      </section>
+    
+
+      <section class="model-card model-upstage-solar">
+        <div class="card-head">
+          <div>
+            <h2>Upstage Solar Embedding</h2>
+            <p>Korean-friendly query/passage candidate</p>
+          </div>
+          <span class="badge badge-ok">OK</span>
+        </div>
+        <div class="metric-list">
+          <div class="mid">
+            <span>1. Top-1 Accuracy</span><strong>55.0%</strong>
+          </div>
+          <div class="bad">
+            <span>2. Top-3 Hit Rate</span><strong>65.0%</strong>
+          </div>
+          <div class="mid">
+            <span>3. MRR</span><strong>0.59</strong>
+          </div>
+          <div class="good">
+            <span>4. Avg Response Time</span><strong>93ms</strong>
+          </div>
+        </div>
+        <div class="queries">
+          
+      <section class="query-block">
+        <h3>q001. 게보린정 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: 4114783728281071724, 9393523322034460910, 11080217091236786401, 16393081699557592079</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>세토펜8시간이알서방정(아세트아미노펜) / precaution / chunk 0</strong>
+                <span>6121643417187217993 / score 0.460 </span>
+                <p>사용상의주의사항 1. 경고 1)  매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의 사 또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 간손상이 유발될 수 있다. 2) 아세트아미노펜을 복용한 환자에서 매우 드물게 급성 전신성 발진성 농포증(급성 전신성 발진성 고름물집 증)(AGEP), 스티븐스 - 존슨 증후군(SJS), 독성 ...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>게보린정(수출명:돌로린정) / precaution / chunk 0</strong>
+                <span>9393523322034460910 / score 0.456 ANSWER</span>
+                <p>사용상의주의사항 1. 경고 매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의사  또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 간손상이 유발될 수 있다. 2. 이 약을 복용하는 동안 다음과 같은 행위를 하지 말 것. 이 약에는 아세트아미노펜이 함유되어 있다. 다른 아세트아미노펜 제품과 함께 복용하여 일일 최대용량 (4,000...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>판콜에이내복액 / precaution / chunk 0</strong>
+                <span>400763662546988216 / score 0.438 </span>
+                <p>사용상의주의사항 1. 경고 1) 매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의 사 또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 간손상이 유발될 수 있다. 2) 아세트아미노펜을 복용한 환자에서 매우 드물게 급성 전신성 발진성 농포증(급성 전신성 발진성 고름물집 증)(AGEP), 스티븐스-존슨 증후군(SJS), 독성 표피 ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q002. 게보린정 어떻게 복용해?</h3>
+        <div class="answer-ids">Answer chunk: 18321330971571329628</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>세토펜8시간이알서방정(아세트아미노펜) / precaution / chunk 0</strong>
+                <span>6121643417187217993 / score 0.389 </span>
+                <p>사용상의주의사항 1. 경고 1)  매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의 사 또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 간손상이 유발될 수 있다. 2) 아세트아미노펜을 복용한 환자에서 매우 드물게 급성 전신성 발진성 농포증(급성 전신성 발진성 고름물집 증)(AGEP), 스티븐스 - 존슨 증후군(SJS), 독성 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>게보린정(수출명:돌로린정) / precaution / chunk 0</strong>
+                <span>9393523322034460910 / score 0.386 </span>
+                <p>사용상의주의사항 1. 경고 매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의사  또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 간손상이 유발될 수 있다. 2. 이 약을 복용하는 동안 다음과 같은 행위를 하지 말 것. 이 약에는 아세트아미노펜이 함유되어 있다. 다른 아세트아미노펜 제품과 함께 복용하여 일일 최대용량 (4,000...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>게보린정(수출명:돌로린정) / precaution / chunk 3</strong>
+                <span>11080217091236786401 / score 0.373 </span>
+                <p>열을 수반하는 소아 및 고령자(노인) 또는 소모성 질환 환자의 경우, 복용 후 의 상태를 충분히 살펴야한다. (5) 다른 소염(항염)진통제와 함께 복용하는 것은 피한다. (6) 의사 또는 약사의 지시없이 통증에 10일 이상(성인)또는 5일 이상(소아) 복용하지 않고 발열에 3일 이상  복용하지 않는다. 통증이나 발열 증상이 지속되거나 악화될 경우, 또는 새로운 증상이 나타날 경우 의사 또는 ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q003. 게보린정는 어떤 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 14157358700803435556</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>게보린정(수출명:돌로린정) / precaution / chunk 0</strong>
+                <span>9393523322034460910 / score 0.336 </span>
+                <p>사용상의주의사항 1. 경고 매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의사  또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 간손상이 유발될 수 있다. 2. 이 약을 복용하는 동안 다음과 같은 행위를 하지 말 것. 이 약에는 아세트아미노펜이 함유되어 있다. 다른 아세트아미노펜 제품과 함께 복용하여 일일 최대용량 (4,000...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>게보린정(수출명:돌로린정) / precaution / chunk 2</strong>
+                <span>16393081699557592079 / score 0.326 </span>
+                <p>짐), 화상모양 수포 등의 격렬한 증상이 전신피부, 입 및 눈의 점막 에 나타난 경우 (6) 간 : 전신의 나른함, 황달(피부 또는 눈의 흰자위가 황색을 띄게 됨), 장기투여시 만성간괴사, 만성간염 (7) 간질성폐렴 : 기침을 동반, 숨이참, 호흡곤란, 발열 (8) 기타 : 장기투여시 급성췌장(이자)염, 신장(콩팥)독성 (9) 과량투여 : 간장, 신장(콩팥), 심근의 괴사 3) 아세트아미노펜...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>판콜에이내복액 / precaution / chunk 0</strong>
+                <span>400763662546988216 / score 0.323 </span>
+                <p>사용상의주의사항 1. 경고 1) 매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의 사 또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 간손상이 유발될 수 있다. 2) 아세트아미노펜을 복용한 환자에서 매우 드물게 급성 전신성 발진성 농포증(급성 전신성 발진성 고름물집 증)(AGEP), 스티븐스-존슨 증후군(SJS), 독성 표피 ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q004. 넥시움정20밀리그램(에스오메프라졸마그네슘) 먹을 때 조심해야 하는 사람은?</h3>
+        <div class="answer-ids">Answer chunk: 7168960786129972648, 7688971279981262734, 8282856429527230610, 8334017553176997607, 11673328677068352709, 13257914897951149630, 14013297096293548578, 14341943575432549709, 15893794466901346891, 15953310533218469962</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / precaution / chunk 3</strong>
+                <span>11673328677068352709 / score 0.504 ANSWER</span>
+                <p>방받은 경우 이 약의 혈중농도 변동으로 인한 다른 약물과의 상호작용을 고려해야 한다. 4) 헬리코박터필로리 박멸을 위한 항생제 병용요법으로 이 약과 같이 투여하는 항균제의 사용설명서를 참조 해야 한다. 클래리트로마이신은 강력한 CYP3A4억제제이므로 시사프리드와 같이 CYP3A4에 의해 대사되 는 다른 약물을 복용하고 있는 환자에게 박멸요법을 실시할 경우에는 클래리트로마이신의 금기 및 상호작...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / precaution / chunk 2</strong>
+                <span>15953310533218469962 / score 0.492 ANSWER</span>
+                <p>통악화, 수면장애, 떨림, 어지럼(dizziness, vertigo), 시야결손, 지각이상, 졸음 - 생식계 : 월경통, 월경장애, 질염 - 호흡기계 : 천식악화, 기침, 호흡곤란, 후두부종, 인두염, 비염, 부비동염 - 피부/부속기관 : 여드름, 항문가려움, 발진, 홍반발진, 반구진성발진, 혈관부종, 피부염, 가려움, 두드러 기, 발한증가 - 특수감각 : 중이염, 이상후각, 미각소실, 미각...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>세토펜8시간이알서방정(아세트아미노펜) / precaution / chunk 0</strong>
+                <span>6121643417187217993 / score 0.476 </span>
+                <p>사용상의주의사항 1. 경고 1)  매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의 사 또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 간손상이 유발될 수 있다. 2) 아세트아미노펜을 복용한 환자에서 매우 드물게 급성 전신성 발진성 농포증(급성 전신성 발진성 고름물집 증)(AGEP), 스티븐스 - 존슨 증후군(SJS), 독성 ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q005. 넥시움정20밀리그램(에스오메프라졸마그네슘) 용법과 용량 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 11661787397856991843, 12969300826889712601, 16127882188061360616</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / usage / chunk 1</strong>
+                <span>16127882188061360616 / score 0.534 ANSWER</span>
+                <p>1회 20 mg - 식도염 환자의 재발 방지를 위한 장기간 유지요법 : 1일 1회, 1회 20 mg - 식도염이 없는 위식도 역류질환의 증상치료요법 : · 1일 1회, 1회 20 mg. 4주후에도 증상 조절이 되지 않을 경우 추가 진료가 필요하다. · 일단 증상이 완화되면 그 후 연속되는 증상은 1일 1회, 1회 20 mg을 투여하여 조절한다. · 성인에서, 1일 1회, 1회 20 mg을 필...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / usage / chunk 0</strong>
+                <span>12969300826889712601 / score 0.510 ANSWER</span>
+                <p>용법용량 이 약은 물 등의 액체와 함께 삼켜야 하며 씹거나 부수어서는 안된다. 정제를 삼키기 어려운 환자들은 이 약을 비탄산수 반 컵에 붕해시켜 복용할 수 있다. 다른 음료는 장용피를 용 해시킬 수 있으므로 사용해서는 안된다. 정제가 붕해될 때까지 저은 후, 즉시 또는 30분 이내에 씹지 말고 그대로 마시고, 복용한 컵을 비탄산수 반 컵 으로 헹구어 이를 다시 마신다. 물에 떠있는 약 알갱이...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">3</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / usage / chunk 2</strong>
+                <span>11661787397856991843 / score 0.500 ANSWER</span>
+                <p>미란성 역류식도염의 치료 : 4주동안 1일 1회, 1회 40 mg을 투여한다. 식도염이 치료되지 않거나 증상이 계속되는 환자의 경우 4주 더 복용한다. - 식도염이 없는 위식도 역류질환의 증상치료요법 : · 1일 1회, 1회 20 mg. 4주후에도 증상 조절이 되지 않을 경우 추가 진료가 필요하다. · 일단 증상이 완화되면 그 후 연속되는 증상은 1일 1회, 1회 20 mg을 투여하여 조절한...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q006. 넥시움정20밀리그램(에스오메프라졸마그네슘) 효능이 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: 7441460709711525741</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / efficacy / chunk 0</strong>
+                <span>7441460709711525741 / score 0.495 ANSWER</span>
+                <p>효능효과 1. 위식도 역류질환(GERD) - 미란성 역류식도염의 치료 - 식도염 환자의 재발방지를 위한 장기간 유지요법 - 식도염이 없는 위식도 역류질환의 증상치료요법 2. 헬리코박터필로리 박멸을 위한 항생제 병용요법 - 헬리코박터필로리 양성인 십이지장궤양의 치료 - 헬리코박터필로리 양성인 소화성궤양 환자의 재발방지 3. 비스테로이드소염진통제(COX-2 비선택성, 선택성) 투여와 관련된 상부...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / precaution / chunk 3</strong>
+                <span>11673328677068352709 / score 0.473 </span>
+                <p>방받은 경우 이 약의 혈중농도 변동으로 인한 다른 약물과의 상호작용을 고려해야 한다. 4) 헬리코박터필로리 박멸을 위한 항생제 병용요법으로 이 약과 같이 투여하는 항균제의 사용설명서를 참조 해야 한다. 클래리트로마이신은 강력한 CYP3A4억제제이므로 시사프리드와 같이 CYP3A4에 의해 대사되 는 다른 약물을 복용하고 있는 환자에게 박멸요법을 실시할 경우에는 클래리트로마이신의 금기 및 상호작...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / usage / chunk 1</strong>
+                <span>16127882188061360616 / score 0.470 </span>
+                <p>1회 20 mg - 식도염 환자의 재발 방지를 위한 장기간 유지요법 : 1일 1회, 1회 20 mg - 식도염이 없는 위식도 역류질환의 증상치료요법 : · 1일 1회, 1회 20 mg. 4주후에도 증상 조절이 되지 않을 경우 추가 진료가 필요하다. · 일단 증상이 완화되면 그 후 연속되는 증상은 1일 1회, 1회 20 mg을 투여하여 조절한다. · 성인에서, 1일 1회, 1회 20 mg을 필...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q007. 노바스크정5밀리그람(암로디핀베실산염) 부작용이나 주의사항 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 1092516700474643446, 6063706250184928354, 9559796468510097291, 10621383854542130708, 14817639084781568797, 15104990811212706243, 16708979953147344313</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 0</strong>
+                <span>14817639084781568797 / score 0.526 ANSWER</span>
+                <p>사용상의주의사항 1. 다음 환자에게는 투여하지 말 것 1) 이 약 또는 다른 디히드로피리딘계 약물 (암로디핀은 디히드로피리딘계 칼슘채널차단제이다)에 과민증의  병력이 있는 환자 2) 수유부 3) 중증의 간기능장애 환자 4) 중증의 대동맥판협착증 환자 5) 쇽 환자 2. 다음 환자에는 신중히 투여할 것 1) 중증의 저혈압 환자 2) 투석을 해야 하는 신부전 환자 3) 고령자 4) 임부 또는 임...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 1</strong>
+                <span>15104990811212706243 / score 0.517 ANSWER</span>
+                <p>관부종, 다형성홍반을 포함한 알레르기반응이 보고되었다. 3) 다른 칼슘채널 저해제에서와 마찬가지로, 다음의 이상반응들이 드물게 보고되었는데 이들이 기저질환으 로 인한 것인지 약물에 의한 것인지는 구별을 할 수 없었다. 심근경색, 부정맥(서맥, 심실성빈맥, 심방성세동 포함), 흉통 4) 기타 다음과 같은 이상반응이 관찰되었다. 심혈관계: 때때로 혈압강하, 동방블록 또는 방실블록, 드물게 복부불...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">3</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 2</strong>
+                <span>9559796468510097291 / score 0.485 ANSWER</span>
+                <p>강하제와 병용 시 안전하였다. 2) 사람혈장을 이용한 실험실적자료는 암로디핀이 디곡신, 페니토인, 와파린, 인도메타신의 단백결합에 영향 을 미치지 않는 다는 것을 알려준다. 3) 자몽쥬스: 20명의 건강한 지원자에서 240 mL의 자몽쥬스와 암로디핀 10 mg의 단회병용투여는 암로디 핀의 약동학에 유의한 영향을 미치지 않았다. 이 시험에서 암로디핀의 주 대사경로인 CYP3A4에서의 유전 적 ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q008. 노바스크정5밀리그람(암로디핀베실산염) 하루에 몇 번 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: 2135793112587007329</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / usage / chunk 0</strong>
+                <span>2135793112587007329 / score 0.480 ANSWER</span>
+                <p>용법용량 &lt;성인&gt; 암로디핀으로서 1일 1회 5mg을 경구투여하며 환자의 반응에 따라 1일 최고 10 mg까지 증량할 수 있다. 연 령, 증상에 따라 적절히 증감한다. &lt;소아 (만 6-17세)&gt; 효과적인 혈압강하를 위한 암로디핀의 경구투여 용량은 1일 1회 2.5 mg-5 mg이다. 소아환자에서 1일 5 mg을 초과하는 용량은 연구되지 않았다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 5</strong>
+                <span>16708979953147344313 / score 0.447 </span>
+                <p>되어 쇽상태에 이르게 되거나 쇽이 일어나는  치명적인 결과가 초래되었다고 보고되었다. 건강한 지원자에게 암로디핀 10 mg을 투여한 즉시 혹은 2시간  후까지 약용탄 (activated charcoal) 을 투여하였을 때 암로디핀의 흡수가 유의하게 감소되었다. 일부 경우에 는 위세척이 유용할 수 있다. 이 약의 과량투여로 인한 임상적으로 심각한 저혈압은 심장과 호흡기능을 자주  모니터링하고,...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 1</strong>
+                <span>15104990811212706243 / score 0.439 </span>
+                <p>관부종, 다형성홍반을 포함한 알레르기반응이 보고되었다. 3) 다른 칼슘채널 저해제에서와 마찬가지로, 다음의 이상반응들이 드물게 보고되었는데 이들이 기저질환으 로 인한 것인지 약물에 의한 것인지는 구별을 할 수 없었다. 심근경색, 부정맥(서맥, 심실성빈맥, 심방성세동 포함), 흉통 4) 기타 다음과 같은 이상반응이 관찰되었다. 심혈관계: 때때로 혈압강하, 동방블록 또는 방실블록, 드물게 복부불...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q009. 노바스크정5밀리그람(암로디핀베실산염)는 어디에 쓰는 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 12077540634490791825</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 1</strong>
+                <span>15104990811212706243 / score 0.472 </span>
+                <p>관부종, 다형성홍반을 포함한 알레르기반응이 보고되었다. 3) 다른 칼슘채널 저해제에서와 마찬가지로, 다음의 이상반응들이 드물게 보고되었는데 이들이 기저질환으 로 인한 것인지 약물에 의한 것인지는 구별을 할 수 없었다. 심근경색, 부정맥(서맥, 심실성빈맥, 심방성세동 포함), 흉통 4) 기타 다음과 같은 이상반응이 관찰되었다. 심혈관계: 때때로 혈압강하, 동방블록 또는 방실블록, 드물게 복부불...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 0</strong>
+                <span>14817639084781568797 / score 0.454 </span>
+                <p>사용상의주의사항 1. 다음 환자에게는 투여하지 말 것 1) 이 약 또는 다른 디히드로피리딘계 약물 (암로디핀은 디히드로피리딘계 칼슘채널차단제이다)에 과민증의  병력이 있는 환자 2) 수유부 3) 중증의 간기능장애 환자 4) 중증의 대동맥판협착증 환자 5) 쇽 환자 2. 다음 환자에는 신중히 투여할 것 1) 중증의 저혈압 환자 2) 투석을 해야 하는 신부전 환자 3) 고령자 4) 임부 또는 임...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 2</strong>
+                <span>9559796468510097291 / score 0.451 </span>
+                <p>강하제와 병용 시 안전하였다. 2) 사람혈장을 이용한 실험실적자료는 암로디핀이 디곡신, 페니토인, 와파린, 인도메타신의 단백결합에 영향 을 미치지 않는 다는 것을 알려준다. 3) 자몽쥬스: 20명의 건강한 지원자에서 240 mL의 자몽쥬스와 암로디핀 10 mg의 단회병용투여는 암로디 핀의 약동학에 유의한 영향을 미치지 않았다. 이 시험에서 암로디핀의 주 대사경로인 CYP3A4에서의 유전 적 ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q010. 뉴렙톨캡슐300밀리그램(가바펜틴) 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: 391954824172367011, 2642547173236767414, 4145004101323710976, 6554997746415154617, 6953004963713792798, 8305397834920008363, 8743588384513740676, 8871522851348034088, 10937835917334718689, 11097684918725973609, 11261153157853713243, 12685841692191804303, 12907397173154724671, 13110943297876712269, 13816227936786667527, 14060773141545052008, 14195218309899436980, 14866329411365988908, 15029854230673634493, 18032251520597816703</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 0</strong>
+                <span>3042881147566346822 / score 0.553 </span>
+                <p>용법용량 1. 뇌전증 1) 만 13세 이상 환자의 단독요법 및 부가요법 유지 용량을 가바펜틴으로서 900 mg/day로 하기 위해 단계적 적정을 투여의 처음 3일에 걸쳐 다음과 같이  시행한다. - 첫째날 : 이 약 300 mg 캡슐을 1일 1회 혹은 이 약 100 mg 1캡슐을 1일 3회 투여(가바펜틴 300 mg /day) - 둘째날 : 이 약 300 mg 캡슐을 1일 2회 혹은 이 약 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 1</strong>
+                <span>150273103998418099 / score 0.549 </span>
+                <p>(가바펜틴 600 mg /day) - 셋째날부터 : 이 약 300 mg 캡슐을 1일 3회 투여 혹은 이 약 100 mg 3캡슐을 1일 3회 투여(가바펜틴  900 mg/day) 혹은 위의 방법 외에 시작용량으로 이 약 300 mg 1캡슐을 1일 3회 투여 할 수도 있다(가바펜틴 900 mg /day). 필요시, 일주일내에 가바펜틴으로서 1,800 mg/day까지 증량할 수 있으며, 1일 총 ...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">3</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / precaution / chunk 12</strong>
+                <span>10937835917334718689 / score 0.525 ANSWER</span>
+                <p> 곧 해당성분과 다음의 이상사례 간에 인과관계가 입증된 것을 의미하 는 것은 아니다. • 신경계-혀마비(일시적증상) 5. 일반적 주의 1) 환자 및 보호자에게 항뇌전증약이 우울증의 징후 및 증상의 발현 또는 악화, 비정상적 기분과 행동의 변 화, 자살충동 및 자살행동 또는 자해충동의 위험을 증가시킬 수 있음을 알려 환자에게 이러한 증상 또는 행동 이 발현될 경우 즉시 의료전문가에게 보고될 수...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q011. 뉴렙톨캡슐300밀리그램(가바펜틴) 어떻게 복용해?</h3>
+        <div class="answer-ids">Answer chunk: 150273103998418099, 543824242633008187, 3042881147566346822</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 0</strong>
+                <span>3042881147566346822 / score 0.568 ANSWER</span>
+                <p>용법용량 1. 뇌전증 1) 만 13세 이상 환자의 단독요법 및 부가요법 유지 용량을 가바펜틴으로서 900 mg/day로 하기 위해 단계적 적정을 투여의 처음 3일에 걸쳐 다음과 같이  시행한다. - 첫째날 : 이 약 300 mg 캡슐을 1일 1회 혹은 이 약 100 mg 1캡슐을 1일 3회 투여(가바펜틴 300 mg /day) - 둘째날 : 이 약 300 mg 캡슐을 1일 2회 혹은 이 약 ...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 1</strong>
+                <span>150273103998418099 / score 0.560 ANSWER</span>
+                <p>(가바펜틴 600 mg /day) - 셋째날부터 : 이 약 300 mg 캡슐을 1일 3회 투여 혹은 이 약 100 mg 3캡슐을 1일 3회 투여(가바펜틴  900 mg/day) 혹은 위의 방법 외에 시작용량으로 이 약 300 mg 1캡슐을 1일 3회 투여 할 수도 있다(가바펜틴 900 mg /day). 필요시, 일주일내에 가바펜틴으로서 1,800 mg/day까지 증량할 수 있으며, 1일 총 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / precaution / chunk 15</strong>
+                <span>13816227936786667527 / score 0.445 </span>
+                <p>유의적으로 다르지 않았다.  다른 용량에서의 상호작용은 알려지지 않았다. 3) 이 약과 페노바르비탈, 페니토인, 발프로산 또는 카르바마제핀 사이에 상호작용은 관찰되지 않았다. 가바 펜틴의 항정상태 약물동태는 건강한 피험자와 위의 항뇌전증약을 투여받는 뇌전증 환자에서 유사하게 나타 난다. 4) 노르에틴드론 및/혹은 에티닐에스트라디올을 함유하는 경구피임약과 이 약의 병용투여는 각 성분의 항정 상...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q012. 뉴렙톨캡슐300밀리그램(가바펜틴)는 어떤 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 9745780303849100937</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 0</strong>
+                <span>3042881147566346822 / score 0.525 </span>
+                <p>용법용량 1. 뇌전증 1) 만 13세 이상 환자의 단독요법 및 부가요법 유지 용량을 가바펜틴으로서 900 mg/day로 하기 위해 단계적 적정을 투여의 처음 3일에 걸쳐 다음과 같이  시행한다. - 첫째날 : 이 약 300 mg 캡슐을 1일 1회 혹은 이 약 100 mg 1캡슐을 1일 3회 투여(가바펜틴 300 mg /day) - 둘째날 : 이 약 300 mg 캡슐을 1일 2회 혹은 이 약 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 1</strong>
+                <span>150273103998418099 / score 0.500 </span>
+                <p>(가바펜틴 600 mg /day) - 셋째날부터 : 이 약 300 mg 캡슐을 1일 3회 투여 혹은 이 약 100 mg 3캡슐을 1일 3회 투여(가바펜틴  900 mg/day) 혹은 위의 방법 외에 시작용량으로 이 약 300 mg 1캡슐을 1일 3회 투여 할 수도 있다(가바펜틴 900 mg /day). 필요시, 일주일내에 가바펜틴으로서 1,800 mg/day까지 증량할 수 있으며, 1일 총 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / precaution / chunk 11</strong>
+                <span>14195218309899436980 / score 0.477 </span>
+                <p> 피부점막안증후군(스티븐스-존슨 증후 군), 혈소판감소증, 이명, 요실금 등이다. 가바펜틴의 장·단기 투여 후 중단 시 금단 증상이 일부 환자들에게서 관찰되었다. 가장 빈번히 보고된 증상에 는 불안, 불면증, 오심, 통증, 발한, 떨림, 두통, 우울증, 비정상적 느낌, 어지러움, 권태감이 포함된다. 4) 항뇌전증약을 치료받은 환자는 자살충동 또는 자살행동, 우울증의 발현 또는 악화 및 기분과...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q013. 다이아벡스정500밀리그램(메트포르민염산염) 먹을 때 조심해야 하는 사람은?</h3>
+        <div class="answer-ids">Answer chunk: 2108611419396988490, 3776385938322214418, 5276426883577359891, 6668454544697244817, 7152769487705033341, 7531514133758429065, 8362049961833648428, 10024231030563386253, 11708333168440253462, 12095530466011741798, 13417958229687339292, 16334980138335419350, 16397889975742164987, 18360556845013207964</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / precaution / chunk 4</strong>
+                <span>7152769487705033341 / score 0.544 ANSWER</span>
+                <p> 1년동안 메트포르민을 투여한 임상 시험 뿐만 아니라 발표된 그리고 시판 후 조사결과에서 보고된 이상반응은 그 특성 및 심각도 측면에서 성인 에서 보고된 이상반응과 유사했다. 5. 일반적 주의 1) 신기능에 대한 모니터링 : 이 약은 대부분 신장으로 배설되고, 이 약의 축적과 유산산증의 위험은 신기능 의 장애 정도에 따라 증가된다. 이 약은 치료 시작 전과 그 후 정기적으로 사구체 여과율을 ...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / precaution / chunk 5</strong>
+                <span>8362049961833648428 / score 0.538 ANSWER</span>
+                <p>어난다면, 이 약의 투여를 즉시 중지해야 한다. 5) 심기능 : 심부전 환자의 경우 저산소증 및 신기능 저하의 위험이 더 높다. 안정형 만성 심부전 환자의 경 우, 메트포르민은 정기적인 심장 및 신장기능 모니터링을 통해 투여할 수 있다. 6) 알코올 섭취 : 알코올은 젖산 대사에 대해 이 약이 미치는 영향을 증대시킨다고 알려져 있다. 따라서 이 약 을 투여하는 동안 급성 또는 만성적인 알코올...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">3</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / precaution / chunk 0</strong>
+                <span>10024231030563386253 / score 0.535 ANSWER</span>
+                <p>사용상의주의사항 1. 경고 심한 유산산증 또는 저혈당증을 일으킬 수 있다. 유산산증으로 인한 사망 사례가 보고된 바 있다. 2. 다음 환자에게는 투여하지 말 것. 1) 중등도(stage3b) 및 중증의 신장애환자(크레아티닌 청소율&lt;45ml/min 또는 사구체 여과율&lt;45ml/min /1.73m ), 탈수, 심각한 감염,심혈관계 허탈(쇽), 급성 심근경색, 패혈증과 같은 신기능에 영향을 줄 수...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q014. 다이아벡스정500밀리그램(메트포르민염산염) 용법과 용량 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 6169995643239069803, 15388467760111358533</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / usage / chunk 0</strong>
+                <span>6169995643239069803 / score 0.544 ANSWER</span>
+                <p>용법용량 성인 투여 용량은 개인별로 약물효과와 내약성을 근거로 결정되어야 하며, 1일 추천 최대용량을 초과하지 않아야  한다. 이 약은 위장관계 이상반응을 감소시키고 적절한 혈당조절에 필요한 최소용량을 확인하기 위하여 반드시 저 용량으로 투여를 시작해야 하며, 1일 2∼3회, 1회 500mg을 식사와 함께 투약한다. 용량의 증가는 매주  500mg씩 점차적으로 증량하며, 2000mg까지 투약...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / precaution / chunk 12</strong>
+                <span>18360556845013207964 / score 0.527 </span>
+                <p>일반적으로 고령자에 게는 이 약의 최대용량을 투여하지 않는다. 11. 과량투여시의 처치 이 약을 85g까지 투여하여도, 이러한 상태에서 유산산증이 일어나더라도 저혈당이 유발되지는 않는다. 이 약 은 양호한 혈역학적 조건에서 170mL/분에 이르는 청소율로 투석된다. 따라서 이 약의 과량투여가 의심되는  환자에서 축적된 약물을 제거하기 위해 혈액 투석은 유용할 수 있다. 12. 기타 1) 이 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / precaution / chunk 4</strong>
+                <span>7152769487705033341 / score 0.503 </span>
+                <p> 1년동안 메트포르민을 투여한 임상 시험 뿐만 아니라 발표된 그리고 시판 후 조사결과에서 보고된 이상반응은 그 특성 및 심각도 측면에서 성인 에서 보고된 이상반응과 유사했다. 5. 일반적 주의 1) 신기능에 대한 모니터링 : 이 약은 대부분 신장으로 배설되고, 이 약의 축적과 유산산증의 위험은 신기능 의 장애 정도에 따라 증가된다. 이 약은 치료 시작 전과 그 후 정기적으로 사구체 여과율을 ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q015. 다이아벡스정500밀리그램(메트포르민염산염) 효능이 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: 15775770991533720635</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / precaution / chunk 4</strong>
+                <span>7152769487705033341 / score 0.506 </span>
+                <p> 1년동안 메트포르민을 투여한 임상 시험 뿐만 아니라 발표된 그리고 시판 후 조사결과에서 보고된 이상반응은 그 특성 및 심각도 측면에서 성인 에서 보고된 이상반응과 유사했다. 5. 일반적 주의 1) 신기능에 대한 모니터링 : 이 약은 대부분 신장으로 배설되고, 이 약의 축적과 유산산증의 위험은 신기능 의 장애 정도에 따라 증가된다. 이 약은 치료 시작 전과 그 후 정기적으로 사구체 여과율을 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / precaution / chunk 8</strong>
+                <span>13417958229687339292 / score 0.499 </span>
+                <p>성적 성숙에 영향을 주지 않는 것으로 밝혀졌으나 이러한 특정 포인트에 대 한 장기 시험결과는 없다. 따라서 소아, 특히 사춘기 이전의 소아를 이 약으로 치료할 때 이러한 파라미터에  미치는 메트포르민의 영향을 주의 깊게 관찰할 것을 권장한다. 10~12세 연령의 소아 소아 및 성장기 청소년에 대한 대조 임상시험에 단 15명의 10~12세 연령의 소아가 참여했다. 비록 12세 이 하의 소아에서...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / precaution / chunk 12</strong>
+                <span>18360556845013207964 / score 0.498 </span>
+                <p>일반적으로 고령자에 게는 이 약의 최대용량을 투여하지 않는다. 11. 과량투여시의 처치 이 약을 85g까지 투여하여도, 이러한 상태에서 유산산증이 일어나더라도 저혈당이 유발되지는 않는다. 이 약 은 양호한 혈역학적 조건에서 170mL/분에 이르는 청소율로 투석된다. 따라서 이 약의 과량투여가 의심되는  환자에서 축적된 약물을 제거하기 위해 혈액 투석은 유용할 수 있다. 12. 기타 1) 이 ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q016. 듀락칸시럽(락툴로오즈농축액) 부작용이나 주의사항 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 6712264635085016821, 8291078133271349960, 13387737834249630963</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 0</strong>
+                <span>13387737834249630963 / score 0.530 ANSWER</span>
+                <p>사용상의주의사항 1. 다음 환자에는 투여하지 말 것. 1) 염증성 대장 질환 환자(궤양성 대장염, 크론병) 2) 위장관 폐색 환자 3) 소화관 천공 환자 또는 그 위험이 있는 환자 4) 원인불명의 복통 환자 5) 저갈락토스 식이요법(갈락토스 혈증) 환자 6) 이 약 또는 이 약의 구성성분에 과민반응 환자 7) 이 약은 유당을 함유하고 있으므로, 갈락토오스 불내성(galactose intole...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 2</strong>
+                <span>6712264635085016821 / score 0.498 ANSWER</span>
+                <p> 약과 병용투여할 경우 이 약의 효능이 감소되어  필요한 만큼 결장 pH 감소가 이루어지지 않을 수 있으므로 병용투여 시 이를 고려하여야 한다. 6. 임부 및 수유부에 대한 투여 임부 임산부에 대한 락툴로오즈의 전신적인 노출은 무시해도 될 정도이므로, 임신 중 복용은 태아에 영향이 없 을 것으로 예상된다. 임산부에게 사용된 후향적 조사(1000명이상 노출)에서 락툴로오즈의 태아/신생아 독성 ...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">3</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 1</strong>
+                <span>8291078133271349960 / score 0.474 ANSWER</span>
+                <p>다수에서 자발적으로 보고되어 발현 빈도를 예측하기 어려움)] 분류 빈도 매우 흔 함 흔함 드묾 매우 드묾 빈도 불명 면역계         과민증 소화기계 이상 설사 복부팽만감, 복통, 구역,  구토     식욕부진, 트 림, 체액손실 피부및피하조 직         발진, 가려움 증, 두드러기,  홍반 조사     설사로 인한 전해질 이 상     시판후 조사에 있어서 소아 및 청소년에서의 이...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q017. 듀락칸시럽(락툴로오즈농축액) 하루에 몇 번 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: 15268956608481438715</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 0</strong>
+                <span>13387737834249630963 / score 0.440 </span>
+                <p>사용상의주의사항 1. 다음 환자에는 투여하지 말 것. 1) 염증성 대장 질환 환자(궤양성 대장염, 크론병) 2) 위장관 폐색 환자 3) 소화관 천공 환자 또는 그 위험이 있는 환자 4) 원인불명의 복통 환자 5) 저갈락토스 식이요법(갈락토스 혈증) 환자 6) 이 약 또는 이 약의 구성성분에 과민반응 환자 7) 이 약은 유당을 함유하고 있으므로, 갈락토오스 불내성(galactose intole...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 2</strong>
+                <span>6712264635085016821 / score 0.440 </span>
+                <p> 약과 병용투여할 경우 이 약의 효능이 감소되어  필요한 만큼 결장 pH 감소가 이루어지지 않을 수 있으므로 병용투여 시 이를 고려하여야 한다. 6. 임부 및 수유부에 대한 투여 임부 임산부에 대한 락툴로오즈의 전신적인 노출은 무시해도 될 정도이므로, 임신 중 복용은 태아에 영향이 없 을 것으로 예상된다. 임산부에게 사용된 후향적 조사(1000명이상 노출)에서 락툴로오즈의 태아/신생아 독성 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 1</strong>
+                <span>8291078133271349960 / score 0.399 </span>
+                <p>다수에서 자발적으로 보고되어 발현 빈도를 예측하기 어려움)] 분류 빈도 매우 흔 함 흔함 드묾 매우 드묾 빈도 불명 면역계         과민증 소화기계 이상 설사 복부팽만감, 복통, 구역,  구토     식욕부진, 트 림, 체액손실 피부및피하조 직         발진, 가려움 증, 두드러기,  홍반 조사     설사로 인한 전해질 이 상     시판후 조사에 있어서 소아 및 청소년에서의 이...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q018. 듀락칸시럽(락툴로오즈농축액)는 어디에 쓰는 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 4863464160810138960</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 0</strong>
+                <span>13387737834249630963 / score 0.469 </span>
+                <p>사용상의주의사항 1. 다음 환자에는 투여하지 말 것. 1) 염증성 대장 질환 환자(궤양성 대장염, 크론병) 2) 위장관 폐색 환자 3) 소화관 천공 환자 또는 그 위험이 있는 환자 4) 원인불명의 복통 환자 5) 저갈락토스 식이요법(갈락토스 혈증) 환자 6) 이 약 또는 이 약의 구성성분에 과민반응 환자 7) 이 약은 유당을 함유하고 있으므로, 갈락토오스 불내성(galactose intole...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 2</strong>
+                <span>6712264635085016821 / score 0.455 </span>
+                <p> 약과 병용투여할 경우 이 약의 효능이 감소되어  필요한 만큼 결장 pH 감소가 이루어지지 않을 수 있으므로 병용투여 시 이를 고려하여야 한다. 6. 임부 및 수유부에 대한 투여 임부 임산부에 대한 락툴로오즈의 전신적인 노출은 무시해도 될 정도이므로, 임신 중 복용은 태아에 영향이 없 을 것으로 예상된다. 임산부에게 사용된 후향적 조사(1000명이상 노출)에서 락툴로오즈의 태아/신생아 독성 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 1</strong>
+                <span>8291078133271349960 / score 0.421 </span>
+                <p>다수에서 자발적으로 보고되어 발현 빈도를 예측하기 어려움)] 분류 빈도 매우 흔 함 흔함 드묾 매우 드묾 빈도 불명 면역계         과민증 소화기계 이상 설사 복부팽만감, 복통, 구역,  구토     식욕부진, 트 림, 체액손실 피부및피하조 직         발진, 가려움 증, 두드러기,  홍반 조사     설사로 인한 전해질 이 상     시판후 조사에 있어서 소아 및 청소년에서의 이...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q019. 부루펜정200밀리그램(이부프로펜) 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: 2089949503133795786, 3442085768321897727, 3846860737551675150, 9202492948219783795, 9696618416125688403, 10832960768891388215, 10905631141550019097, 11492615853056716775, 16634901288146742378</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>부루펜정200밀리그램(이부프로펜) / precaution / chunk 0</strong>
+                <span>3846860737551675150 / score 0.578 ANSWER</span>
+                <p>사용상의주의사항 1. 경고 1) 매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의 사 또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 위장출혈이 유발될 수 있다. 2) 심혈관계 위험: 이 약을 포함한 비스테로이드성 소염진통제 복용시 치명적일 수 있는 중대한 심혈관계 혈 전 반응, 심근경색증 및 뇌졸중의 위험이 증가한다. 심혈관...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>세토펜8시간이알서방정(아세트아미노펜) / precaution / chunk 0</strong>
+                <span>6121643417187217993 / score 0.560 </span>
+                <p>사용상의주의사항 1. 경고 1)  매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의 사 또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 간손상이 유발될 수 있다. 2) 아세트아미노펜을 복용한 환자에서 매우 드물게 급성 전신성 발진성 농포증(급성 전신성 발진성 고름물집 증)(AGEP), 스티븐스 - 존슨 증후군(SJS), 독성 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>게보린정(수출명:돌로린정) / precaution / chunk 0</strong>
+                <span>9393523322034460910 / score 0.547 </span>
+                <p>사용상의주의사항 1. 경고 매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의사  또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 간손상이 유발될 수 있다. 2. 이 약을 복용하는 동안 다음과 같은 행위를 하지 말 것. 이 약에는 아세트아미노펜이 함유되어 있다. 다른 아세트아미노펜 제품과 함께 복용하여 일일 최대용량 (4,000...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q020. 부루펜정200밀리그램(이부프로펜) 어떻게 복용해?</h3>
+        <div class="answer-ids">Answer chunk: 506689484405840801</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>부루펜정200밀리그램(이부프로펜) / usage / chunk 0</strong>
+                <span>506689484405840801 / score 0.540 ANSWER</span>
+                <p>용법용량 ·류마티양 관절염, 골관절염, 강직성 척추염, 연조직손상, 비관절 류마티스질환, 급성통풍, 건선성 관절염 : 성 인 이부프로펜으로서 1회 200-600mg 1일 3-4회 경구투여한다. 1일 최고 3200mg까지 투여할 수 있다. ·연소성 류마티양 관절염 : 1일 체중 kg당 30-40mg을 3-4회 분할 경구투여한다. ·경증 및 중등도의 동통, 감기 : 성인 1회 200-400mg ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>세토펜8시간이알서방정(아세트아미노펜) / precaution / chunk 0</strong>
+                <span>6121643417187217993 / score 0.487 </span>
+                <p>사용상의주의사항 1. 경고 1)  매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의 사 또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 간손상이 유발될 수 있다. 2) 아세트아미노펜을 복용한 환자에서 매우 드물게 급성 전신성 발진성 농포증(급성 전신성 발진성 고름물집 증)(AGEP), 스티븐스 - 존슨 증후군(SJS), 독성 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>세토펜8시간이알서방정(아세트아미노펜) / usage / chunk 0</strong>
+                <span>6600933181644049685 / score 0.486 </span>
+                <p>용법용량 12세 이상의 소아 및 성인 : 매 8시간마다 2정씩 복용. 24시간 동안 6정을 초과하지 말 것.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+        </div>
+      </section>
+    
+
+      <section class="model-card model-bge-m3">
+        <div class="card-head">
+          <div>
+            <h2>BAAI bge-m3</h2>
+            <p>Open-source self-hosting candidate</p>
+          </div>
+          <span class="badge badge-ok">OK</span>
+        </div>
+        <div class="metric-list">
+          <div class="bad">
+            <span>1. Top-1 Accuracy</span><strong>25.0%</strong>
+          </div>
+          <div class="bad">
+            <span>2. Top-3 Hit Rate</span><strong>45.0%</strong>
+          </div>
+          <div class="bad">
+            <span>3. MRR</span><strong>0.34</strong>
+          </div>
+          <div class="good">
+            <span>4. Avg Response Time</span><strong>106ms</strong>
+          </div>
+        </div>
+        <div class="queries">
+          
+      <section class="query-block">
+        <h3>q001. 게보린정 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: 4114783728281071724, 9393523322034460910, 11080217091236786401, 16393081699557592079</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>비타민케이1주사액(피토나디온주사액) / precaution / chunk 2</strong>
+                <span>1485499396054414748 / score 0.626 </span>
+                <p>고빌리루빈혈증이 나타날 수 있으므로 과량(10∼20 mg) 투여하 지 않는다. 2) 소아투여 시는 혈액학자의 자문을 구하도록 한다. 3) 비타민 K 주사 투여로 소아에게서 발암가능성이 있다는 역학조사연구 보고가 있으므로 경구투여가 부적 절한 경우 외에는 주사제를 사용하지 않도록 한다. 9. 고령자에 대한 투여 고령자는 이 약의 투여로 항응고작용을 역전시키는데 보다 민감하므로 추천용량범위의 하...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>지르텍정(세티리진염산염) / precaution / chunk 0</strong>
+                <span>8746784690473420494 / score 0.621 </span>
+                <p>사용상의주의사항 1. 다음과 같은 사람은 이 약을 복용(사용)하지 말 것 1) 이 약 및 히드록시진 또는 피페라진 유도체에 과민증 및 그 병력이 있는 환자 2) 신부전 환자 (크레아티닌 청소율 &lt; 10mL/min) 3) 6세 미만의 유아 4) 이 약은 유당을 함유하고 있으므로, 갈락토오스 불내성(galactose intolerance), Lapp 유당분해효소 결핍 증(Lapp lactase ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / precaution / chunk 0</strong>
+                <span>8334017553176997607 / score 0.603 </span>
+                <p>사용상의주의사항 1. 다음 환자에는 투여하지 말 것. 1) 이 약, 이 약의 구성성분 또는 벤즈이미다졸류에 과민반응 및 그 병력이 있는 환자 2) 페니실린계 항생제에 과민반응 환자(헬리코박터필로리 박멸을 위해 아목시실린과 병용요법시) 3) 마크로라이드계 항생제 과민반응 환자(헬리코박터필로리 박멸을 위해 클래리트로마이신과 병용시에 한 함.) 4) 테르페나딘, 시사프리드, 피모지드, 아스테미졸을...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q002. 게보린정 어떻게 복용해?</h3>
+        <div class="answer-ids">Answer chunk: 18321330971571329628</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 0</strong>
+                <span>3042881147566346822 / score 0.583 </span>
+                <p>용법용량 1. 뇌전증 1) 만 13세 이상 환자의 단독요법 및 부가요법 유지 용량을 가바펜틴으로서 900 mg/day로 하기 위해 단계적 적정을 투여의 처음 3일에 걸쳐 다음과 같이  시행한다. - 첫째날 : 이 약 300 mg 캡슐을 1일 1회 혹은 이 약 100 mg 1캡슐을 1일 3회 투여(가바펜틴 300 mg /day) - 둘째날 : 이 약 300 mg 캡슐을 1일 2회 혹은 이 약 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 1</strong>
+                <span>150273103998418099 / score 0.552 </span>
+                <p>(가바펜틴 600 mg /day) - 셋째날부터 : 이 약 300 mg 캡슐을 1일 3회 투여 혹은 이 약 100 mg 3캡슐을 1일 3회 투여(가바펜틴  900 mg/day) 혹은 위의 방법 외에 시작용량으로 이 약 300 mg 1캡슐을 1일 3회 투여 할 수도 있다(가바펜틴 900 mg /day). 필요시, 일주일내에 가바펜틴으로서 1,800 mg/day까지 증량할 수 있으며, 1일 총 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / precaution / chunk 3</strong>
+                <span>11097684918725973609 / score 0.542 </span>
+                <p>으로 투여하여 안전성을 평가한 결과, 우수한  내약성을 나타내었다. 이중 대조임상시험에 참가한 환자는 543명이었다. 이 약은 대부분 다른 항뇌전증약 과 병용요법으로 투여되었기 때문에 이상반응이 어떤 약제와 연관된 것인지 판단하는 것은 불가능하다. 또 한, 600명 이상의 환자를 대상으로 단독요법으로서 이 약이 평가되었으며, 이상반응은 보통 경증-중등도로  나타났다. (1) 부가요법으로 투여...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q003. 게보린정는 어떤 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 14157358700803435556</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 0</strong>
+                <span>3042881147566346822 / score 0.519 </span>
+                <p>용법용량 1. 뇌전증 1) 만 13세 이상 환자의 단독요법 및 부가요법 유지 용량을 가바펜틴으로서 900 mg/day로 하기 위해 단계적 적정을 투여의 처음 3일에 걸쳐 다음과 같이  시행한다. - 첫째날 : 이 약 300 mg 캡슐을 1일 1회 혹은 이 약 100 mg 1캡슐을 1일 3회 투여(가바펜틴 300 mg /day) - 둘째날 : 이 약 300 mg 캡슐을 1일 2회 혹은 이 약 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / precaution / chunk 3</strong>
+                <span>11097684918725973609 / score 0.518 </span>
+                <p>으로 투여하여 안전성을 평가한 결과, 우수한  내약성을 나타내었다. 이중 대조임상시험에 참가한 환자는 543명이었다. 이 약은 대부분 다른 항뇌전증약 과 병용요법으로 투여되었기 때문에 이상반응이 어떤 약제와 연관된 것인지 판단하는 것은 불가능하다. 또 한, 600명 이상의 환자를 대상으로 단독요법으로서 이 약이 평가되었으며, 이상반응은 보통 경증-중등도로  나타났다. (1) 부가요법으로 투여...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / precaution / chunk 10</strong>
+                <span>14866329411365988908 / score 0.513 </span>
+                <p> 경련, 근무력증 드물게: 정강이뼈 통증, 관절 장애, 건 장애 - 신경계: 자주: 착란, 우울증 때때로: 어지러움, 신경과민, 지각이상, 불면증, 신경병증, 성욕감소, 불안, 이인증, 반사감소, 언어장애, 꿈이 상, 구음장애, 감정적 불안정, 안구진탕증, 혼미, 입주위 지각이상, 이상황홀감, 지각과민, 운동기능감소증, 자 살시도 드물게: 초조, 긴장항진, 성욕 증가, 운동장애, 근간대경련,...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q004. 넥시움정20밀리그램(에스오메프라졸마그네슘) 먹을 때 조심해야 하는 사람은?</h3>
+        <div class="answer-ids">Answer chunk: 7168960786129972648, 7688971279981262734, 8282856429527230610, 8334017553176997607, 11673328677068352709, 13257914897951149630, 14013297096293548578, 14341943575432549709, 15893794466901346891, 15953310533218469962</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>지르텍정(세티리진염산염) / precaution / chunk 0</strong>
+                <span>8746784690473420494 / score 0.605 </span>
+                <p>사용상의주의사항 1. 다음과 같은 사람은 이 약을 복용(사용)하지 말 것 1) 이 약 및 히드록시진 또는 피페라진 유도체에 과민증 및 그 병력이 있는 환자 2) 신부전 환자 (크레아티닌 청소율 &lt; 10mL/min) 3) 6세 미만의 유아 4) 이 약은 유당을 함유하고 있으므로, 갈락토오스 불내성(galactose intolerance), Lapp 유당분해효소 결핍 증(Lapp lactase ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>세토펜8시간이알서방정(아세트아미노펜) / precaution / chunk 3</strong>
+                <span>8733933765262147206 / score 0.593 </span>
+                <p>s, HAGMA)이 보고되었다. 가장 위험도가 높은 환자는 패혈증,  중증의 신기능 장애, 영양실조 등 기저질환이 있는 환자이며, 이 환자들은 한 가지 또는 두 가지 약물을 모 두 중단한 후에 호전되었다. 이 약과 플루클록사실린을 동시에 복용할 경우 주의를 기울여야 하고  HAGMA가 의심되면 이 약 및/또는 플루클록사실린 투여를 중단한다. 2) 과량투여시의 처치 이 약을 과량복용시 어떠한 ...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">3</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / precaution / chunk 0</strong>
+                <span>8334017553176997607 / score 0.581 ANSWER</span>
+                <p>사용상의주의사항 1. 다음 환자에는 투여하지 말 것. 1) 이 약, 이 약의 구성성분 또는 벤즈이미다졸류에 과민반응 및 그 병력이 있는 환자 2) 페니실린계 항생제에 과민반응 환자(헬리코박터필로리 박멸을 위해 아목시실린과 병용요법시) 3) 마크로라이드계 항생제 과민반응 환자(헬리코박터필로리 박멸을 위해 클래리트로마이신과 병용시에 한 함.) 4) 테르페나딘, 시사프리드, 피모지드, 아스테미졸을...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q005. 넥시움정20밀리그램(에스오메프라졸마그네슘) 용법과 용량 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 11661787397856991843, 12969300826889712601, 16127882188061360616</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>포리부틴정(트리메부틴말레산염) / usage / chunk 0</strong>
+                <span>13165525996530241209 / score 0.596 </span>
+                <p>용법용량 성인 : 트리메부틴말레산염으로서 1회 100-200mg 1일 3회 식전에 경구투여한다. 연령, 증상에 따라 적절 히 증감한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>판콜에이내복액 / usage / chunk 0</strong>
+                <span>13725745134353284858 / score 0.588 </span>
+                <p>용법용량 성인 1회 30ml 1일 3회 식후 30분에 복용한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>지르텍정(세티리진염산염) / usage / chunk 0</strong>
+                <span>8640656365726380202 / score 0.587 </span>
+                <p>용법용량 1. 성인 및 6세 이상의 소아 : 세티리진염산염으로서 1일 1회 10mg 취침 전에 경구 투여한다. 2. 이상반응에 민감한 환자의 경우는 5mg씩을 아침, 저녁에 분할 투여한다. 3. 연령, 증상에 따라 적절히 증감한다. 4. 신장애 환자 : 투여 간격은 환자의 신기능에 따라 조절되어야 한다. 다음 표를 참조하여 용량을 조절한다. 이  용량 표를 사용하기 위해서는 mL/min 단위...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q006. 넥시움정20밀리그램(에스오메프라졸마그네슘) 효능이 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: 7441460709711525741</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>비타민케이1주사액(피토나디온주사액) / efficacy / chunk 0</strong>
+                <span>3592362232026229977 / score 0.511 </span>
+                <p>효능효과 1. 신생아 출혈성질환의 예방과 치료 2. 급성 또는 경구투여가 어려운 경우의 비타민 K 결핍 또는 비타민 K의 활성이상으로 인한 다음의 혈액응고질 환 1) 쿠마린(coumarin) 유도체에 의한 항응고제 유도성 프로트롬빈 결핍증 2) 항생제, 살리실산 제제 등에 의하여 2차적으로 발생되는 저프로트롬빈혈증 3. 비타민 K의 합성 또는 흡수제한으로 인하여 2차적으로 발생되는 저프로트롬...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / usage / chunk 1</strong>
+                <span>16127882188061360616 / score 0.507 </span>
+                <p>1회 20 mg - 식도염 환자의 재발 방지를 위한 장기간 유지요법 : 1일 1회, 1회 20 mg - 식도염이 없는 위식도 역류질환의 증상치료요법 : · 1일 1회, 1회 20 mg. 4주후에도 증상 조절이 되지 않을 경우 추가 진료가 필요하다. · 일단 증상이 완화되면 그 후 연속되는 증상은 1일 1회, 1회 20 mg을 투여하여 조절한다. · 성인에서, 1일 1회, 1회 20 mg을 필...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / precaution / chunk 7</strong>
+                <span>15893794466901346891 / score 0.501 </span>
+                <p>3A4 저해제인 클래리트로마이신(500 mg  1일 2회 투여)을 동시에 투여하면 이 약의 AUC가 2배로 증가된다. 이 약과 CYP2C19, CYP3A4 저해제와 의 병용투여는 이 약의 노출을 두 배 이상 증가시킬 수 있다. CYP2C19, CYP3A4 억제제인 보리코나졸은 오 메프라졸의 AUCτ를 280 %까지 증가시켰다. 이 때문에 이 약의 용량을 조절할 필요는 없다. 그러나 중증의 ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q007. 노바스크정5밀리그람(암로디핀베실산염) 부작용이나 주의사항 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 1092516700474643446, 6063706250184928354, 9559796468510097291, 10621383854542130708, 14817639084781568797, 15104990811212706243, 16708979953147344313</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 0</strong>
+                <span>14817639084781568797 / score 0.621 ANSWER</span>
+                <p>사용상의주의사항 1. 다음 환자에게는 투여하지 말 것 1) 이 약 또는 다른 디히드로피리딘계 약물 (암로디핀은 디히드로피리딘계 칼슘채널차단제이다)에 과민증의  병력이 있는 환자 2) 수유부 3) 중증의 간기능장애 환자 4) 중증의 대동맥판협착증 환자 5) 쇽 환자 2. 다음 환자에는 신중히 투여할 것 1) 중증의 저혈압 환자 2) 투석을 해야 하는 신부전 환자 3) 고령자 4) 임부 또는 임...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 1</strong>
+                <span>15104990811212706243 / score 0.617 ANSWER</span>
+                <p>관부종, 다형성홍반을 포함한 알레르기반응이 보고되었다. 3) 다른 칼슘채널 저해제에서와 마찬가지로, 다음의 이상반응들이 드물게 보고되었는데 이들이 기저질환으 로 인한 것인지 약물에 의한 것인지는 구별을 할 수 없었다. 심근경색, 부정맥(서맥, 심실성빈맥, 심방성세동 포함), 흉통 4) 기타 다음과 같은 이상반응이 관찰되었다. 심혈관계: 때때로 혈압강하, 동방블록 또는 방실블록, 드물게 복부불...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>넥시움정20밀리그램(에스오메프라졸마그네슘) / precaution / chunk 0</strong>
+                <span>8334017553176997607 / score 0.613 </span>
+                <p>사용상의주의사항 1. 다음 환자에는 투여하지 말 것. 1) 이 약, 이 약의 구성성분 또는 벤즈이미다졸류에 과민반응 및 그 병력이 있는 환자 2) 페니실린계 항생제에 과민반응 환자(헬리코박터필로리 박멸을 위해 아목시실린과 병용요법시) 3) 마크로라이드계 항생제 과민반응 환자(헬리코박터필로리 박멸을 위해 클래리트로마이신과 병용시에 한 함.) 4) 테르페나딘, 시사프리드, 피모지드, 아스테미졸을...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q008. 노바스크정5밀리그람(암로디핀베실산염) 하루에 몇 번 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: 2135793112587007329</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / usage / chunk 0</strong>
+                <span>2135793112587007329 / score 0.587 ANSWER</span>
+                <p>용법용량 &lt;성인&gt; 암로디핀으로서 1일 1회 5mg을 경구투여하며 환자의 반응에 따라 1일 최고 10 mg까지 증량할 수 있다. 연 령, 증상에 따라 적절히 증감한다. &lt;소아 (만 6-17세)&gt; 효과적인 혈압강하를 위한 암로디핀의 경구투여 용량은 1일 1회 2.5 mg-5 mg이다. 소아환자에서 1일 5 mg을 초과하는 용량은 연구되지 않았다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 6</strong>
+                <span>6063706250184928354 / score 0.576 </span>
+                <p> 기준 4) 건강한 성인에서 암로디핀정 10 mg과 암로디핀구강붕해정 10 mg을 공복상태에서 단회투여시 AUC 및  C 가 생물학적으로 동등하였다.max 5) 소아 임상시험 정보 (1) 약동학 만6~17세 고혈압 환자 62명이 투여받은 암로디핀 용량은1일 1.25mg-20mg이었다. 체중 보정한 청소율 과 분포용적은 성인과 유사하였다. (2) 고혈압 임상시험 만6-17세 고혈압 환자 268...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 5</strong>
+                <span>16708979953147344313 / score 0.576 </span>
+                <p>되어 쇽상태에 이르게 되거나 쇽이 일어나는  치명적인 결과가 초래되었다고 보고되었다. 건강한 지원자에게 암로디핀 10 mg을 투여한 즉시 혹은 2시간  후까지 약용탄 (activated charcoal) 을 투여하였을 때 암로디핀의 흡수가 유의하게 감소되었다. 일부 경우에 는 위세척이 유용할 수 있다. 이 약의 과량투여로 인한 임상적으로 심각한 저혈압은 심장과 호흡기능을 자주  모니터링하고,...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q009. 노바스크정5밀리그람(암로디핀베실산염)는 어디에 쓰는 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 12077540634490791825</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 0</strong>
+                <span>14817639084781568797 / score 0.528 </span>
+                <p>사용상의주의사항 1. 다음 환자에게는 투여하지 말 것 1) 이 약 또는 다른 디히드로피리딘계 약물 (암로디핀은 디히드로피리딘계 칼슘채널차단제이다)에 과민증의  병력이 있는 환자 2) 수유부 3) 중증의 간기능장애 환자 4) 중증의 대동맥판협착증 환자 5) 쇽 환자 2. 다음 환자에는 신중히 투여할 것 1) 중증의 저혈압 환자 2) 투석을 해야 하는 신부전 환자 3) 고령자 4) 임부 또는 임...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 5</strong>
+                <span>16708979953147344313 / score 0.513 </span>
+                <p>되어 쇽상태에 이르게 되거나 쇽이 일어나는  치명적인 결과가 초래되었다고 보고되었다. 건강한 지원자에게 암로디핀 10 mg을 투여한 즉시 혹은 2시간  후까지 약용탄 (activated charcoal) 을 투여하였을 때 암로디핀의 흡수가 유의하게 감소되었다. 일부 경우에 는 위세척이 유용할 수 있다. 이 약의 과량투여로 인한 임상적으로 심각한 저혈압은 심장과 호흡기능을 자주  모니터링하고,...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>노바스크정5밀리그람(암로디핀베실산염) / precaution / chunk 6</strong>
+                <span>6063706250184928354 / score 0.510 </span>
+                <p> 기준 4) 건강한 성인에서 암로디핀정 10 mg과 암로디핀구강붕해정 10 mg을 공복상태에서 단회투여시 AUC 및  C 가 생물학적으로 동등하였다.max 5) 소아 임상시험 정보 (1) 약동학 만6~17세 고혈압 환자 62명이 투여받은 암로디핀 용량은1일 1.25mg-20mg이었다. 체중 보정한 청소율 과 분포용적은 성인과 유사하였다. (2) 고혈압 임상시험 만6-17세 고혈압 환자 268...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q010. 뉴렙톨캡슐300밀리그램(가바펜틴) 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: 391954824172367011, 2642547173236767414, 4145004101323710976, 6554997746415154617, 6953004963713792798, 8305397834920008363, 8743588384513740676, 8871522851348034088, 10937835917334718689, 11097684918725973609, 11261153157853713243, 12685841692191804303, 12907397173154724671, 13110943297876712269, 13816227936786667527, 14060773141545052008, 14195218309899436980, 14866329411365988908, 15029854230673634493, 18032251520597816703</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 1</strong>
+                <span>150273103998418099 / score 0.666 </span>
+                <p>(가바펜틴 600 mg /day) - 셋째날부터 : 이 약 300 mg 캡슐을 1일 3회 투여 혹은 이 약 100 mg 3캡슐을 1일 3회 투여(가바펜틴  900 mg/day) 혹은 위의 방법 외에 시작용량으로 이 약 300 mg 1캡슐을 1일 3회 투여 할 수도 있다(가바펜틴 900 mg /day). 필요시, 일주일내에 가바펜틴으로서 1,800 mg/day까지 증량할 수 있으며, 1일 총 ...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / precaution / chunk 14</strong>
+                <span>6554997746415154617 / score 0.638 ANSWER</span>
+                <p>자료에서 오남용  및 의존성의 사례가 보고되었다. 화학 물질 남용 이력이 있는 환자는 가바펜틴 오남용 및 의존성 위험이 더 높 을 수 있으므로 주의하여 가바펜틴을 사용해야 한다. 가바펜틴 처방 전 환자의 오남용 또는 의존성 위험을 주 의깊게 평가해야 한다. 다른 중추신경계 활성 약물과 같이, 환자에서 약물남용 및/또는 정신장애의 병력을 주 의깊게 평가하고 가바펜틴 오남용 또는 의존성 증상의 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 0</strong>
+                <span>3042881147566346822 / score 0.634 </span>
+                <p>용법용량 1. 뇌전증 1) 만 13세 이상 환자의 단독요법 및 부가요법 유지 용량을 가바펜틴으로서 900 mg/day로 하기 위해 단계적 적정을 투여의 처음 3일에 걸쳐 다음과 같이  시행한다. - 첫째날 : 이 약 300 mg 캡슐을 1일 1회 혹은 이 약 100 mg 1캡슐을 1일 3회 투여(가바펜틴 300 mg /day) - 둘째날 : 이 약 300 mg 캡슐을 1일 2회 혹은 이 약 ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q011. 뉴렙톨캡슐300밀리그램(가바펜틴) 어떻게 복용해?</h3>
+        <div class="answer-ids">Answer chunk: 150273103998418099, 543824242633008187, 3042881147566346822</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 1</strong>
+                <span>150273103998418099 / score 0.665 ANSWER</span>
+                <p>(가바펜틴 600 mg /day) - 셋째날부터 : 이 약 300 mg 캡슐을 1일 3회 투여 혹은 이 약 100 mg 3캡슐을 1일 3회 투여(가바펜틴  900 mg/day) 혹은 위의 방법 외에 시작용량으로 이 약 300 mg 1캡슐을 1일 3회 투여 할 수도 있다(가바펜틴 900 mg /day). 필요시, 일주일내에 가바펜틴으로서 1,800 mg/day까지 증량할 수 있으며, 1일 총 ...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 0</strong>
+                <span>3042881147566346822 / score 0.635 ANSWER</span>
+                <p>용법용량 1. 뇌전증 1) 만 13세 이상 환자의 단독요법 및 부가요법 유지 용량을 가바펜틴으로서 900 mg/day로 하기 위해 단계적 적정을 투여의 처음 3일에 걸쳐 다음과 같이  시행한다. - 첫째날 : 이 약 300 mg 캡슐을 1일 1회 혹은 이 약 100 mg 1캡슐을 1일 3회 투여(가바펜틴 300 mg /day) - 둘째날 : 이 약 300 mg 캡슐을 1일 2회 혹은 이 약 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / precaution / chunk 3</strong>
+                <span>11097684918725973609 / score 0.583 </span>
+                <p>으로 투여하여 안전성을 평가한 결과, 우수한  내약성을 나타내었다. 이중 대조임상시험에 참가한 환자는 543명이었다. 이 약은 대부분 다른 항뇌전증약 과 병용요법으로 투여되었기 때문에 이상반응이 어떤 약제와 연관된 것인지 판단하는 것은 불가능하다. 또 한, 600명 이상의 환자를 대상으로 단독요법으로서 이 약이 평가되었으며, 이상반응은 보통 경증-중등도로  나타났다. (1) 부가요법으로 투여...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q012. 뉴렙톨캡슐300밀리그램(가바펜틴)는 어떤 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 9745780303849100937</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 1</strong>
+                <span>150273103998418099 / score 0.601 </span>
+                <p>(가바펜틴 600 mg /day) - 셋째날부터 : 이 약 300 mg 캡슐을 1일 3회 투여 혹은 이 약 100 mg 3캡슐을 1일 3회 투여(가바펜틴  900 mg/day) 혹은 위의 방법 외에 시작용량으로 이 약 300 mg 1캡슐을 1일 3회 투여 할 수도 있다(가바펜틴 900 mg /day). 필요시, 일주일내에 가바펜틴으로서 1,800 mg/day까지 증량할 수 있으며, 1일 총 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 0</strong>
+                <span>3042881147566346822 / score 0.584 </span>
+                <p>용법용량 1. 뇌전증 1) 만 13세 이상 환자의 단독요법 및 부가요법 유지 용량을 가바펜틴으로서 900 mg/day로 하기 위해 단계적 적정을 투여의 처음 3일에 걸쳐 다음과 같이  시행한다. - 첫째날 : 이 약 300 mg 캡슐을 1일 1회 혹은 이 약 100 mg 1캡슐을 1일 3회 투여(가바펜틴 300 mg /day) - 둘째날 : 이 약 300 mg 캡슐을 1일 2회 혹은 이 약 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / precaution / chunk 3</strong>
+                <span>11097684918725973609 / score 0.572 </span>
+                <p>으로 투여하여 안전성을 평가한 결과, 우수한  내약성을 나타내었다. 이중 대조임상시험에 참가한 환자는 543명이었다. 이 약은 대부분 다른 항뇌전증약 과 병용요법으로 투여되었기 때문에 이상반응이 어떤 약제와 연관된 것인지 판단하는 것은 불가능하다. 또 한, 600명 이상의 환자를 대상으로 단독요법으로서 이 약이 평가되었으며, 이상반응은 보통 경증-중등도로  나타났다. (1) 부가요법으로 투여...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q013. 다이아벡스정500밀리그램(메트포르민염산염) 먹을 때 조심해야 하는 사람은?</h3>
+        <div class="answer-ids">Answer chunk: 2108611419396988490, 3776385938322214418, 5276426883577359891, 6668454544697244817, 7152769487705033341, 7531514133758429065, 8362049961833648428, 10024231030563386253, 11708333168440253462, 12095530466011741798, 13417958229687339292, 16334980138335419350, 16397889975742164987, 18360556845013207964</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>게보린정(수출명:돌로린정) / precaution / chunk 0</strong>
+                <span>9393523322034460910 / score 0.619 </span>
+                <p>사용상의주의사항 1. 경고 매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의사  또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 간손상이 유발될 수 있다. 2. 이 약을 복용하는 동안 다음과 같은 행위를 하지 말 것. 이 약에는 아세트아미노펜이 함유되어 있다. 다른 아세트아미노펜 제품과 함께 복용하여 일일 최대용량 (4,000...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / precaution / chunk 4</strong>
+                <span>7152769487705033341 / score 0.607 ANSWER</span>
+                <p> 1년동안 메트포르민을 투여한 임상 시험 뿐만 아니라 발표된 그리고 시판 후 조사결과에서 보고된 이상반응은 그 특성 및 심각도 측면에서 성인 에서 보고된 이상반응과 유사했다. 5. 일반적 주의 1) 신기능에 대한 모니터링 : 이 약은 대부분 신장으로 배설되고, 이 약의 축적과 유산산증의 위험은 신기능 의 장애 정도에 따라 증가된다. 이 약은 치료 시작 전과 그 후 정기적으로 사구체 여과율을 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>삐콤정 / precaution / chunk 0</strong>
+                <span>14806358566013449228 / score 0.606 </span>
+                <p>사용상의주의사항 1. 다음과 같은 사람은 이 약을 복용하지 말 것. 1) 이 약 및 이 약에 포함된 성분에 과민반응이 있는 환자 2) 만 3개월 미만의 젖먹이 3) 이 약은 유당(젖당)을 함유하고 있으므로, 갈락토오스 불내성(galactose intolerance), Lapp 유당(젖당) 분해효소 결핍증(Lapp lactose deficiency) 또는 포도당-갈락토오스 흡수장애(glucos...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q014. 다이아벡스정500밀리그램(메트포르민염산염) 용법과 용량 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 6169995643239069803, 15388467760111358533</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>포리부틴정(트리메부틴말레산염) / usage / chunk 0</strong>
+                <span>13165525996530241209 / score 0.653 </span>
+                <p>용법용량 성인 : 트리메부틴말레산염으로서 1회 100-200mg 1일 3회 식전에 경구투여한다. 연령, 증상에 따라 적절 히 증감한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>판콜에이내복액 / usage / chunk 0</strong>
+                <span>13725745134353284858 / score 0.618 </span>
+                <p>용법용량 성인 1회 30ml 1일 3회 식후 30분에 복용한다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>지르텍정(세티리진염산염) / usage / chunk 0</strong>
+                <span>8640656365726380202 / score 0.615 </span>
+                <p>용법용량 1. 성인 및 6세 이상의 소아 : 세티리진염산염으로서 1일 1회 10mg 취침 전에 경구 투여한다. 2. 이상반응에 민감한 환자의 경우는 5mg씩을 아침, 저녁에 분할 투여한다. 3. 연령, 증상에 따라 적절히 증감한다. 4. 신장애 환자 : 투여 간격은 환자의 신기능에 따라 조절되어야 한다. 다음 표를 참조하여 용량을 조절한다. 이  용량 표를 사용하기 위해서는 mL/min 단위...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q015. 다이아벡스정500밀리그램(메트포르민염산염) 효능이 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: 15775770991533720635</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>후시딘연고(퓨시드산나트륨) / efficacy / chunk 0</strong>
+                <span>18134406211077493007 / score 0.558 </span>
+                <p>효능효과 (정제) ○ 유효균종 포도구균 ○ 적응증 - 골수염 - 패혈증 - 심내막염, 낭포성섬유증 - 기관지 폐렴 - 창상감염, 부스럼, 옹종 등 피부감염증 (연고제) ○ 유효균종 포도구균, 연쇄구균, 코리네박테륨, 클로스트리듐 ○ 적응증 - 농피증(농가진, 감염성습진양피부염, 심상성여드름(보통여드름), 모낭염, 종기 및 종기증, 화농성한선 염, 농가진성습진), 화상ㆍ외상ㆍ봉합창ㆍ식피창에 의...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>다이아벡스정500밀리그램(메트포르민염산염) / precaution / chunk 4</strong>
+                <span>7152769487705033341 / score 0.553 </span>
+                <p> 1년동안 메트포르민을 투여한 임상 시험 뿐만 아니라 발표된 그리고 시판 후 조사결과에서 보고된 이상반응은 그 특성 및 심각도 측면에서 성인 에서 보고된 이상반응과 유사했다. 5. 일반적 주의 1) 신기능에 대한 모니터링 : 이 약은 대부분 신장으로 배설되고, 이 약의 축적과 유산산증의 위험은 신기능 의 장애 정도에 따라 증가된다. 이 약은 치료 시작 전과 그 후 정기적으로 사구체 여과율을 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>비타메진캡슐50밀리그램 / efficacy / chunk 0</strong>
+                <span>16219873070641974850 / score 0.532 </span>
+                <p>효능효과 1. 본제에 함유되어 있는 비타민류의 수요가 증대하여 식사로부터의 섭취가 불충분할 때의 비타민의 보급(소모 성질환, 임산부·수유부 등) 2. 다음 질환의 본제 함유 비타민의 결핍 또는 대사장해가 추정되는 경우 신경통, 근육통, 관절통, 말초신경염(알코올성, 당뇨병성), 말초신경마비</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q016. 듀락칸시럽(락툴로오즈농축액) 부작용이나 주의사항 알려줘</h3>
+        <div class="answer-ids">Answer chunk: 6712264635085016821, 8291078133271349960, 13387737834249630963</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 2</strong>
+                <span>6712264635085016821 / score 0.572 ANSWER</span>
+                <p> 약과 병용투여할 경우 이 약의 효능이 감소되어  필요한 만큼 결장 pH 감소가 이루어지지 않을 수 있으므로 병용투여 시 이를 고려하여야 한다. 6. 임부 및 수유부에 대한 투여 임부 임산부에 대한 락툴로오즈의 전신적인 노출은 무시해도 될 정도이므로, 임신 중 복용은 태아에 영향이 없 을 것으로 예상된다. 임산부에게 사용된 후향적 조사(1000명이상 노출)에서 락툴로오즈의 태아/신생아 독성 ...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 0</strong>
+                <span>13387737834249630963 / score 0.569 ANSWER</span>
+                <p>사용상의주의사항 1. 다음 환자에는 투여하지 말 것. 1) 염증성 대장 질환 환자(궤양성 대장염, 크론병) 2) 위장관 폐색 환자 3) 소화관 천공 환자 또는 그 위험이 있는 환자 4) 원인불명의 복통 환자 5) 저갈락토스 식이요법(갈락토스 혈증) 환자 6) 이 약 또는 이 약의 구성성분에 과민반응 환자 7) 이 약은 유당을 함유하고 있으므로, 갈락토오스 불내성(galactose intole...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>포리부틴정(트리메부틴말레산염) / precaution / chunk 0</strong>
+                <span>9407594742112080955 / score 0.566 </span>
+                <p>사용상의주의사항 1. 부작용 1) 소화기계 : 드물게 변비, 설사, 복명, 구역, 구토, 소화장애, 구갈, 구내마비감 등이 나타날 수 있다. 2) 순환기계 : 드물게 심계항진이 나타날 수 있다. 3) 정신신경계 : 드물게 피로감, 졸음, 현기, 권태감, 두통등이 나타날수 있다. 4) 간장 : 드물게 GOT, GPT상승이 나타날 수 있다. 5) 과민증 : 드물게 발진등이 나타날 수 있으므로 이...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q017. 듀락칸시럽(락툴로오즈농축액) 하루에 몇 번 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: 15268956608481438715</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>게보린정(수출명:돌로린정) / usage / chunk 0</strong>
+                <span>18321330971571329628 / score 0.553 </span>
+                <p>용법용량   성인 1회 1정 1일 3회까지 공복(빈속)시를 피하여 복용한다. 복용간격은 4시간 이상으로 한다. 이 약은 원칙적으로 단기 복용한다. 15세 미만의 소아는 이 약을 복용하지 않는다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>세토펜8시간이알서방정(아세트아미노펜) / usage / chunk 0</strong>
+                <span>6600933181644049685 / score 0.541 </span>
+                <p>용법용량 12세 이상의 소아 및 성인 : 매 8시간마다 2정씩 복용. 24시간 동안 6정을 초과하지 말 것.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>비타메진캡슐50밀리그램 / usage / chunk 0</strong>
+                <span>16107724787165321427 / score 0.535 </span>
+                <p>용법용량 성인 1회 1캅셀, 1일 1 ~ 2회 복용한다. 연령, 증상에 따라 적절히 증감한다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q018. 듀락칸시럽(락툴로오즈농축액)는 어디에 쓰는 약이야?</h3>
+        <div class="answer-ids">Answer chunk: 4863464160810138960</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 0</strong>
+                <span>13387737834249630963 / score 0.488 </span>
+                <p>사용상의주의사항 1. 다음 환자에는 투여하지 말 것. 1) 염증성 대장 질환 환자(궤양성 대장염, 크론병) 2) 위장관 폐색 환자 3) 소화관 천공 환자 또는 그 위험이 있는 환자 4) 원인불명의 복통 환자 5) 저갈락토스 식이요법(갈락토스 혈증) 환자 6) 이 약 또는 이 약의 구성성분에 과민반응 환자 7) 이 약은 유당을 함유하고 있으므로, 갈락토오스 불내성(galactose intole...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>듀락칸시럽(락툴로오즈농축액) / precaution / chunk 2</strong>
+                <span>6712264635085016821 / score 0.486 </span>
+                <p> 약과 병용투여할 경우 이 약의 효능이 감소되어  필요한 만큼 결장 pH 감소가 이루어지지 않을 수 있으므로 병용투여 시 이를 고려하여야 한다. 6. 임부 및 수유부에 대한 투여 임부 임산부에 대한 락툴로오즈의 전신적인 노출은 무시해도 될 정도이므로, 임신 중 복용은 태아에 영향이 없 을 것으로 예상된다. 임산부에게 사용된 후향적 조사(1000명이상 노출)에서 락툴로오즈의 태아/신생아 독성 ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>판콜에이내복액 / precaution / chunk 1</strong>
+                <span>6625657139723781767 / score 0.464 </span>
+                <p>, 양친 또는 형제 등이 두드러기, 접촉성피부염, 기관지천식, 알레르기성비염, 편두통, 음식물 알레르 2) 본인, 양친 또는 형제 등이 두드러기, 접촉성피부염, 기관지천식, 알레르기성비염, 편두통, 음식물 알레르 기 등을 일으키기 쉬운 체질을 갖고 있는 사람 3) 지금까지 약에 의해 알레르기 증상(예 : 발열, 발진, 관절통, 천식, 가려움증 등)을 일으킨 적이 있는 사람 4) 간장질환, 신...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q019. 부루펜정200밀리그램(이부프로펜) 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: 2089949503133795786, 3442085768321897727, 3846860737551675150, 9202492948219783795, 9696618416125688403, 10832960768891388215, 10905631141550019097, 11492615853056716775, 16634901288146742378</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>부루펜정200밀리그램(이부프로펜) / precaution / chunk 0</strong>
+                <span>3846860737551675150 / score 0.704 ANSWER</span>
+                <p>사용상의주의사항 1. 경고 1) 매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의 사 또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 위장출혈이 유발될 수 있다. 2) 심혈관계 위험: 이 약을 포함한 비스테로이드성 소염진통제 복용시 치명적일 수 있는 중대한 심혈관계 혈 전 반응, 심근경색증 및 뇌졸중의 위험이 증가한다. 심혈관...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>부루펜정200밀리그램(이부프로펜) / precaution / chunk 8</strong>
+                <span>16634901288146742378 / score 0.658 ANSWER</span>
+                <p> 초기 1개월 이내에 발생한다. 이부프로펜 함유 제품과 관련하여 급성 전신성발진성농포증(급성전신성발진성고름물집증)(AGEP)이 보고되었다. 환자는 중대한 피부 발현 증상  및 증후에 대해 알고 있어야 하며 피부 발진 또는 다른 과민반응의 최초 증상 및 징후가 나타날 때 약물 투 여를 중단해야 한다. (17) 이 약은 코르티코이드 제제를 대체하거나 코르티코이드 결핍증을 치료하기 위한 약물로 사...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">3</div>
+              <div>
+                <strong>부루펜정200밀리그램(이부프로펜) / precaution / chunk 2</strong>
+                <span>9202492948219783795 / score 0.636 ANSWER</span>
+                <p>간장애 또는 그 병력이 있는 환자 3) 간경화, 간장애 또는 그 병력이 있는 환자 4) 신장장애 또는 그 병력이 있는 환자 5) 심장기능부전 또는 심질환 환자 6) 고혈압 환자 7) 과민증의 병력이 있는 환자 8) 전신성 홍반성 루푸스(SLE) 환자 및 혼합 결합조직질환(MCTD) 환자 9) 궤양성 대장염 환자 10) 크론병 환자 11) 고령자(노인) 및 소아 12) 임부 (동물실험에서 태자...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q020. 부루펜정200밀리그램(이부프로펜) 어떻게 복용해?</h3>
+        <div class="answer-ids">Answer chunk: 506689484405840801</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>부루펜정200밀리그램(이부프로펜) / precaution / chunk 0</strong>
+                <span>3846860737551675150 / score 0.626 </span>
+                <p>사용상의주의사항 1. 경고 1) 매일 세잔 이상 정기적으로 술을 마시는 사람이 이 약이나 다른 해열진통제를 복용해야 할 경우 반드시 의 사 또는 약사와 상의해야 한다. 이러한 사람이 이 약을 복용하면 위장출혈이 유발될 수 있다. 2) 심혈관계 위험: 이 약을 포함한 비스테로이드성 소염진통제 복용시 치명적일 수 있는 중대한 심혈관계 혈 전 반응, 심근경색증 및 뇌졸중의 위험이 증가한다. 심혈관...</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>부루펜정200밀리그램(이부프로펜) / usage / chunk 0</strong>
+                <span>506689484405840801 / score 0.615 ANSWER</span>
+                <p>용법용량 ·류마티양 관절염, 골관절염, 강직성 척추염, 연조직손상, 비관절 류마티스질환, 급성통풍, 건선성 관절염 : 성 인 이부프로펜으로서 1회 200-600mg 1일 3-4회 경구투여한다. 1일 최고 3200mg까지 투여할 수 있다. ·연소성 류마티양 관절염 : 1일 체중 kg당 30-40mg을 3-4회 분할 경구투여한다. ·경증 및 중등도의 동통, 감기 : 성인 1회 200-400mg ...</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>뉴렙톨캡슐300밀리그램(가바펜틴) / usage / chunk 0</strong>
+                <span>3042881147566346822 / score 0.599 </span>
+                <p>용법용량 1. 뇌전증 1) 만 13세 이상 환자의 단독요법 및 부가요법 유지 용량을 가바펜틴으로서 900 mg/day로 하기 위해 단계적 적정을 투여의 처음 3일에 걸쳐 다음과 같이  시행한다. - 첫째날 : 이 약 300 mg 캡슐을 1일 1회 혹은 이 약 100 mg 1캡슐을 1일 3회 투여(가바펜틴 300 mg /day) - 둘째날 : 이 약 300 mg 캡슐을 1일 2회 혹은 이 약 ...</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+        </div>
+      </section>
+    
+    </section>
+
+    <p class="footnote">
+      Evaluation scope: embedding model retrieval quality only. Cost, reranker, LLM answer generation,
+      prompt quality, and post-processing logic are excluded. Top-k success is measured by whether
+      the pre-labeled answer chunk appears in the retrieved results.
+    </p>
+  </main>
+</body>
+</html>

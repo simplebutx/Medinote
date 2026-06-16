@@ -184,3 +184,31 @@ export interface MedicationTimePreset {
 export interface UpdateMedicationTimePresetsRequest {
   presets: MedicationTimePreset[];
 }
+
+export type PrescriptionAnalysisStatus = "CAUTION" | "CLEAR" | string;
+
+export interface PrescriptionAnalysisResultItem {
+  scheduleMedicineId?: number | null;
+  medicineId?: number | null;
+  medicineName?: string | null;
+  warningMedicine?: boolean | null;
+  warningIngredient?: boolean | null;
+  warningDisease?: boolean | null;
+  warningHealthInfo?: boolean | null;
+  matchedMedicineCautions?: string[] | null;
+  matchedIngredientCautions?: string[] | null;
+  matchedDiseaseNames?: string[] | null;
+  matchedHealthInfoNames?: string[] | null;
+  generalCautionTags?: string[] | null;
+}
+
+export interface PrescriptionAnalysisResponse {
+  scheduleId: number;
+  status: PrescriptionAnalysisStatus;
+  summary?: string | null;
+  matchedMedicineNames?: string[] | null;
+  matchedIngredientNames?: string[] | null;
+  matchedDiseaseNames?: string[] | null;
+  matchedHealthInfoNames?: string[] | null;
+  items?: PrescriptionAnalysisResultItem[] | null;
+}

@@ -1,4 +1,7 @@
-import { publicMedicationInstance } from "../../../api/axiosInstance";
+import {
+  medicationInstance,
+  publicMedicationInstance,
+} from "../../../api/axiosInstance";
 import type {
   MedicineSearchItem,
   MedicineSuggestResponse,
@@ -20,7 +23,7 @@ export const suggestMedicines = async (keyword: string) => {
 };
 
 export const searchMedicines = async (keyword: string) => {
-  const response = await publicMedicationInstance.get<MedicineSearchItem>(
+  const response = await medicationInstance.get<MedicineSearchItem>(
     '/api/medicines/search',
     {
       params: {

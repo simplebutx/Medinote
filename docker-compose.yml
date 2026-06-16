@@ -55,8 +55,11 @@ services:
     working_dir: /app
     environment:
       LLM_API_KEY: ${LLM_API_KEY:-}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
-      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
+      UPSTAGE_API_KEY: ${UPSTAGE_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-solar-embedding-1-large-passage}
+      EMBEDDING_QUERY_MODEL: ${EMBEDDING_QUERY_MODEL:-solar-embedding-1-large-query}
+      EMBEDDING_PASSAGE_MODEL: ${EMBEDDING_PASSAGE_MODEL:-solar-embedding-1-large-passage}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-4096}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
       QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-medicine_docs}
       QDRANT_SEED_CSV_PATH: ${QDRANT_SEED_CSV_PATH:-/app/app/data/medicine_info_0531.csv}
@@ -270,8 +273,11 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_KEY:-}
       AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
-      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
+      UPSTAGE_API_KEY: ${UPSTAGE_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-solar-embedding-1-large-passage}
+      EMBEDDING_QUERY_MODEL: ${EMBEDDING_QUERY_MODEL:-solar-embedding-1-large-query}
+      EMBEDDING_PASSAGE_MODEL: ${EMBEDDING_PASSAGE_MODEL:-solar-embedding-1-large-passage}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-4096}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
       QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-medicine_docs}
       SCHEDULE_DB_HOST: ${MYSQL_HOST:-host.docker.internal}

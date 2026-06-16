@@ -120,13 +120,24 @@ function mapMessage(message) {
 function splitChatContent(content) {
   if (!content) return { body: '', source: '' }
 
-  const sourceMatch = content.match(/(?:\n+|\s+)출처:\s*(.+)$/s)
-  if (!sourceMatch) {
-    return { body: content.trimEnd(), source: '' }
+  const trimmedContent = content.trimEnd()
+  const sourceLinePattern = /(?:^|\n+)\s*출처:\s*([^\n]+)/g
+  const sourceMatches = [...trimmedContent.matchAll(sourceLinePattern)]
+
+  if (sourceMatches.length === 0) {
+    return { body: trimmedContent, source: '' }
   }
 
-  const body = content.slice(0, sourceMatch.index).trimEnd()
-  const source = sourceMatch[1].trim()
+  const body = trimmedContent.replace(sourceLinePattern, '').trimEnd()
+  const source = [
+    ...new Set(
+      sourceMatches
+        .flatMap((match) => match[1].split(','))
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ].join(', ')
+
   return { body, source }
 }
 
@@ -731,7 +742,7 @@ function ChatbotPage() {
                             return (
                               <div className="chat-bubble-body">
                                 <p>{displayBody}</p>
-                                {source && <div className="chat-bubble-source">출처: {source}</div>}
+                                {source && !showConsultAction && <div className="chat-bubble-source">출처: {source}</div>}
                                 {showConsultAction && (
                                   <button
                                     type="button"

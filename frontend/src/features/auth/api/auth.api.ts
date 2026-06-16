@@ -3,6 +3,8 @@ import type {
   LoginRequest,
   LoginResponse,
   LogoutResponse,
+  PasswordResetRequest,
+  PasswordUpdateRequest,
   PharmacistVerificationRequest,
   PharmacistVerificationResponse,
   RefreshTokenRequest,
@@ -76,6 +78,24 @@ export const login = async (body: LoginRequest) => {
   const response = await authInstance.post<LoginResponse>(
     "/api/auth/login",
     body
+  );
+
+  return response.data;
+};
+
+export const updatePassword = async (body: PasswordUpdateRequest) => {
+  const response = await authInstance.put<string>(
+    "/api/auth/password",
+    body,
+  );
+
+  return response.data;
+};
+
+export const resetPassword = async (body: PasswordResetRequest) => {
+  const response = await authInstance.post<string>(
+    "/api/auth/password/reset",
+    body,
   );
 
   return response.data;

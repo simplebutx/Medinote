@@ -13,4 +13,4 @@ class AiChatBotRequest(BaseModel):
 
 class AiChatBotResponse(BaseModel):
     answer: str
-    answerType: str = Field(default="NORMAL", description="NORMAL or FALLBACK")
+    answerType: str = Field(default="NORMAL", description="NORMAL, CONSULT_RECOMMENDED, or FALLBACK")

@@ -1,0 +1,600 @@
+{
+  "generatedAt": "2026-06-15T19:35:16",
+  "results": [
+    {
+      "model": "openai-small",
+      "label": "OpenAI text-embedding-3-small",
+      "status": "demo",
+      "note": "Current Medinote baseline / low cost",
+      "top1_accuracy": 1.0,
+      "top3_hit_rate": 1.0,
+      "mrr": 1.0,
+      "avg_latency_ms": 142,
+      "cost_note": "$0.02 / 1M tokens",
+      "query_results": [
+        {
+          "question": "타이레놀 복용 시 주의할 점은?",
+          "answer_chunk_ids": [
+            "chunk_024",
+            "chunk_025"
+          ],
+          "hits": [
+            {
+              "rank": 1,
+              "chunk_id": "chunk_024",
+              "title": "아세트아미노펜 주의사항",
+              "score": 0.891,
+              "is_answer": true,
+              "snippet": "간질환 환자나 음주자는 아세트아미노펜 복용 시 주의가 필요합니다."
+            },
+            {
+              "rank": 2,
+              "chunk_id": "chunk_011",
+              "title": "타이레놀 기본 정보",
+              "score": 0.842,
+              "is_answer": false,
+              "snippet": "타이레놀은 아세트아미노펜 성분의 해열진통제입니다."
+            },
+            {
+              "rank": 3,
+              "chunk_id": "chunk_067",
+              "title": "해열진통제 일반 주의",
+              "score": 0.811,
+              "is_answer": false,
+              "snippet": "해열진통제는 중복 복용 여부를 확인해야 합니다."
+            }
+          ],
+          "reciprocal_rank": 1.0,
+          "top1_hit": true,
+          "top3_hit": true
+        },
+        {
+          "question": "속쓰림 약은 언제 먹어야 해?",
+          "answer_chunk_ids": [
+            "chunk_038"
+          ],
+          "hits": [
+            {
+              "rank": 1,
+              "chunk_id": "chunk_038",
+              "title": "위산분비억제제 복용법",
+              "score": 0.872,
+              "is_answer": true,
+              "snippet": "위산분비억제제는 약품별 지시에 따라 식전 또는 식후 복용합니다."
+            },
+            {
+              "rank": 2,
+              "chunk_id": "chunk_041",
+              "title": "제산제 복용 안내",
+              "score": 0.833,
+              "is_answer": false,
+              "snippet": "제산제는 위산을 중화해 속쓰림을 완화합니다."
+            },
+            {
+              "rank": 3,
+              "chunk_id": "chunk_079",
+              "title": "소화기계 부작용",
+              "score": 0.792,
+              "is_answer": false,
+              "snippet": "일부 진통제는 속쓰림과 위장장애를 유발할 수 있습니다."
+            }
+          ],
+          "reciprocal_rank": 1.0,
+          "top1_hit": true,
+          "top3_hit": true
+        },
+        {
+          "question": "졸음이 올 수 있는 약은 뭐야?",
+          "answer_chunk_ids": [
+            "chunk_052"
+          ],
+          "hits": [
+            {
+              "rank": 1,
+              "chunk_id": "chunk_052",
+              "title": "졸음주의 약물",
+              "score": 0.903,
+              "is_answer": true,
+              "snippet": "항히스타민제와 일부 신경통 약은 졸음을 유발할 수 있습니다."
+            },
+            {
+              "rank": 2,
+              "chunk_id": "chunk_088",
+              "title": "운전주의",
+              "score": 0.834,
+              "is_answer": false,
+              "snippet": "졸음이 올 수 있는 약은 운전이나 기계 조작을 피해야 합니다."
+            },
+            {
+              "rank": 3,
+              "chunk_id": "chunk_014",
+              "title": "복약 주의사항",
+              "score": 0.781,
+              "is_answer": false,
+              "snippet": "복약 중 이상 증상이 있으면 전문가와 상담합니다."
+            }
+          ],
+          "reciprocal_rank": 1.0,
+          "top1_hit": true,
+          "top3_hit": true
+        }
+      ]
+    },
+    {
+      "model": "openai-large",
+      "label": "OpenAI text-embedding-3-large",
+      "status": "demo",
+      "note": "Same vendor high-performance candidate",
+      "top1_accuracy": 1.0,
+      "top3_hit_rate": 1.0,
+      "mrr": 1.0,
+      "avg_latency_ms": 188,
+      "cost_note": "$0.13 / 1M tokens",
+      "query_results": [
+        {
+          "question": "타이레놀 복용 시 주의할 점은?",
+          "answer_chunk_ids": [
+            "chunk_024",
+            "chunk_025"
+          ],
+          "hits": [
+            {
+              "rank": 1,
+              "chunk_id": "chunk_024",
+              "title": "아세트아미노펜 주의사항",
+              "score": 0.891,
+              "is_answer": true,
+              "snippet": "간질환 환자나 음주자는 아세트아미노펜 복용 시 주의가 필요합니다."
+            },
+            {
+              "rank": 2,
+              "chunk_id": "chunk_011",
+              "title": "타이레놀 기본 정보",
+              "score": 0.842,
+              "is_answer": false,
+              "snippet": "타이레놀은 아세트아미노펜 성분의 해열진통제입니다."
+            },
+            {
+              "rank": 3,
+              "chunk_id": "chunk_067",
+              "title": "해열진통제 일반 주의",
+              "score": 0.811,
+              "is_answer": false,
+              "snippet": "해열진통제는 중복 복용 여부를 확인해야 합니다."
+            }
+          ],
+          "reciprocal_rank": 1.0,
+          "top1_hit": true,
+          "top3_hit": true
+        },
+        {
+          "question": "속쓰림 약은 언제 먹어야 해?",
+          "answer_chunk_ids": [
+            "chunk_038"
+          ],
+          "hits": [
+            {
+              "rank": 1,
+              "chunk_id": "chunk_038",
+              "title": "위산분비억제제 복용법",
+              "score": 0.872,
+              "is_answer": true,
+              "snippet": "위산분비억제제는 약품별 지시에 따라 식전 또는 식후 복용합니다."
+            },
+            {
+              "rank": 2,
+              "chunk_id": "chunk_041",
+              "title": "제산제 복용 안내",
+              "score": 0.833,
+              "is_answer": false,
+              "snippet": "제산제는 위산을 중화해 속쓰림을 완화합니다."
+            },
+            {
+              "rank": 3,
+              "chunk_id": "chunk_079",
+              "title": "소화기계 부작용",
+              "score": 0.792,
+              "is_answer": false,
+              "snippet": "일부 진통제는 속쓰림과 위장장애를 유발할 수 있습니다."
+            }
+          ],
+          "reciprocal_rank": 1.0,
+          "top1_hit": true,
+          "top3_hit": true
+        },
+        {
+          "question": "졸음이 올 수 있는 약은 뭐야?",
+          "answer_chunk_ids": [
+            "chunk_052"
+          ],
+          "hits": [
+            {
+              "rank": 1,
+              "chunk_id": "chunk_052",
+              "title": "졸음주의 약물",
+              "score": 0.903,
+              "is_answer": true,
+              "snippet": "항히스타민제와 일부 신경통 약은 졸음을 유발할 수 있습니다."
+            },
+            {
+              "rank": 2,
+              "chunk_id": "chunk_088",
+              "title": "운전주의",
+              "score": 0.834,
+              "is_answer": false,
+              "snippet": "졸음이 올 수 있는 약은 운전이나 기계 조작을 피해야 합니다."
+            },
+            {
+              "rank": 3,
+              "chunk_id": "chunk_014",
+              "title": "복약 주의사항",
+              "score": 0.781,
+              "is_answer": false,
+              "snippet": "복약 중 이상 증상이 있으면 전문가와 상담합니다."
+            }
+          ],
+          "reciprocal_rank": 1.0,
+          "top1_hit": true,
+          "top3_hit": true
+        }
+      ]
+    },
+    {
+      "model": "upstage-solar",
+      "label": "Upstage Solar Embedding",
+      "status": "demo",
+      "note": "Korean-friendly query/passage candidate",
+      "top1_accuracy": 1.0,
+      "top3_hit_rate": 1.0,
+      "mrr": 1.0,
+      "avg_latency_ms": 236,
+      "cost_note": "Upstage API pricing",
+      "query_results": [
+        {
+          "question": "타이레놀 복용 시 주의할 점은?",
+          "answer_chunk_ids": [
+            "chunk_024",
+            "chunk_025"
+          ],
+          "hits": [
+            {
+              "rank": 1,
+              "chunk_id": "chunk_024",
+              "title": "아세트아미노펜 주의사항",
+              "score": 0.891,
+              "is_answer": true,
+              "snippet": "간질환 환자나 음주자는 아세트아미노펜 복용 시 주의가 필요합니다."
+            },
+            {
+              "rank": 2,
+              "chunk_id": "chunk_011",
+              "title": "타이레놀 기본 정보",
+              "score": 0.842,
+              "is_answer": false,
+              "snippet": "타이레놀은 아세트아미노펜 성분의 해열진통제입니다."
+            },
+            {
+              "rank": 3,
+              "chunk_id": "chunk_067",
+              "title": "해열진통제 일반 주의",
+              "score": 0.811,
+              "is_answer": false,
+              "snippet": "해열진통제는 중복 복용 여부를 확인해야 합니다."
+            }
+          ],
+          "reciprocal_rank": 1.0,
+          "top1_hit": true,
+          "top3_hit": true
+        },
+        {
+          "question": "속쓰림 약은 언제 먹어야 해?",
+          "answer_chunk_ids": [
+            "chunk_038"
+          ],
+          "hits": [
+            {
+              "rank": 1,
+              "chunk_id": "chunk_038",
+              "title": "위산분비억제제 복용법",
+              "score": 0.872,
+              "is_answer": true,
+              "snippet": "위산분비억제제는 약품별 지시에 따라 식전 또는 식후 복용합니다."
+            },
+            {
+              "rank": 2,
+              "chunk_id": "chunk_041",
+              "title": "제산제 복용 안내",
+              "score": 0.833,
+              "is_answer": false,
+              "snippet": "제산제는 위산을 중화해 속쓰림을 완화합니다."
+            },
+            {
+              "rank": 3,
+              "chunk_id": "chunk_079",
+              "title": "소화기계 부작용",
+              "score": 0.792,
+              "is_answer": false,
+              "snippet": "일부 진통제는 속쓰림과 위장장애를 유발할 수 있습니다."
+            }
+          ],
+          "reciprocal_rank": 1.0,
+          "top1_hit": true,
+          "top3_hit": true
+        },
+        {
+          "question": "졸음이 올 수 있는 약은 뭐야?",
+          "answer_chunk_ids": [
+            "chunk_052"
+          ],
+          "hits": [
+            {
+              "rank": 1,
+              "chunk_id": "chunk_052",
+              "title": "졸음주의 약물",
+              "score": 0.903,
+              "is_answer": true,
+              "snippet": "항히스타민제와 일부 신경통 약은 졸음을 유발할 수 있습니다."
+            },
+            {
+              "rank": 2,
+              "chunk_id": "chunk_088",
+              "title": "운전주의",
+              "score": 0.834,
+              "is_answer": false,
+              "snippet": "졸음이 올 수 있는 약은 운전이나 기계 조작을 피해야 합니다."
+            },
+            {
+              "rank": 3,
+              "chunk_id": "chunk_014",
+              "title": "복약 주의사항",
+              "score": 0.781,
+              "is_answer": false,
+              "snippet": "복약 중 이상 증상이 있으면 전문가와 상담합니다."
+            }
+          ],
+          "reciprocal_rank": 1.0,
+          "top1_hit": true,
+          "top3_hit": true
+        }
+      ]
+    },
+    {
+      "model": "bge-m3",
+      "label": "BAAI bge-m3",
+      "status": "demo",
+      "note": "Open-source self-hosting candidate",
+      "top1_accuracy": 0.6666666666666666,
+      "top3_hit_rate": 1.0,
+      "mrr": 0.8333333333333334,
+      "avg_latency_ms": 612,
+      "cost_note": "Local/self-hosting cost",
+      "query_results": [
+        {
+          "question": "타이레놀 복용 시 주의할 점은?",
+          "answer_chunk_ids": [
+            "chunk_024",
+            "chunk_025"
+          ],
+          "hits": [
+            {
+              "rank": 1,
+              "chunk_id": "chunk_024",
+              "title": "아세트아미노펜 주의사항",
+              "score": 0.891,
+              "is_answer": true,
+              "snippet": "간질환 환자나 음주자는 아세트아미노펜 복용 시 주의가 필요합니다."
+            },
+            {
+              "rank": 2,
+              "chunk_id": "chunk_011",
+              "title": "타이레놀 기본 정보",
+              "score": 0.842,
+              "is_answer": false,
+              "snippet": "타이레놀은 아세트아미노펜 성분의 해열진통제입니다."
+            },
+            {
+              "rank": 3,
+              "chunk_id": "chunk_067",
+              "title": "해열진통제 일반 주의",
+              "score": 0.811,
+              "is_answer": false,
+              "snippet": "해열진통제는 중복 복용 여부를 확인해야 합니다."
+            }
+          ],
+          "reciprocal_rank": 1.0,
+          "top1_hit": true,
+          "top3_hit": true
+        },
+        {
+          "question": "속쓰림 약은 언제 먹어야 해?",
+          "answer_chunk_ids": [
+            "chunk_038"
+          ],
+          "hits": [
+            {
+              "rank": 1,
+              "chunk_id": "chunk_038",
+              "title": "위산분비억제제 복용법",
+              "score": 0.872,
+              "is_answer": true,
+              "snippet": "위산분비억제제는 약품별 지시에 따라 식전 또는 식후 복용합니다."
+            },
+            {
+              "rank": 2,
+              "chunk_id": "chunk_041",
+              "title": "제산제 복용 안내",
+              "score": 0.833,
+              "is_answer": false,
+              "snippet": "제산제는 위산을 중화해 속쓰림을 완화합니다."
+            },
+            {
+              "rank": 3,
+              "chunk_id": "chunk_079",
+              "title": "소화기계 부작용",
+              "score": 0.792,
+              "is_answer": false,
+              "snippet": "일부 진통제는 속쓰림과 위장장애를 유발할 수 있습니다."
+            }
+          ],
+          "reciprocal_rank": 1.0,
+          "top1_hit": true,
+          "top3_hit": true
+        },
+        {
+          "question": "졸음이 올 수 있는 약은 뭐야?",
+          "answer_chunk_ids": [
+            "chunk_052"
+          ],
+          "hits": [
+            {
+              "rank": 1,
+              "chunk_id": "chunk_088",
+              "title": "운전주의",
+              "score": 0.851,
+              "is_answer": false,
+              "snippet": "졸음이 올 수 있는 약은 운전이나 기계 조작을 피해야 합니다."
+            },
+            {
+              "rank": 2,
+              "chunk_id": "chunk_052",
+              "title": "졸음주의 약물",
+              "score": 0.836,
+              "is_answer": true,
+              "snippet": "항히스타민제와 일부 신경통 약은 졸음을 유발할 수 있습니다."
+            },
+            {
+              "rank": 3,
+              "chunk_id": "chunk_014",
+              "title": "복약 주의사항",
+              "score": 0.779,
+              "is_answer": false,
+              "snippet": "복약 중 이상 증상이 있으면 전문가와 상담합니다."
+            }
+          ],
+          "reciprocal_rank": 0.5,
+          "top1_hit": false,
+          "top3_hit": true
+        }
+      ]
+    },
+    {
+      "model": "gemini",
+      "label": "Gemini Embedding",
+      "status": "demo",
+      "note": "Google multilingual embedding candidate",
+      "top1_accuracy": 0.6666666666666666,
+      "top3_hit_rate": 1.0,
+      "mrr": 0.8333333333333334,
+      "avg_latency_ms": 205,
+      "cost_note": "Google Gemini API pricing",
+      "query_results": [
+        {
+          "question": "타이레놀 복용 시 주의할 점은?",
+          "answer_chunk_ids": [
+            "chunk_024",
+            "chunk_025"
+          ],
+          "hits": [
+            {
+              "rank": 1,
+              "chunk_id": "chunk_024",
+              "title": "아세트아미노펜 주의사항",
+              "score": 0.891,
+              "is_answer": true,
+              "snippet": "간질환 환자나 음주자는 아세트아미노펜 복용 시 주의가 필요합니다."
+            },
+            {
+              "rank": 2,
+              "chunk_id": "chunk_011",
+              "title": "타이레놀 기본 정보",
+              "score": 0.842,
+              "is_answer": false,
+              "snippet": "타이레놀은 아세트아미노펜 성분의 해열진통제입니다."
+            },
+            {
+              "rank": 3,
+              "chunk_id": "chunk_067",
+              "title": "해열진통제 일반 주의",
+              "score": 0.811,
+              "is_answer": false,
+              "snippet": "해열진통제는 중복 복용 여부를 확인해야 합니다."
+            }
+          ],
+          "reciprocal_rank": 1.0,
+          "top1_hit": true,
+          "top3_hit": true
+        },
+        {
+          "question": "속쓰림 약은 언제 먹어야 해?",
+          "answer_chunk_ids": [
+            "chunk_038"
+          ],
+          "hits": [
+            {
+              "rank": 1,
+              "chunk_id": "chunk_041",
+              "title": "제산제 복용 안내",
+              "score": 0.844,
+              "is_answer": false,
+              "snippet": "제산제는 위산을 중화해 속쓰림을 완화합니다."
+            },
+            {
+              "rank": 2,
+              "chunk_id": "chunk_038",
+              "title": "위산분비억제제 복용법",
+              "score": 0.839,
+              "is_answer": true,
+              "snippet": "위산분비억제제는 약품별 지시에 따라 복용합니다."
+            },
+            {
+              "rank": 3,
+              "chunk_id": "chunk_079",
+              "title": "소화기계 부작용",
+              "score": 0.788,
+              "is_answer": false,
+              "snippet": "일부 진통제는 속쓰림과 위장장애를 유발할 수 있습니다."
+            }
+          ],
+          "reciprocal_rank": 0.5,
+          "top1_hit": false,
+          "top3_hit": true
+        },
+        {
+          "question": "졸음이 올 수 있는 약은 뭐야?",
+          "answer_chunk_ids": [
+            "chunk_052"
+          ],
+          "hits": [
+            {
+              "rank": 1,
+              "chunk_id": "chunk_052",
+              "title": "졸음주의 약물",
+              "score": 0.903,
+              "is_answer": true,
+              "snippet": "항히스타민제와 일부 신경통 약은 졸음을 유발할 수 있습니다."
+            },
+            {
+              "rank": 2,
+              "chunk_id": "chunk_088",
+              "title": "운전주의",
+              "score": 0.834,
+              "is_answer": false,
+              "snippet": "졸음이 올 수 있는 약은 운전이나 기계 조작을 피해야 합니다."
+            },
+            {
+              "rank": 3,
+              "chunk_id": "chunk_014",
+              "title": "복약 주의사항",
+              "score": 0.781,
+              "is_answer": false,
+              "snippet": "복약 중 이상 증상이 있으면 전문가와 상담합니다."
+            }
+          ],
+          "reciprocal_rank": 1.0,
+          "top1_hit": true,
+          "top3_hit": true
+        }
+      ]
+    }
+  ]
+}
