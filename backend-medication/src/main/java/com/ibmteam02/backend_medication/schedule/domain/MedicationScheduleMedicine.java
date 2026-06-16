@@ -1,6 +1,7 @@
 package com.ibmteam02.backend_medication.schedule.domain;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -13,6 +14,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import com.ibmteam02.backend_medication.global.util.StringEncryptionConverter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -41,7 +43,8 @@ public class MedicationScheduleMedicine {
     @Column(name = "medicine_id")
     private Long medicineId;
 
-    @Column(name = "custom_medicine_name")
+    @Column(name = "custom_medicine_name", columnDefinition = "VARCHAR(512)")
+    @Convert(converter = StringEncryptionConverter.class)
     private String customMedicineName;
 
     @Column(name = "dosage_amount", precision = 10, scale = 2)

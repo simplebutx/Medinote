@@ -32,6 +32,7 @@ jobs:
           echo "VITE_MEDICATION_API_URL=https://d3s9d84ez4sxzx.cloudfront.net" >> .env.production
           echo "VITE_CONSULTATION_API_URL=https://d3s9d84ez4sxzx.cloudfront.net" >> .env.production
           echo "VITE_AI_API_URL=https://d3s9d84ez4sxzx.cloudfront.net" >> .env.production
+          echo "VITE_KAKAO_MAP_KEY=${{ secrets.VITE_KAKAO_MAP_KEY }}" >> .env.production
 
       - name: Build
         working-directory: ./frontend

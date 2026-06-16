@@ -8,8 +8,10 @@ import com.ibmteam02.backend_auth.global.error.exception.ErrorCode;
 import com.ibmteam02.backend_auth.user.domain.*;
 import com.ibmteam02.backend_auth.user.dto.*;
 import com.ibmteam02.backend_auth.user.repository.*;
+import com.ibmteam02.backend_auth.global.util.EncryptionUtils;
 
 import java.util.List;
+import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,21 +34,25 @@ public class AuthService {
     private final PharmacistProfileRepository pharmacistProfileRepository;
     private final S3Service s3Service;
     private final SmsService smsService;
+    private final EncryptionUtils encryptionUtils;
 
+    // 질병 명 추천 (자동완성용)
     public List<String> suggestDiseaseNames(String keyword) {
         if (!StringUtils.hasText(keyword)) {
             return List.of();
         }
 
         return diseaseMasterRepository.findTop10ByDiseaseNameContaining(keyword).stream()
-                .map(diseaseMaster -> diseaseMaster.getDiseaseName())
+                .map(DiseaseMaster::getDiseaseName)
                 .distinct()
                 .toList();
     }
 
-    // 회원가입 1단계
+    // 회원가입 1단계: 기본 정보 등록
     public void signup(SignupRequest signupRequest) {
-        if (userRepository.existsByEmail(signupRequest.getEmail())) {
+        // 이메일 해시를 이용한 중복 체크 (보안 강화)
+        String emailHash = encryptionUtils.hash(signupRequest.getEmail());
+        if (userRepository.existsByEmailHash(emailHash)) {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
         }
 
@@ -54,6 +60,7 @@ public class AuthService {
 
         User user = User.builder()
                 .email(signupRequest.getEmail())
+                .emailHash(emailHash)
                 .password(encodedPassword)
                 .username(signupRequest.getUsername())
                 .birthDate(signupRequest.getBirthDate())
@@ -64,10 +71,11 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    // 2단계 일반 유저 건강 정보 추가 입력
+    // 2단계: 일반 유저 건강 정보 및 보유 질환 추가 입력
     @Transactional
     public void addUserProfile(String email, UserProfileRequest userProfileRequest) {
-        User user = userRepository.findByEmail(email)
+        // 해시 검색으로 유저 조회
+        User user = userRepository.findByEmailHash(encryptionUtils.hash(email))
                 .orElseThrow(() -> new RuntimeException("유저 없음"));
 
         UserProfileHealth health = UserProfileHealth.builder()
@@ -82,13 +90,13 @@ public class AuthService {
 
         userProfileHealthRepository.save(health);
 
+        // 질병 정보 저장
         List<String> diseaseNames = userProfileRequest.getDiseaseNames();
         if (diseaseNames != null) {
             diseaseNames.stream()
                     .filter(StringUtils::hasText)
                     .distinct()
                     .forEach(diseaseName -> {
-                        // 자유 입력 허용: DB에 있으면 맵핑하고, 없으면 null 상태로 이름만 저장
                         DiseaseMaster master = diseaseMasterRepository.findByDiseaseName(diseaseName).orElse(null);
                         UserChronicDisease userChronicDisease = UserChronicDisease.builder()
                                 .user(user)
@@ -99,17 +107,18 @@ public class AuthService {
                     });
         }
 
+        // 유저 상태 활성화
         user.activateGeneralUser();
         userRepository.save(user);
     }
 
-    // 약사 회원가입 2단계 추가 정보 등록
+    // 약사 회원가입 2단계: 약사 추가 정보 및 면허증 이미지 등록
     @Transactional
     public void addPharmacistProfile(String email, PharmacistVerifyRequest pharmacistVerifyRequest, MultipartFile image) {
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailHash(encryptionUtils.hash(email))
                 .orElseThrow(() -> new RuntimeException("유저 없음"));
 
-        // 실제 S3에 업로드
+        // 실제 S3에 이미지 업로드
         String imageUrl = s3Service.upload(image);
 
         PharmacistProfile pharmacistProfile = PharmacistProfile.builder()
@@ -119,27 +128,40 @@ public class AuthService {
                 .licenseImage(imageUrl)
                 .build();
         pharmacistProfileRepository.save(pharmacistProfile);
+        
+        // 승인 대기 상태로 변경
         user.setWaitingForApproval();
     }
 
-    // 로그인
+    // 로그인: 이메일/비밀번호 인증
     public LoginResponse login(LoginRequest loginRequest) {
-        User user = userRepository.findByEmail(loginRequest.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 이메일입니다"));
+        String emailHash = encryptionUtils.hash(loginRequest.getEmail());
+        
+        // 1. 해시로 검색 시도, 없으면 평문 마이그레이션(기존 가입자) 진행
+        User user = userRepository.findByEmailHash(emailHash)
+                .orElseGet(() -> {
+                    User legacyUser = userRepository.findByRawEmail(loginRequest.getEmail())
+                            .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 이메일입니다"));
+                    
+                    legacyUser.updateEmailHash(emailHash);
+                    return userRepository.save(legacyUser);
+                });
 
         if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다");
         }
 
+        // 가입 대기 상태 체크
         if (user.getStatus() == UserStatus.PENDING) {
             throw new IllegalArgumentException("회원가입이 완료되지 않은 회원입니다");
         }
 
-        // WAITING_APPROVAL 상태여도 로그인은 가능하게 수정 (마이페이지 접근 등 허용을 위함)
-        if (user.getStatus() == UserStatus.WAITING_APPROVAL && user.getRole() == Role.USER) {
+        // 약사는 승인 대기 중이어도 로그인 가능하도록 수정
+        if (user.getStatus() == UserStatus.WAITING_APPROVAL && user.getRole() != Role.PHARMACIST) {
             throw new IllegalArgumentException("회원가입이 완료되지 않은 계정입니다");
         }
 
+        // 토큰 생성 및 저장
         String accessToken = jwtProvider.createToken(user.getId(), user.getEmail(), user.getRole().name());
         String refreshTokenValue = jwtProvider.createRefreshToken(user.getEmail());
 
@@ -154,7 +176,7 @@ public class AuthService {
         return new LoginResponse(user.getId(), accessToken, refreshTokenValue, user.getEmail(), user.getRole().name(), user.getStatus());
     }
 
-    // Refresh Token 재발급
+    // Refresh Token 재발급 로직
     public LoginResponse reissue(String refreshToken) {
         if (!jwtProvider.validateToken(refreshToken)) {
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
@@ -169,7 +191,7 @@ public class AuthService {
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailHash(encryptionUtils.hash(email))
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         String newAccessToken = jwtProvider.createToken(user.getId(), user.getEmail(), user.getRole().name());
@@ -180,15 +202,15 @@ public class AuthService {
         return new LoginResponse(user.getId(), newAccessToken, newRefreshToken, user.getEmail(), user.getRole().name(), user.getStatus());
     }
 
-    // 로그아웃
+    // 로그아웃: 리프레시 토큰 삭제
     public void logout(String email) {
         refreshTokenRepository.deleteById(email);
     }
 
-    //마이페이지 정보 조회
+    // 마이페이지 정보 조회 (암호화된 이메일 등 자동 복호화)
     @Transactional
     public UserProfileResponse getMyProfile(String email) {
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailHash(encryptionUtils.hash(email))
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         UserProfileHealth userProfileHealth = userProfileHealthRepository.findByUser(user).orElse(null);
@@ -206,8 +228,7 @@ public class AuthService {
                 .birthDate(user.getBirthDate())
                 .gender(user.getGender())
                 .role(user.getRole())
-                .status(user.getStatus()) // 상태 추가
-                //일반 유저 건강,질병 정보
+                .status(user.getStatus())
                 .isPregnant(userProfileHealth != null ? userProfileHealth.getIsPregnant() : false)
                 .isBreastfeeding(userProfileHealth != null ? userProfileHealth.getIsBreastfeeding() : false)
                 .isSmoking(userProfileHealth != null ? userProfileHealth.getIsSmoking() : false)
@@ -215,7 +236,6 @@ public class AuthService {
                 .isChild(userProfileHealth != null ? userProfileHealth.getIsChild() : false)
                 .isElderly(userProfileHealth != null ? userProfileHealth.getIsElderly() : false)
                 .chronicDiseases(diseases)
-                //약사 정보
                 .docNumber(pharmacistProfile != null ? pharmacistProfile.getDocNumber() : null)
                 .licenseNumber(pharmacistProfile != null ? pharmacistProfile.getLicenseNumber() : null)
                 .licenseImage(pharmacistProfile != null && pharmacistProfile.getLicenseImage() != null 
@@ -224,33 +244,28 @@ public class AuthService {
                 .build();
     }
 
-
+    // 마이페이지 회원 정보 수정
     @Transactional
     public void updateMyProfile(String email, ProfileUpdateRequest profileUpdateRequest) {
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailHash(encryptionUtils.hash(email))
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 1. 역할(Role) 업데이트 (추가)
+        // 역할(Role) 업데이트
         if (profileUpdateRequest.getRole() != null) {
-            // User 엔티티에 setRole 메서드가 없다면 reflection이나 필드 직접 수정이 필요할 수 있으나, 
-            // 여기서는 domain.User에 setRole 대신 updateBasicProfile 등을 확장하거나 새로 만듭니다.
-            // 일단 User.java에 public void updateRole(Role role)이 있다고 가정하거나 추가해야 함.
             user.updateRole(profileUpdateRequest.getRole());
         }
 
-        //기본정보 수정(이름, 생년월일, 성별)
+        // 기본 정보 수정 (이름, 생년월일, 성별)
         user.updateBasicProfile(
                 profileUpdateRequest.getUsername(),
                 profileUpdateRequest.getBirthDate(),
                 profileUpdateRequest.getGender()
         );
 
-        // 2. 일반 유저일 경우에만 건강 정보 수정
+        // 유저일 경우에만 건강 정보 수정
         if (user.getRole() == Role.USER) {
             UserProfileHealth userProfileHealth = userProfileHealthRepository.findByUser(user)
                     .orElseGet(() -> {
-                        // 만약 신규 생성이 필요한데 필수 필드가 null이면 에러가 나므로,
-                        // 요청에 건강 정보가 있을 때만 생성하도록 방어 로직 추가
                         if (profileUpdateRequest.getIsPregnant() == null) return null;
                         return UserProfileHealth.builder().user(user).build();
                     });
@@ -267,6 +282,7 @@ public class AuthService {
                 userProfileHealthRepository.save(userProfileHealth);
             }
 
+            // 질병 정보 초기화 후 재등록
             userChronicDiseaseRepository.deleteByUser(user);
 
             if (profileUpdateRequest.getDiseases() != null) {
@@ -280,10 +296,10 @@ public class AuthService {
         }
     }
 
-    // 약사 정보 수정 (면허 재인증 포함)
+    // 약사 프로필 수정 (면허 재인증 포함)
     @Transactional
     public void updatePharmacistProfile(String email, PharmacistVerifyRequest request, MultipartFile image) {
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailHash(encryptionUtils.hash(email))
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         PharmacistProfile profile = pharmacistProfileRepository.findByUser(user)
@@ -294,21 +310,18 @@ public class AuthService {
             imageUrl = s3Service.upload(image);
         }
 
-        // 1. 프로필 정보 업데이트
         profile.updateLicenseInfo(request.getDocNumber(), request.getLicenseNumber(), imageUrl);
-
-        // 2. 관리자 재승인 상태로 변경
         user.setWaitingForApproval();
         userRepository.save(user);
     }
 
-    //본인 계정 탈퇴 및 삭제 (일반 유저, 약사용)
+    // 본인 계정 탈퇴 및 삭제 (Cascade 설정으로 연관 데이터 자동 삭제)
     @Transactional
     public void withdraw(String email){
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailHash(encryptionUtils.hash(email))
                 .orElseThrow(()->new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 1. S3 이미지 등 외부 리소스만 수동 정리 (DB는 Cascade로 자동 삭제)
+        // S3 이미지 등 외부 리소스 정리
         if (user.getRole() == Role.PHARMACIST && user.getPharmacistProfile() != null){
             String imageKey = user.getPharmacistProfile().getLicenseImage();
             if(imageKey != null && !imageKey.equals("DELETED_DUE_TO_PRIVACY")){
@@ -316,19 +329,15 @@ public class AuthService {
             }
         }
 
-        // 2. 리프레시 토큰 정리
         refreshTokenRepository.deleteById(email);
-
-        // 3. 유저 삭제 (CascadeType.ALL에 의해 연관된 건강정보, 질병정보, 약사프로필 자동 삭제)
         userRepository.delete(user);
     }
 
-    // 비밀번호 재설정 문자 발송
+    // 비밀번호 재설정 문자 발송 (SNS 계정 제외)
     public void sendPasswordResetSms(PasswordRequest.FindRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByEmailHash(encryptionUtils.hash(request.getEmail()))
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 소셜 로그인 유저 체크
         if (user.getSocialType() != null) {
             throw new CustomException(ErrorCode.IS_SOCIAL_USER);
         }
@@ -336,29 +345,24 @@ public class AuthService {
         smsService.sendSms(request.getPhoneNumber());
     }
 
-    // 비밀번호 재설정 완료 (인증 번호 없이 간소화)
+    // 비밀번호 재설정 완료 (인증 번호 없이 간소화됨)
     @Transactional
     public void resetPassword(PasswordRequest.ResetRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByEmailHash(encryptionUtils.hash(request.getEmail()))
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         if (user.getSocialType() != null) {
             throw new CustomException(ErrorCode.IS_SOCIAL_USER);
         }
 
-        // 인증 번호 검증 제거
-        // if (!smsService.verifySms(request.getPhoneNumber(), request.getCode())) {
-        //     throw new CustomException(ErrorCode.INVALID_VERIFICATION_CODE);
-        // }
-
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
     }
 
-    // 로그인 상태에서 비밀번호 수정
+    // 로그인 상태에서 비밀번호 직접 수정
     @Transactional
     public void updatePassword(String email, PasswordRequest.UpdateRequest request) {
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailHash(encryptionUtils.hash(email))
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         if (user.getSocialType() != null) {
@@ -372,6 +376,4 @@ public class AuthService {
         user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
     }
-
-
 }

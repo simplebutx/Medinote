@@ -365,8 +365,11 @@ function MyPage() {
     }
   }
 
-  const loadPrescriptionRecords = async (preferredId) => {
-    const schedules = await getMedicationSchedules()
+  const loadPrescriptionRecords = async (preferredId, page = prescriptionsPage) => {
+    const response = await getMedicationSchedules(page, 5)
+    const schedules = response.content || response || []
+    setPrescriptionsTotalPages(response.totalPages || 1)
+    
     const timeEntries = await Promise.all(
       schedules.map(async (schedule) => [schedule.id, await getMedicationScheduleTimes(schedule.id)]),
     )
@@ -387,6 +390,22 @@ function MyPage() {
 
       return records[0]?.id || null
     })
+  }
+
+  const handlePrevPage = () => {
+    if (prescriptionsPage > 0) {
+      const newPage = prescriptionsPage - 1;
+      setPrescriptionsPage(newPage);
+      loadPrescriptionRecords(null, newPage);
+    }
+  }
+
+  const handleNextPage = () => {
+    if (prescriptionsPage < prescriptionsTotalPages - 1) {
+      const newPage = prescriptionsPage + 1;
+      setPrescriptionsPage(newPage);
+      loadPrescriptionRecords(null, newPage);
+    }
   }
 
   useEffect(() => {
@@ -1270,35 +1289,46 @@ function MyPage() {
             <div className="mypage-prescription-workspace">
               <div className="mypage-prescription-sidebar">
                 {prescriptions.length ? (
-                  prescriptions.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={item.id === selectedPrescriptionId ? 'mypage-prescription-card selected' : 'mypage-prescription-card'}
-                      onClick={() => {
-                        setSelectedPrescriptionId(item.id)
-                        setPrescriptionMessage('')
-                      }}
-                    >
-                      <div className="mypage-prescription-header">
-                        <div>
-                          <strong>{item.title}</strong>
-                          <p>{item.dispensedDate ? item.dispensedDate.replaceAll('-', '.') : '-'}</p>
-                        </div>
-                        <span className={item.status === '종료' ? 'profile-badge yellow' : 'profile-badge green'}>
-                          {item.status}
-                        </span>
-                      </div>
-                      <p>{item.hospitalName || '병원 정보 없음'}</p>
-                      <div className="profile-badge-row">
-                        {item.medicines.map((medicine, index) => (
-                          <span key={`${item.id}-${index}`} className="profile-badge blue">
-                            {medicine.customMedicineName || `약 ${index + 1}`}
+                  <>
+                    {prescriptions.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={item.id === selectedPrescriptionId ? 'mypage-prescription-card selected' : 'mypage-prescription-card'}
+                        onClick={() => {
+                          setSelectedPrescriptionId(item.id)
+                          setPrescriptionMessage('')
+                        }}
+                      >
+                        <div className="mypage-prescription-header">
+                          <div>
+                            <strong>{item.title}</strong>
+                            <p>{item.dispensedDate ? item.dispensedDate.replaceAll('-', '.') : '-'}</p>
+                          </div>
+                          <span className={item.status === '종료' ? 'profile-badge yellow' : 'profile-badge green'}>
+                            {item.status}
                           </span>
-                        ))}
-                      </div>
-                    </button>
-                  ))
+                        </div>
+                        <p>{item.hospitalName || '병원 정보 없음'}</p>
+                        <div className="profile-badge-row">
+                          {item.medicines.map((medicine, index) => (
+                            <span key={`${item.id}-${index}`} className="profile-badge blue">
+                              {medicine.customMedicineName || `약 ${index + 1}`}
+                            </span>
+                          ))}
+                        </div>
+                      </button>
+                    ))}
+                    <div className="pagination-controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+                      <button type="button" className="register-action-button" disabled={prescriptionsPage === 0} onClick={handlePrevPage} style={{ padding: '0.5rem' }}>
+                        이전
+                      </button>
+                      <span>{prescriptionsPage + 1} / {prescriptionsTotalPages}</span>
+                      <button type="button" className="register-action-button" disabled={prescriptionsPage >= prescriptionsTotalPages - 1} onClick={handleNextPage} style={{ padding: '0.5rem' }}>
+                        다음
+                      </button>
+                    </div>
+                  </>
                 ) : (
                   <div className="app-placeholder-card">등록된 처방전이 없습니다.</div>
                 )}

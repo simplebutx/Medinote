@@ -86,9 +86,10 @@ public class OAuthAttributes {
     }
     
 
-    public User toEntity() {
+    public User toEntity(String emailHash) {
         return User.builder()
                 .email(email)
+                .emailHash(emailHash)
                 .username(name)
                 .socialId(socialId)
                 .socialType(com.ibmteam02.backend_auth.user.domain.SocialType.valueOf(registrationId.toUpperCase()))

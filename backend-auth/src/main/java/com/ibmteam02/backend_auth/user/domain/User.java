@@ -1,8 +1,11 @@
 package com.ibmteam02.backend_auth.user.domain;
 
+import com.ibmteam02.backend_auth.global.util.LocalDateEncryptionConverter;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
+import com.ibmteam02.backend_auth.global.util.StringEncryptionConverter;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
@@ -36,8 +39,12 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = false, columnDefinition = "VARCHAR(512)")
+    @Convert(converter = StringEncryptionConverter.class)
     private String email;
+
+    @Column(unique = true)
+    private String emailHash;
 
     @Column
     private String password; // 소셜 로그인 시 null 가능
@@ -45,15 +52,20 @@ public class User {
     @Enumerated(EnumType.STRING)
     private SocialType socialType; // KAKAO, GOOGLE, NAVER
 
+    @Column(nullable = true, columnDefinition = "VARCHAR(512)")
+    @Convert(converter = StringEncryptionConverter.class)
     private String socialId; // 소셜 서버의 고유 ID
 
-    @Column(nullable = false)
+    @Column(nullable = true, columnDefinition = "VARCHAR(512)")
+    @Convert(converter = StringEncryptionConverter.class)
     private String username;
 
-    @Column
+    @Column(nullable = true, columnDefinition = "VARCHAR(512)")
+    @Convert(converter = LocalDateEncryptionConverter.class)
     private LocalDate birthDate; //생년월일
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = true)
     private Gender gender; // MALE, FEMALE
 
     @Enumerated(EnumType.STRING)
@@ -66,7 +78,7 @@ public class User {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    // --- 연관 관계 설정 (방법 1: Cascade REMOVE) ---
+    // --- 연관 관계 설정 (Cascade REMOVE) ---
     
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private UserProfileHealth userProfileHealth;
@@ -78,8 +90,9 @@ public class User {
     private PharmacistProfile pharmacistProfile;
 
     @Builder
-    public User(String email, String password, SocialType socialType, String socialId, String username, LocalDate birthDate, Gender gender, Role role) {
+    public User(String email, String emailHash, String password, SocialType socialType, String socialId, String username, LocalDate birthDate, Gender gender, Role role) {
         this.email = email;
+        this.emailHash = emailHash;
         this.password = password;
         this.socialId = socialId;
         this.socialType = socialType;
@@ -115,9 +128,14 @@ public class User {
         this.password = password;
     }
 
+    //이메일 해시 업데이트 (마이그레이션용)
+    public void updateEmailHash(String emailHash) {
+        this.emailHash = emailHash;
+    }
+
     //기본 정보 수정
-    public void updateBasicProfile(String username,LocalDate birthDate, Gender gender) {
-        if (username != null && username.trim().isEmpty()) {
+    public void updateBasicProfile(String username, LocalDate birthDate, Gender gender) {
+        if (username != null && !username.trim().isEmpty()) {
             this.username = username;
         }
         if (birthDate != null) {

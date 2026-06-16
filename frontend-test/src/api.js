@@ -248,8 +248,11 @@ export const createMedicationSchedule = async (payload) => {
   return response.data
 }
 
-export const getMedicationSchedules = async () => {
-  const response = await api.get('/medication-schedules')
+export const getMedicationSchedules = async (page = 0, size = 5) => {
+  const response = await api.get('/medication-schedules', {
+    params: { page, size }
+  })
+  // 백엔드가 Page 객체를 반환하므로 전체 객체를 반환하여 프론트에서 페이징 정보를 활용할 수 있게 합니다.
   return response.data
 }
 

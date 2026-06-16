@@ -7,6 +7,10 @@ import com.ibmteam02.backend_medication.schedule.service.MedicationScheduleServi
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -45,8 +49,11 @@ public class MedicationScheduleController {
 
     // 복약 일정 목록 조회
     @GetMapping
-    public List<MedicationScheduleResponse> getByUserId(@AuthenticationPrincipal Long userId) {
-        return medicationScheduleService.getList(userId);
+    public Page<MedicationScheduleResponse> getByUserId(
+            @AuthenticationPrincipal Long userId,
+            @PageableDefault(size = 5, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return medicationScheduleService.getList(userId, pageable);
     }
 
     // 날짜별 복약 일정 조회

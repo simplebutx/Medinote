@@ -1,5 +1,6 @@
 package com.ibmteam02.backend_auth.global.config;
 
+import com.ibmteam02.backend_auth.global.auth.handler.OAuth2FailureHandler;
 import com.ibmteam02.backend_auth.global.auth.handler.OAuth2SuccessHandler;
 import com.ibmteam02.backend_auth.global.auth.jwt.JwtAuthenticationFilter;
 import com.ibmteam02.backend_auth.global.auth.jwt.JwtProvider;
@@ -27,6 +28,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+import org.springframework.context.annotation.Lazy;
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -34,14 +37,20 @@ public class SecurityConfig {
 
     private final JwtProvider jwtProvider;
     private final CustomOAuth2UserService customOAuth2UserService;
-    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    
+    @Lazy
+    @Autowired
+    private OAuth2SuccessHandler oAuth2SuccessHandler;
+
+    @Lazy
+    @Autowired
+    private OAuth2FailureHandler oAuth2FailureHandler;
     
     @Autowired(required = false)
     private ClientRegistrationRepository clientRegistrationRepository;
 
     @Autowired(required = false)
     private AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository;
-
     @Bean
     public PasswordEncoder passwordEncoder(){
         return new BCryptPasswordEncoder();
@@ -95,7 +104,8 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/swagger-ui/**","/swagger-resources/**",
                                 "/v3/api-docs/**",
-                                "/webjars/**" , "/api/auth/diseases/suggest").permitAll()
+                                "/webjars/**" , "/api/auth/diseases/suggest",
+                                "/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtProvider),
@@ -112,6 +122,7 @@ public class SecurityConfig {
                     })
                     .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                     .successHandler(oAuth2SuccessHandler)
+                    .failureHandler(oAuth2FailureHandler)
             );
         }
 
