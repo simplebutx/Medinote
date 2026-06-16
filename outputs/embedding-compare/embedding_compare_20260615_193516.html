@@ -1,0 +1,1034 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Medinote Embedding Model Comparison</title>
+  <style>
+    :root {
+      --navy: #0b1324;
+      --ink: #172033;
+      --muted: #5b667a;
+      --line: #d8e2ee;
+      --light: #f7fafc;
+      --white: #ffffff;
+      --mint: #00a88f;
+      --mint-soft: #e6f4f1;
+      --blue-soft: #edf6ff;
+      --amber: #ffb020;
+      --red: #e5484d;
+      --purple-soft: #f1edff;
+      --gray-soft: #f1f5f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--light);
+      color: var(--ink);
+      font-family: Arial, "Malgun Gothic", sans-serif;
+    }
+    .page {
+      width: 1720px;
+      margin: 0 auto;
+      padding: 34px 44px 48px;
+    }
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 32px;
+      margin-bottom: 24px;
+    }
+    .eyebrow {
+      color: var(--mint);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      margin-bottom: 12px;
+    }
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: 44px;
+      line-height: 1.12;
+    }
+    .hero p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 17px;
+    }
+    .meta {
+      text-align: right;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .summary {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 10px 28px rgba(11, 19, 36, .06);
+      margin-bottom: 18px;
+      padding: 22px 24px;
+    }
+    .summary h2 {
+      margin: 0 0 14px;
+      color: var(--navy);
+      font-size: 24px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 15px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 13px 10px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      align-items: start;
+    }
+    .model-card {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 28px rgba(11, 19, 36, .06);
+    }
+    .card-head {
+      min-height: 118px;
+      padding: 18px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--mint-soft);
+    }
+    .model-openai-large .card-head, .model-gemini .card-head {
+      background: var(--blue-soft);
+    }
+    .model-upstage-solar .card-head {
+      background: var(--purple-soft);
+    }
+    .model-bge-m3 .card-head {
+      background: var(--gray-soft);
+    }
+    .card-head h2 {
+      margin: 0;
+      color: var(--navy);
+      font-size: 19px;
+      line-height: 1.15;
+    }
+    .card-head p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .badge {
+      display: inline-block;
+      min-width: 76px;
+      padding: 7px 9px;
+      border-radius: 999px;
+      background: var(--muted);
+      color: var(--white);
+      text-align: center;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .badge-demo, .badge-ok { background: var(--mint); }
+    .badge-error { background: var(--red); }
+    .metric-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1px;
+      background: var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .metric-list div {
+      min-height: 48px;
+      background: var(--white);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .metric-list span {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+    .metric-list strong {
+      color: var(--navy);
+      font-size: 18px;
+      line-height: 1.1;
+      text-align: right;
+      word-break: keep-all;
+    }
+    .metric-list .good strong { color: var(--mint); }
+    .metric-list .mid strong { color: var(--amber); }
+    .metric-list .bad strong { color: var(--red); }
+    .queries {
+      height: 560px;
+      overflow-y: scroll;
+      scrollbar-gutter: stable;
+      background: #fbfcfe;
+      padding: 14px;
+    }
+    .query-block {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 14px;
+      margin-bottom: 14px;
+    }
+    .query-block:last-child {
+      border-bottom: 0;
+      margin-bottom: 0;
+    }
+    .query-block h3 {
+      margin: 0 0 8px;
+      color: var(--navy);
+      font-size: 15px;
+      line-height: 1.35;
+    }
+    .answer-ids {
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 9px;
+      word-break: break-all;
+    }
+    ol {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 8px;
+    }
+    li {
+      display: grid;
+      grid-template-columns: 26px 1fr;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
+      padding: 8px;
+    }
+    li.answer {
+      border-color: rgba(0, 168, 143, .55);
+      background: #f1fbf8;
+    }
+    .rank {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: var(--navy);
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 12px;
+    }
+    li.answer .rank {
+      background: var(--mint);
+    }
+    li strong {
+      display: block;
+      color: var(--navy);
+      font-size: 13px;
+      line-height: 1.25;
+    }
+    li span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    li p {
+      margin: 6px 0 0;
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .footnote {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    @media print {
+      .page { width: auto; padding: 24px; }
+      .queries { height: auto; overflow: visible; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">MEDINOTE EMBEDDING MODEL TEST</div>
+        <h1>Retrieval Quality Comparison</h1>
+        <p>동일한 146개 chunk와 동일 질문 세트로 모델별 검색 품질을 비교합니다.</p>
+      </div>
+      <div class="meta">
+        Generated: 2026-06-15 19:35:16<br>
+        JSON: embedding_compare_20260615_193516.json
+      </div>
+    </section>
+
+    <section class="summary">
+      <h2>Comparison Snapshot</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Status</th>
+            <th>Top-1 Accuracy</th>
+            <th>Top-3 Hit Rate</th>
+            <th>MRR</th>
+            <th>Avg Time</th>
+            <th>Cost</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td>OpenAI text-embedding-3-small</td>
+              <td><span class="badge badge-demo">DEMO</span></td>
+              <td>100.0%</td>
+              <td>100.0%</td>
+              <td>1.00</td>
+              <td>142 ms</td>
+              <td>$0.02 / 1M tokens</td>
+            </tr>
+            
+            <tr>
+              <td>OpenAI text-embedding-3-large</td>
+              <td><span class="badge badge-demo">DEMO</span></td>
+              <td>100.0%</td>
+              <td>100.0%</td>
+              <td>1.00</td>
+              <td>188 ms</td>
+              <td>$0.13 / 1M tokens</td>
+            </tr>
+            
+            <tr>
+              <td>Upstage Solar Embedding</td>
+              <td><span class="badge badge-demo">DEMO</span></td>
+              <td>100.0%</td>
+              <td>100.0%</td>
+              <td>1.00</td>
+              <td>236 ms</td>
+              <td>Upstage API pricing</td>
+            </tr>
+            
+            <tr>
+              <td>BAAI bge-m3</td>
+              <td><span class="badge badge-demo">DEMO</span></td>
+              <td>66.7%</td>
+              <td>100.0%</td>
+              <td>0.83</td>
+              <td>612 ms</td>
+              <td>Local/self-hosting cost</td>
+            </tr>
+            
+            <tr>
+              <td>Gemini Embedding</td>
+              <td><span class="badge badge-demo">DEMO</span></td>
+              <td>66.7%</td>
+              <td>100.0%</td>
+              <td>0.83</td>
+              <td>205 ms</td>
+              <td>Google Gemini API pricing</td>
+            </tr>
+            
+        </tbody>
+      </table>
+    </section>
+
+    <section class="cards">
+      
+      <section class="model-card model-openai-small">
+        <div class="card-head">
+          <div>
+            <h2>OpenAI text-embedding-3-small</h2>
+            <p>Current Medinote baseline / low cost</p>
+          </div>
+          <span class="badge badge-demo">DEMO</span>
+        </div>
+        <div class="metric-list">
+          <div class="good">
+            <span>1. Top-1 Accuracy</span><strong>100.0%</strong>
+          </div>
+          <div class="good">
+            <span>2. Top-3 Hit Rate</span><strong>100.0%</strong>
+          </div>
+          <div class="good">
+            <span>3. MRR</span><strong>1.00</strong>
+          </div>
+          <div class="good">
+            <span>4. Avg Response Time</span><strong>142ms</strong>
+          </div>
+          <div class="neutral">
+            <span>5. Cost</span><strong>$0.02 / 1M tokens</strong>
+          </div>
+        </div>
+        <div class="queries">
+          
+      <section class="query-block">
+        <h3>타이레놀 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: chunk_024, chunk_025</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>아세트아미노펜 주의사항</strong>
+                <span>chunk_024 / score 0.891 ANSWER</span>
+                <p>간질환 환자나 음주자는 아세트아미노펜 복용 시 주의가 필요합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>타이레놀 기본 정보</strong>
+                <span>chunk_011 / score 0.842 </span>
+                <p>타이레놀은 아세트아미노펜 성분의 해열진통제입니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>해열진통제 일반 주의</strong>
+                <span>chunk_067 / score 0.811 </span>
+                <p>해열진통제는 중복 복용 여부를 확인해야 합니다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>속쓰림 약은 언제 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_038</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>위산분비억제제 복용법</strong>
+                <span>chunk_038 / score 0.872 ANSWER</span>
+                <p>위산분비억제제는 약품별 지시에 따라 식전 또는 식후 복용합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>제산제 복용 안내</strong>
+                <span>chunk_041 / score 0.833 </span>
+                <p>제산제는 위산을 중화해 속쓰림을 완화합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>소화기계 부작용</strong>
+                <span>chunk_079 / score 0.792 </span>
+                <p>일부 진통제는 속쓰림과 위장장애를 유발할 수 있습니다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>졸음이 올 수 있는 약은 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_052</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>졸음주의 약물</strong>
+                <span>chunk_052 / score 0.903 ANSWER</span>
+                <p>항히스타민제와 일부 신경통 약은 졸음을 유발할 수 있습니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>운전주의</strong>
+                <span>chunk_088 / score 0.834 </span>
+                <p>졸음이 올 수 있는 약은 운전이나 기계 조작을 피해야 합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>복약 주의사항</strong>
+                <span>chunk_014 / score 0.781 </span>
+                <p>복약 중 이상 증상이 있으면 전문가와 상담합니다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+        </div>
+      </section>
+    
+
+      <section class="model-card model-openai-large">
+        <div class="card-head">
+          <div>
+            <h2>OpenAI text-embedding-3-large</h2>
+            <p>Same vendor high-performance candidate</p>
+          </div>
+          <span class="badge badge-demo">DEMO</span>
+        </div>
+        <div class="metric-list">
+          <div class="good">
+            <span>1. Top-1 Accuracy</span><strong>100.0%</strong>
+          </div>
+          <div class="good">
+            <span>2. Top-3 Hit Rate</span><strong>100.0%</strong>
+          </div>
+          <div class="good">
+            <span>3. MRR</span><strong>1.00</strong>
+          </div>
+          <div class="good">
+            <span>4. Avg Response Time</span><strong>188ms</strong>
+          </div>
+          <div class="neutral">
+            <span>5. Cost</span><strong>$0.13 / 1M tokens</strong>
+          </div>
+        </div>
+        <div class="queries">
+          
+      <section class="query-block">
+        <h3>타이레놀 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: chunk_024, chunk_025</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>아세트아미노펜 주의사항</strong>
+                <span>chunk_024 / score 0.891 ANSWER</span>
+                <p>간질환 환자나 음주자는 아세트아미노펜 복용 시 주의가 필요합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>타이레놀 기본 정보</strong>
+                <span>chunk_011 / score 0.842 </span>
+                <p>타이레놀은 아세트아미노펜 성분의 해열진통제입니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>해열진통제 일반 주의</strong>
+                <span>chunk_067 / score 0.811 </span>
+                <p>해열진통제는 중복 복용 여부를 확인해야 합니다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>속쓰림 약은 언제 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_038</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>위산분비억제제 복용법</strong>
+                <span>chunk_038 / score 0.872 ANSWER</span>
+                <p>위산분비억제제는 약품별 지시에 따라 식전 또는 식후 복용합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>제산제 복용 안내</strong>
+                <span>chunk_041 / score 0.833 </span>
+                <p>제산제는 위산을 중화해 속쓰림을 완화합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>소화기계 부작용</strong>
+                <span>chunk_079 / score 0.792 </span>
+                <p>일부 진통제는 속쓰림과 위장장애를 유발할 수 있습니다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>졸음이 올 수 있는 약은 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_052</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>졸음주의 약물</strong>
+                <span>chunk_052 / score 0.903 ANSWER</span>
+                <p>항히스타민제와 일부 신경통 약은 졸음을 유발할 수 있습니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>운전주의</strong>
+                <span>chunk_088 / score 0.834 </span>
+                <p>졸음이 올 수 있는 약은 운전이나 기계 조작을 피해야 합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>복약 주의사항</strong>
+                <span>chunk_014 / score 0.781 </span>
+                <p>복약 중 이상 증상이 있으면 전문가와 상담합니다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+        </div>
+      </section>
+    
+
+      <section class="model-card model-upstage-solar">
+        <div class="card-head">
+          <div>
+            <h2>Upstage Solar Embedding</h2>
+            <p>Korean-friendly query/passage candidate</p>
+          </div>
+          <span class="badge badge-demo">DEMO</span>
+        </div>
+        <div class="metric-list">
+          <div class="good">
+            <span>1. Top-1 Accuracy</span><strong>100.0%</strong>
+          </div>
+          <div class="good">
+            <span>2. Top-3 Hit Rate</span><strong>100.0%</strong>
+          </div>
+          <div class="good">
+            <span>3. MRR</span><strong>1.00</strong>
+          </div>
+          <div class="good">
+            <span>4. Avg Response Time</span><strong>236ms</strong>
+          </div>
+          <div class="neutral">
+            <span>5. Cost</span><strong>Upstage API pricing</strong>
+          </div>
+        </div>
+        <div class="queries">
+          
+      <section class="query-block">
+        <h3>타이레놀 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: chunk_024, chunk_025</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>아세트아미노펜 주의사항</strong>
+                <span>chunk_024 / score 0.891 ANSWER</span>
+                <p>간질환 환자나 음주자는 아세트아미노펜 복용 시 주의가 필요합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>타이레놀 기본 정보</strong>
+                <span>chunk_011 / score 0.842 </span>
+                <p>타이레놀은 아세트아미노펜 성분의 해열진통제입니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>해열진통제 일반 주의</strong>
+                <span>chunk_067 / score 0.811 </span>
+                <p>해열진통제는 중복 복용 여부를 확인해야 합니다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>속쓰림 약은 언제 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_038</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>위산분비억제제 복용법</strong>
+                <span>chunk_038 / score 0.872 ANSWER</span>
+                <p>위산분비억제제는 약품별 지시에 따라 식전 또는 식후 복용합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>제산제 복용 안내</strong>
+                <span>chunk_041 / score 0.833 </span>
+                <p>제산제는 위산을 중화해 속쓰림을 완화합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>소화기계 부작용</strong>
+                <span>chunk_079 / score 0.792 </span>
+                <p>일부 진통제는 속쓰림과 위장장애를 유발할 수 있습니다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>졸음이 올 수 있는 약은 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_052</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>졸음주의 약물</strong>
+                <span>chunk_052 / score 0.903 ANSWER</span>
+                <p>항히스타민제와 일부 신경통 약은 졸음을 유발할 수 있습니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>운전주의</strong>
+                <span>chunk_088 / score 0.834 </span>
+                <p>졸음이 올 수 있는 약은 운전이나 기계 조작을 피해야 합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>복약 주의사항</strong>
+                <span>chunk_014 / score 0.781 </span>
+                <p>복약 중 이상 증상이 있으면 전문가와 상담합니다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+        </div>
+      </section>
+    
+
+      <section class="model-card model-bge-m3">
+        <div class="card-head">
+          <div>
+            <h2>BAAI bge-m3</h2>
+            <p>Open-source self-hosting candidate</p>
+          </div>
+          <span class="badge badge-demo">DEMO</span>
+        </div>
+        <div class="metric-list">
+          <div class="mid">
+            <span>1. Top-1 Accuracy</span><strong>66.7%</strong>
+          </div>
+          <div class="good">
+            <span>2. Top-3 Hit Rate</span><strong>100.0%</strong>
+          </div>
+          <div class="good">
+            <span>3. MRR</span><strong>0.83</strong>
+          </div>
+          <div class="mid">
+            <span>4. Avg Response Time</span><strong>612ms</strong>
+          </div>
+          <div class="neutral">
+            <span>5. Cost</span><strong>Local/self-hosting cost</strong>
+          </div>
+        </div>
+        <div class="queries">
+          
+      <section class="query-block">
+        <h3>타이레놀 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: chunk_024, chunk_025</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>아세트아미노펜 주의사항</strong>
+                <span>chunk_024 / score 0.891 ANSWER</span>
+                <p>간질환 환자나 음주자는 아세트아미노펜 복용 시 주의가 필요합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>타이레놀 기본 정보</strong>
+                <span>chunk_011 / score 0.842 </span>
+                <p>타이레놀은 아세트아미노펜 성분의 해열진통제입니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>해열진통제 일반 주의</strong>
+                <span>chunk_067 / score 0.811 </span>
+                <p>해열진통제는 중복 복용 여부를 확인해야 합니다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>속쓰림 약은 언제 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_038</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>위산분비억제제 복용법</strong>
+                <span>chunk_038 / score 0.872 ANSWER</span>
+                <p>위산분비억제제는 약품별 지시에 따라 식전 또는 식후 복용합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>제산제 복용 안내</strong>
+                <span>chunk_041 / score 0.833 </span>
+                <p>제산제는 위산을 중화해 속쓰림을 완화합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>소화기계 부작용</strong>
+                <span>chunk_079 / score 0.792 </span>
+                <p>일부 진통제는 속쓰림과 위장장애를 유발할 수 있습니다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>졸음이 올 수 있는 약은 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_052</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>운전주의</strong>
+                <span>chunk_088 / score 0.851 </span>
+                <p>졸음이 올 수 있는 약은 운전이나 기계 조작을 피해야 합니다.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>졸음주의 약물</strong>
+                <span>chunk_052 / score 0.836 ANSWER</span>
+                <p>항히스타민제와 일부 신경통 약은 졸음을 유발할 수 있습니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>복약 주의사항</strong>
+                <span>chunk_014 / score 0.779 </span>
+                <p>복약 중 이상 증상이 있으면 전문가와 상담합니다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+        </div>
+      </section>
+    
+
+      <section class="model-card model-gemini">
+        <div class="card-head">
+          <div>
+            <h2>Gemini Embedding</h2>
+            <p>Google multilingual embedding candidate</p>
+          </div>
+          <span class="badge badge-demo">DEMO</span>
+        </div>
+        <div class="metric-list">
+          <div class="mid">
+            <span>1. Top-1 Accuracy</span><strong>66.7%</strong>
+          </div>
+          <div class="good">
+            <span>2. Top-3 Hit Rate</span><strong>100.0%</strong>
+          </div>
+          <div class="good">
+            <span>3. MRR</span><strong>0.83</strong>
+          </div>
+          <div class="good">
+            <span>4. Avg Response Time</span><strong>205ms</strong>
+          </div>
+          <div class="neutral">
+            <span>5. Cost</span><strong>Google Gemini API pricing</strong>
+          </div>
+        </div>
+        <div class="queries">
+          
+      <section class="query-block">
+        <h3>타이레놀 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: chunk_024, chunk_025</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>아세트아미노펜 주의사항</strong>
+                <span>chunk_024 / score 0.891 ANSWER</span>
+                <p>간질환 환자나 음주자는 아세트아미노펜 복용 시 주의가 필요합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>타이레놀 기본 정보</strong>
+                <span>chunk_011 / score 0.842 </span>
+                <p>타이레놀은 아세트아미노펜 성분의 해열진통제입니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>해열진통제 일반 주의</strong>
+                <span>chunk_067 / score 0.811 </span>
+                <p>해열진통제는 중복 복용 여부를 확인해야 합니다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>속쓰림 약은 언제 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_038</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>제산제 복용 안내</strong>
+                <span>chunk_041 / score 0.844 </span>
+                <p>제산제는 위산을 중화해 속쓰림을 완화합니다.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>위산분비억제제 복용법</strong>
+                <span>chunk_038 / score 0.839 ANSWER</span>
+                <p>위산분비억제제는 약품별 지시에 따라 복용합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>소화기계 부작용</strong>
+                <span>chunk_079 / score 0.788 </span>
+                <p>일부 진통제는 속쓰림과 위장장애를 유발할 수 있습니다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>졸음이 올 수 있는 약은 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_052</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>졸음주의 약물</strong>
+                <span>chunk_052 / score 0.903 ANSWER</span>
+                <p>항히스타민제와 일부 신경통 약은 졸음을 유발할 수 있습니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>운전주의</strong>
+                <span>chunk_088 / score 0.834 </span>
+                <p>졸음이 올 수 있는 약은 운전이나 기계 조작을 피해야 합니다.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>복약 주의사항</strong>
+                <span>chunk_014 / score 0.781 </span>
+                <p>복약 중 이상 증상이 있으면 전문가와 상담합니다.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+        </div>
+      </section>
+    
+    </section>
+
+    <p class="footnote">
+      Evaluation scope: embedding model retrieval quality only. Reranker, LLM answer generation,
+      prompt quality, and post-processing logic are excluded. Top-k success is measured by whether
+      the pre-labeled answer chunk appears in the retrieved results.
+    </p>
+  </main>
+</body>
+</html>

@@ -4,6 +4,7 @@ from app.schemas.chatbot import AiChatBotRequest, AiChatBotResponse
 from app.services.chatbot.document_search_service import search_relevant_documents
 from app.services.chatbot.llm_classify_chatbot_intent import classify_chatbot_intent
 from app.services.chatbot.llm_answer_service import (
+    ANSWER_TYPE_CONSULT_RECOMMENDED,
     ANSWER_TYPE_FALLBACK,
     ANSWER_TYPE_NORMAL,
     generate_answer_from_context,
@@ -30,19 +31,22 @@ def generate_chatbot_answer(request: AiChatBotRequest) -> AiChatBotResponse:
         # 스케쥴 관련인지 확인
         if classified_intent == "schedule":
             return AiChatBotResponse(
-                answer="복약 일정 관련 질문으로 보여요. 오늘 먹을 약, 다음 복용 시간, 복용 기록처럼 조금 더 구체적으로 질문해 주세요."
+                answer="복약 일정 관련 질문으로 보여요. 오늘 먹을 약, 다음 복용 시간, 복용 기록처럼 조금 더 구체적으로 질문해 주세요.",
+                answerType=ANSWER_TYPE_FALLBACK,
             )
 
         # 나머지 
         return AiChatBotResponse(
-            answer="저는 약 정보와 복약 일정 관련 질문만 도와드릴 수 있어요. 약 정보 질문은 약 이름을 @로 선택해서 함께 보내 주세요."
+            answer="저는 약 정보와 복약 일정 관련 질문만 도와드릴 수 있어요. 약 정보 질문은 약 이름을 @로 선택해서 함께 보내 주세요.",
+            answerType=ANSWER_TYPE_FALLBACK,
         )
 
     # ================= question_type == schedule ================
     if question_type == "schedule":
         if not schedule_context:
             return AiChatBotResponse(
-                answer="현재 등록된 복약 일정 정보를 찾지 못했습니다. 일정 등록 상태를 확인한 뒤 다시 질문해 주세요."
+                answer="현재 등록된 복약 일정 정보를 찾지 못했습니다. 일정 등록 상태를 확인한 뒤 다시 질문해 주세요.",
+                answerType=ANSWER_TYPE_FALLBACK,
             )
 
         log_schedule_debug(raw_text=raw_text, schedule_context=schedule_context)
@@ -60,7 +64,7 @@ def generate_chatbot_answer(request: AiChatBotRequest) -> AiChatBotResponse:
     if not drug_names:
         return AiChatBotResponse(
             answer="약 정보 질문은 약 이름을 @로 선택해서 함께 보내 주세요.",
-            answerType=ANSWER_TYPE_NORMAL,
+            answerType=ANSWER_TYPE_FALLBACK,
         )
 
     answers: list[str] = []
@@ -88,12 +92,14 @@ def generate_chatbot_answer(request: AiChatBotRequest) -> AiChatBotResponse:
         answer = answer_result.answer
 
         # 문서에서 못찾은 경우
-        if answer_result.answer_type == ANSWER_TYPE_FALLBACK:
+        if answer_result.answer_type == ANSWER_TYPE_CONSULT_RECOMMENDED:
+            answer_type = ANSWER_TYPE_CONSULT_RECOMMENDED
+        elif answer_result.answer_type == ANSWER_TYPE_FALLBACK and answer_type != ANSWER_TYPE_CONSULT_RECOMMENDED:
             answer_type = ANSWER_TYPE_FALLBACK
 
         # 출처가 있으면 출처 표시
         source_text = format_sources(results)
-        if answer_result.answer_type != ANSWER_TYPE_FALLBACK and source_text:
+        if answer_result.answer_type == ANSWER_TYPE_NORMAL and source_text:
             answers.append(f"{answer}\n\n출처: {source_text}")
         else:
             answers.append(answer)

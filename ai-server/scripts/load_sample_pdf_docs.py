@@ -32,6 +32,18 @@ DOCUMENT_COLUMNS = {
 }
 
 
+def build_embedding_text(record: dict) -> str:
+    return "\n".join(
+        part
+        for part in [
+            f"약품명: {record['drug_name']}",
+            f"문서유형: {record['document_type']}",
+            record["text"],
+        ]
+        if part
+    )
+
+
 def env_bool(name: str, default: bool = False) -> bool:
     raw_value = os.getenv(name)
     if raw_value is None:
@@ -276,7 +288,7 @@ def upsert_records(records: list[dict]) -> None:
 
     client = get_qdrant_client()
     ensure_collection(client)
-    texts = [record["text"] for record in records]
+    texts = [build_embedding_text(record) for record in records]
     vectors = embed_texts(texts)
 
     points = [

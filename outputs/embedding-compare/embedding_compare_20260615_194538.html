@@ -1,0 +1,3903 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Medinote Embedding Model Comparison</title>
+  <style>
+    :root {
+      --navy: #0b1324;
+      --ink: #172033;
+      --muted: #5b667a;
+      --line: #d8e2ee;
+      --light: #f7fafc;
+      --white: #ffffff;
+      --mint: #00a88f;
+      --mint-soft: #e6f4f1;
+      --blue-soft: #edf6ff;
+      --amber: #ffb020;
+      --red: #e5484d;
+      --purple-soft: #f1edff;
+      --gray-soft: #f1f5f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--light);
+      color: var(--ink);
+      font-family: Arial, "Malgun Gothic", sans-serif;
+    }
+    .page {
+      width: 1720px;
+      margin: 0 auto;
+      padding: 34px 44px 48px;
+    }
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 32px;
+      margin-bottom: 24px;
+    }
+    .eyebrow {
+      color: var(--mint);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      margin-bottom: 12px;
+    }
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: 44px;
+      line-height: 1.12;
+    }
+    .hero p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 17px;
+    }
+    .meta {
+      text-align: right;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .summary {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 10px 28px rgba(11, 19, 36, .06);
+      margin-bottom: 18px;
+      padding: 22px 24px;
+    }
+    .summary h2 {
+      margin: 0 0 14px;
+      color: var(--navy);
+      font-size: 24px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 15px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 13px 10px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      align-items: start;
+    }
+    .model-card {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 28px rgba(11, 19, 36, .06);
+    }
+    .card-head {
+      min-height: 118px;
+      padding: 18px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--mint-soft);
+    }
+    .model-openai-large .card-head, .model-gemini .card-head {
+      background: var(--blue-soft);
+    }
+    .model-upstage-solar .card-head {
+      background: var(--purple-soft);
+    }
+    .model-bge-m3 .card-head {
+      background: var(--gray-soft);
+    }
+    .card-head h2 {
+      margin: 0;
+      color: var(--navy);
+      font-size: 19px;
+      line-height: 1.15;
+    }
+    .card-head p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .badge {
+      display: inline-block;
+      min-width: 76px;
+      padding: 7px 9px;
+      border-radius: 999px;
+      background: var(--muted);
+      color: var(--white);
+      text-align: center;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .badge-demo, .badge-ok { background: var(--mint); }
+    .badge-error { background: var(--red); }
+    .metric-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1px;
+      background: var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .metric-list div {
+      min-height: 48px;
+      background: var(--white);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .metric-list span {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+    .metric-list strong {
+      color: var(--navy);
+      font-size: 18px;
+      line-height: 1.1;
+      text-align: right;
+      word-break: keep-all;
+    }
+    .metric-list .good strong { color: var(--mint); }
+    .metric-list .mid strong { color: var(--amber); }
+    .metric-list .bad strong { color: var(--red); }
+    .queries {
+      height: 560px;
+      overflow-y: scroll;
+      scrollbar-gutter: stable;
+      background: #fbfcfe;
+      padding: 14px;
+    }
+    .query-block {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 14px;
+      margin-bottom: 14px;
+    }
+    .query-block:last-child {
+      border-bottom: 0;
+      margin-bottom: 0;
+    }
+    .query-block h3 {
+      margin: 0 0 8px;
+      color: var(--navy);
+      font-size: 15px;
+      line-height: 1.35;
+    }
+    .answer-ids {
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 9px;
+      word-break: break-all;
+    }
+    ol {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 8px;
+    }
+    li {
+      display: grid;
+      grid-template-columns: 26px 1fr;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
+      padding: 8px;
+    }
+    li.answer {
+      border-color: rgba(0, 168, 143, .55);
+      background: #f1fbf8;
+    }
+    .rank {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: var(--navy);
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 12px;
+    }
+    li.answer .rank {
+      background: var(--mint);
+    }
+    li strong {
+      display: block;
+      color: var(--navy);
+      font-size: 13px;
+      line-height: 1.25;
+    }
+    li span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    li p {
+      margin: 6px 0 0;
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .footnote {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    @media print {
+      .page { width: auto; padding: 24px; }
+      .queries { height: auto; overflow: visible; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">MEDINOTE EMBEDDING MODEL TEST</div>
+        <h1>Retrieval Quality Comparison</h1>
+        <p>Same chunks, same questions, and answer chunk IDs are used for every embedding model.</p>
+      </div>
+      <div class="meta">
+        Generated: 2026-06-15 19:45:38<br>
+        JSON: embedding_compare_20260615_194538.json
+      </div>
+    </section>
+
+    <section class="summary">
+      <h2>Comparison Snapshot</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Status</th>
+            <th>Top-1 Accuracy</th>
+            <th>Top-3 Hit Rate</th>
+            <th>MRR</th>
+            <th>Avg Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td>OpenAI text-embedding-3-small</td>
+              <td><span class="badge badge-demo">DEMO</span></td>
+              <td>80.0%</td>
+              <td>100.0%</td>
+              <td>0.90</td>
+              <td>150 ms</td>
+            </tr>
+            
+            <tr>
+              <td>OpenAI text-embedding-3-large</td>
+              <td><span class="badge badge-demo">DEMO</span></td>
+              <td>90.0%</td>
+              <td>100.0%</td>
+              <td>0.95</td>
+              <td>210 ms</td>
+            </tr>
+            
+            <tr>
+              <td>Upstage Solar Embedding</td>
+              <td><span class="badge badge-demo">DEMO</span></td>
+              <td>85.0%</td>
+              <td>100.0%</td>
+              <td>0.93</td>
+              <td>250 ms</td>
+            </tr>
+            
+            <tr>
+              <td>BAAI bge-m3</td>
+              <td><span class="badge badge-demo">DEMO</span></td>
+              <td>70.0%</td>
+              <td>90.0%</td>
+              <td>0.80</td>
+              <td>620 ms</td>
+            </tr>
+            
+            <tr>
+              <td>Gemini Embedding</td>
+              <td><span class="badge badge-demo">DEMO</span></td>
+              <td>75.0%</td>
+              <td>95.0%</td>
+              <td>0.85</td>
+              <td>230 ms</td>
+            </tr>
+            
+        </tbody>
+      </table>
+    </section>
+
+    <section class="cards">
+      
+      <section class="model-card model-openai-small">
+        <div class="card-head">
+          <div>
+            <h2>OpenAI text-embedding-3-small</h2>
+            <p>Current Medinote baseline</p>
+          </div>
+          <span class="badge badge-demo">DEMO</span>
+        </div>
+        <div class="metric-list">
+          <div class="good">
+            <span>1. Top-1 Accuracy</span><strong>80.0%</strong>
+          </div>
+          <div class="good">
+            <span>2. Top-3 Hit Rate</span><strong>100.0%</strong>
+          </div>
+          <div class="good">
+            <span>3. MRR</span><strong>0.90</strong>
+          </div>
+          <div class="good">
+            <span>4. Avg Response Time</span><strong>150ms</strong>
+          </div>
+        </div>
+        <div class="queries">
+          
+      <section class="query-block">
+        <h3>q001. 타이레놀 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: chunk_001</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_001 / score 0.902 ANSWER</span>
+                <p>타이레놀 복용 시 주의할 점은?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_1 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_1 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q002. 아세트아미노펜은 간에 안 좋을 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_002</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_002 / score 0.902 ANSWER</span>
+                <p>아세트아미노펜은 간에 안 좋을 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_2 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_2 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q003. 이부프로펜 먹으면 속 쓰릴 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_003</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_003 / score 0.902 ANSWER</span>
+                <p>이부프로펜 먹으면 속 쓰릴 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_3 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_3 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q004. 졸음이 올 수 있는 약은 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_004</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_004 / score 0.902 ANSWER</span>
+                <p>졸음이 올 수 있는 약은 뭐야?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_4 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_4 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q005. 위산분비억제제는 언제 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_005</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_5 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_005 / score 0.847 ANSWER</span>
+                <p>위산분비억제제는 언제 먹어야 해?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_5 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q006. 항생제 복용할 때 주의할 점 알려줘</h3>
+        <div class="answer-ids">Answer chunk: chunk_006</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_006 / score 0.902 ANSWER</span>
+                <p>항생제 복용할 때 주의할 점 알려줘</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_6 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_6 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q007. 혈압약 먹고 어지러울 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_007</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_007 / score 0.902 ANSWER</span>
+                <p>혈압약 먹고 어지러울 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_7 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_7 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q008. 당뇨약은 식사랑 관련 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_008</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_008 / score 0.902 ANSWER</span>
+                <p>당뇨약은 식사랑 관련 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_8 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_8 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q009. 멀미약 먹고 운전해도 돼?</h3>
+        <div class="answer-ids">Answer chunk: chunk_009</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_009 / score 0.902 ANSWER</span>
+                <p>멀미약 먹고 운전해도 돼?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_9 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_9 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q010. 스테로이드 연고는 오래 발라도 돼?</h3>
+        <div class="answer-ids">Answer chunk: chunk_010</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_10 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_010 / score 0.847 ANSWER</span>
+                <p>스테로이드 연고는 오래 발라도 돼?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_10 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q011. 알레르기약은 왜 졸릴 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_011</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_011 / score 0.902 ANSWER</span>
+                <p>알레르기약은 왜 졸릴 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_11 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_11 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q012. 진통제를 여러 개 같이 먹어도 괜찮아?</h3>
+        <div class="answer-ids">Answer chunk: chunk_012</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_012 / score 0.902 ANSWER</span>
+                <p>진통제를 여러 개 같이 먹어도 괜찮아?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_12 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_12 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q013. 위장장애가 생길 수 있는 약은 어떤 종류야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_013</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_013 / score 0.902 ANSWER</span>
+                <p>위장장애가 생길 수 있는 약은 어떤 종류야?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_13 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_13 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q014. 해열진통제 복용할 때 술 마셔도 돼?</h3>
+        <div class="answer-ids">Answer chunk: chunk_014</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_014 / score 0.902 ANSWER</span>
+                <p>해열진통제 복용할 때 술 마셔도 돼?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_14 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_14 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q015. 약을 먹고 발진이 생기면 어떻게 해야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_015</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_15 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_015 / score 0.847 ANSWER</span>
+                <p>약을 먹고 발진이 생기면 어떻게 해야 해?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_15 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q016. 소염진통제는 어떤 약이야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_016</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_016 / score 0.902 ANSWER</span>
+                <p>소염진통제는 어떤 약이야?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_16 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_16 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q017. 제산제랑 위산분비억제제는 뭐가 달라?</h3>
+        <div class="answer-ids">Answer chunk: chunk_017</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_017 / score 0.902 ANSWER</span>
+                <p>제산제랑 위산분비억제제는 뭐가 달라?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_17 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_17 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q018. 복용 시간을 놓쳤을 때 어떻게 해야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_018</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_018 / score 0.902 ANSWER</span>
+                <p>복용 시간을 놓쳤을 때 어떻게 해야 해?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_18 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_18 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q019. 임산부가 먹으면 주의해야 하는 약 정보 알려줘</h3>
+        <div class="answer-ids">Answer chunk: chunk_019</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_019 / score 0.902 ANSWER</span>
+                <p>임산부가 먹으면 주의해야 하는 약 정보 알려줘</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_19 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_19 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q020. 신장 기능이 안 좋은 사람이 조심해야 할 약은?</h3>
+        <div class="answer-ids">Answer chunk: chunk_020</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_20 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_020 / score 0.847 ANSWER</span>
+                <p>신장 기능이 안 좋은 사람이 조심해야 할 약은?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_20 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+        </div>
+      </section>
+    
+
+      <section class="model-card model-openai-large">
+        <div class="card-head">
+          <div>
+            <h2>OpenAI text-embedding-3-large</h2>
+            <p>Same vendor high-performance candidate</p>
+          </div>
+          <span class="badge badge-demo">DEMO</span>
+        </div>
+        <div class="metric-list">
+          <div class="good">
+            <span>1. Top-1 Accuracy</span><strong>90.0%</strong>
+          </div>
+          <div class="good">
+            <span>2. Top-3 Hit Rate</span><strong>100.0%</strong>
+          </div>
+          <div class="good">
+            <span>3. MRR</span><strong>0.95</strong>
+          </div>
+          <div class="good">
+            <span>4. Avg Response Time</span><strong>210ms</strong>
+          </div>
+        </div>
+        <div class="queries">
+          
+      <section class="query-block">
+        <h3>q001. 타이레놀 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: chunk_001</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_001 / score 0.902 ANSWER</span>
+                <p>타이레놀 복용 시 주의할 점은?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_1 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_1 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q002. 아세트아미노펜은 간에 안 좋을 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_002</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_002 / score 0.902 ANSWER</span>
+                <p>아세트아미노펜은 간에 안 좋을 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_2 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_2 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q003. 이부프로펜 먹으면 속 쓰릴 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_003</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_003 / score 0.902 ANSWER</span>
+                <p>이부프로펜 먹으면 속 쓰릴 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_3 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_3 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q004. 졸음이 올 수 있는 약은 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_004</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_004 / score 0.902 ANSWER</span>
+                <p>졸음이 올 수 있는 약은 뭐야?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_4 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_4 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q005. 위산분비억제제는 언제 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_005</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_005 / score 0.902 ANSWER</span>
+                <p>위산분비억제제는 언제 먹어야 해?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_5 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_5 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q006. 항생제 복용할 때 주의할 점 알려줘</h3>
+        <div class="answer-ids">Answer chunk: chunk_006</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_006 / score 0.902 ANSWER</span>
+                <p>항생제 복용할 때 주의할 점 알려줘</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_6 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_6 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q007. 혈압약 먹고 어지러울 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_007</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_7 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_007 / score 0.847 ANSWER</span>
+                <p>혈압약 먹고 어지러울 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_7 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q008. 당뇨약은 식사랑 관련 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_008</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_008 / score 0.902 ANSWER</span>
+                <p>당뇨약은 식사랑 관련 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_8 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_8 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q009. 멀미약 먹고 운전해도 돼?</h3>
+        <div class="answer-ids">Answer chunk: chunk_009</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_009 / score 0.902 ANSWER</span>
+                <p>멀미약 먹고 운전해도 돼?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_9 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_9 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q010. 스테로이드 연고는 오래 발라도 돼?</h3>
+        <div class="answer-ids">Answer chunk: chunk_010</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_010 / score 0.902 ANSWER</span>
+                <p>스테로이드 연고는 오래 발라도 돼?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_10 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_10 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q011. 알레르기약은 왜 졸릴 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_011</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_011 / score 0.902 ANSWER</span>
+                <p>알레르기약은 왜 졸릴 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_11 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_11 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q012. 진통제를 여러 개 같이 먹어도 괜찮아?</h3>
+        <div class="answer-ids">Answer chunk: chunk_012</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_012 / score 0.902 ANSWER</span>
+                <p>진통제를 여러 개 같이 먹어도 괜찮아?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_12 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_12 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q013. 위장장애가 생길 수 있는 약은 어떤 종류야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_013</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_013 / score 0.902 ANSWER</span>
+                <p>위장장애가 생길 수 있는 약은 어떤 종류야?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_13 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_13 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q014. 해열진통제 복용할 때 술 마셔도 돼?</h3>
+        <div class="answer-ids">Answer chunk: chunk_014</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_14 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_014 / score 0.847 ANSWER</span>
+                <p>해열진통제 복용할 때 술 마셔도 돼?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_14 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q015. 약을 먹고 발진이 생기면 어떻게 해야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_015</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_015 / score 0.902 ANSWER</span>
+                <p>약을 먹고 발진이 생기면 어떻게 해야 해?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_15 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_15 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q016. 소염진통제는 어떤 약이야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_016</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_016 / score 0.902 ANSWER</span>
+                <p>소염진통제는 어떤 약이야?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_16 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_16 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q017. 제산제랑 위산분비억제제는 뭐가 달라?</h3>
+        <div class="answer-ids">Answer chunk: chunk_017</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_017 / score 0.902 ANSWER</span>
+                <p>제산제랑 위산분비억제제는 뭐가 달라?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_17 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_17 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q018. 복용 시간을 놓쳤을 때 어떻게 해야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_018</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_018 / score 0.902 ANSWER</span>
+                <p>복용 시간을 놓쳤을 때 어떻게 해야 해?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_18 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_18 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q019. 임산부가 먹으면 주의해야 하는 약 정보 알려줘</h3>
+        <div class="answer-ids">Answer chunk: chunk_019</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_019 / score 0.902 ANSWER</span>
+                <p>임산부가 먹으면 주의해야 하는 약 정보 알려줘</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_19 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_19 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q020. 신장 기능이 안 좋은 사람이 조심해야 할 약은?</h3>
+        <div class="answer-ids">Answer chunk: chunk_020</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_020 / score 0.902 ANSWER</span>
+                <p>신장 기능이 안 좋은 사람이 조심해야 할 약은?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_20 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_20 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+        </div>
+      </section>
+    
+
+      <section class="model-card model-upstage-solar">
+        <div class="card-head">
+          <div>
+            <h2>Upstage Solar Embedding</h2>
+            <p>Korean-friendly query/passage candidate</p>
+          </div>
+          <span class="badge badge-demo">DEMO</span>
+        </div>
+        <div class="metric-list">
+          <div class="good">
+            <span>1. Top-1 Accuracy</span><strong>85.0%</strong>
+          </div>
+          <div class="good">
+            <span>2. Top-3 Hit Rate</span><strong>100.0%</strong>
+          </div>
+          <div class="good">
+            <span>3. MRR</span><strong>0.93</strong>
+          </div>
+          <div class="good">
+            <span>4. Avg Response Time</span><strong>250ms</strong>
+          </div>
+        </div>
+        <div class="queries">
+          
+      <section class="query-block">
+        <h3>q001. 타이레놀 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: chunk_001</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_001 / score 0.902 ANSWER</span>
+                <p>타이레놀 복용 시 주의할 점은?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_1 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_1 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q002. 아세트아미노펜은 간에 안 좋을 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_002</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_002 / score 0.902 ANSWER</span>
+                <p>아세트아미노펜은 간에 안 좋을 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_2 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_2 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q003. 이부프로펜 먹으면 속 쓰릴 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_003</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_003 / score 0.902 ANSWER</span>
+                <p>이부프로펜 먹으면 속 쓰릴 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_3 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_3 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q004. 졸음이 올 수 있는 약은 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_004</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_004 / score 0.902 ANSWER</span>
+                <p>졸음이 올 수 있는 약은 뭐야?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_4 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_4 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q005. 위산분비억제제는 언제 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_005</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_005 / score 0.902 ANSWER</span>
+                <p>위산분비억제제는 언제 먹어야 해?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_5 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_5 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q006. 항생제 복용할 때 주의할 점 알려줘</h3>
+        <div class="answer-ids">Answer chunk: chunk_006</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_6 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_006 / score 0.847 ANSWER</span>
+                <p>항생제 복용할 때 주의할 점 알려줘</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_6 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q007. 혈압약 먹고 어지러울 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_007</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_007 / score 0.902 ANSWER</span>
+                <p>혈압약 먹고 어지러울 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_7 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_7 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q008. 당뇨약은 식사랑 관련 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_008</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_008 / score 0.902 ANSWER</span>
+                <p>당뇨약은 식사랑 관련 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_8 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_8 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q009. 멀미약 먹고 운전해도 돼?</h3>
+        <div class="answer-ids">Answer chunk: chunk_009</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_009 / score 0.902 ANSWER</span>
+                <p>멀미약 먹고 운전해도 돼?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_9 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_9 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q010. 스테로이드 연고는 오래 발라도 돼?</h3>
+        <div class="answer-ids">Answer chunk: chunk_010</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_010 / score 0.902 ANSWER</span>
+                <p>스테로이드 연고는 오래 발라도 돼?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_10 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_10 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q011. 알레르기약은 왜 졸릴 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_011</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_011 / score 0.902 ANSWER</span>
+                <p>알레르기약은 왜 졸릴 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_11 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_11 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q012. 진통제를 여러 개 같이 먹어도 괜찮아?</h3>
+        <div class="answer-ids">Answer chunk: chunk_012</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_12 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_012 / score 0.847 ANSWER</span>
+                <p>진통제를 여러 개 같이 먹어도 괜찮아?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_12 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q013. 위장장애가 생길 수 있는 약은 어떤 종류야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_013</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_013 / score 0.902 ANSWER</span>
+                <p>위장장애가 생길 수 있는 약은 어떤 종류야?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_13 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_13 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q014. 해열진통제 복용할 때 술 마셔도 돼?</h3>
+        <div class="answer-ids">Answer chunk: chunk_014</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_014 / score 0.902 ANSWER</span>
+                <p>해열진통제 복용할 때 술 마셔도 돼?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_14 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_14 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q015. 약을 먹고 발진이 생기면 어떻게 해야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_015</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_015 / score 0.902 ANSWER</span>
+                <p>약을 먹고 발진이 생기면 어떻게 해야 해?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_15 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_15 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q016. 소염진통제는 어떤 약이야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_016</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_016 / score 0.902 ANSWER</span>
+                <p>소염진통제는 어떤 약이야?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_16 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_16 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q017. 제산제랑 위산분비억제제는 뭐가 달라?</h3>
+        <div class="answer-ids">Answer chunk: chunk_017</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_017 / score 0.902 ANSWER</span>
+                <p>제산제랑 위산분비억제제는 뭐가 달라?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_17 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_17 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q018. 복용 시간을 놓쳤을 때 어떻게 해야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_018</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_18 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_018 / score 0.847 ANSWER</span>
+                <p>복용 시간을 놓쳤을 때 어떻게 해야 해?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_18 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q019. 임산부가 먹으면 주의해야 하는 약 정보 알려줘</h3>
+        <div class="answer-ids">Answer chunk: chunk_019</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_019 / score 0.902 ANSWER</span>
+                <p>임산부가 먹으면 주의해야 하는 약 정보 알려줘</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_19 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_19 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q020. 신장 기능이 안 좋은 사람이 조심해야 할 약은?</h3>
+        <div class="answer-ids">Answer chunk: chunk_020</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_020 / score 0.902 ANSWER</span>
+                <p>신장 기능이 안 좋은 사람이 조심해야 할 약은?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_20 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_20 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+        </div>
+      </section>
+    
+
+      <section class="model-card model-bge-m3">
+        <div class="card-head">
+          <div>
+            <h2>BAAI bge-m3</h2>
+            <p>Open-source self-hosting candidate</p>
+          </div>
+          <span class="badge badge-demo">DEMO</span>
+        </div>
+        <div class="metric-list">
+          <div class="mid">
+            <span>1. Top-1 Accuracy</span><strong>70.0%</strong>
+          </div>
+          <div class="good">
+            <span>2. Top-3 Hit Rate</span><strong>90.0%</strong>
+          </div>
+          <div class="good">
+            <span>3. MRR</span><strong>0.80</strong>
+          </div>
+          <div class="mid">
+            <span>4. Avg Response Time</span><strong>620ms</strong>
+          </div>
+        </div>
+        <div class="queries">
+          
+      <section class="query-block">
+        <h3>q001. 타이레놀 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: chunk_001</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_001 / score 0.902 ANSWER</span>
+                <p>타이레놀 복용 시 주의할 점은?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_1 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_1 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q002. 아세트아미노펜은 간에 안 좋을 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_002</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_002 / score 0.902 ANSWER</span>
+                <p>아세트아미노펜은 간에 안 좋을 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_2 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_2 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q003. 이부프로펜 먹으면 속 쓰릴 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_003</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_003 / score 0.902 ANSWER</span>
+                <p>이부프로펜 먹으면 속 쓰릴 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_3 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_3 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q004. 졸음이 올 수 있는 약은 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_004</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_4 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_004 / score 0.847 ANSWER</span>
+                <p>졸음이 올 수 있는 약은 뭐야?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_4 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q005. 위산분비억제제는 언제 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_005</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_005 / score 0.902 ANSWER</span>
+                <p>위산분비억제제는 언제 먹어야 해?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_5 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_5 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q006. 항생제 복용할 때 주의할 점 알려줘</h3>
+        <div class="answer-ids">Answer chunk: chunk_006</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_006 / score 0.902 ANSWER</span>
+                <p>항생제 복용할 때 주의할 점 알려줘</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_6 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_6 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q007. 혈압약 먹고 어지러울 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_007</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_007 / score 0.902 ANSWER</span>
+                <p>혈압약 먹고 어지러울 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_7 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_7 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q008. 당뇨약은 식사랑 관련 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_008</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_8 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_008 / score 0.847 ANSWER</span>
+                <p>당뇨약은 식사랑 관련 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_8 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q009. 멀미약 먹고 운전해도 돼?</h3>
+        <div class="answer-ids">Answer chunk: chunk_009</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_009 / score 0.902 ANSWER</span>
+                <p>멀미약 먹고 운전해도 돼?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_9 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_9 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q010. 스테로이드 연고는 오래 발라도 돼?</h3>
+        <div class="answer-ids">Answer chunk: chunk_010</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related but not answer</strong>
+                <span>chunk_noise_10_1 / score 0.842 </span>
+                <p>A semantically related chunk was retrieved first.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Similar medication information</strong>
+                <span>chunk_noise_10_2 / score 0.823 </span>
+                <p>This result is close, but it is not the labeled answer chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>General caution text</strong>
+                <span>chunk_noise_10_3 / score 0.801 </span>
+                <p>General medicine guidance appeared in the result.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q011. 알레르기약은 왜 졸릴 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_011</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_011 / score 0.902 ANSWER</span>
+                <p>알레르기약은 왜 졸릴 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_11 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_11 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q012. 진통제를 여러 개 같이 먹어도 괜찮아?</h3>
+        <div class="answer-ids">Answer chunk: chunk_012</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_12 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_012 / score 0.847 ANSWER</span>
+                <p>진통제를 여러 개 같이 먹어도 괜찮아?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_12 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q013. 위장장애가 생길 수 있는 약은 어떤 종류야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_013</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_013 / score 0.902 ANSWER</span>
+                <p>위장장애가 생길 수 있는 약은 어떤 종류야?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_13 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_13 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q014. 해열진통제 복용할 때 술 마셔도 돼?</h3>
+        <div class="answer-ids">Answer chunk: chunk_014</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_014 / score 0.902 ANSWER</span>
+                <p>해열진통제 복용할 때 술 마셔도 돼?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_14 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_14 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q015. 약을 먹고 발진이 생기면 어떻게 해야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_015</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_015 / score 0.902 ANSWER</span>
+                <p>약을 먹고 발진이 생기면 어떻게 해야 해?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_15 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_15 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q016. 소염진통제는 어떤 약이야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_016</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_16 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_016 / score 0.847 ANSWER</span>
+                <p>소염진통제는 어떤 약이야?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_16 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q017. 제산제랑 위산분비억제제는 뭐가 달라?</h3>
+        <div class="answer-ids">Answer chunk: chunk_017</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_017 / score 0.902 ANSWER</span>
+                <p>제산제랑 위산분비억제제는 뭐가 달라?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_17 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_17 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q018. 복용 시간을 놓쳤을 때 어떻게 해야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_018</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_018 / score 0.902 ANSWER</span>
+                <p>복용 시간을 놓쳤을 때 어떻게 해야 해?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_18 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_18 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q019. 임산부가 먹으면 주의해야 하는 약 정보 알려줘</h3>
+        <div class="answer-ids">Answer chunk: chunk_019</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_019 / score 0.902 ANSWER</span>
+                <p>임산부가 먹으면 주의해야 하는 약 정보 알려줘</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_19 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_19 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q020. 신장 기능이 안 좋은 사람이 조심해야 할 약은?</h3>
+        <div class="answer-ids">Answer chunk: chunk_020</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related but not answer</strong>
+                <span>chunk_noise_20_1 / score 0.842 </span>
+                <p>A semantically related chunk was retrieved first.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Similar medication information</strong>
+                <span>chunk_noise_20_2 / score 0.823 </span>
+                <p>This result is close, but it is not the labeled answer chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>General caution text</strong>
+                <span>chunk_noise_20_3 / score 0.801 </span>
+                <p>General medicine guidance appeared in the result.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+        </div>
+      </section>
+    
+
+      <section class="model-card model-gemini">
+        <div class="card-head">
+          <div>
+            <h2>Gemini Embedding</h2>
+            <p>Google multilingual embedding candidate</p>
+          </div>
+          <span class="badge badge-demo">DEMO</span>
+        </div>
+        <div class="metric-list">
+          <div class="mid">
+            <span>1. Top-1 Accuracy</span><strong>75.0%</strong>
+          </div>
+          <div class="good">
+            <span>2. Top-3 Hit Rate</span><strong>95.0%</strong>
+          </div>
+          <div class="good">
+            <span>3. MRR</span><strong>0.85</strong>
+          </div>
+          <div class="good">
+            <span>4. Avg Response Time</span><strong>230ms</strong>
+          </div>
+        </div>
+        <div class="queries">
+          
+      <section class="query-block">
+        <h3>q001. 타이레놀 복용 시 주의할 점은?</h3>
+        <div class="answer-ids">Answer chunk: chunk_001</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_001 / score 0.902 ANSWER</span>
+                <p>타이레놀 복용 시 주의할 점은?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_1 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_1 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q002. 아세트아미노펜은 간에 안 좋을 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_002</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_002 / score 0.902 ANSWER</span>
+                <p>아세트아미노펜은 간에 안 좋을 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_2 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_2 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q003. 이부프로펜 먹으면 속 쓰릴 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_003</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_003 / score 0.902 ANSWER</span>
+                <p>이부프로펜 먹으면 속 쓰릴 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_3 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_3 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q004. 졸음이 올 수 있는 약은 뭐야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_004</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_004 / score 0.902 ANSWER</span>
+                <p>졸음이 올 수 있는 약은 뭐야?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_4 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_4 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q005. 위산분비억제제는 언제 먹어야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_005</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_5 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_005 / score 0.847 ANSWER</span>
+                <p>위산분비억제제는 언제 먹어야 해?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_5 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q006. 항생제 복용할 때 주의할 점 알려줘</h3>
+        <div class="answer-ids">Answer chunk: chunk_006</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_006 / score 0.902 ANSWER</span>
+                <p>항생제 복용할 때 주의할 점 알려줘</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_6 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_6 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q007. 혈압약 먹고 어지러울 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_007</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_007 / score 0.902 ANSWER</span>
+                <p>혈압약 먹고 어지러울 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_7 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_7 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q008. 당뇨약은 식사랑 관련 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_008</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_008 / score 0.902 ANSWER</span>
+                <p>당뇨약은 식사랑 관련 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_8 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_8 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q009. 멀미약 먹고 운전해도 돼?</h3>
+        <div class="answer-ids">Answer chunk: chunk_009</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_009 / score 0.902 ANSWER</span>
+                <p>멀미약 먹고 운전해도 돼?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_9 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_9 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q010. 스테로이드 연고는 오래 발라도 돼?</h3>
+        <div class="answer-ids">Answer chunk: chunk_010</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_10 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_010 / score 0.847 ANSWER</span>
+                <p>스테로이드 연고는 오래 발라도 돼?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_10 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q011. 알레르기약은 왜 졸릴 수 있어?</h3>
+        <div class="answer-ids">Answer chunk: chunk_011</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_011 / score 0.902 ANSWER</span>
+                <p>알레르기약은 왜 졸릴 수 있어?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_11 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_11 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q012. 진통제를 여러 개 같이 먹어도 괜찮아?</h3>
+        <div class="answer-ids">Answer chunk: chunk_012</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related but not answer</strong>
+                <span>chunk_noise_12_1 / score 0.842 </span>
+                <p>A semantically related chunk was retrieved first.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Similar medication information</strong>
+                <span>chunk_noise_12_2 / score 0.823 </span>
+                <p>This result is close, but it is not the labeled answer chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>General caution text</strong>
+                <span>chunk_noise_12_3 / score 0.801 </span>
+                <p>General medicine guidance appeared in the result.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q013. 위장장애가 생길 수 있는 약은 어떤 종류야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_013</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_013 / score 0.902 ANSWER</span>
+                <p>위장장애가 생길 수 있는 약은 어떤 종류야?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_13 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_13 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q014. 해열진통제 복용할 때 술 마셔도 돼?</h3>
+        <div class="answer-ids">Answer chunk: chunk_014</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_014 / score 0.902 ANSWER</span>
+                <p>해열진통제 복용할 때 술 마셔도 돼?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_14 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_14 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q015. 약을 먹고 발진이 생기면 어떻게 해야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_015</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_15 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_015 / score 0.847 ANSWER</span>
+                <p>약을 먹고 발진이 생기면 어떻게 해야 해?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_15 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q016. 소염진통제는 어떤 약이야?</h3>
+        <div class="answer-ids">Answer chunk: chunk_016</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_016 / score 0.902 ANSWER</span>
+                <p>소염진통제는 어떤 약이야?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_16 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_16 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q017. 제산제랑 위산분비억제제는 뭐가 달라?</h3>
+        <div class="answer-ids">Answer chunk: chunk_017</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_017 / score 0.902 ANSWER</span>
+                <p>제산제랑 위산분비억제제는 뭐가 달라?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_17 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_17 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q018. 복용 시간을 놓쳤을 때 어떻게 해야 해?</h3>
+        <div class="answer-ids">Answer chunk: chunk_018</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_018 / score 0.902 ANSWER</span>
+                <p>복용 시간을 놓쳤을 때 어떻게 해야 해?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_18 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_18 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q019. 임산부가 먹으면 주의해야 하는 약 정보 알려줘</h3>
+        <div class="answer-ids">Answer chunk: chunk_019</div>
+        <ol>
+            <li class="answer">
+              <div class="rank">1</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_019 / score 0.902 ANSWER</span>
+                <p>임산부가 먹으면 주의해야 하는 약 정보 알려줘</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">2</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_19 / score 0.831 </span>
+                <p>A related medicine information chunk.</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_19 / score 0.775 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+
+      <section class="query-block">
+        <h3>q020. 신장 기능이 안 좋은 사람이 조심해야 할 약은?</h3>
+        <div class="answer-ids">Answer chunk: chunk_020</div>
+        <ol>
+            <li class="">
+              <div class="rank">1</div>
+              <div>
+                <strong>Related candidate</strong>
+                <span>chunk_related_20 / score 0.861 </span>
+                <p>A related chunk was ranked above the answer.</p>
+              </div>
+            </li>
+            
+            <li class="answer">
+              <div class="rank">2</div>
+              <div>
+                <strong>Answer chunk</strong>
+                <span>chunk_020 / score 0.847 ANSWER</span>
+                <p>신장 기능이 안 좋은 사람이 조심해야 할 약은?</p>
+              </div>
+            </li>
+            
+            <li class="">
+              <div class="rank">3</div>
+              <div>
+                <strong>Other candidate</strong>
+                <span>chunk_other_20 / score 0.790 </span>
+                <p>Another retrieved chunk.</p>
+              </div>
+            </li>
+            </ol>
+      </section>
+    
+        </div>
+      </section>
+    
+    </section>
+
+    <p class="footnote">
+      Evaluation scope: embedding model retrieval quality only. Cost, reranker, LLM answer generation,
+      prompt quality, and post-processing logic are excluded. Top-k success is measured by whether
+      the pre-labeled answer chunk appears in the retrieved results.
+    </p>
+  </main>
+</body>
+</html>

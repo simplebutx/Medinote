@@ -1,0 +1,102 @@
+[
+  {
+    "id": "q001",
+    "question": "타이레놀 복용 시 주의할 점은?",
+    "answerChunkIds": ["chunk_001"]
+  },
+  {
+    "id": "q002",
+    "question": "아세트아미노펜은 간에 안 좋을 수 있어?",
+    "answerChunkIds": ["chunk_002"]
+  },
+  {
+    "id": "q003",
+    "question": "이부프로펜 먹으면 속 쓰릴 수 있어?",
+    "answerChunkIds": ["chunk_003"]
+  },
+  {
+    "id": "q004",
+    "question": "졸음이 올 수 있는 약은 뭐야?",
+    "answerChunkIds": ["chunk_004"]
+  },
+  {
+    "id": "q005",
+    "question": "위산분비억제제는 언제 먹어야 해?",
+    "answerChunkIds": ["chunk_005"]
+  },
+  {
+    "id": "q006",
+    "question": "항생제 복용할 때 주의할 점 알려줘",
+    "answerChunkIds": ["chunk_006"]
+  },
+  {
+    "id": "q007",
+    "question": "혈압약 먹고 어지러울 수 있어?",
+    "answerChunkIds": ["chunk_007"]
+  },
+  {
+    "id": "q008",
+    "question": "당뇨약은 식사랑 관련 있어?",
+    "answerChunkIds": ["chunk_008"]
+  },
+  {
+    "id": "q009",
+    "question": "멀미약 먹고 운전해도 돼?",
+    "answerChunkIds": ["chunk_009"]
+  },
+  {
+    "id": "q010",
+    "question": "스테로이드 연고는 오래 발라도 돼?",
+    "answerChunkIds": ["chunk_010"]
+  },
+  {
+    "id": "q011",
+    "question": "알레르기약은 왜 졸릴 수 있어?",
+    "answerChunkIds": ["chunk_011"]
+  },
+  {
+    "id": "q012",
+    "question": "진통제를 여러 개 같이 먹어도 괜찮아?",
+    "answerChunkIds": ["chunk_012"]
+  },
+  {
+    "id": "q013",
+    "question": "위장장애가 생길 수 있는 약은 어떤 종류야?",
+    "answerChunkIds": ["chunk_013"]
+  },
+  {
+    "id": "q014",
+    "question": "해열진통제 복용할 때 술 마셔도 돼?",
+    "answerChunkIds": ["chunk_014"]
+  },
+  {
+    "id": "q015",
+    "question": "약을 먹고 발진이 생기면 어떻게 해야 해?",
+    "answerChunkIds": ["chunk_015"]
+  },
+  {
+    "id": "q016",
+    "question": "소염진통제는 어떤 약이야?",
+    "answerChunkIds": ["chunk_016"]
+  },
+  {
+    "id": "q017",
+    "question": "제산제랑 위산분비억제제는 뭐가 달라?",
+    "answerChunkIds": ["chunk_017"]
+  },
+  {
+    "id": "q018",
+    "question": "복용 시간을 놓쳤을 때 어떻게 해야 해?",
+    "answerChunkIds": ["chunk_018"]
+  },
+  {
+    "id": "q019",
+    "question": "임산부가 먹으면 주의해야 하는 약 정보 알려줘",
+    "answerChunkIds": ["chunk_019"]
+  },
+  {
+    "id": "q020",
+    "question": "신장 기능이 안 좋은 사람이 조심해야 할 약은?",
+    "answerChunkIds": ["chunk_020"]
+  }
+]
