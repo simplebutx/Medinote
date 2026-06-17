@@ -21,7 +21,7 @@ def analyze_prescription(request: AiOcrRequest) -> AiOcrResponse:
     image_quality = assess_image_quality(image_array)   # 이미지 품질 점수화
     preprocessed_image = preprocess_prescription_image(image_array)  # 이미지 전처리
 
-    all_tokens, orientation_info = _extract_tokens_with_orientation_fallback(preprocessed_image)  # OCR 호출해서 텍스트를 토큰 단위로 추출
+    all_tokens, orientation_info = _extract_tokens_with_orientation_fallback(preprocessed_image)  # OCR 호출해서 텍스트를 토큰 단위로 추출, 품질별로면 다시
     confidence_summary = _summarize_token_confidence(all_tokens)   # OCR이 읽은 글자/단어 결과를 얼마나 믿을 수 있는지 요약
     structured_result = _build_structured_result(all_tokens)  # OCR로 읽은 전체 토큰을 최종 구조화 결과로 변환
     raw_text = "\n".join(_tokens_to_lines(all_tokens))

@@ -33,6 +33,10 @@ import org.springframework.web.client.RestClientException;
 @RequiredArgsConstructor
 public class ChatbotMessageService {
     private static final Pattern MEDICINE_MENTION_PATTERN = Pattern.compile("@([^\\s,]+)");
+    private static final String ANSWER_TYPE_FALLBACK = "FALLBACK";
+    private static final String MULTIPLE_MEDICINE_FALLBACK_MESSAGE = "한 번에 하나의 약을 선택해 질문해주세요.";
+    private static final String AI_SERVER_ERROR_MESSAGE = "현재 AI 서버와 통신이 원활하지 않아요. 잠시 후 다시 시도해 주세요.";
+    private static final String GENERAL_ERROR_MESSAGE = "요청을 처리하는 중 문제가 발생했어요.";
 
     private final ChatbotMessageRepository chatbotMessageRepository;
     private final ChatbotRoomRepository chatbotRoomRepository;
@@ -46,15 +50,21 @@ public class ChatbotMessageService {
         ChatbotRoom room = getOwnedRoom(userId, dto.getRoomId());
 
         try {
-            // 메시지 전처리 + 위험 키워드 확인
             String message = dto.getMessage();
+
+            // 메시지 전처리
             String normalizedMessage = messagePreprocessor.preprocess(message);
 
+            // 메세지 저장
             chatbotMessageRepository.save(ChatbotMessage.create(room, SenderType.USER, message));
             room.touch();
 
             // @로 직접 선택한 약 이름
             List<String> extractedNames = extractMentionedMedicineNames(message);
+            if (extractedNames.size() > 1) {
+                return saveBotFallback(room, MULTIPLE_MEDICINE_FALLBACK_MESSAGE);
+            }
+
             ChatbotIntentResult intentResult = chatbotIntentClassifier.classify(normalizedMessage, extractedNames);  // intent 판별
 
             // 질문 intent type
@@ -78,11 +88,7 @@ public class ChatbotMessageService {
 
             AiChatBotResponse aiResponse = aiChatBotClient.sendChat(aiRequest);  // consultation(8082) -> ai(8000)
             if (aiResponse == null || aiResponse.answer() == null || aiResponse.answer().isBlank()) {
-                ChatbotMessage savedBotMessage = chatbotMessageRepository.save(
-                        ChatbotMessage.create(room, SenderType.BOT, "답변을 생성하지 못했어요. 다시 시도해 주세요.")
-                );
-                room.touch();
-                return toResponse(savedBotMessage);
+                return saveBotFallback(room, "답변을 생성하지 못했어요. 다시 시도해 주세요.");
             }
 
             log.debug(
@@ -97,10 +103,18 @@ public class ChatbotMessageService {
             room.touch();
             return toResponse(savedBotMessage);  // ai(8000) -> consultation(8082)
         } catch (RestClientException e) {
-            return new ChatbotMessageResponse("현재 AI 서버와 통신이 원활하지 않아요. 잠시 후 다시 시도해 주세요.");
+            return saveBotFallback(room, AI_SERVER_ERROR_MESSAGE);
         } catch (Exception e) {
-            return new ChatbotMessageResponse("요청을 처리하는 중 문제가 발생했어요.");
+            return saveBotFallback(room, GENERAL_ERROR_MESSAGE);
         }
+    }
+
+    private ChatbotMessageResponse saveBotFallback(ChatbotRoom room, String message) {
+        ChatbotMessage savedBotMessage = chatbotMessageRepository.save(
+                ChatbotMessage.create(room, SenderType.BOT, message, ANSWER_TYPE_FALLBACK)
+        );
+        room.touch();
+        return toResponse(savedBotMessage);
     }
 
     // 메시지 안의 @약이름을 중복 없이 추출
