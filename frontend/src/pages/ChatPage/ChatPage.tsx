@@ -352,31 +352,43 @@ function getPreviousUserMessage(messages: ChatMessage[], currentIndex: number) {
 function removeDuplicateChatMessages(messages: ChatMessage[]) {
   const seen = new Set<string>();
 
+  /**
+   * 서버에서 내려온 USER 메시지 내용을 미리 등록해둔다.
+   * 로컬 optimistic USER 메시지와 서버 USER 메시지가 다른 key를 가져
+   * 둘 다 살아남는 문제(버블 중복 → 순서 꼬임)를 막기 위함.
+   */
+  for (const msg of messages) {
+    if (msg.apiMessageId && msg.sender === 'USER') {
+      seen.add(`user-content:${msg.content.trim()}`);
+    }
+  }
+
   return messages.filter((message) => {
     /**
-     * 서버 저장 메시지는 apiMessageId 기준으로만 중복 제거
+     * 서버 저장 메시지는 apiMessageId 기준으로 중복 제거
      */
     if (message.apiMessageId) {
       const key = `api-${message.apiMessageId}`;
-
-      if (seen.has(key)) {
-        return false;
-      }
-
+      if (seen.has(key)) return false;
       seen.add(key);
       return true;
     }
 
     /**
-     * 로컬 메시지는 id 기준으로만 중복 제거
-     * 같은 내용의 질문/답변이 반복되어도 별도 메시지로 보여야 함
+     * apiMessageId 없는 로컬 USER 메시지:
+     * 서버에 이미 같은 내용이 확인됐으면 제거 (optimistic 중복 방지)
      */
-    const key = `local-${message.id}`;
-
-    if (seen.has(key)) {
-      return false;
+    if (message.sender === 'USER') {
+      const contentKey = `user-content:${message.content.trim()}`;
+      if (seen.has(contentKey)) return false;
+      seen.add(contentKey);
     }
 
+    /**
+     * 나머지 로컬 메시지(AI 응답, SYSTEM 등)는 id 기준으로 중복 제거
+     */
+    const key = `local-${message.id}`;
+    if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
@@ -520,7 +532,7 @@ function ChatPage() {
 
   const generateConsultSummaryMutation = useGenerateConsultSummary();
 
-  const { data: myConsultRooms = [], isLoading: isMyConsultRoomsLoading } =
+  const { data: myConsultRooms = [] } =
     useMyConsultRooms(activeMode === 'pharmacist');
 
   const { data: chatbotRooms = [], isLoading: isChatbotRoomsLoading } =
@@ -1186,20 +1198,6 @@ function ChatPage() {
     setIsDrugSearchOpen(false);
   };
 
-  const handleQuickQuestion = async (question: string) => {
-    try {
-      const aiQuestion = buildChatbotMessageText(question, selectedDrugs);
-
-      await sendAiQuestion(aiQuestion, selectedDrugs, question);
-
-      setMessage('');
-      setSelectedDrugs([]);
-      setIsDrugSearchOpen(false);
-    } catch (error) {
-      console.error('빠른 질문 전송 실패:', error);
-    }
-  };
-
   const applyPendingPharmacistDraft = () => {
     const savedDraft = localStorage.getItem(PHARMACIST_DRAFT_STORAGE_KEY);
 
@@ -1219,11 +1217,6 @@ function ChatPage() {
 
     setIsDrugSearchOpen(false);
     localStorage.removeItem(PHARMACIST_DRAFT_STORAGE_KEY);
-  };
-
-  const handleMoveToPharmacist = () => {
-    setActiveMode('pharmacist');
-    applyPendingPharmacistDraft();
   };
 
   const handleContinueToPharmacist = async (

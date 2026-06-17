@@ -98,6 +98,15 @@ export interface UserAdditionalInfoRequest {
   isChild?: boolean;
   isElderly?: boolean;
   diseaseNames: string[];
+  cautions?: {
+    itemSeq?: number | null;
+    itemName?: string | null;
+    ingredientCode?: string | null;
+    ingredientName?: string | null;
+    reason: string;
+    cautionType: string;
+    memo?: string | null;
+  }[];
 }
 
 export interface UserAdditionalInfoResponse {

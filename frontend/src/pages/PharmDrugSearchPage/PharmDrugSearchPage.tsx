@@ -151,7 +151,7 @@ function PharmDrugSearchPage() {
   const suggestKeyword = debouncedKeyword.trim();
   const searchKeyword = committedKeyword.trim();
 
-  const isSuggestEnabled = suggestKeyword.length >= 2;
+  const isSuggestEnabled = suggestKeyword.length >= 2 && !committedKeyword;
   const isSearchEnabled = searchKeyword.length >= 2;
 
   const {
@@ -165,7 +165,8 @@ function PharmDrugSearchPage() {
     isLoading: isMedicineSuggestLoading,
   } = useMedicineSuggest(isSuggestEnabled ? suggestKeyword : '');
 
-  const shouldShowSearchDropdown = keyword.trim().length >= 2;
+  // 제안 선택 시 committedKeyword가 설정되면 드롭다운 닫힘
+  const shouldShowSearchDropdown = keyword.trim().length >= 2 && !committedKeyword;
 
   const selectedMedicine = useMemo(() => {
     if (medicineResults.length === 0) return null;
@@ -216,21 +217,21 @@ function PharmDrugSearchPage() {
 
                 <div className="max-h-64 overflow-y-auto">
                   {/* ── Suggest loading ── */}
-                  {isSuggestEnabled && !committedKeyword && isMedicineSuggestLoading && (
+                  {isSuggestEnabled && isMedicineSuggestLoading && (
                     <div className="px-4 py-5 text-center text-sm text-slate-400">
                       검색 중…
                     </div>
                   )}
 
                   {/* ── Suggest empty ── */}
-                  {isSuggestEnabled && !committedKeyword && !isMedicineSuggestLoading && suggestions.length === 0 && (
+                  {isSuggestEnabled && !isMedicineSuggestLoading && suggestions.length === 0 && (
                     <div className="px-4 py-5 text-center text-sm text-slate-400">
                       검색 결과가 없습니다.
                     </div>
                   )}
 
                   {/* ── Suggest list ── */}
-                  {isSuggestEnabled && !committedKeyword && !isMedicineSuggestLoading &&
+                  {isSuggestEnabled && !isMedicineSuggestLoading &&
                     suggestions.map((suggestion) => (
                       <button
                         key={suggestion}
@@ -238,7 +239,6 @@ function PharmDrugSearchPage() {
                         onClick={() => handleSelectKeyword(suggestion)}
                         className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-emerald-50"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-300"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
                         <span className="text-sm font-semibold text-slate-800">{suggestion}</span>
                       </button>
                     ))}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 import { Badge, Card } from '../../components/ui';
 import {
@@ -19,6 +20,7 @@ import type {
   ConsultRoomStatus,
   ConsultSocketMessage,
 } from '../../features/consult/types';
+import type { CautionItem, CautionReason } from '../../features/user/types/caution.types';
 
 type ConsultTabStatus = 'PENDING' | 'ACTIVE' | 'COMPLETED';
 
@@ -135,6 +137,23 @@ function formatMessageTime(value?: string) {
   }).format(date);
 }
 
+const CAUTION_REASON_LABELS: Record<CautionReason, string> = {
+  ALLERGY: '알레르기',
+  SIDE_EFFECT: '부작용',
+  DOCTOR_ADVICE: '의사 권고',
+  PHARMACIST_ADVICE: '약사 권고',
+  PERSONAL_AVOID: '개인 회피',
+  OTHER: '기타',
+};
+
+function getCautionReasonLabel(reason: CautionReason): string {
+  return CAUTION_REASON_LABELS[reason] ?? reason;
+}
+
+function getCautionName(caution: CautionItem): string {
+  return caution.itemName ?? caution.ingredientName ?? '알 수 없음';
+}
+
 function getPatientHealthBadges(patientInfo: {
   isPregnant?: boolean;
   isBreastfeeding?: boolean;
@@ -163,6 +182,7 @@ function getPatientHealthBadges(patientInfo: {
 }
 
 function ConsultPage() {
+  const navigate = useNavigate();
   const consultMessagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   const [activeStatus, setActiveStatus] = useState<ConsultTabStatus>('PENDING');
@@ -657,20 +677,22 @@ function ConsultPage() {
                 </div>
               </section>
 
-              <section className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <h3 className="text-sm font-semibold text-slate-500">
+              <section className="grid gap-3 md:grid-cols-3">
+                {/* 환자 정보 — 클릭 시 환자 조회 페이지로 이동 */}
+                <button
+                  type="button"
+                  onClick={() => navigate(`/pharmacist/patients?roomId=${selectedRoom.roomId}`)}
+                  className="rounded-2xl bg-slate-50 p-4 text-left transition hover:bg-emerald-50 hover:ring-1 hover:ring-emerald-200"
+                >
+                  <h3 className="flex items-center gap-1 text-sm font-semibold text-slate-500">
                     환자 정보
+                    <span className="text-xs text-emerald-600">↗</span>
                   </h3>
 
                   {isPatientInfoLoading ? (
-                    <p className="mt-2 text-sm text-slate-500">
-                      환자 정보를 불러오는 중입니다.
-                    </p>
+                    <p className="mt-2 text-sm text-slate-500">불러오는 중...</p>
                   ) : isPatientInfoError ? (
-                    <p className="mt-2 text-sm text-red-600">
-                      환자 정보를 불러오지 못했습니다.
-                    </p>
+                    <p className="mt-2 text-sm text-red-600">불러오지 못했습니다.</p>
                   ) : (
                     <div className="mt-2 space-y-2 text-sm text-slate-700">
                       <p>이름: {getPatientDisplayName(patientInfo)}</p>
@@ -678,22 +700,40 @@ function ConsultPage() {
                       <p>생년월일: {patientInfo?.birthDate ?? '-'}{(() => { const age = calcKoreanAge(patientInfo?.birthDate); return age != null ? ` (만 ${age}세)` : ''; })()}</p>
                     </div>
                   )}
-                </div>
+                </button>
 
+                {/* 건강 정보 */}
                 <div className="rounded-2xl bg-slate-50 p-4">
-                  <h3 className="text-sm font-semibold text-slate-500">
-                    건강 정보 참고
-                  </h3>
-
+                  <h3 className="text-sm font-semibold text-slate-500">건강 정보</h3>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {patientHealthBadges.length === 0 ? (
                       <Badge variant="gray">특이사항 없음</Badge>
                     ) : (
                       patientHealthBadges.map((badge) => (
-                        <Badge key={badge} variant="red">
-                          {badge}
-                        </Badge>
+                        <Badge key={badge} variant="red">{badge}</Badge>
                       ))
+                    )}
+                  </div>
+                </div>
+
+                {/* 알레르기/주의 성분 */}
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <h3 className="text-sm font-semibold text-slate-500">알레르기/주의 성분</h3>
+                  <div className="mt-3">
+                    {!patientInfo?.cautions || patientInfo.cautions.length === 0 ? (
+                      <Badge variant="gray">해당 없음</Badge>
+                    ) : (
+                      <div className="space-y-2">
+                        {patientInfo.cautions.map((caution) => (
+                          <div key={caution.id} className="flex flex-wrap items-center gap-1.5 text-xs">
+                            <span className="font-semibold text-slate-700">{getCautionName(caution)}</span>
+                            <span className="rounded-full bg-orange-100 px-1.5 py-0.5 text-orange-700">
+                              {getCautionReasonLabel(caution.reason)}
+                            </span>
+                            {caution.memo && <span className="text-slate-400">{caution.memo}</span>}
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>

@@ -2,11 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge, Button, Card, Input } from '../../components/ui';
 import { useDebounce } from '../../hooks/useDebounce';
-import {
-  useMedicineSearch,
-  useMedicineSuggest,
-} from '../../features/drug/hooks';
-import type { MedicineSearchItem } from '../../features/drug/types/drug.types';
+import { useMedicineSuggest } from '../../features/drug/hooks';
 import {
   usePharmaciesInBounds,
   usePharmacyDetail,
@@ -201,30 +197,6 @@ function getBusinessHours(pharmacy: Pharmacy) {
   }));
 }
 
-function getMedicineId(medicine: MedicineSearchItem) {
-  return String(medicine.itemSeq ?? medicine.item_seq ?? '');
-}
-
-function getMedicineName(medicine: MedicineSearchItem) {
-  return (
-    medicine.itemName ??
-    medicine.item_name ??
-    medicine.medicineName ??
-    medicine.drugName ??
-    '약 이름 없음'
-  );
-}
-
-function getMedicineCompanyName(medicine: MedicineSearchItem) {
-  return (
-    medicine.entpName ??
-    medicine.entp_name ??
-    medicine.companyName ??
-    medicine.company_name ??
-    ''
-  );
-}
-
 function normalizeSearchText(value?: string | null) {
   return (value ?? '').replace(/\s+/g, '').toLowerCase();
 }
@@ -279,30 +251,16 @@ function MapPage() {
   const isMedicineSuggestEnabled =
     searchMode === 'inventory' &&
     debouncedMedicineKeyword.trim().length >= 2 &&
-    !committedMedicineKeyword;
-
-  const isMedicineSearchEnabled =
-    searchMode === 'inventory' &&
-    committedMedicineKeyword.trim().length >= 2;
+    !selectedMedicineName;
 
   const {
     data: medicineSuggestions = [],
     isLoading: isMedicineSuggestLoading,
   } = useMedicineSuggest(
-    isMedicineSuggestEnabled ? debouncedMedicineKeyword : '',
+    isMedicineSuggestEnabled ? debouncedMedicineKeyword.trim() : '',
   );
 
-  const {
-    data: medicineResults = [],
-    isLoading: isMedicineSearchLoadingForDropdown,
-    isError: isMedicineSearchErrorForDropdown,
-  } = useMedicineSearch(
-    isMedicineSearchEnabled ? committedMedicineKeyword : '',
-  );
-
-  const shouldShowMedicineDropdown =
-    searchMode === 'inventory' &&
-    medicineKeyword.trim().length >= 2 && !selectedMedicineName;
+  const shouldShowMedicineDropdown = isMedicineSuggestEnabled;
 
   const [bounds, setBounds] = useState(DEFAULT_BOUNDS);
 
@@ -408,23 +366,14 @@ function MapPage() {
     }
 
     setCommittedMedicineKeyword(keyword);
-    setSelectedMedicineName('');
+    setSelectedMedicineName(keyword);
     setSelectedHpid('');
   };
 
-  const handleSelectMedicineKeyword = (keyword: string) => {
-    setMedicineKeyword(keyword);
-    setCommittedMedicineKeyword(keyword);
-    setSelectedMedicineName('');
-    setSelectedHpid('');
-  };
-
-  const handleSelectMedicine = (medicine: MedicineSearchItem) => {
-    const medicineName = getMedicineName(medicine);
-
-    setMedicineKeyword(medicineName);
-    setCommittedMedicineKeyword(medicineName);
-    setSelectedMedicineName(medicineName);
+  const handleSelectSuggestion = (suggestion: string) => {
+    setMedicineKeyword(suggestion);
+    setCommittedMedicineKeyword(suggestion);
+    setSelectedMedicineName(suggestion);
     setSelectedHpid('');
   };
 
@@ -681,69 +630,29 @@ function MapPage() {
                         </div>
 
                         <div className="max-h-56 overflow-y-auto">
-                          {isMedicineSuggestLoading && !committedMedicineKeyword && (
+                          {isMedicineSuggestLoading && (
                             <div className="px-4 py-5 text-center text-sm text-slate-400">
                               검색 중…
                             </div>
                           )}
 
-                          {!committedMedicineKeyword && !isMedicineSuggestLoading && medicineSuggestions.length === 0 && (
-                            <div className="px-4 py-5 text-center text-sm text-slate-400">
-                              검색어 제안이 없습니다.
-                            </div>
-                          )}
-
-                          {!committedMedicineKeyword && !isMedicineSuggestLoading &&
-                            medicineSuggestions.map((suggestion) => (
-                              <button
-                                key={suggestion}
-                                type="button"
-                                onClick={() => handleSelectMedicineKeyword(suggestion)}
-                                className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-blue-50"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-300"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                                <span className="text-sm font-semibold text-slate-800">{suggestion}</span>
-                              </button>
-                            ))}
-
-                          {isMedicineSearchLoadingForDropdown && (
-                            <div className="px-4 py-5 text-center text-sm text-slate-400">
-                              약 정보를 검색하고 있습니다…
-                            </div>
-                          )}
-
-                          {isMedicineSearchErrorForDropdown && (
-                            <div className="px-4 py-5 text-center text-sm text-red-500">
-                              검색 결과를 불러오지 못했습니다.
-                            </div>
-                          )}
-
-                          {!isMedicineSearchLoadingForDropdown && !isMedicineSearchErrorForDropdown && committedMedicineKeyword && medicineResults.length === 0 && (
+                          {!isMedicineSuggestLoading && medicineSuggestions.length === 0 && (
                             <div className="px-4 py-5 text-center text-sm text-slate-400">
                               검색 결과가 없습니다.
                             </div>
                           )}
 
-                          {!isMedicineSearchLoadingForDropdown && !isMedicineSearchErrorForDropdown &&
-                            medicineResults.map((medicine, index) => {
-                              const itemSeq = getMedicineId(medicine) || String(index + 1);
-                              const itemName = getMedicineName(medicine);
-                              const companyName = getMedicineCompanyName(medicine);
-
-                              return (
-                                <button
-                                  key={`${itemSeq}-${itemName}`}
-                                  type="button"
-                                  onClick={() => handleSelectMedicine(medicine)}
-                                  className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-blue-50"
-                                >
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-slate-900 truncate">{itemName}</p>
-                                    <p className="mt-0.5 text-xs text-slate-400">{companyName || '제조사 정보 없음'}</p>
-                                  </div>
-                                </button>
-                              );
-                            })}
+                          {!isMedicineSuggestLoading &&
+                            medicineSuggestions.map((suggestion) => (
+                              <button
+                                key={suggestion}
+                                type="button"
+                                onClick={() => handleSelectSuggestion(suggestion)}
+                                className="flex w-full items-center px-4 py-3 text-left transition hover:bg-blue-50"
+                              >
+                                <p className="text-sm font-semibold text-slate-900">{suggestion}</p>
+                              </button>
+                            ))}
                         </div>
                       </div>
                     )}

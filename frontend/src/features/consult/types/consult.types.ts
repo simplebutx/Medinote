@@ -1,3 +1,5 @@
+import type { CautionItem } from '../../user/types/caution.types';
+
 export type ConsultRoomStatus =
   | 'PENDING'
   | 'MATCHED'
@@ -34,6 +36,22 @@ export interface ConsultMessage {
   content?: string;
   createdAt?: string;
 }
+export interface PatientMedicationScheduleMedicine {
+  customMedicineName?: string | null;
+  dosageAmount?: number | null;
+  dosageUnit?: string | null;
+}
+
+export interface PatientMedicationSchedule {
+  id?: number;
+  customMedicineName?: string | null;
+  hospitalName?: string | null;
+  pharmacyName?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  medicines?: PatientMedicationScheduleMedicine[];
+}
+
 export interface ConsultPatientInfo {
   userId?: number;
   customerId?: number;
@@ -49,7 +67,8 @@ export interface ConsultPatientInfo {
   isChild?: boolean;
   isElderly?: boolean;
   chronicDiseases?: string[];
-  medicationSchedules?: unknown[];
+  medicationSchedules?: PatientMedicationSchedule[];
+  cautions?: CautionItem[];
 }
 
 export interface ConsultFeedbackStats {

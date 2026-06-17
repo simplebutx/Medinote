@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { Badge, Card, PharmInput } from '../../components/ui';
@@ -168,6 +168,22 @@ function PharmInventoryPage() {
     setMedicineKeyword(itemName);
     setCommittedMedicineKeyword('');
   };
+
+  // 자동완성에서 선택 후 검색 결과가 1개이면 자동 선택
+  useEffect(() => {
+    if (!committedMedicineKeyword || isMedicineSearchLoading) return;
+    if (inventoryForm.itemSeq) return;
+    if (medicineResults.length !== 1) return;
+
+    const medicine = medicineResults[0];
+    const itemSeq = getMedicineId(medicine);
+    const itemName = getMedicineName(medicine);
+    const companyName = getMedicineCompanyName(medicine);
+
+    setInventoryForm((prev) => ({ ...prev, itemSeq, itemName, companyName }));
+    setMedicineKeyword(itemName);
+    setCommittedMedicineKeyword('');
+  }, [committedMedicineKeyword, isMedicineSearchLoading, medicineResults, inventoryForm.itemSeq]);
 
   const handleSubmitInventory = async () => {
     setMessage('');

@@ -11,7 +11,6 @@ import type {
   CautionTargetType,
 } from "../../user/types/caution.types";
 import useUserAdditionalInfoSignup from "../hooks/useUserAdditionalInfoSignup";
-import { createMyCaution } from "../../user/api/caution.api";
 
 interface UserAdditionalInfoStepProps {
   email: string;
@@ -235,16 +234,10 @@ function UserAdditionalInfoStep({
         isSmoking,
         isDrinking,
         diseaseNames,
+        cautions: pendingCautions.map(({ displayName: _d, ...req }) => req),
       },
       {
-        onSuccess: async () => {
-          if (pendingCautions.length > 0) {
-            await Promise.allSettled(
-              pendingCautions.map(({ displayName: _d, ...req }) =>
-                createMyCaution(req)
-              )
-            );
-          }
+        onSuccess: () => {
           toast.success("추가 정보가 저장되었습니다.");
           onComplete();
         },
