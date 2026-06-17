@@ -72,7 +72,9 @@ public class PrescriptionOcrService {
                         .key(imageKey));
             }
 
-            return toResponse(ocrResult);
+            PrescriptionOcrResponse response = toResponse(ocrResult);
+            ocrResultCacheRepository.deleteById(ocrResult.ocrResultId());
+            return response;
         } catch (RestClientException exception) {
             ocrResult = ocrResult.failed(exception.getMessage(), now());
             ocrResultCacheRepository.save(ocrResult);
