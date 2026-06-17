@@ -20,4 +20,5 @@ public class UserProfileRequest {
     private Boolean isChild;
     private Boolean isElderly;
     private List<String> diseaseNames;
+    private List<UserCautionRequest> cautions;
 }

@@ -1,6 +1,7 @@
 package com.ibmteam02.backend_auth.global.auth.service;
 
 import com.ibmteam02.backend_auth.global.auth.domain.RefreshToken;
+import com.ibmteam02.backend_auth.global.auth.client.MedicationCautionClient;
 import com.ibmteam02.backend_auth.global.auth.jwt.JwtProvider;
 import com.ibmteam02.backend_auth.global.auth.repository.RefreshTokenRepository;
 import com.ibmteam02.backend_auth.global.error.exception.CustomException;
@@ -35,6 +36,7 @@ public class AuthService {
     private final S3Service s3Service;
     private final SmsService smsService;
     private final EncryptionUtils encryptionUtils;
+    private final MedicationCautionClient medicationCautionClient;
 
     // 질병 명 추천 (자동완성용)
     public List<String> suggestDiseaseNames(String keyword) {
@@ -110,6 +112,8 @@ public class AuthService {
         // 유저 상태 활성화
         user.activateGeneralUser();
         userRepository.save(user);
+
+        medicationCautionClient.saveUserCautions(user.getId(), userProfileRequest.getCautions());
     }
 
     // 약사 회원가입 2단계: 약사 추가 정보 및 면허증 이미지 등록
