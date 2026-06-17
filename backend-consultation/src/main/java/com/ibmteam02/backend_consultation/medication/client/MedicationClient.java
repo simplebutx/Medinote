@@ -34,4 +34,14 @@ public class MedicationClient {
                 .retrieve()
                 .body(new ParameterizedTypeReference<List<MedicationScheduleDto>>() {});
     }
+
+    public List<UserMedicationCautionDto> getPatientCautions(Long userId) {
+        return medicationRestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/internal/user-medication-cautions")
+                        .queryParam("userId", userId)
+                        .build())
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<UserMedicationCautionDto>>() {});
+    }
 }
