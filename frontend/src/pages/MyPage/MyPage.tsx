@@ -385,17 +385,6 @@ function getAnalysisMedicineName(
   return item.medicineName?.trim() || `약 ${index + 1}`;
 }
 
-function getAnalysisWarnings(item: PrescriptionAnalysisResultItem) {
-  const warnings: string[] = [];
-
-  if (item.warningMedicine) warnings.push('주의 약');
-  if (item.warningIngredient) warnings.push('주의 성분');
-  if (item.warningDisease) warnings.push('기저질환');
-  if (item.warningHealthInfo) warnings.push('건강 상태');
-
-  return warnings;
-}
-
 function getPersonalCautionLines(item: PrescriptionAnalysisResultItem) {
   return [
     ...getStringList(item.matchedMedicineCautions).map(
@@ -415,23 +404,6 @@ function getPersonalCautionLines(item: PrescriptionAnalysisResultItem) {
 
 function getAnalysisGeneralCautionTags(item: PrescriptionAnalysisResultItem) {
   return getStringList(item.generalCautionTags);
-}
-
-function getPrescriptionGeneralCautionTags(
-  analysis: PrescriptionAnalysisResponse,
-) {
-  const seen = new Set<string>();
-
-  return getPrescriptionAnalysisItems(analysis)
-    .flatMap(getAnalysisGeneralCautionTags)
-    .filter((tag) => {
-      if (seen.has(tag)) {
-        return false;
-      }
-
-      seen.add(tag);
-      return true;
-    });
 }
 
 const dosageUnitOptions: { label: string; value: DosageUnit }[] = [
@@ -635,13 +607,7 @@ function MyPage() {
   const medicationSchedules = paginatedSchedules?.content ?? [];
   const prescriptionTotalPages = paginatedSchedules?.totalPages ?? 1;
 
-  // 처방전 탭 활성화 시 첫 페이지부터 재조회
-  useEffect(() => {
-    if (activeTab === 'prescription') {
-      setPrescriptionPage(0);
-      refetchMedicationSchedules();
-    }
-  }, [activeTab]);
+  // 처방전 탭 활성화 시 첫 페이지부터 재조회 (탭 전환 핸들러에서 직접 처리)
 
 
   const {
@@ -1666,7 +1632,13 @@ function MyPage() {
               <button
                 key={tab.value}
                 type="button"
-                onClick={() => setActiveTab(tab.value)}
+                onClick={() => {
+                  setActiveTab(tab.value);
+                  if (tab.value === 'prescription') {
+                    setPrescriptionPage(0);
+                    refetchMedicationSchedules();
+                  }
+                }}
                 className={[
                   'border-b-2 pb-3 pt-4 text-sm font-semibold transition whitespace-nowrap',
                   isActive
@@ -2469,9 +2441,6 @@ function MyPage() {
                     prescriptionAnalysisByScheduleId[schedule.id];
                   const prescriptionAnalysisItems = prescriptionAnalysis
                     ? getPrescriptionAnalysisItems(prescriptionAnalysis)
-                    : [];
-                  const prescriptionGeneralCautionTags = prescriptionAnalysis
-                    ? getPrescriptionGeneralCautionTags(prescriptionAnalysis)
                     : [];
                   const isAnalyzingPrescription =
                     analyzingPrescriptionId === schedule.id;
