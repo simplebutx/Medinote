@@ -235,6 +235,7 @@ function OcrPage() {
   const [ocrStep, setOcrStep] = useState<OcrStep>('idle');
   const [selectedFileName, setSelectedFileName] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   const uploadUrlMutation = usePrescriptionUploadUrl();
   const runOcrMutation = useRunPrescriptionOcr();
@@ -1498,47 +1499,81 @@ function OcrPage() {
                 </p>
               </div>
 
-              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center transition hover:border-blue-200 hover:bg-blue-50/30">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
-                  <svg className="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
+              {selectedImageUrl ? (
+                /* ── 이미지 선택 후: 미리보기 ── */
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                  <div className="relative">
+                    <img
+                      src={selectedImageUrl}
+                      alt="처방 이미지 미리보기"
+                      className="max-h-[420px] w-full object-contain"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
+                    <p className="truncate text-sm text-slate-500">
+                      <span className="font-medium text-slate-700">{selectedFileName}</span>
+                    </p>
+                    <label className="ml-3 shrink-0 cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                      파일 변경
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) {
+                            setSelectedFile(file);
+                            setSelectedFileName(file.name);
+                            setOcrStep('idle');
+                            setOcrResults([]);
+                            setCommonForm(createInitialCommonForm());
+                            if (selectedImageUrl) URL.revokeObjectURL(selectedImageUrl);
+                            setSelectedImageUrl(URL.createObjectURL(file));
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
+              ) : (
+                /* ── 이미지 미선택: 업로드 안내 ── */
+                <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center transition hover:border-blue-200 hover:bg-blue-50/30">
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+                    <svg className="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                  </div>
 
-                <p className="text-base font-bold text-slate-900">
-                  처방 내역 또는 약봉투 이미지 업로드
-                </p>
-
-                <p className="mt-1.5 text-sm text-slate-500">
-                  JPG, PNG 파일을 선택하세요
-                </p>
-
-                <label className="mt-5 inline-flex cursor-pointer rounded-xl border border-blue-600 bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-600/15 transition hover:border-blue-700 hover:bg-blue-700">
-                  {selectedFileName ? '파일 변경' : '파일 선택'}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-
-                      if (file) {
-                        setSelectedFile(file);
-                        setSelectedFileName(file.name);
-                        setOcrStep('idle');
-                        setOcrResults([]);
-                        setCommonForm(createInitialCommonForm());
-                      }
-                    }}
-                  />
-                </label>
-
-                {selectedFileName && (
-                  <p className="mt-3 text-sm text-slate-500">
-                    <span className="font-medium text-slate-700">{selectedFileName}</span>
+                  <p className="text-base font-bold text-slate-900">
+                    처방 내역 또는 약봉투 이미지 업로드
                   </p>
-                )}
-              </div>
+
+                  <p className="mt-1.5 text-sm text-slate-500">
+                    JPG, PNG 파일을 선택하세요
+                  </p>
+
+                  <label className="mt-5 inline-flex cursor-pointer rounded-xl border border-blue-600 bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-600/15 transition hover:border-blue-700 hover:bg-blue-700">
+                    파일 선택
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          setSelectedFile(file);
+                          setSelectedFileName(file.name);
+                          setOcrStep('idle');
+                          setOcrResults([]);
+                          setCommonForm(createInitialCommonForm());
+                          if (selectedImageUrl) URL.revokeObjectURL(selectedImageUrl);
+                          setSelectedImageUrl(URL.createObjectURL(file));
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+              )}
 
               <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
                 <p className="text-sm text-slate-500">
