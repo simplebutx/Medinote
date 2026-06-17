@@ -6,10 +6,10 @@ class Settings(BaseSettings):
     llm_api_url: str = ""
     llm_api_key: str = ""
     llm_model: str = ""
-    embedding_model: str = "solar-embedding-1-large-passage"
-    embedding_query_model: str = "solar-embedding-1-large-query"
-    embedding_passage_model: str = "solar-embedding-1-large-passage"
-    embedding_dimensions: int = 4096
+    embedding_model: str = "text-embedding-3-large"
+    embedding_query_model: str = "text-embedding-3-large"
+    embedding_passage_model: str = "text-embedding-3-large"
+    embedding_dimensions: int = 3072
     upstage_api_key: str = ""
     llm_timeout_seconds: int = 30
     google_application_credentials: str = ""

@@ -182,7 +182,16 @@ def generate_answer_from_context(question: str,results: list[dict],drug_name: st
     answer = normalize_answer_text(response.choices[0].message.content or "")  # 답변 전처리
     # llm 답변이 있을 때
     if answer:
-        if not schedule_context.strip() and is_consult_recommended_answer(answer):
+        if not schedule_context.strip() and is_missing_context_answer(answer):
+            return LlmAnswerResult(
+                answer=DRUG_INFO_FALLBACK_ANSWER,
+                answer_type=ANSWER_TYPE_CONSULT_RECOMMENDED,
+            )
+        if (
+            not schedule_context.strip()
+            and not llm_context.has_grounded_match
+            and is_consult_recommended_answer(answer)
+        ):
             return LlmAnswerResult(
                 answer=answer,
                 answer_type=ANSWER_TYPE_CONSULT_RECOMMENDED,
@@ -209,3 +218,15 @@ def normalize_answer_text(answer: str) -> str:
 
 def is_consult_recommended_answer(answer: str) -> bool:
     return any(marker in answer for marker in CONSULT_RECOMMENDED_MARKERS)
+
+
+def is_missing_context_answer(answer: str) -> bool:
+    return any(
+        marker in answer
+        for marker in (
+            "제공된 정보에는",
+            "구체적인 내용이 포함되어 있지 않습니다",
+            "확인할 수 없습니다",
+            "확인이 어렵습니다",
+        )
+    )

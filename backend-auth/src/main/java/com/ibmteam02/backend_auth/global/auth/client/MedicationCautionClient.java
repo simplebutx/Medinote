@@ -18,7 +18,10 @@ public class MedicationCautionClient {
         }
 
         medicationRestClient.post()
-                .uri("/api/internal/users/{userId}/cautions", userId)
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/internal/user-medication-cautions")
+                        .queryParam("userId", userId)
+                        .build())
                 .body(cautions)
                 .retrieve()
                 .toBodilessEntity();

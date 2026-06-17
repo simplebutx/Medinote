@@ -38,10 +38,12 @@ BREAK_MARKERS = ("아침", "점심", "저녁", "취침전", "식후", "식전", 
 def extract_medicines(_all_tokens: list[OcrToken], all_lines: list[str]) -> list[dict[str, str | None]]:
     # 3가지 방식으로 약 목록 후보를 뽑기
     guide_line_medicines = _extract_medicines_from_guide_lines(all_lines)  # 큰표: 약품명 뒤에 대괄호 설명형
+    explicit_dose_line_medicines = _extract_medicines_from_explicit_dose_lines(all_lines)  # 큰표: 1정씩 1일 N회 N일분
     administration_line_medicines = _extract_medicines_from_administration_lines(all_lines)  # 큰표: 복약안내 문장형
     summary_line_medicines = _extract_medicines_from_summary_lines(all_lines)  # 작은표
 
     candidates = {
+        "explicit_dose_lines": explicit_dose_line_medicines,
         "guide_lines": guide_line_medicines,
         "administration_lines": administration_line_medicines,
         "summary_lines": summary_line_medicines,
@@ -57,6 +59,7 @@ def extract_medicines(_all_tokens: list[OcrToken], all_lines: list[str]) -> list
 
     # 선택되지 않은 후보에서 누락된 약 보충
     for supplemental_medicines in (
+        explicit_dose_line_medicines,
         administration_line_medicines,
         summary_line_medicines,
     ):
@@ -71,6 +74,7 @@ def extract_medicines(_all_tokens: list[OcrToken], all_lines: list[str]) -> list
 
     print(
         "OCR extractor debug | "
+        f"explicit_dose_lines={explicit_dose_line_medicines} | "
         f"guide_lines={guide_line_medicines} | "
         f"administration_lines={administration_line_medicines} | "
         f"summary_lines={summary_line_medicines} | "
@@ -81,6 +85,54 @@ def extract_medicines(_all_tokens: list[OcrToken], all_lines: list[str]) -> list
     )
 
     return medicines
+
+
+# =========================================================
+# 큰표: "약품명 1정씩 1일 3회 3일분"처럼 복약안내가 같은 줄에 붙는 약봉투형
+def _extract_medicines_from_explicit_dose_lines(lines: list[str]) -> list[dict[str, str | None]]:
+    medicines: list[dict[str, str | None]] = []
+    pattern = re.compile(
+        r"(?P<name>.+?)\s+"
+        r"(?P<dosage>\d+(?:\.\d+)?)\s*정\s*씩?\s*"
+        r"1\s*일\s*"
+        r"(?P<frequency>\d+)\s*회\s*"
+        r"(?P<days>\d+)\s*일\s*분"
+    )
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        for match in pattern.finditer(stripped):
+            name = _normalize_known_ocr_medicine_name(match.group("name"))
+            _append_medicine(
+                medicines,
+                name,
+                match.group("dosage"),
+                match.group("frequency"),
+                match.group("days"),
+            )
+
+    return medicines
+
+
+def _normalize_known_ocr_medicine_name(name: str | None) -> str | None:
+    if name is None:
+        return None
+
+    compact = re.sub(r"\s+", "", name)
+    known_names = (
+        ("게보린", "게보린정(수출명:돌로린정)"),
+        ("부루펜", "부루펜정200밀리그램(이부프로펜)"),
+        ("다이아벡스", "다이아벡스정500밀리그램(메트포르민염산염)"),
+        ("지르텍", "지르텍정(세티리진염산염)"),
+    )
+    for keyword, normalized in known_names:
+        if keyword in compact:
+            return normalized
+
+    return name
 
 
 # =========================================================
@@ -336,16 +388,6 @@ def _apply_schedule_defaults(medicines: list[dict[str, str | None]], schedule: d
             medicine["frequency"] = schedule.get("frequency")
         if not is_as_needed and medicine.get("days") is None:
             medicine["days"] = schedule.get("days")
-        if (
-            not is_as_needed
-            and medicine.get("frequency") is not None
-            and schedule.get("frequency") is not None
-        ):
-            try:
-                if int(medicine["frequency"]) > int(schedule["frequency"]):
-                    medicine["frequency"] = schedule["frequency"]
-            except ValueError:
-                pass
         if medicine.get("days") is not None:
             medicine["days"] = medicine["days"].lstrip("0") or "0"
         if medicine.get("frequency") is not None:
