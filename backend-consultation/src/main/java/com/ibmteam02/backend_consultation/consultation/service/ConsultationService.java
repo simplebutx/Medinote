@@ -13,6 +13,7 @@ import com.ibmteam02.backend_consultation.consultation.repository.ConsultationFe
 import com.ibmteam02.backend_consultation.consultation.repository.ConsultationMessageRepository;
 import com.ibmteam02.backend_consultation.consultation.repository.ConsultationSessionRepository;
 import com.ibmteam02.backend_consultation.global.auth.AuthUserClient;
+import com.ibmteam02.backend_consultation.medication.client.MedicationClient;
 import com.ibmteam02.backend_consultation.notification.service.ConsultationNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class ConsultationService {
     private final ConsultationMessageRepository consultationMessageRepository;
     private final ConsultationFeedbackRepository consultationFeedbackRepository;
     private final AuthUserClient authUserClient;
+    private final MedicationClient medicationClient;
     private final AiConsultationSummaryClient aiConsultationSummaryClient;
     private final ConsultationNotificationService consultationNotificationService;
 
@@ -209,7 +211,21 @@ public class ConsultationService {
         ConsultationSession session = consultationSessionRepository.findById(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 방입니다"));
 
-        return authUserClient.getPatientInfo(session.getCustomerId());
+        PatientInfoResponse patientInfo = authUserClient.getPatientInfo(session.getCustomerId());
+
+        return PatientInfoResponse.builder()
+                .username(patientInfo.getUsername())
+                .birthDate(patientInfo.getBirthDate())
+                .gender(patientInfo.getGender())
+                .isPregnant(patientInfo.getIsPregnant())
+                .isBreastfeeding(patientInfo.getIsBreastfeeding())
+                .isSmoking(patientInfo.getIsSmoking())
+                .isDrinking(patientInfo.getIsDrinking())
+                .isChild(patientInfo.getIsChild())
+                .isElderly(patientInfo.getIsElderly())
+                .chronicDiseases(patientInfo.getChronicDiseases())
+                .medicationSchedules(medicationClient.getPatientSchedules(session.getCustomerId()))
+                .build();
     }
 
     //상담 종료 처리

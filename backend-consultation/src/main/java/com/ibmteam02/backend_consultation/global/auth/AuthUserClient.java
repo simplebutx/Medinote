@@ -49,6 +49,8 @@ public class AuthUserClient {
                     .isBreastfeeding((Boolean) response.get("isBreastfeeding"))
                     .isSmoking((Boolean) response.get("isSmoking"))
                     .isDrinking((Boolean) response.get("isDrinking"))
+                    .isChild((Boolean) response.get("isChild"))
+                    .isElderly((Boolean) response.get("isElderly"))
                     .chronicDiseases((List<String>) response.get("chronicDiseases"))
                     .build();
         } catch (Exception e) {
