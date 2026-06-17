@@ -2,7 +2,10 @@ package com.ibmteam02.backend_consultation.medication.client;
 
 import com.ibmteam02.backend_consultation.medication.dto.ChatbotMedicineContextRequest;
 import com.ibmteam02.backend_consultation.medication.dto.ChatbotMedicineContextResponse;
+import com.ibmteam02.backend_consultation.medication.dto.MedicationScheduleDto;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -20,5 +23,15 @@ public class MedicationClient {
                 .body(request)
                 .retrieve()
                 .body(ChatbotMedicineContextResponse.class);
+    }
+
+    public List<MedicationScheduleDto> getPatientSchedules(Long userId) {
+        return medicationRestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/internal/medication-schedules")
+                        .queryParam("userId", userId)
+                        .build())
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<MedicationScheduleDto>>() {});
     }
 }
