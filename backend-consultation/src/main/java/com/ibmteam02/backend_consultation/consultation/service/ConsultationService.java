@@ -225,6 +225,7 @@ public class ConsultationService {
                 .isElderly(patientInfo.getIsElderly())
                 .chronicDiseases(patientInfo.getChronicDiseases())
                 .medicationSchedules(medicationClient.getPatientSchedules(session.getCustomerId()))
+                .medicationCautions(medicationClient.getPatientCautions(session.getCustomerId()))
                 .build();
     }
 

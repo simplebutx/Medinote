@@ -1,6 +1,7 @@
 package com.ibmteam02.backend_consultation.consultation.dto;
 
 import com.ibmteam02.backend_consultation.medication.dto.MedicationScheduleDto;
+import com.ibmteam02.backend_consultation.medication.dto.UserMedicationCautionDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -25,4 +26,5 @@ public class PatientInfoResponse {
     private Boolean isElderly;
     private List<String> chronicDiseases;
     private List<MedicationScheduleDto> medicationSchedules;
+    private List<UserMedicationCautionDto> medicationCautions;
 }
