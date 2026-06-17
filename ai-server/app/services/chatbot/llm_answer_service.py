@@ -43,7 +43,7 @@ def get_llm_client() -> OpenAI:
     return OpenAI(api_key=settings.llm_api_key)
 
 
-# 약정보 프롬프트
+# LLM 프롬프트
 def build_drug_info_system_prompt() -> str:
     return (
         settings.llm_system_prompt

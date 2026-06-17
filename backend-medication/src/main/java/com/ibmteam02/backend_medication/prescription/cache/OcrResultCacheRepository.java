@@ -50,6 +50,10 @@ public class OcrResultCacheRepository {
         }
     }
 
+    public void deleteById(Long ocrResultId) {
+        redisTemplate.delete(key(ocrResultId));
+    }
+
     private String key(Long ocrResultId) {
         return KEY_PREFIX + ocrResultId;
     }

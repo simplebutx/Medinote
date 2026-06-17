@@ -8,3 +8,18 @@ secrets/
 secrets/gcloud-adc.json
 smartpill/arduino_secrets.h
 .local-notes/
+
+# Local/generated comparison tools and presentation artifacts
+tools/
+outputs/
+
+# Local OS files
+.DS_Store
+
+# Local setup notes and scratch scripts
+QDRANT_SETUP.md
+test_db.sh
+
+# Smart pill 3D/CAD generated artifacts
+smart_pill_box*.stl
+smart_pill_box*.scad

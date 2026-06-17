@@ -58,6 +58,7 @@ public class SecurityConfig {
                                 "/api/internal/**",
                                 "/api/smartpill/test/**"
                         ).permitAll()
+                        .requestMatchers("/api/me/cautions/suggest").permitAll()
                         .requestMatchers(
                                 "/api/me/medication-time-presets",
                                 "/api/me/medication-time-presets/**",
