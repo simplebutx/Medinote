@@ -3,6 +3,7 @@ package com.ibmteam02.backend_consultation.medication.client;
 import com.ibmteam02.backend_consultation.medication.dto.ChatbotMedicineContextRequest;
 import com.ibmteam02.backend_consultation.medication.dto.ChatbotMedicineContextResponse;
 import com.ibmteam02.backend_consultation.medication.dto.MedicationScheduleDto;
+import com.ibmteam02.backend_consultation.medication.dto.UserMedicationCautionDto;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.ParameterizedTypeReference;
