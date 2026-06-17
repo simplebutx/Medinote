@@ -68,7 +68,7 @@ export interface ConsultPatientInfo {
   isElderly?: boolean;
   chronicDiseases?: string[];
   medicationSchedules?: PatientMedicationSchedule[];
-  cautions?: CautionItem[];
+  medicationCautions?: CautionItem[];
 }
 
 export interface ConsultFeedbackStats {

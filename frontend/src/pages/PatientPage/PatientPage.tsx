@@ -347,17 +347,21 @@ function PatientPage() {
                     <div className="rounded-2xl bg-slate-50 p-4">
                       <h3 className="text-sm font-semibold text-slate-500">알레르기/주의 성분</h3>
                       <div className="mt-3">
-                        {!patientInfo?.cautions || patientInfo.cautions.length === 0 ? (
+                        {!patientInfo?.medicationCautions || patientInfo.medicationCautions.length === 0 ? (
                           <Badge variant="gray">해당 없음</Badge>
                         ) : (
-                          <div className="space-y-2">
-                            {patientInfo.cautions.map((caution) => (
-                              <div key={caution.id} className="flex flex-wrap items-center gap-1.5 text-xs">
-                                <span className="font-semibold text-slate-700">{getCautionName(caution)}</span>
-                                <span className="rounded-full bg-orange-100 px-1.5 py-0.5 text-orange-700">
-                                  {getCautionReasonLabel(caution.reason)}
-                                </span>
-                                {caution.memo && <span className="text-slate-400">{caution.memo}</span>}
+                          <div className="max-h-[160px] overflow-y-auto divide-y divide-slate-200">
+                            {patientInfo.medicationCautions.map((caution) => (
+                              <div key={caution.id} className="py-2 first:pt-0 last:pb-0">
+                                <p className="text-xs font-semibold text-slate-800 leading-snug">{getCautionName(caution)}</p>
+                                <div className="mt-1 flex flex-wrap items-center gap-1">
+                                  <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                                    {getCautionReasonLabel(caution.reason)}
+                                  </span>
+                                  {caution.memo && (
+                                    <span className="text-xs text-slate-400">{caution.memo}</span>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>
