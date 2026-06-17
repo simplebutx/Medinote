@@ -26,7 +26,7 @@ import {
   useCreateMedicationScheduleTime,
   useDeleteMedicationSchedule,
   useDeleteMedicationScheduleTime,
-  useMedicationSchedules,
+  usePaginatedMedicationSchedules,
   useMedicationTimePresets,
   usePrescriptionAnalysis,
   useUpdateMedicationSchedule,
@@ -577,6 +577,33 @@ const tabs: { label: string; value: MyPageTab }[] = [
   { label: '처방 내역', value: 'prescription' },
 ];
 
+const infoTileClass =
+  'rounded-xl border border-slate-200 bg-slate-50/70 p-4';
+
+const softSectionClass =
+  'rounded-2xl border border-slate-200 bg-slate-50/70 p-4';
+
+const noticeClass =
+  'rounded-xl border border-blue-100 bg-blue-50/70 p-4 text-sm leading-6 text-blue-700';
+
+const choiceBaseClass =
+  'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition';
+
+const choiceSelectedClass =
+  'border-blue-500 bg-blue-50 text-blue-700 shadow-sm shadow-blue-500/10';
+
+const choiceDefaultClass =
+  'border-slate-200 bg-white text-slate-600';
+
+const selectClass =
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400';
+
+const modalOverlayClass =
+  'fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm';
+
+const modalPanelClass =
+  'w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl shadow-slate-950/10';
+
 function MyPage() {
   const [activeTab, setActiveTab] = useState<MyPageTab>('profile');
 
@@ -594,11 +621,28 @@ function MyPage() {
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
   const [hasTriedPasswordChange, setHasTriedPasswordChange] = useState(false);
 
+  // 처방 내역 페이지 상태
+  const [prescriptionPage, setPrescriptionPage] = useState(0);
+  const PRESCRIPTION_PAGE_SIZE = 5;
+
   const {
-    data: medicationSchedules = [],
+    data: paginatedSchedules,
     isLoading: isMedicationScheduleLoading,
     isError: isMedicationScheduleError,
-  } = useMedicationSchedules();
+    refetch: refetchMedicationSchedules,
+  } = usePaginatedMedicationSchedules(prescriptionPage, PRESCRIPTION_PAGE_SIZE);
+
+  const medicationSchedules = paginatedSchedules?.content ?? [];
+  const prescriptionTotalPages = paginatedSchedules?.totalPages ?? 1;
+
+  // 처방전 탭 활성화 시 첫 페이지부터 재조회
+  useEffect(() => {
+    if (activeTab === 'prescription') {
+      setPrescriptionPage(0);
+      refetchMedicationSchedules();
+    }
+  }, [activeTab]);
+
 
   const {
     data: medicationTimePresets = [],
@@ -1571,21 +1615,11 @@ function MyPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-semibold text-blue-600">My Page</p>
-
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">내 정보</h1>
-
-        <p className="mt-2 text-slate-500">
-          기본 정보, 건강 정보, 알레르기/주의 성분, 처방 내역 정보를 관리합니다.
-        </p>
-      </div>
-
       <Card>
         <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-xl font-bold text-blue-700">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-xl font-extrabold text-white shadow-sm shadow-blue-600/20">
                 {profileInfo.name.slice(0, 1)}
               </div>
 
@@ -1622,8 +1656,9 @@ function MyPage() {
         </div>
       </Card>
 
-      <Card className="p-0">
-        <div className="flex overflow-x-auto border-b border-slate-200">
+      <Card className="overflow-hidden p-0">
+        <div className="border-b border-slate-200 px-8">
+          <div className="flex gap-8 overflow-x-auto">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.value;
 
@@ -1633,21 +1668,22 @@ function MyPage() {
                 type="button"
                 onClick={() => setActiveTab(tab.value)}
                 className={[
-                  'min-w-fit px-5 py-4 text-sm font-semibold transition',
+                  'border-b-2 pb-3 pt-4 text-sm font-semibold transition whitespace-nowrap',
                   isActive
-                    ? 'border-b-2 border-blue-600 text-blue-700'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-900',
                 ].join(' ')}
               >
                 {tab.label}
               </button>
             );
           })}
+          </div>
         </div>
 
         <div className="p-6">
           {isMyProfileLoading && (
-            <div className="mb-4 rounded-2xl bg-blue-50 p-4 text-sm text-blue-700">
+            <div className={`${noticeClass} mb-4`}>
               내 정보를 불러오는 중입니다.
             </div>
           )}
@@ -1663,28 +1699,28 @@ function MyPage() {
               <h2 className="text-xl font-bold text-slate-900">기본 정보</h2>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl bg-slate-50 p-4">
+                <div className={infoTileClass}>
                   <p className="text-sm text-slate-500">이름</p>
                   <p className="mt-2 font-semibold text-slate-900">
                     {profileInfo.name}
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-slate-50 p-4">
+                <div className={infoTileClass}>
                   <p className="text-sm text-slate-500">이메일</p>
                   <p className="mt-2 font-semibold text-slate-900">
                     {profileInfo.email}
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-slate-50 p-4">
+                <div className={infoTileClass}>
                   <p className="text-sm text-slate-500">생년월일</p>
                   <p className="mt-2 font-semibold text-slate-900">
                     {profileInfo.birthDate}
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-slate-50 p-4">
+                <div className={infoTileClass}>
                   <p className="text-sm text-slate-500">성별</p>
                   <p className="mt-2 font-semibold text-slate-900">
                     {profileInfo.gender}
@@ -1723,7 +1759,7 @@ function MyPage() {
                   건강 상태
                 </p>
 
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-3 grid-cols-3">
                   <button
                     type="button"
                     disabled={!isHealthEditing}
@@ -1734,10 +1770,10 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
+                      choiceBaseClass,
                       healthForm.isPregnant
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-slate-200 text-slate-600',
+                        ? choiceSelectedClass
+                        : choiceDefaultClass,
                       isHealthEditing
                         ? 'cursor-pointer hover:border-blue-300'
                         : 'cursor-default opacity-80',
@@ -1756,10 +1792,10 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
+                      choiceBaseClass,
                       healthForm.isBreastfeeding
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-slate-200 text-slate-600',
+                        ? choiceSelectedClass
+                        : choiceDefaultClass,
                       isHealthEditing
                         ? 'cursor-pointer hover:border-blue-300'
                         : 'cursor-default opacity-80',
@@ -1778,10 +1814,10 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
+                      choiceBaseClass,
                       healthForm.isSmoking
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-slate-200 text-slate-600',
+                        ? choiceSelectedClass
+                        : choiceDefaultClass,
                       isHealthEditing
                         ? 'cursor-pointer hover:border-blue-300'
                         : 'cursor-default opacity-80',
@@ -1800,10 +1836,10 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
+                      choiceBaseClass,
                       healthForm.isDrinking
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-slate-200 text-slate-600',
+                        ? choiceSelectedClass
+                        : choiceDefaultClass,
                       isHealthEditing
                         ? 'cursor-pointer hover:border-blue-300'
                         : 'cursor-default opacity-80',
@@ -1822,10 +1858,10 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
+                      choiceBaseClass,
                       healthForm.isChild
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-slate-200 text-slate-600',
+                        ? choiceSelectedClass
+                        : choiceDefaultClass,
                       isHealthEditing
                         ? 'cursor-pointer hover:border-blue-300'
                         : 'cursor-default opacity-80',
@@ -1844,10 +1880,10 @@ function MyPage() {
                       }))
                     }
                     className={[
-                      'rounded-xl border px-4 py-4 text-left text-sm font-semibold transition',
+                      choiceBaseClass,
                       healthForm.isElderly
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-slate-200 text-slate-600',
+                        ? choiceSelectedClass
+                        : choiceDefaultClass,
                       isHealthEditing
                         ? 'cursor-pointer hover:border-blue-300'
                         : 'cursor-default opacity-80',
@@ -1959,7 +1995,7 @@ function MyPage() {
                 </p>
               </div>
 
-              <div className="rounded-2xl bg-blue-50 p-4 text-sm leading-6 text-blue-700">
+              <div className={noticeClass}>
                 건강 정보는 약 검색, AI 챗봇, 약사 상담에서 참고 정보로
                 활용됩니다. 알레르기/주의 성분은 별도 탭에서 관리합니다.
               </div>
@@ -2012,7 +2048,7 @@ function MyPage() {
               </div>
 
               {isCautionFormOpen && (
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                <div className={softSectionClass}>
                   <h3 className="font-bold text-slate-900">
                     {editingCautionId !== null
                       ? '주의 약/성분 수정'
@@ -2031,10 +2067,10 @@ function MyPage() {
                           handleChangeCautionSourceType('MEDICINE')
                         }
                         className={[
-                          'rounded-xl border px-4 py-3 text-sm font-semibold',
+                          'rounded-xl border px-4 py-3 text-sm font-semibold transition',
                           cautionSourceType === 'MEDICINE'
-                            ? 'border-blue-500 bg-blue-50 text-blue-700'
-                            : 'border-slate-200 bg-white text-slate-600',
+                            ? choiceSelectedClass
+                            : choiceDefaultClass,
                         ].join(' ')}
                       >
                         약으로 등록
@@ -2046,10 +2082,10 @@ function MyPage() {
                           handleChangeCautionSourceType('INGREDIENT')
                         }
                         className={[
-                          'rounded-xl border px-4 py-3 text-sm font-semibold',
+                          'rounded-xl border px-4 py-3 text-sm font-semibold transition',
                           cautionSourceType === 'INGREDIENT'
-                            ? 'border-blue-500 bg-blue-50 text-blue-700'
-                            : 'border-slate-200 bg-white text-slate-600',
+                            ? choiceSelectedClass
+                            : choiceDefaultClass,
                         ].join(' ')}
                       >
                         성분으로 등록
@@ -2155,7 +2191,7 @@ function MyPage() {
                       onChange={(event) =>
                         setReason(event.target.value as CautionReason)
                       }
-                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    className={selectClass}
                     >
                       {reasonOptions.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -2166,8 +2202,8 @@ function MyPage() {
                   </div>
 
                   <div className="mt-4">
+                    <p className="mb-2 text-sm text-slate-700">메모</p>
                     <Input
-                      label="메모"
                       placeholder="예: 복용 후 속쓰림이 심했음"
                       value={memo}
                       onChange={(event) => setMemo(event.target.value)}
@@ -2203,15 +2239,15 @@ function MyPage() {
                 </div>
               )}
 
-              <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 {isCautionLoading && (
-                  <div className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-700">
+                  <div className={`col-span-2 ${noticeClass}`}>
                     주의 약/성분 목록을 불러오는 중입니다.
                   </div>
                 )}
 
                 {isCautionError && (
-                  <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-700">
+                  <div className="col-span-2 rounded-2xl bg-red-50 p-4 text-sm text-red-700">
                     주의 약/성분 목록을 불러오지 못했습니다.
                   </div>
                 )}
@@ -2219,7 +2255,7 @@ function MyPage() {
                 {!isCautionLoading &&
                   !isCautionError &&
                   cautionList.length === 0 && (
-                    <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                    <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50/70 p-6 text-center text-sm text-slate-500">
                       등록된 주의 약/성분이 없습니다.
                     </div>
                   )}
@@ -2239,61 +2275,55 @@ function MyPage() {
                     return (
                       <div
                         key={item.id}
-                        className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-4 md:flex-row md:items-center md:justify-between"
+                        className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
                       >
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-bold text-slate-900">
-                              {targetName}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-bold text-slate-900">{targetName}</p>
+                              <Badge variant={getReasonBadge(item.reason)}>
+                                {getReasonLabel(item.reason)}
+                              </Badge>
+                            </div>
+
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              <Badge variant={sourceType === 'MEDICINE' ? 'blue' : 'green'}>
+                                {getCautionSourceLabel(sourceType)}
+                              </Badge>
+                              {targetCode && (
+                                <p className="text-sm text-slate-500">
+                                  코드: {targetCode}
+                                </p>
+                              )}
+                            </div>
+
+                            <p className="mt-2 text-sm text-slate-500">
+                              {item.memo || '등록된 메모가 없습니다.'}
                             </p>
-
-                            <Badge variant={getReasonBadge(item.reason)}>
-                              {getReasonLabel(item.reason)}
-                            </Badge>
                           </div>
 
-                          <div className="mt-1 flex flex-wrap items-center gap-2">
-                            <Badge
-                              variant={
-                                sourceType === 'MEDICINE' ? 'blue' : 'green'
-                              }
+                          <div className="flex shrink-0 gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="border border-slate-200"
+                              onClick={() => handleStartEditCaution(item)}
                             >
-                              {getCautionSourceLabel(sourceType)}
-                            </Badge>
+                              수정
+                            </Button>
 
-                            {targetCode && (
-                              <p className="text-sm text-slate-500">
-                                코드: {targetCode}
-                              </p>
-                            )}
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="border border-slate-200"
+                              onClick={() => handleDeleteCaution(item.id)}
+                              disabled={deleteCautionMutation.isPending}
+                            >
+                              삭제
+                            </Button>
                           </div>
-
-                          <p className="mt-2 text-sm text-slate-500">
-                            {item.memo || '등록된 메모가 없습니다.'}
-                          </p>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="border border-slate-200"
-                            onClick={() => handleStartEditCaution(item)}
-                          >
-                            수정
-                          </Button>
-
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="border border-slate-200"
-                            onClick={() => handleDeleteCaution(item.id)}
-                            disabled={deleteCautionMutation.isPending}
-                          >
-                            삭제
-                          </Button>
                         </div>
                       </div>
                     );
@@ -2312,7 +2342,7 @@ function MyPage() {
               </div>
 
               {isMedicationTimePresetLoading && (
-                <div className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-700">
+                <div className={noticeClass}>
                   복약 기본 시간을 불러오는 중입니다.
                 </div>
               )}
@@ -2328,7 +2358,7 @@ function MyPage() {
                   {medicationTimePresetForm.map((preset) => (
                     <div
                       key={preset.timesPerDay}
-                      className="rounded-2xl border border-slate-200 p-4"
+                      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
                     >
                       <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
                         <div>
@@ -2343,11 +2373,11 @@ function MyPage() {
                         <Badge variant="blue">{preset.slots.length}개 시간</Badge>
                       </div>
 
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <div className="mt-4 flex gap-3">
                         {preset.slots.map((slot) => (
                           <div
                             key={`${preset.timesPerDay}-${slot.sortOrder}`}
-                            className="rounded-xl bg-slate-50 p-3"
+                            className="flex-1 rounded-xl bg-slate-50 p-3"
                           >
                             <p className="mb-2 text-sm font-medium text-slate-700">
                               {slot.sortOrder}회차
@@ -2370,7 +2400,7 @@ function MyPage() {
                     </div>
                   ))}
 
-                  <div className="rounded-2xl bg-blue-50 p-4 text-sm leading-6 text-blue-700">
+                  <div className={noticeClass}>
                     저장된 기본 시간은 이후 복약 등록 화면에서 하루 복용 횟수를 선택할 때 자동 적용됩니다.
                   </div>
 
@@ -2409,7 +2439,7 @@ function MyPage() {
               </div>
 
               {isMedicationScheduleLoading && (
-                <div className="rounded-2xl bg-blue-50 p-6 text-sm text-blue-700">
+                <div className={noticeClass}>
                   처방 내역 정보를 불러오는 중입니다.
                 </div>
               )}
@@ -2424,7 +2454,7 @@ function MyPage() {
               {!isMedicationScheduleLoading &&
                 !isMedicationScheduleError &&
                 medicationSchedules.length === 0 && (
-                  <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-6 text-center text-sm text-slate-500">
                     등록된 처방 내역이 없습니다.
                   </div>
                 )}
@@ -2449,10 +2479,10 @@ function MyPage() {
                   return (
                     <div
                       key={schedule.id}
-                      className="rounded-2xl border border-slate-200 p-4"
+                      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
                     >
-                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                        <div>
+                      <div className="flex items-start gap-3 px-4 pt-4 pb-3">
+                        <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-bold text-slate-900">
                               {getPrescriptionTitle(schedule)}
@@ -2469,21 +2499,15 @@ function MyPage() {
                             </Badge>
                           </div>
 
-                          <p className="mt-2 text-sm text-slate-500">
-                            처방일: {getPrescriptionDate(schedule)}
-                          </p>
-
-                          <p className="mt-1 text-sm text-slate-500">
-                            기간: {range.startDate} ~ {range.endDate}
-                          </p>
-
-                          <p className="mt-1 text-sm text-slate-500">
-                            병원: {schedule.hospitalName || '-'} · 약국:{' '}
-                            {schedule.pharmacyName || '-'}
+                          <p className="mt-1.5 text-xs text-slate-400">
+                            처방일 {getPrescriptionDate(schedule)}
+                            {' · '}{range.startDate} ~ {range.endDate}
+                            {' · '}{schedule.hospitalName || '병원 미상'}
+                            {' / '}{schedule.pharmacyName || '약국 미상'}
                           </p>
                         </div>
 
-                        <div className="flex flex-wrap justify-end gap-2">
+                        <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
                           <Button
                             type="button"
                             size="sm"
@@ -2547,7 +2571,7 @@ function MyPage() {
                       </div>
 
                       {editingPrescriptionId === schedule.id && (
-                        <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                        <div className={`${softSectionClass} mx-4 mb-4`}>
                           <h3 className="font-bold text-slate-900">처방 내역 전체 수정</h3>
 
                           <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -2666,7 +2690,7 @@ function MyPage() {
                                   )}
 
                                   {isMedicineEditing && (
-                                    <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                                    <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                                       <div className="mt-4 grid gap-4 md:grid-cols-2">
                                         <Input
                                           label="약 이름"
@@ -2706,7 +2730,7 @@ function MyPage() {
                                                 event.target.value as DosageUnit,
                                               )
                                             }
-                                            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                            className={selectClass}
                                           >
                                             {dosageUnitOptions.map((option) => (
                                               <option key={option.value} value={option.value}>
@@ -2747,7 +2771,7 @@ function MyPage() {
                                         </div>
                                       </div>
 
-                                      <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                                      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                                         <p className="font-bold text-slate-900">회차별 복용 시간</p>
 
                                         <div className="mt-3 space-y-3">
@@ -2783,7 +2807,7 @@ function MyPage() {
                                                     event.target.value,
                                                   )
                                                 }
-                                                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                                className={selectClass}
                                               >
                                                 {medicationTimingOptions.map((option) => (
                                                   <option key={option.value} value={option.value}>
@@ -2831,150 +2855,199 @@ function MyPage() {
                         </div>
                       )}
 
-                      <div className="mt-4 space-y-2">
-                        {medicines.length === 0 ? (
-                          <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
-                            등록된 약 정보가 없습니다.
-                          </div>
-                        ) : (
-                          medicines.map((medicine) => (
-                            <div
-                              key={medicine.id}
-                              className="rounded-xl bg-slate-50 p-3"
-                            >
-                              <p className="font-semibold text-slate-900">
-                                {getMedicineDisplayName(medicine)}
-                              </p>
-
-                              <p className="mt-1 text-sm text-slate-500">
-                                {getDosageText(medicine)}
-                              </p>
-                            </div>
-                          ))
-                        )}
-                      </div>
-
-                      {prescriptionAnalysis && (
-                        <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                              <p className="font-bold text-slate-900">
-                                처방 내역 분석 결과
-                              </p>
-                              <p className="mt-1 text-sm text-slate-500">
-                                {getPrescriptionAnalysisSummary(
-                                  prescriptionAnalysis,
-                                )}
-                              </p>
-                            </div>
-
-                            <Badge
-                              variant={getPrescriptionAnalysisStatusBadgeVariant(
-                                prescriptionAnalysis,
-                              )}
-                            >
-                              {getPrescriptionAnalysisStatusLabel(
-                                prescriptionAnalysis,
-                              )}
-                            </Badge>
-                          </div>
-
-                          {prescriptionGeneralCautionTags.length > 0 && (
-                            <div className="mt-4 border-t border-slate-100 pt-3">
-                              <p className="text-xs font-semibold text-slate-500">
-                                전체 일반 복약 주의
-                              </p>
-
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {prescriptionGeneralCautionTags.map((tag) => (
-                                  <span
-                                    key={tag}
-                                    className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800"
+                      <div className="border-t border-slate-100 px-4 py-3">
+                        <div className={['grid gap-4', prescriptionAnalysis ? 'lg:grid-cols-2' : ''].join(' ')}>
+                          <div>
+                            {medicines.length === 0 ? (
+                              <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
+                                등록된 약 정보가 없습니다.
+                              </div>
+                            ) : (
+                              <div className={['grid gap-2', prescriptionAnalysis ? '' : 'sm:grid-cols-2'].join(' ')}>
+                                {medicines.map((medicine) => (
+                                  <div
+                                    key={medicine.id}
+                                    className="rounded-lg bg-slate-50 px-3 py-2.5"
                                   >
-                                    {tag}
-                                  </span>
+                                    <p className="text-sm font-semibold text-slate-900">
+                                      {getMedicineDisplayName(medicine)}
+                                    </p>
+
+                                    <p className="mt-0.5 text-xs text-slate-500">
+                                      {getDosageText(medicine)}
+                                    </p>
+                                  </div>
                                 ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {prescriptionAnalysis && (
+                            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                              {/* 고정 헤더 */}
+                              <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2.5">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-bold text-slate-900">
+                                    처방 내역 분석 결과
+                                  </p>
+                                  <p className="mt-0.5 text-xs text-slate-500">
+                                    {getPrescriptionAnalysisSummary(
+                                      prescriptionAnalysis,
+                                    )}
+                                  </p>
+                                </div>
+
+                                <Badge
+                                  variant={getPrescriptionAnalysisStatusBadgeVariant(
+                                    prescriptionAnalysis,
+                                  )}
+                                >
+                                  {getPrescriptionAnalysisStatusLabel(
+                                    prescriptionAnalysis,
+                                  )}
+                                </Badge>
+                              </div>
+
+                              {/* 스크롤 영역 */}
+                              <div className="max-h-64 overflow-y-auto px-3 py-2.5">
+                                {prescriptionAnalysisItems.length > 0 && (
+                                  <div className="divide-y divide-slate-100">
+                                    {prescriptionAnalysisItems.map((item, index) => {
+                                      const personalCautionLines =
+                                        getPersonalCautionLines(item);
+                                      const generalCautionTags =
+                                        getAnalysisGeneralCautionTags(item);
+                                      const medicineName = getAnalysisMedicineName(
+                                        item,
+                                        index,
+                                      );
+                                      const hasAnyCaution =
+                                        personalCautionLines.length > 0 ||
+                                        generalCautionTags.length > 0;
+
+                                      return (
+                                        <details
+                                          key={`${item.scheduleMedicineId ?? index}-${medicineName}`}
+                                          className="group py-2 first:pt-0 last:pb-0"
+                                        >
+                                          <summary className="flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden">
+                                            {/* 펼치기 화살표 */}
+                                            <svg
+                                              className="h-3 w-3 shrink-0 text-slate-400 transition-transform group-open:rotate-90"
+                                              fill="none"
+                                              viewBox="0 0 24 24"
+                                              stroke="currentColor"
+                                              strokeWidth={2.5}
+                                            >
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                            </svg>
+
+                                            {/* 약 이름 */}
+                                            <span className="min-w-0 truncate text-sm font-semibold text-slate-700">
+                                              {medicineName}
+                                            </span>
+
+                                            {/* 주의 없음 */}
+                                            {!hasAnyCaution && (
+                                              <span className="shrink-0 text-xs text-slate-400">주의 없음</span>
+                                            )}
+
+                                            {/* 건수 */}
+                                            {personalCautionLines.length > 0 && (
+                                              <span className="ml-auto shrink-0 text-xs font-semibold text-red-400">
+                                                {personalCautionLines.length}건
+                                              </span>
+                                            )}
+                                          </summary>
+
+                                          {/* 펼쳐지는 상세 */}
+                                          <div className="mt-1.5 pl-4">
+                                            {/* 개인화 주의: 빨간 뱃지 */}
+                                            {personalCautionLines.length > 0 && (
+                                              <div className="flex flex-wrap gap-1">
+                                                {personalCautionLines.map((line) => {
+                                                  const raw = line.includes(': ')
+                                                    ? line.split(': ').slice(1).join(': ')
+                                                    : line;
+                                                  const label = raw === '수유부' ? '모유수유' : raw;
+                                                  return (
+                                                    <span
+                                                      key={line}
+                                                      className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600"
+                                                    >
+                                                      {label}
+                                                    </span>
+                                                  );
+                                                })}
+                                              </div>
+                                            )}
+
+                                            {/* 일반 복약 주의: 노란 뱃지 */}
+                                            {generalCautionTags.length > 0 && (
+                                              <div className="mt-1.5 flex flex-wrap gap-1">
+                                                {generalCautionTags.map((tag) => (
+                                                  <span
+                                                    key={tag}
+                                                    className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700"
+                                                  >
+                                                    {tag}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </details>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )}
-
-                          {prescriptionAnalysisItems.length > 0 && (
-                            <div className="mt-4 divide-y divide-slate-100">
-                              {prescriptionAnalysisItems.map((item, index) => {
-                                const warnings = getAnalysisWarnings(item);
-                                const personalCautionLines =
-                                  getPersonalCautionLines(item);
-                                const generalCautionTags =
-                                  getAnalysisGeneralCautionTags(item);
-                                const medicineName = getAnalysisMedicineName(
-                                  item,
-                                  index,
-                                );
-
-                                return (
-                                  <div
-                                    key={`${item.scheduleMedicineId ?? index}-${medicineName}`}
-                                    className="py-3 first:pt-0 last:pb-0"
-                                  >
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <p className="font-semibold text-slate-900">
-                                        {medicineName}
-                                      </p>
-
-                                      {warnings.length === 0 && (
-                                        <span className="text-xs font-semibold text-slate-400">
-                                          개인화 주의 없음
-                                        </span>
-                                      )}
-
-                                      {warnings.map((warning) => (
-                                        <span
-                                          key={warning}
-                                          className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700"
-                                        >
-                                          {warning}
-                                        </span>
-                                      ))}
-                                    </div>
-
-                                    {personalCautionLines.length > 0 && (
-                                      <div className="mt-3 flex flex-wrap gap-2">
-                                        {personalCautionLines.map((line) => (
-                                          <span
-                                            key={line}
-                                            className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700"
-                                          >
-                                            {line}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-
-                                    {generalCautionTags.length > 0 && (
-                                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                                        <p className="text-xs font-semibold text-slate-500">
-                                          일반 복약 주의
-                                        </p>
-                                        {generalCautionTags.map((tag) => (
-                                          <span
-                                            key={tag}
-                                            className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600"
-                                          >
-                                            {tag}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
                   );
                 })}
+            </div>
+          )}
+
+          {/* 처방 내역 페이지네이션 */}
+          {!isMedicationScheduleLoading && !isMedicationScheduleError && prescriptionTotalPages > 1 && (
+            <div className="flex items-center justify-center gap-1 pt-2">
+              <button
+                type="button"
+                onClick={() => setPrescriptionPage((p) => Math.max(0, p - 1))}
+                disabled={prescriptionPage === 0}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                이전
+              </button>
+
+              {Array.from({ length: prescriptionTotalPages }, (_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setPrescriptionPage(i)}
+                  className={[
+                    'rounded-lg px-3 py-1.5 text-sm font-semibold transition',
+                    prescriptionPage === i
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                  ].join(' ')}
+                >
+                  {i + 1}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setPrescriptionPage((p) => Math.min(prescriptionTotalPages - 1, p + 1))}
+                disabled={prescriptionPage >= prescriptionTotalPages - 1}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                다음
+              </button>
             </div>
           )}
         </div>
@@ -2982,38 +3055,25 @@ function MyPage() {
 
       {isPasswordModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+          className={modalOverlayClass}
           role="presentation"
         >
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="password-modal-title"
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            className={`${modalPanelClass} max-w-md`}
           >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2
-                  id="password-modal-title"
-                  className="text-xl font-bold text-slate-900"
-                >
-                  비밀번호 변경
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  현재 비밀번호를 확인한 후 새 비밀번호로 변경합니다.
-                </p>
-              </div>
-
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={handleClosePasswordModal}
-                disabled={updatePasswordMutation.isPending}
-                aria-label="비밀번호 변경 창 닫기"
+            <div>
+              <h2
+                id="password-modal-title"
+                className="text-xl font-bold text-slate-900"
               >
-                닫기
-              </Button>
+                비밀번호 변경
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                현재 비밀번호를 확인한 후 새 비밀번호로 변경합니다.
+              </p>
             </div>
 
             <div className="mt-6 space-y-4">
@@ -3064,26 +3124,37 @@ function MyPage() {
               />
             </div>
 
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="mt-6 flex items-center justify-between gap-2">
               <Button
                 type="button"
-                variant="ghost"
-                className="border border-slate-200"
-                onClick={handleClosePasswordModal}
-                disabled={updatePasswordMutation.isPending}
+                variant="danger"
+                onClick={handleWithdrawAccount}
+                disabled={withdrawAccountMutation.isPending}
               >
-                취소
+                {withdrawAccountMutation.isPending ? '탈퇴 처리 중...' : '회원 탈퇴'}
               </Button>
 
-              <Button
-                type="button"
-                onClick={handleUpdatePassword}
-                disabled={updatePasswordMutation.isPending}
-              >
-                {updatePasswordMutation.isPending
-                  ? '변경 중...'
-                  : '비밀번호 변경'}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="border border-slate-200"
+                  onClick={handleClosePasswordModal}
+                  disabled={updatePasswordMutation.isPending}
+                >
+                  취소
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={handleUpdatePassword}
+                  disabled={updatePasswordMutation.isPending}
+                >
+                  {updatePasswordMutation.isPending
+                    ? '변경 중...'
+                    : '비밀번호 변경'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -3091,14 +3162,14 @@ function MyPage() {
 
       {smartPillModalSchedule && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+          className={modalOverlayClass}
           role="presentation"
         >
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="smartpill-modal-title"
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+            className={`${modalPanelClass} max-h-[90vh] max-w-2xl overflow-y-auto`}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -3171,7 +3242,7 @@ function MyPage() {
               {SMARTPILL_SLOT_NUMBERS.map((slotNumber) => (
                 <label
                   key={slotNumber}
-                  className="grid gap-2 rounded-xl border border-slate-200 p-4 sm:grid-cols-[100px_minmax(0,1fr)] sm:items-center"
+                  className="grid gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[100px_minmax(0,1fr)] sm:items-center"
                 >
                   <span className="font-semibold text-slate-900">
                     {slotNumber}번 칸
@@ -3189,7 +3260,7 @@ function MyPage() {
                       isSmartPillAssignmentLoading ||
                       saveSmartPillAssignmentsMutation.isPending
                     }
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    className={selectClass}
                   >
                     <option value="">연결 안 함</option>
                     {smartPillTimeGroups.map((group) => (
@@ -3235,27 +3306,6 @@ function MyPage() {
         </div>
       )}
 
-      <Card className="border-red-100 bg-red-50">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-red-700">회원 탈퇴</h2>
-
-            <p className="mt-2 text-sm text-red-600">
-              탈퇴 시 복약 일정, 상담 내역, 알림 설정 등 계정 관련 정보가
-              비활성화됩니다.
-            </p>
-          </div>
-
-          <Button
-            type="button"
-            variant="danger"
-            onClick={handleWithdrawAccount}
-            disabled={withdrawAccountMutation.isPending}
-          >
-            {withdrawAccountMutation.isPending ? '탈퇴 처리 중...' : '회원 탈퇴'}
-          </Button>
-        </div>
-      </Card>
     </div>
   );
 }

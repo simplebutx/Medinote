@@ -68,6 +68,8 @@ function SignupSteps() {
   const verifyCodeMutation = useVerifySmsCode();
 
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
+  const [agreedToSensitive, setAgreedToSensitive] = useState(false);
   const emailValidationMessage = getEmailValidationMessage(email);
   const passwordValidationMessage = getPasswordValidationMessage(password);
   const shouldShowEmailError =
@@ -162,6 +164,11 @@ function SignupSteps() {
       return;
     }
 
+    if (!agreedToPrivacy || !agreedToSensitive) {
+      toast.error("필수 약관에 모두 동의해주세요.");
+      return;
+    }
+
     signupMutation.mutate(
       {
         email: email.trim(),
@@ -189,25 +196,49 @@ function SignupSteps() {
       <div className="mb-8">
         <Badge variant="blue">회원가입</Badge>
 
-        <h1 className="mt-4 text-3xl font-bold text-slate-900">
+        <h1 className="mt-4 text-2xl font-bold text-slate-900">
           AI 복약 도우미 회원가입
         </h1>
 
-        <p className="mt-2 text-sm text-slate-500">
-          Step {step} / 2
-        </p>
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <div className="flex items-center gap-2">
+            <span
+              className={[
+                'flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold',
+                step >= 1
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-400',
+              ].join(' ')}
+            >
+              1
+            </span>
+            <span className={`text-sm font-semibold ${step >= 1 ? 'text-slate-900' : 'text-slate-400'}`}>
+              기본 정보
+            </span>
+          </div>
+
+          <div className="h-px w-8 bg-slate-200" />
+
+          <div className="flex items-center gap-2">
+            <span
+              className={[
+                'flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold',
+                step >= 2
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-400',
+              ].join(' ')}
+            >
+              2
+            </span>
+            <span className={`text-sm font-semibold ${step >= 2 ? 'text-slate-900' : 'text-slate-400'}`}>
+              추가 정보
+            </span>
+          </div>
+        </div>
       </div>
 
       {step === 1 && (
         <div>
-          <h2 className="text-xl font-bold text-slate-900">
-            Step 1. 공통 계정 정보 + 휴대폰 인증
-          </h2>
-
-          <p className="mt-2 text-sm text-slate-500">
-            계정 정보를 입력하고 휴대폰 인증을 완료합니다.
-          </p>
-
           <div className="mt-6 space-y-4">
             <Input
               label="이메일"
@@ -363,6 +394,92 @@ function SignupSteps() {
               {isPhoneVerified && (
                 <p className="mt-2 text-sm font-medium text-emerald-600">
                   휴대폰 인증이 완료되었습니다.
+                </p>
+              )}
+            </div>
+
+            {/* ── 약관 동의 ── */}
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-slate-700">
+                서비스 이용 약관
+              </p>
+
+              {/* 개인정보 수집 및 이용 동의 */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                    필수
+                  </span>
+                  <p className="text-sm font-semibold text-slate-900">
+                    개인정보 수집 및 이용 동의
+                  </p>
+                </div>
+
+                <div className="max-h-36 overflow-y-auto px-4 py-3 text-xs leading-5 text-slate-600">
+                  <p className="font-semibold text-slate-700">1. 수집·이용 목적</p>
+                  <p className="mt-1">사용자 식별, 회원가입, 복약 일정 관리 및 알림 서비스 제공, AI 의약품 정보 챗봇 상담 서비스 제공</p>
+                  <p className="mt-3 font-semibold text-slate-700">2. 수집하는 개인정보 항목</p>
+                  <p className="mt-1">아이디, 비밀번호, 이메일</p>
+                  <p className="mt-3 font-semibold text-slate-700">3. 개인정보의 보유 및 이용 기간</p>
+                  <p className="mt-1">회원 탈퇴 시까지</p>
+                  <p className="mt-3 font-semibold text-slate-700">4. 동의 거부 권리 및 불이익 안내</p>
+                  <p className="mt-1">귀하는 본 개인정보 수집 및 이용 동의를 거부할 권리가 있습니다. 단, 동의 거부 시 회원가입 및 서비스 이용이 제한됩니다.</p>
+                </div>
+
+                <label className="flex cursor-pointer items-center gap-3 border-t border-slate-100 bg-slate-50/40 px-4 py-3 transition hover:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    checked={agreedToPrivacy}
+                    onChange={(e) => setAgreedToPrivacy(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 accent-blue-600"
+                  />
+                  <span className="text-sm font-semibold text-slate-700">
+                    개인정보 수집 및 이용에 동의합니다.
+                  </span>
+                </label>
+              </div>
+
+              {/* 민감정보 수집 및 이용 동의 */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                    필수
+                  </span>
+                  <p className="text-sm font-semibold text-slate-900">
+                    민감정보 수집 및 이용 동의
+                  </p>
+                </div>
+
+                <div className="max-h-36 overflow-y-auto px-4 py-3 text-xs leading-5 text-slate-600">
+                  <p className="font-semibold text-slate-700">1. 수집·이용 목적</p>
+                  <p className="mt-1">처방전 OCR 기반 복약 일정 자동 등록, 개인별 맞춤형 약물 정보 확인, 알레르기/부작용 예방 안내 및 맞춤형 헬스케어 솔루션 제공</p>
+                  <p className="mt-3 font-semibold text-slate-700">2. 수집하는 민감정보 항목</p>
+                  <p className="mt-1">처방전 사진 및 텍스트 데이터, 약물 복용 기록, 개인별 알레르기 성분 정보</p>
+                  <p className="mt-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5 text-slate-500">
+                    ※ 본 서비스는 개인정보 보호법 제23조에 의거하여 건강 관련 민감정보를 수집합니다.
+                  </p>
+                  <p className="mt-3 font-semibold text-slate-700">3. 개인정보의 보유 및 이용 기간</p>
+                  <p className="mt-1">회원 탈퇴 시까지</p>
+                  <p className="mt-3 font-semibold text-slate-700">4. 동의 거부 권리 및 불이익 안내</p>
+                  <p className="mt-1">귀하는 본 민감정보 수집 및 이용 동의를 거부할 권리가 있습니다. 단, 동의 거부 시 처방전 OCR 인식 및 알레르기 부작용 매칭 등 핵심 기능 이용이 제한될 수 있습니다.</p>
+                </div>
+
+                <label className="flex cursor-pointer items-center gap-3 border-t border-slate-100 bg-slate-50/40 px-4 py-3 transition hover:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    checked={agreedToSensitive}
+                    onChange={(e) => setAgreedToSensitive(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 accent-blue-600"
+                  />
+                  <span className="text-sm font-semibold text-slate-700">
+                    민감정보 수집 및 이용에 동의합니다.
+                  </span>
+                </label>
+              </div>
+
+              {hasTriedNextStep && (!agreedToPrivacy || !agreedToSensitive) && (
+                <p className="text-sm font-medium text-red-600">
+                  필수 약관에 모두 동의해주세요.
                 </p>
               )}
             </div>

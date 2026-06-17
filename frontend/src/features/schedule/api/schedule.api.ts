@@ -8,6 +8,7 @@ import type {
   DailyMedicationScheduleResponse,
   MedicationTimePreset,
   PrescriptionAnalysisResponse,
+  SpringPage,
   UpdateMedicationTimePresetsRequest,
 } from "../types/schedule.types";
 
@@ -31,10 +32,24 @@ export const updateMedicationTimePresets = async (
 };
 
 export const getMedicationSchedules = async () => {
-  const response = await medicationInstance.get<MedicationSchedule[]>(
-    "/api/medication-schedules"
+  const response = await medicationInstance.get<SpringPage<MedicationSchedule> | MedicationSchedule[]>(
+    "/api/medication-schedules",
+    { params: { size: 1000, sort: "createdAt,desc" } }
   );
 
+  // 백엔드가 Page<T> 응답으로 변경된 경우 content 배열만 반환
+  const data = response.data;
+  if (data && !Array.isArray(data) && "content" in data) {
+    return data.content;
+  }
+  return data as MedicationSchedule[];
+};
+
+export const getPaginatedMedicationSchedules = async (page: number, size = 5) => {
+  const response = await medicationInstance.get<SpringPage<MedicationSchedule>>(
+    "/api/medication-schedules",
+    { params: { page, size, sort: "createdAt,desc" } }
+  );
   return response.data;
 };
 
@@ -69,11 +84,16 @@ export const getMedicationScheduleTimes = async (
 export const getMedicationScheduleTimesByScheduleIds = async (
   medicationScheduleIds: number[],
 ) => {
-  const results = await Promise.all(
+  const results = await Promise.allSettled(
     medicationScheduleIds.map((id) => getMedicationScheduleTimes(id)),
   );
 
-  return results.flat();
+  return results
+    .filter(
+      (result): result is PromiseFulfilledResult<MedicationScheduleTime[]> =>
+        result.status === "fulfilled",
+    )
+    .flatMap((result) => result.value);
 };
 
 export const getMedicationIntakeLogs = async (
@@ -94,11 +114,16 @@ export const getMedicationIntakeLogs = async (
 export const getMedicationIntakeLogsByScheduleIds = async (
   medicationScheduleIds: number[],
 ) => {
-  const results = await Promise.all(
+  const results = await Promise.allSettled(
     medicationScheduleIds.map((id) => getMedicationIntakeLogs(id)),
   );
 
-  return results.flat();
+  return results
+    .filter(
+      (result): result is PromiseFulfilledResult<MedicationIntakeLog[]> =>
+        result.status === "fulfilled",
+    )
+    .flatMap((result) => result.value);
 };
 
 export const createMedicationIntakeLog = async (body: {

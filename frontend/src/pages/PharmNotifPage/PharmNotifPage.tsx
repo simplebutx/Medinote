@@ -68,7 +68,7 @@ function BellIcon({ className }: { className?: string }) {
   );
 }
 
-function NotifPage() {
+function PharmNotifPage() {
   const navigate = useNavigate();
   const role = useUserStore((state) => state.role);
   const userId = useUserStore((state) => state.userId);
@@ -211,7 +211,7 @@ function NotifPage() {
                 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 cursor-default'
                 : browserNotificationPermission === 'denied' || browserNotificationPermission === 'unsupported'
                   ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-default'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-700',
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:text-emerald-700',
             ].join(' ')}
           >
             <BellIcon className="h-4 w-4" />
@@ -250,7 +250,7 @@ function NotifPage() {
               >
                 {filter === 'all' ? '전체' : '읽지 않음'}
                 {filter === 'unread' && unreadCount > 0 && (
-                  <span className="ml-1.5 rounded-full bg-blue-500 px-1.5 py-0.5 text-xs font-bold text-white">
+                  <span className="ml-1.5 rounded-full bg-emerald-600 px-1.5 py-0.5 text-xs font-bold text-white">
                     {unreadCount}
                   </span>
                 )}
@@ -296,7 +296,7 @@ function NotifPage() {
                 className={[
                   'flex gap-3 border-l-2 px-5 py-4 transition',
                   isUnread
-                    ? 'border-l-blue-400 bg-blue-50/30'
+                    ? 'border-l-emerald-400 bg-emerald-50/30'
                     : 'border-l-transparent border-b border-b-slate-100 bg-white hover:bg-slate-50/50',
                 ].join(' ')}
               >
@@ -317,7 +317,7 @@ function NotifPage() {
                   {/* Title row */}
                   <div className="flex items-center gap-2">
                     {isUnread && (
-                      <span className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-600" />
                     )}
                     <span className="text-sm font-semibold text-slate-900">{title}</span>
                     <span className={[
@@ -356,7 +356,7 @@ function NotifPage() {
                       type="button"
                       onClick={() => handleReadNotification(notification)}
                       disabled={readNotificationMutation.isPending}
-                      className="text-xs font-medium text-blue-600 transition hover:text-blue-800 disabled:opacity-50"
+                      className="text-xs font-medium text-emerald-600 transition hover:text-emerald-800 disabled:opacity-50"
                     >
                       읽음
                     </button>
@@ -379,4 +379,4 @@ function NotifPage() {
   );
 }
 
-export default NotifPage;
+export default PharmNotifPage;

@@ -112,23 +112,17 @@ function loadKakaoMapScript() {
 
     if (existingScript) {
       if (window.kakao?.maps) {
-        window.kakao.maps.load(() => {
-          resolve();
-        });
+        window.kakao.maps.load(() => { resolve(); });
         return;
       }
 
       existingScript.addEventListener('load', () => {
         const kakao = window.kakao;
-
         if (!kakao?.maps) {
           reject(new Error('Kakao 지도 객체를 찾을 수 없습니다.'));
           return;
         }
-
-        kakao.maps.load(() => {
-          resolve();
-        });
+        kakao.maps.load(() => { resolve(); });
       });
 
       existingScript.addEventListener('error', reject);
@@ -136,22 +130,17 @@ function loadKakaoMapScript() {
     }
 
     const script = document.createElement('script');
-
     script.dataset.kakaoMapScript = 'true';
     script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_MAP_KEY}&autoload=false`;
     script.async = true;
 
     script.onload = () => {
       const kakao = window.kakao;
-
       if (!kakao?.maps) {
         reject(new Error('Kakao 지도 객체를 찾을 수 없습니다.'));
         return;
       }
-
-      kakao.maps.load(() => {
-        resolve();
-      });
+      kakao.maps.load(() => { resolve(); });
     };
 
     script.onerror = () => {
@@ -184,6 +173,7 @@ function getPharmacyPhone(pharmacy: Pharmacy) {
   return pharmacy.phone ?? '전화번호 정보 없음';
 }
 
+
 function getPharmacyLatitude(pharmacy: Pharmacy) {
   return pharmacy.latitude ?? null;
 }
@@ -207,6 +197,7 @@ function getBusinessHours(pharmacy: Pharmacy) {
   return businessHours.map(([label, open, close]) => ({
     label,
     value: open && close ? `${open} ~ ${close}` : '정보 없음',
+    hasInfo: Boolean(open && close),
   }));
 }
 
@@ -592,15 +583,21 @@ function MapPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-blue-600">Nearby Pharmacy</p>
 
-          <h1 className="mt-2 text-3xl font-bold text-slate-900">근처 약국</h1>
-
-          <p className="mt-2 text-slate-500">
-            현재 지도 범위의 약국을 확인하고, 약 이름으로 재고 보유 약국을
-            검색합니다.
+      {/* ── Status banner ── */}
+      <div className="flex items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 px-5 py-3.5">
+        <div className="flex items-center gap-3">
+          <div className={`h-2 w-2 rounded-full ${isMapReady ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+          <p className="text-sm font-semibold text-blue-900">
+            {isMapReady ? '지도 연결됨' : '지도 로딩 중'}
+          </p>
+          <span className="text-sm text-blue-600">·</span>
+          <p className="text-sm text-blue-700">
+            현재 지도 범위에서{' '}
+            <span className="font-bold">
+              {isPharmacyDataLoading ? '…' : `${pharmacies.length}개`}
+            </span>
+            {' '}약국 조회
           </p>
         </div>
 
@@ -613,33 +610,21 @@ function MapPage() {
         </Badge>
       </div>
 
-      <Card className="border-blue-100 bg-blue-50">
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="font-bold text-blue-900">지도 범위 기반 약국 조회</p>
-            <p className="mt-1 text-sm text-blue-700">
-              Kakao 지도를 이동하거나 확대/축소하면 현재 화면 범위에 포함된
-              약국을 다시 조회합니다.
-            </p>
-          </div>
+      {/* ── Main grid ── */}
+      <div className="grid gap-5 lg:grid-cols-[400px_1fr]">
 
-          <div className="text-xs font-semibold text-blue-700">
-            southLat {bounds.southLat.toFixed(4)} · northLat{' '}
-            {bounds.northLat.toFixed(4)} · westLng {bounds.westLng.toFixed(4)} ·
-            eastLng {bounds.eastLng.toFixed(4)}
-          </div>
-        </div>
-      </Card>
+        {/* ── LEFT: Search + Pharmacy list ── */}
+        <div className="flex flex-col gap-4">
 
-      <div className="grid gap-4 lg:grid-cols-[420px_1fr]">
-        <div className="space-y-4">
+          {/* Search card */}
           <Card>
+            {/* Mode tabs */}
             <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1">
               <button
                 type="button"
                 onClick={() => handleChangeSearchMode('inventory')}
                 className={[
-                  'rounded-lg px-3 py-2 text-sm font-semibold transition',
+                  'rounded-lg px-4 py-2.5 text-sm font-semibold transition',
                   searchMode === 'inventory'
                     ? 'bg-white text-blue-700 shadow-sm'
                     : 'text-slate-500 hover:text-slate-900',
@@ -651,7 +636,7 @@ function MapPage() {
                 type="button"
                 onClick={() => handleChangeSearchMode('pharmacy')}
                 className={[
-                  'rounded-lg px-3 py-2 text-sm font-semibold transition',
+                  'rounded-lg px-4 py-2.5 text-sm font-semibold transition',
                   searchMode === 'pharmacy'
                     ? 'bg-white text-blue-700 shadow-sm'
                     : 'text-slate-500 hover:text-slate-900',
@@ -661,18 +646,15 @@ function MapPage() {
               </button>
             </div>
 
-            <h2 className="mt-5 text-xl font-bold text-slate-900">
-              {searchMode === 'inventory' ? '재고 검색' : '약국 검색'}
-            </h2>
-
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-4 text-xs text-slate-400">
               {searchMode === 'inventory'
                 ? '약 이름을 입력하면 해당 약 재고를 보유한 약국을 검색합니다.'
-                : '현재 지도 범위에서 약국 이름이나 도로명까지의 주소로 검색합니다.'}
+                : '현재 지도 범위에서 약국 이름이나 주소로 검색합니다.'}
             </p>
 
+            {/* Inventory search */}
             {searchMode === 'inventory' ? (
-              <div className="mt-4 space-y-2">
+              <div className="mt-3 space-y-2">
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Input
@@ -692,92 +674,73 @@ function MapPage() {
 
                     {shouldShowMedicineDropdown && (
                       <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
-                        <div className="px-4 pt-2 pb-1">
-                          <p className="text-xs font-semibold text-slate-500">
+                        <div className="border-b border-slate-100 px-4 py-2.5">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                             약 검색 결과
                           </p>
                         </div>
 
-                        <div className="max-h-64 overflow-y-auto py-2">
-                          {isMedicineSuggestLoading &&
-                            !committedMedicineKeyword && (
-                              <div className="px-4 py-4 text-sm text-blue-700">
-                                약 검색어를 불러오는 중입니다.
-                              </div>
-                            )}
+                        <div className="max-h-56 overflow-y-auto">
+                          {isMedicineSuggestLoading && !committedMedicineKeyword && (
+                            <div className="px-4 py-5 text-center text-sm text-slate-400">
+                              검색 중…
+                            </div>
+                          )}
 
-                          {!committedMedicineKeyword &&
-                            !isMedicineSuggestLoading &&
-                            medicineSuggestions.length === 0 && (
-                              <div className="px-4 py-4 text-sm text-slate-500">
-                                검색어 제안이 없습니다.
-                              </div>
-                            )}
+                          {!committedMedicineKeyword && !isMedicineSuggestLoading && medicineSuggestions.length === 0 && (
+                            <div className="px-4 py-5 text-center text-sm text-slate-400">
+                              검색어 제안이 없습니다.
+                            </div>
+                          )}
 
-                          {!committedMedicineKeyword &&
-                            !isMedicineSuggestLoading &&
+                          {!committedMedicineKeyword && !isMedicineSuggestLoading &&
                             medicineSuggestions.map((suggestion) => (
                               <button
                                 key={suggestion}
                                 type="button"
-                                onClick={() =>
-                                  handleSelectMedicineKeyword(suggestion)
-                                }
-                                className="block w-full px-4 py-3 text-left transition hover:bg-blue-50"
+                                onClick={() => handleSelectMedicineKeyword(suggestion)}
+                                className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-blue-50"
                               >
-                                <p className="font-semibold text-slate-900">
-                                  {suggestion}
-                                </p>
-                                <p className="mt-1 text-xs text-slate-500">
-                                  이 검색어로 약 정보 조회
-                                </p>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-300"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                <span className="text-sm font-semibold text-slate-800">{suggestion}</span>
                               </button>
                             ))}
 
                           {isMedicineSearchLoadingForDropdown && (
-                            <div className="px-4 py-4 text-sm text-blue-700">
-                              약 정보를 검색하고 있습니다.
+                            <div className="px-4 py-5 text-center text-sm text-slate-400">
+                              약 정보를 검색하고 있습니다…
                             </div>
                           )}
 
                           {isMedicineSearchErrorForDropdown && (
-                            <div className="px-4 py-4 text-sm text-red-700">
-                              약 검색 결과를 불러오지 못했습니다.
+                            <div className="px-4 py-5 text-center text-sm text-red-500">
+                              검색 결과를 불러오지 못했습니다.
                             </div>
                           )}
 
-                          {!isMedicineSearchLoadingForDropdown &&
-                            !isMedicineSearchErrorForDropdown &&
-                            committedMedicineKeyword &&
-                            medicineResults.length === 0 && (
-                              <div className="px-4 py-4 text-sm text-slate-500">
-                                검색 결과가 없습니다.
-                              </div>
-                            )}
+                          {!isMedicineSearchLoadingForDropdown && !isMedicineSearchErrorForDropdown && committedMedicineKeyword && medicineResults.length === 0 && (
+                            <div className="px-4 py-5 text-center text-sm text-slate-400">
+                              검색 결과가 없습니다.
+                            </div>
+                          )}
 
-                          {!isMedicineSearchLoadingForDropdown &&
-                            !isMedicineSearchErrorForDropdown &&
+                          {!isMedicineSearchLoadingForDropdown && !isMedicineSearchErrorForDropdown &&
                             medicineResults.map((medicine, index) => {
-                              const itemSeq =
-                                getMedicineId(medicine) || String(index + 1);
+                              const itemSeq = getMedicineId(medicine) || String(index + 1);
                               const itemName = getMedicineName(medicine);
-                              const companyName =
-                                getMedicineCompanyName(medicine);
+                              const companyName = getMedicineCompanyName(medicine);
 
                               return (
                                 <button
                                   key={`${itemSeq}-${itemName}`}
                                   type="button"
                                   onClick={() => handleSelectMedicine(medicine)}
-                                  className="block w-full px-4 py-3 text-left transition hover:bg-blue-50"
+                                  className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-blue-50"
                                 >
-                                  <p className="font-semibold text-slate-900">
-                                    {itemName}
-                                  </p>
-
-                                  <p className="mt-1 text-xs text-slate-500">
-                                    {companyName || '제조사 정보 없음'}
-                                  </p>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-slate-900 truncate">{itemName}</p>
+                                    <p className="mt-0.5 text-xs text-slate-400">{companyName || '제조사 정보 없음'}</p>
+                                  </div>
                                 </button>
                               );
                             })}
@@ -796,13 +759,34 @@ function MapPage() {
                   </Button>
                 </div>
 
-                <p className="text-xs text-slate-500">
-                  정확도를 높이려면 검색어 제안에서 약을 선택해주세요.
-                </p>
+                {isMedicineSearchMode && (
+                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3.5 py-2.5">
+                    <p className="text-xs text-slate-500">
+                      <span className="font-semibold text-slate-800">
+                        {selectedMedicineName || committedMedicineKeyword}
+                      </span>{' '}
+                      재고 보유 약국
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-semibold text-blue-600">
+                        {isMedicineSearchLoading ? '…' : `${pharmacies.length}곳`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleResetSearch}
+                        className="text-xs text-slate-400 transition hover:text-slate-700"
+                      >
+                        초기화
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="mt-4 space-y-2">
+              /* Pharmacy search */
+              <div className="mt-3 space-y-2">
                 <div className="flex gap-2">
+                  <div className="flex-1">
                   <Input
                     value={pharmacyKeyword}
                     onChange={(event) => {
@@ -814,8 +798,9 @@ function MapPage() {
                         handleSearchPharmacy();
                       }
                     }}
-                    placeholder="예: 중앙약국, 서울특별시 중구 서소문로"
+                    placeholder="예: 중앙약국, 서소문로"
                   />
+                  </div>
                   <Button
                     type="button"
                     onClick={handleSearchPharmacy}
@@ -826,59 +811,117 @@ function MapPage() {
                   </Button>
                 </div>
 
-                <p className="text-xs text-slate-500">
-                  지도를 이동하면 새 지도 범위에서 같은 검색어로 다시
-                  필터링됩니다.
-                </p>
-              </div>
-            )}
-
-            {(isMedicineSearchMode || isPharmacySearchMode) && (
-              <div className="mt-3 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                <p className="text-sm text-slate-600">
-                  검색어:{' '}
-                  <span className="font-bold text-slate-900">
-                    {isMedicineSearchMode
-                      ? selectedMedicineName || committedMedicineKeyword
-                      : committedPharmacyKeyword}
-                  </span>
-                  {isPharmacySearchMode && (
-                    <span className="ml-2 text-xs text-slate-500">
-                      {pharmacies.length}곳
-                    </span>
-                  )}
-                </p>
-
-                <button
-                  type="button"
-                  onClick={handleResetSearch}
-                  className="text-sm font-semibold text-blue-600"
-                >
-                  초기화
-                </button>
+                {isPharmacySearchMode && (
+                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3.5 py-2.5">
+                    <p className="text-xs text-slate-500">
+                      <span className="font-semibold text-slate-800">{committedPharmacyKeyword}</span>{' '}
+                      검색 결과
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-semibold text-blue-600">
+                        {pharmacies.length}곳
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleResetSearch}
+                        className="text-xs text-slate-400 transition hover:text-slate-700"
+                      >
+                        초기화
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </Card>
 
+          {/* Pharmacy list */}
+          {!isPharmacyDataLoading && !isPharmacyDataError && pharmacies.length > 0 && (
+            <Card className="flex flex-col overflow-hidden p-0">
+              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                <p className="text-sm font-bold text-slate-900">약국 목록</p>
+                <span className="text-xs text-slate-400">{pharmacies.length}곳</span>
+              </div>
+
+              <div className="max-h-[480px] overflow-y-auto divide-y divide-slate-50">
+                {pharmacies.map((pharmacy) => {
+                  const hpid = getPharmacyHpid(pharmacy);
+                  const isSelected = hpid === selectedHpid;
+
+                  return (
+                    <button
+                      key={hpid}
+                      type="button"
+                      onClick={() => focusPharmacy(pharmacy)}
+                      className={[
+                        'flex w-full items-center gap-3 border-l-2 px-4 py-3 text-left transition',
+                        isSelected
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-transparent hover:bg-slate-50',
+                      ].join(' ')}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900">
+                          {getPharmacyName(pharmacy)}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs text-slate-400">
+                          {getPharmacyAddress(pharmacy)}
+                        </p>
+
+                      </div>
+                      {isSelected && (
+                        <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                          선택됨
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
+          {/* Loading / error states for pharmacy list */}
+          {isPharmacyDataLoading && (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
+              약국 위치를 불러오는 중입니다…
+            </div>
+          )}
+
+          {isPharmacyDataError && (
+            <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-6 text-center text-sm text-red-500">
+              약국 위치를 불러오지 못했습니다.
+            </div>
+          )}
+
+          {!isPharmacyDataLoading && !isPharmacyDataError && (isMedicineSearchMode || isPharmacySearchMode) && pharmacies.length === 0 && (
+            <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-6 text-center text-sm text-amber-700">
+              {isMedicineSearchMode
+                ? '현재 지도 범위에서 해당 약 재고를 보유한 약국을 찾지 못했습니다.'
+                : '현재 지도 범위에서 일치하는 약국을 찾지 못했습니다.'}
+            </div>
+          )}
         </div>
 
-        <div className="space-y-4">
-          <Card className="min-h-[420px]">
-            <div className="mb-3 flex items-center justify-between gap-3">
+        {/* ── RIGHT: Map + Detail ── */}
+        <div className="flex flex-col gap-5">
+
+          {/* Map card */}
+          <Card>
+            <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">약국 지도</h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <h2 className="text-base font-bold text-slate-900">약국 지도</h2>
+                <p className="mt-0.5 text-xs text-slate-400">
                   지도를 이동하면 현재 화면 범위의 약국 위치를 다시 조회합니다.
                 </p>
               </div>
-
               <Badge variant={isMapReady ? 'green' : 'gray'}>
-                {isMapReady ? '지도 연결됨' : '지도 로딩'}
+                {isMapReady ? '연결됨' : '로딩'}
               </Badge>
             </div>
 
             {mapErrorMessage ? (
-              <div className="flex h-[340px] items-center justify-center rounded-3xl border border-red-100 bg-red-50 text-center">
+              <div className="flex h-[420px] items-center justify-center rounded-2xl border border-red-100 bg-red-50 text-center">
                 <div>
                   <p className="font-bold text-red-700">지도 로드 실패</p>
                   <p className="mt-2 text-sm text-red-600">{mapErrorMessage}</p>
@@ -887,128 +930,90 @@ function MapPage() {
             ) : (
               <div
                 ref={mapContainerRef}
-                className="h-[340px] overflow-hidden rounded-3xl border border-slate-200 bg-slate-100"
+                className="h-[420px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
               />
             )}
-
-            {isPharmacyDataLoading && (
-              <p className="mt-3 text-sm text-blue-700">
-                약국 위치를 불러오는 중입니다.
-              </p>
-            )}
-
-            {isPharmacyDataError && (
-              <p className="mt-3 text-sm text-red-700">
-                약국 위치를 불러오지 못했습니다.
-              </p>
-            )}
-
-            {!isPharmacyDataLoading &&
-              !isPharmacyDataError &&
-              (isMedicineSearchMode || isPharmacySearchMode) &&
-              pharmacies.length === 0 && (
-                <p className="mt-3 text-sm text-amber-700">
-                  {isMedicineSearchMode
-                    ? '현재 지도 범위에서 해당 약 재고를 보유한 약국을 찾지 못했습니다.'
-                    : '현재 지도 범위에서 일치하는 약국을 찾지 못했습니다.'}
-                </p>
-              )}
           </Card>
 
-          <Card>
-            <h2 className="text-xl font-bold text-slate-900">약국 상세</h2>
+          {/* Pharmacy detail card */}
+          <Card className="flex-1">
+            <h2 className="text-base font-bold text-slate-900">약국 상세</h2>
 
             {!selectedHpid ? (
-              <div className="mt-4 rounded-2xl bg-slate-50 p-8 text-center text-sm text-slate-500">
-                지도에서 약국 마커를 선택해주세요.
+              <div className="mt-4 flex flex-col items-center justify-center py-10 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                </div>
+                <p className="mt-3 text-sm font-semibold text-slate-700">약국을 선택하세요</p>
+                <p className="mt-1 text-xs text-slate-400">지도 마커나 왼쪽 목록에서 약국을 선택하면<br />상세 정보가 여기에 표시됩니다.</p>
               </div>
             ) : isDetailLoading ? (
-              <div className="mt-4 rounded-2xl bg-slate-50 p-8 text-center text-sm text-slate-500">
-                약국 상세 정보를 불러오는 중입니다.
+              <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
+                약국 상세 정보를 불러오는 중입니다…
               </div>
             ) : isDetailError || !selectedPharmacy ? (
-              <div className="mt-4 rounded-2xl bg-red-50 p-8 text-center text-sm text-red-600">
+              <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-8 text-center text-sm text-red-500">
                 약국 상세 정보를 불러오지 못했습니다.
               </div>
             ) : (
               <div className="mt-4 space-y-5">
+
+                {/* Pharmacy header */}
                 <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-2xl font-bold text-slate-900">
-                      {getPharmacyName(selectedPharmacy)}
-                    </h3>
+                  <h3 className="text-xl font-bold text-slate-900">
+                    {getPharmacyName(selectedPharmacy)}
+                  </h3>
 
-                    <Badge variant="green">영업 정보</Badge>
+                  <div className="mt-3 space-y-1.5 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3.5">
+                    <div className="flex items-start gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-slate-400"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                      <p className="text-sm text-slate-600">{getPharmacyAddress(selectedPharmacy)}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-400"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.99 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.92 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                      <p className="text-sm text-slate-600">{getPharmacyPhone(selectedPharmacy)}</p>
+                    </div>
                   </div>
-
-                  <p className="mt-3 text-sm leading-6 text-slate-600">
-                    {getPharmacyAddress(selectedPharmacy)}
-                  </p>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    {getPharmacyPhone(selectedPharmacy)}
-                  </p>
-
-                  <p className="mt-2 text-xs text-slate-400">
-                    HPID: {getPharmacyHpid(selectedPharmacy)}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-400">
-                    위도: {getPharmacyLatitude(selectedPharmacy) ?? '-'} · 경도:{' '}
-                    {getPharmacyLongitude(selectedPharmacy) ?? '-'}
-                  </p>
                 </div>
 
-                {(selectedPharmacy.description ||
-                  selectedPharmacy.extraInfo) && (
-                  <div className="rounded-2xl bg-slate-50 p-4">
+                {/* Description */}
+                {(selectedPharmacy.description || selectedPharmacy.extraInfo) && (
+                  <div className="rounded-2xl bg-blue-50 px-4 py-3.5">
                     {selectedPharmacy.description && (
-                      <p className="text-sm text-slate-600">
-                        {selectedPharmacy.description}
-                      </p>
+                      <p className="text-sm leading-6 text-blue-700">{selectedPharmacy.description}</p>
                     )}
-
                     {selectedPharmacy.extraInfo && (
-                      <p className="mt-2 text-sm text-slate-500">
-                        {selectedPharmacy.extraInfo}
-                      </p>
+                      <p className="mt-1.5 text-sm text-blue-600">{selectedPharmacy.extraInfo}</p>
                     )}
                   </div>
                 )}
 
+                {/* Business hours */}
                 <div>
-                  <h4 className="font-bold text-slate-900">영업시간</h4>
-
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <p className="mb-3 text-sm font-bold text-slate-900">영업시간</p>
+                  <div className="grid gap-1.5 sm:grid-cols-2">
                     {getBusinessHours(selectedPharmacy).map((hour) => (
                       <div
                         key={hour.label}
-                        className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm"
+                        className="flex items-center justify-between rounded-xl bg-slate-50 px-3.5 py-2.5 text-sm"
                       >
-                        <span className="font-semibold text-slate-600">
-                          {hour.label}
+                        <span className="font-semibold text-slate-700">{hour.label}</span>
+                        <span className={hour.hasInfo ? 'text-slate-600' : 'text-slate-400'}>
+                          {hour.value}
                         </span>
-
-                        <span className="text-slate-500">{hour.value}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
-                  <p className="text-sm font-semibold text-amber-800">
-                    약국별 전체 재고 조회 API는 아직 없습니다.
-                  </p>
-
-                  <p className="mt-1 text-sm text-amber-700">
-                    현재는 약 이름 검색으로 해당 약을 보유한 약국을 찾을 수
-                    있습니다.
-                  </p>
-                </div> */}
               </div>
             )}
           </Card>
         </div>
+
       </div>
     </div>
   );

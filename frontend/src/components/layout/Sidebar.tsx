@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAppNotifications } from '../../features/notification/hooks';
 import { useUserStore } from '../../store/useUserStore';
 import type { UserRole } from '../../types/common.types';
@@ -47,10 +48,31 @@ function getMenusByRole(role: UserRole | null) {
   return userMenus;
 }
 
+function getRoleLabel(role: UserRole | null) {
+  if (role === 'PHARMACIST') return '약사';
+  if (role === 'ADMIN') return '관리자';
+  return '사용자';
+}
+
+
+function getRoleActiveNavClass(role: UserRole | null) {
+  if (role === 'PHARMACIST') return 'bg-emerald-700 text-white shadow-sm shadow-emerald-700/20';
+  if (role === 'ADMIN') return 'bg-slate-700 text-white shadow-sm shadow-slate-700/20';
+  return 'bg-blue-700 text-white shadow-sm shadow-blue-700/20';
+}
+
 function Sidebar() {
+  const navigate = useNavigate();
   const role = useUserStore((state) => state.role);
   const userId = useUserStore((state) => state.userId);
   const status = useUserStore((state) => state.status);
+  const logout = useUserStore((state) => state.logout);
+
+  const handleLogout = () => {
+    logout();
+    toast.success('로그아웃되었습니다.');
+    navigate('/login');
+  };
   const menus = getMenusByRole(role);
   const notificationRole =
     role === 'USER' || role === 'PHARMACIST' ? role : null;
@@ -80,13 +102,22 @@ function Sidebar() {
   }).length;
 
   return (
-    <aside className="w-64 shrink-0 border-r border-slate-200 bg-white px-5 py-6">
-      <div className="mb-8">
-        <h1 className="text-xl font-bold text-blue-600">AI 복약 도우미</h1>
-        <p className="mt-1 text-xs text-slate-500">{role ?? 'USER'}</p>
+    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-slate-200/80 bg-white/95 px-4 py-5 shadow-[8px_0_30px_rgba(15,23,42,0.03)] backdrop-blur">
+      <div className="mb-7 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <div className="flex items-center gap-3">
+          <img src="/medinote-logo.svg" alt="Medinote" className="h-9 w-9 shrink-0" />
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-extrabold text-slate-950">
+              Medinote
+            </h1>
+            <p className="mt-0.5 text-xs font-semibold text-slate-500">
+              {getRoleLabel(role)}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <nav className="space-y-1">
+      <nav className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
         {menus.map((menu) => {
           const showNotificationBadge =
             menu.badge === 'notifications' && unreadNotificationCount > 0;
@@ -97,10 +128,10 @@ function Sidebar() {
               to={menu.path}
               className={({ isActive }) =>
                 [
-                  'flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition',
+                  'flex items-center justify-between rounded-xl px-3.5 py-3 text-sm font-semibold transition',
                   isActive
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                    ? getRoleActiveNavClass(role)
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950',
                 ].join(' ')
               }
             >
@@ -119,6 +150,21 @@ function Sidebar() {
           );
         })}
       </nav>
+
+      <div className="mt-4 border-t border-slate-200/80 pt-4">
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex w-full items-center gap-2 rounded-xl px-3.5 py-3 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          로그아웃
+        </button>
+      </div>
     </aside>
   );
 }

@@ -2,21 +2,18 @@ import { Outlet } from 'react-router-dom';
 
 import NotificationWatcher from '../../features/notification/components/NotificationWatcher';
 import Sidebar from './Sidebar';
-import Topbar from './Topbar';
 
 function AppLayout() {
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="flex min-h-screen bg-[#f8fafc] text-slate-900">
       <NotificationWatcher />
       <Sidebar />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar />
-
-        <main className="flex-1 p-8">
+      <main className="flex-1 min-w-0 px-6 pt-12 pb-10 lg:px-8">
+        <div className="mx-auto w-full max-w-7xl">
           <Outlet />
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

@@ -30,6 +30,7 @@ import PatientPage from '../../pages/PatientPage/PatientPage';
 import PharmDrugSearchPage from '../../pages/PharmDrugSearchPage/PharmDrugSearchPage';
 import PharmInventoryPage from '../../pages/PharmInventoryPage/PharmInventoryPage';
 import PharmMyPage from '../../pages/PharmMyPage/PharmMyPage';
+import PharmNotifPage from '../../pages/PharmNotifPage/PharmNotifPage';
 import PharmPendingPage from '../../pages/PharmPendingPage/PharmPendingPage';
 
 import AdminDashboardPage from '../../pages/AdminDashboardPage/AdminDashboardPage';
@@ -162,7 +163,7 @@ export const router = createBrowserRouter([
                   },
                   {
                     path: '/pharmacist/notifications',
-                    element: <NotifPage />,
+                    element: <PharmNotifPage />,
                   },
                   {
                     path: '/pharmacist/my',

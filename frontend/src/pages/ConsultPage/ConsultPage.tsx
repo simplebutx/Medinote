@@ -106,6 +106,35 @@ function getPatientDisplayName(patientInfo: {
   return patientInfo?.username || patientInfo?.customerName || '-';
 }
 
+function getGenderLabel(gender?: string | null) {
+  if (gender === 'MALE') return '남성';
+  if (gender === 'FEMALE') return '여성';
+  return '-';
+}
+
+function calcKoreanAge(birthDate?: string | null) {
+  if (!birthDate) return null;
+  const today = new Date();
+  const birth = new Date(birthDate);
+  if (Number.isNaN(birth.getTime())) return null;
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
+
+function formatMessageTime(value?: string) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('ko-KR', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
 function getPatientHealthBadges(patientInfo: {
   isPregnant?: boolean;
   isBreastfeeding?: boolean;
@@ -391,18 +420,6 @@ function ConsultPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-semibold text-blue-600">
-          Pharmacist Consult
-        </p>
-
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">상담 관리</h1>
-
-        <p className="mt-2 text-slate-500">
-          환자가 요청한 복약 상담을 확인하고 답변을 작성합니다.
-        </p>
-      </div>
-
       {isError && (
         <Card className="border-red-100 bg-red-50">
           <p className="text-sm font-semibold text-red-700">
@@ -417,15 +434,21 @@ function ConsultPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <p className="text-sm font-medium text-slate-500">상담 대기</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">
+          <p className="mt-3 text-3xl font-bold text-yellow-500">
             {isLoading ? '-' : `${pendingRooms.length}건`}
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            아직 답변이 필요한 상담 요청입니다.
           </p>
         </Card>
 
         <Card>
           <p className="text-sm font-medium text-slate-500">진행 중</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">
+          <p className="mt-3 text-3xl font-bold text-emerald-600">
             {isLoading ? '-' : `${activeRooms.length}건`}
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            확인 또는 답변 작성 중인 상담입니다.
           </p>
         </Card>
 
@@ -434,59 +457,57 @@ function ConsultPage() {
           <p className="mt-3 text-3xl font-bold text-slate-900">
             {isLoading ? '-' : `${completedRooms.length}건`}
           </p>
+          <p className="mt-2 text-sm text-slate-500">
+            답변이 종료된 상담 내역입니다.
+          </p>
         </Card>
       </div>
 
-      <Card>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => handleChangeStatus('PENDING')}
-            className={[
-              'rounded-xl px-4 py-2 text-sm font-semibold transition',
-              activeStatus === 'PENDING'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-            ].join(' ')}
-          >
-            대기
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleChangeStatus('ACTIVE')}
-            className={[
-              'rounded-xl px-4 py-2 text-sm font-semibold transition',
-              activeStatus === 'ACTIVE'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-            ].join(' ')}
-          >
-            진행 중
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleChangeStatus('COMPLETED')}
-            className={[
-              'rounded-xl px-4 py-2 text-sm font-semibold transition',
-              activeStatus === 'COMPLETED'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-            ].join(' ')}
-          >
-            완료
-          </button>
-        </div>
-      </Card>
-
-      <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         <Card>
-          <div>
+          <div className="flex items-center justify-between gap-2">
             <h2 className="text-xl font-bold text-slate-900">상담 목록</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              선택한 상태의 상담 요청을 확인합니다.
-            </p>
+
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => handleChangeStatus('PENDING')}
+                className={[
+                  'rounded-xl px-3 py-1.5 text-xs font-semibold transition',
+                  activeStatus === 'PENDING'
+                    ? 'bg-emerald-700 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                ].join(' ')}
+              >
+                대기
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleChangeStatus('ACTIVE')}
+                className={[
+                  'rounded-xl px-3 py-1.5 text-xs font-semibold transition',
+                  activeStatus === 'ACTIVE'
+                    ? 'bg-emerald-700 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                ].join(' ')}
+              >
+                진행 중
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleChangeStatus('COMPLETED')}
+                className={[
+                  'rounded-xl px-3 py-1.5 text-xs font-semibold transition',
+                  activeStatus === 'COMPLETED'
+                    ? 'bg-emerald-700 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                ].join(' ')}
+              >
+                완료
+              </button>
+            </div>
           </div>
 
           <div className="mt-4 space-y-3">
@@ -510,8 +531,8 @@ function ConsultPage() {
                     className={[
                       'block w-full rounded-2xl border p-4 text-left transition',
                       isSelected
-                        ? 'border-blue-300 bg-blue-50'
-                        : 'border-slate-200 hover:border-blue-200 hover:bg-blue-50/40',
+                        ? 'border-emerald-300 bg-emerald-50'
+                        : 'border-slate-200 hover:border-emerald-200 hover:bg-emerald-50/40',
                     ].join(' ')}
                   >
                     <div className="flex flex-wrap items-center gap-2">
@@ -524,7 +545,7 @@ function ConsultPage() {
                       </Badge>
                     </div>
 
-                    <p className="mt-2 line-clamp-2 font-semibold text-slate-800">
+                    <p className="mt-2 truncate text-slate-600">
                       {getConsultTitle(room)}
                     </p>
 
@@ -542,15 +563,11 @@ function ConsultPage() {
           {selectedRoom ? (
             <div className="space-y-5">
               <div className="flex flex-col gap-3 border-b border-slate-100 pb-5 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-2xl font-bold text-slate-900">
+                <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <h2 className="truncate text-lg font-bold text-slate-900">
                       {getConsultTitle(selectedRoom)}
                     </h2>
-
-                    <Badge variant={getConsultStatusBadge(selectedRoom.status)}>
-                      {getConsultStatusLabel(selectedRoom.status)}
-                    </Badge>
                   </div>
 
                   <p className="mt-2 text-sm text-slate-500">
@@ -559,17 +576,15 @@ function ConsultPage() {
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex shrink-0 gap-2">
                   {selectedRoom.status === 'PENDING' && (
                     <button
                       type="button"
                       onClick={handleMatchRoom}
                       disabled={matchConsultRoomMutation.isPending}
-                      className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="whitespace-nowrap rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {matchConsultRoomMutation.isPending
-                        ? '수락 중'
-                        : '상담 수락'}
+                      {matchConsultRoomMutation.isPending ? '수락 중' : '상담 수락'}
                     </button>
                   )}
 
@@ -587,15 +602,12 @@ function ConsultPage() {
               </div>
 
               <section>
-                <h3 className="text-sm font-semibold text-slate-500">
-                  상담 메시지
-                </h3>
 
                 <div
                   ref={consultMessagesContainerRef}
-                  className="mt-2 h-80 overflow-y-auto rounded-2xl bg-slate-50 p-4"
+                  className="mt-2 h-96 overflow-y-auto rounded-2xl bg-slate-50 p-4"
                 >
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {isMessagesLoading ? (
                       <p className="text-sm text-slate-500">
                         메시지를 불러오는 중입니다.
@@ -609,42 +621,44 @@ function ConsultPage() {
                         아직 표시할 메시지가 없습니다.
                       </p>
                     ) : (
-                      displayedMessages.map((message, index) => (
-                        <div
-                          key={
-                            message.messageId ??
-                            `${message.roomId ?? selectedRoom?.roomId}-${message.senderId}-${
-                              message.createdAt ?? index
-                            }-${index}`
-                          }
-                          className="rounded-2xl bg-white p-3"
-                        >
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge
-                              variant={
-                                message.senderType === 'PHARMACIST' ? 'blue' : 'gray'
-                              }
-                            >
-                              {message.senderType === 'PHARMACIST' ? '약사' : '환자'}
-                            </Badge>
-
-                            <span className="text-xs text-slate-400">
-                              {formatDateTime(message.createdAt)}
+                      displayedMessages.map((message, index) => {
+                        const isPharmacist = message.senderType === 'PHARMACIST';
+                        return (
+                          <div
+                            key={
+                              message.messageId ??
+                              `${message.roomId ?? selectedRoom?.roomId}-${message.senderId}-${
+                                message.createdAt ?? index
+                              }-${index}`
+                            }
+                            className={['flex flex-col', isPharmacist ? 'items-end' : 'items-start'].join(' ')}
+                          >
+                            {!isPharmacist && (
+                              <span className="mb-1 text-xs font-semibold text-slate-500">
+                                {`${getPatientName(selectedRoom)} 환자`}
+                              </span>
+                            )}
+                            <div className={[
+                              'max-w-[80%] px-4 py-2.5 text-sm leading-6 whitespace-pre-line',
+                              isPharmacist
+                                ? 'rounded-tl-2xl rounded-bl-2xl rounded-br-2xl rounded-tr-none bg-emerald-600 text-white'
+                                : 'rounded-tr-2xl rounded-bl-2xl rounded-br-2xl rounded-tl-none bg-blue-600 text-white',
+                            ].join(' ')}>
+                              {getConsultMessageContent(message)}
+                            </div>
+                            <span className="mt-1 text-xs text-slate-400">
+                              {formatMessageTime(message.createdAt)}
                             </span>
                           </div>
-
-                          <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">
-                            {getConsultMessageContent(message)}
-                          </p>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>
               </section>
 
               <section className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 p-4">
+                <div className="rounded-2xl bg-slate-50 p-4">
                   <h3 className="text-sm font-semibold text-slate-500">
                     환자 정보
                   </h3>
@@ -660,13 +674,13 @@ function ConsultPage() {
                   ) : (
                     <div className="mt-2 space-y-2 text-sm text-slate-700">
                       <p>이름: {getPatientDisplayName(patientInfo)}</p>
-                      <p>성별: {patientInfo?.gender ?? '-'}</p>
-                      <p>생년월일: {patientInfo?.birthDate ?? '-'}</p>
+                      <p>성별: {getGenderLabel(patientInfo?.gender)}</p>
+                      <p>생년월일: {patientInfo?.birthDate ?? '-'}{(() => { const age = calcKoreanAge(patientInfo?.birthDate); return age != null ? ` (만 ${age}세)` : ''; })()}</p>
                     </div>
                   )}
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 p-4">
+                <div className="rounded-2xl bg-slate-50 p-4">
                   <h3 className="text-sm font-semibold text-slate-500">
                     건강 정보 참고
                   </h3>
@@ -687,7 +701,7 @@ function ConsultPage() {
 
               {isSelectedRoomClosed && (
                 <section className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-200 p-4">
+                  <div className="rounded-2xl bg-slate-50 p-4">
                     <h3 className="text-sm font-semibold text-slate-500">
                       상담 요약
                     </h3>
@@ -703,7 +717,7 @@ function ConsultPage() {
                           type="button"
                           onClick={handleGenerateConsultSummary}
                           disabled={generateConsultSummaryMutation.isPending}
-                          className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {generateConsultSummaryMutation.isPending
                             ? '요약 생성 중'
@@ -713,7 +727,7 @@ function ConsultPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200 p-4">
+                  <div className="rounded-2xl bg-slate-50 p-4">
                     <h3 className="text-sm font-semibold text-slate-500">
                       사용자 평가
                     </h3>
@@ -755,7 +769,7 @@ function ConsultPage() {
                       handleSubmitAnswer();
                     }}
                     placeholder="환자에게 전달할 상담 답변을 입력하세요."
-                    className="mt-2 min-h-40 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                    className="mt-2 min-h-40 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   />
 
                   <div className="mt-3 flex justify-end">
@@ -767,7 +781,7 @@ function ConsultPage() {
                         !isSelectedRoomMatched ||
                         !isConsultSocketConnected
                       }
-                      className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-xl bg-emerald-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isConsultSocketConnected ? '답변 전송' : '연결 중'}
                     </button>

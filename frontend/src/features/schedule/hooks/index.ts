@@ -15,3 +15,4 @@ export * from './useDeleteMedicationScheduleTime';
 export * from './useMedicationTimePresets';
 export * from './useUpdateMedicationTimePresets';
 export * from './usePrescriptionAnalysis';
+export * from './usePaginatedMedicationSchedules';

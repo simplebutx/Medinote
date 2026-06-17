@@ -2,7 +2,7 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useUserStore } from '../../store/useUserStore';
 import { useNavigate } from 'react-router-dom';
-import { Badge, Button, Card, Input } from '../../components/ui';
+import { Badge, Button, Card, PharmInput } from '../../components/ui';
 import {
   usePharmacyDetail,
   useRegisterPharmacy,
@@ -14,6 +14,22 @@ import {
   useUpdateMyPharmacistProfile,
   useWithdrawAccount,
 } from '../../features/user/hooks';
+import { useUpdatePassword } from '../../features/auth/hooks';
+
+function getPasswordValidationMessage(value: string) {
+  if (!value) return '비밀번호를 입력해주세요.';
+  const hasAlphabet = /[A-Za-z]/.test(value);
+  const hasSpecial = /[!@#$%^&*()_\-+=[\]{};':"\\|,.<>/?`~]/.test(value);
+  const hasValidLength = value.length >= 8 && value.length <= 20;
+  if (!hasValidLength || !hasAlphabet || !hasSpecial)
+    return '비밀번호는 8자 이상 20자 이하이며 영문과 특수문자를 포함해야 합니다.';
+  return '';
+}
+
+const modalOverlayClass =
+  'fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm';
+const modalPanelClass =
+  'w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl shadow-slate-950/10';
 
 function getApprovalStatusLabel(status?: string | null, role?: string | null) {
   if (status === 'ACTIVE') return '승인 완료';
@@ -209,26 +225,58 @@ function PharmMyPage() {
   const updatePharmacyMutation = useUpdatePharmacy();
 
   const navigate = useNavigate();
-    const withdrawAccountMutation = useWithdrawAccount();
+  const withdrawAccountMutation = useWithdrawAccount();
+  const updatePasswordMutation = useUpdatePassword();
 
-    const handleWithdrawAccount = () => {
-      const confirmed = window.confirm(
-        '정말로 약사 회원 탈퇴하시겠습니까? 탈퇴 후 계정 정보는 복구할 수 없습니다.',
-      );
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [hasTriedPasswordChange, setHasTriedPasswordChange] = useState(false);
 
-      if (!confirmed) return;
+  const handleClosePasswordModal = () => {
+    setIsPasswordModalOpen(false);
+    setOldPassword('');
+    setNewPassword('');
+    setNewPasswordConfirm('');
+    setHasTriedPasswordChange(false);
+  };
 
-      withdrawAccountMutation.mutate(undefined, {
+  const handleUpdatePassword = () => {
+    setHasTriedPasswordChange(true);
+    if (!oldPassword || getPasswordValidationMessage(newPassword) || newPassword !== newPasswordConfirm) return;
+    updatePasswordMutation.mutate(
+      { oldPassword, newPassword },
+      {
         onSuccess: () => {
-          toast.success('회원 탈퇴가 완료되었습니다.');
-          navigate('/login', { replace: true });
+          toast.success('비밀번호가 변경되었습니다.');
+          handleClosePasswordModal();
         },
-        onError: (error) => {
-          console.error('약사 회원 탈퇴 실패:', error);
-          toast.error('회원 탈퇴에 실패했습니다. 다시 시도해주세요.');
+        onError: () => {
+          toast.error('비밀번호 변경에 실패했습니다. 다시 시도해주세요.');
         },
-      });
-    };
+      },
+    );
+  };
+
+  const handleWithdrawAccount = () => {
+    const confirmed = window.confirm(
+      '정말로 약사 회원 탈퇴하시겠습니까? 탈퇴 후 계정 정보는 복구할 수 없습니다.',
+    );
+
+    if (!confirmed) return;
+
+    withdrawAccountMutation.mutate(undefined, {
+      onSuccess: () => {
+        toast.success('회원 탈퇴가 완료되었습니다.');
+        navigate('/login', { replace: true });
+      },
+      onError: (error) => {
+        console.error('약사 회원 탈퇴 실패:', error);
+        toast.error('회원 탈퇴에 실패했습니다. 다시 시도해주세요.');
+      },
+    });
+  };
 
   const tokenUserId = getUserIdFromAccessToken(accessToken);
 
@@ -456,20 +504,6 @@ function PharmMyPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-semibold text-blue-600">
-          Pharmacist My Page
-        </p>
-
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">
-          약사 마이페이지
-        </h1>
-
-        <p className="mt-2 text-slate-500">
-          약사 계정 정보와 인증 정보를 확인하고 수정 요청합니다.
-        </p>
-      </div>
-
       {isError && (
         <Card className="border-red-100 bg-red-50">
           <p className="text-sm font-semibold text-red-700">
@@ -491,28 +525,39 @@ function PharmMyPage() {
         <>
           <Card>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-2xl font-bold text-slate-900">
-                    {pharmacistName}
-                  </h2>
-
-                  <Badge
-                    variant={getApprovalStatusBadge(
-                      profile?.status,
-                      profile?.role,
-                    )}
-                  >
-                    {getApprovalStatusLabel(profile?.status, profile?.role)}
-                  </Badge>
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-700 text-xl font-extrabold text-white shadow-sm shadow-emerald-700/20">
+                  {pharmacistName.slice(0, 1)}
                 </div>
 
-                <p className="mt-2 text-sm text-slate-500">{pharmacistEmail}</p>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-2xl font-bold text-slate-900">
+                      {pharmacistName}
+                    </h2>
+
+                    <Badge
+                      variant={getApprovalStatusBadge(
+                        profile?.status,
+                        profile?.role,
+                      )}
+                    >
+                      {getApprovalStatusLabel(profile?.status, profile?.role)}
+                    </Badge>
+                  </div>
+
+                  <p className="mt-1 text-sm text-slate-500">{pharmacistEmail}</p>
+                </div>
               </div>
 
-              <div className="rounded-2xl bg-blue-50 px-4 py-3 text-sm text-blue-700">
-                약사 인증 정보는 관리자 승인 기준으로 관리됩니다.
-              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                className="border border-slate-200"
+                onClick={() => setIsPasswordModalOpen(true)}
+              >
+                비밀번호 변경
+              </Button>
             </div>
           </Card>
 
@@ -529,7 +574,7 @@ function PharmMyPage() {
                     className={[
                       'min-w-fit px-5 py-4 text-sm font-semibold transition',
                       isActive
-                        ? 'border-b-2 border-blue-600 text-blue-700'
+                        ? 'border-b-2 border-emerald-600 text-emerald-700'
                         : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
                     ].join(' ')}
                   >
@@ -599,6 +644,7 @@ function PharmMyPage() {
                     {!isLicenseEditing && (
                       <Button
                         type="button"
+                        variant="emerald"
                         size="sm"
                         onClick={handleStartEditLicense}
                       >
@@ -613,7 +659,7 @@ function PharmMyPage() {
                         <label className="text-sm font-semibold text-slate-600">
                           면허번호
                         </label>
-                        <Input
+                        <PharmInput
                           value={displayedLicenseNumber}
                           onChange={(event) =>
                             setLicenseNumber(event.target.value)
@@ -633,11 +679,11 @@ function PharmMyPage() {
                           onChange={(event) =>
                             setLicenseImage(event.target.files?.[0] ?? null)
                           }
-                          className="mt-2 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-blue-700"
+                          className="mt-2 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-emerald-700"
                         />
 
                         {licenseImage && (
-                          <p className="mt-2 text-xs text-blue-600">
+                          <p className="mt-2 text-xs text-emerald-600">
                             선택한 파일: {licenseImage.name}
                           </p>
                         )}
@@ -661,6 +707,7 @@ function PharmMyPage() {
 
                         <Button
                           type="button"
+                          variant="emerald"
                           onClick={handleSave}
                           disabled={updatePharmacistProfileMutation.isPending}
                         >
@@ -709,6 +756,7 @@ function PharmMyPage() {
                 {!isPharmacyEditing && !isPharmacyDetailLoading && (
                   <Button
                     type="button"
+                    variant="emerald"
                     size="sm"
                     onClick={handleStartEditPharmacy}
                   >
@@ -723,7 +771,7 @@ function PharmMyPage() {
                     'mt-4 rounded-2xl p-4 text-sm font-semibold',
                     isPharmacyMessageError
                       ? 'bg-red-50 text-red-700'
-                      : 'bg-blue-50 text-blue-700',
+                      : 'bg-emerald-50 text-emerald-700',
                   ].join(' ')}
                 >
                   {pharmacyMessage}
@@ -735,11 +783,11 @@ function PharmMyPage() {
                   기존 약국 정보를 불러오는 중입니다.
                 </div>
               ) : pharmacyDetail ? (
-                <div className="mt-5 rounded-2xl bg-blue-50 p-4 text-sm text-blue-700">
-                  {isPharmacyEditing
-                    ? '약국 정보를 수정한 뒤 저장해주세요.'
-                    : '연결된 약국 정보를 확인할 수 있습니다.'}
-                </div>
+                isPharmacyEditing ? (
+                  <div className="mt-5 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-700">
+                    약국 정보를 수정한 뒤 저장해주세요.
+                  </div>
+                ) : null
               ) : isPharmacyDetailError ? (
                 <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
                   아직 상세 약국 정보가 등록되지 않았습니다. 수정 버튼을 누른
@@ -754,7 +802,7 @@ function PharmMyPage() {
                       <label className="text-sm font-semibold text-slate-600">
                         약국명
                       </label>
-                      <Input
+                      <PharmInput
                         value={displayedPharmacyForm.pharmacyName}
                         onChange={(event) =>
                           handleChangePharmacyForm(
@@ -770,7 +818,7 @@ function PharmMyPage() {
                       <label className="text-sm font-semibold text-slate-600">
                         전화번호
                       </label>
-                      <Input
+                      <PharmInput
                         value={displayedPharmacyForm.phone}
                         onChange={(event) =>
                           handleChangePharmacyForm('phone', event.target.value)
@@ -783,7 +831,7 @@ function PharmMyPage() {
                       <label className="text-sm font-semibold text-slate-600">
                         주소
                       </label>
-                      <Input
+                      <PharmInput
                         value={displayedPharmacyForm.address}
                         onChange={(event) =>
                           handleChangePharmacyForm(
@@ -799,7 +847,7 @@ function PharmMyPage() {
                       <label className="text-sm font-semibold text-slate-600">
                         위도
                       </label>
-                      <Input
+                      <PharmInput
                         type="number"
                         value={displayedPharmacyForm.latitude}
                         onChange={(event) =>
@@ -815,7 +863,7 @@ function PharmMyPage() {
                       <label className="text-sm font-semibold text-slate-600">
                         경도
                       </label>
-                      <Input
+                      <PharmInput
                         type="number"
                         value={displayedPharmacyForm.longitude}
                         onChange={(event) =>
@@ -850,7 +898,7 @@ function PharmMyPage() {
                             <label className="text-xs font-semibold text-slate-500">
                               시작 시간
                             </label>
-                            <Input
+                            <PharmInput
                               type="time"
                               value={toInputTime(
                                 String(
@@ -870,7 +918,7 @@ function PharmMyPage() {
                             <label className="text-xs font-semibold text-slate-500">
                               종료 시간
                             </label>
-                            <Input
+                            <PharmInput
                               type="time"
                               value={toInputTime(
                                 String(
@@ -910,6 +958,7 @@ function PharmMyPage() {
 
                   <Button
                     type="button"
+                    variant="emerald"
                     onClick={handleSavePharmacy}
                     disabled={
                       registerPharmacyMutation.isPending ||
@@ -987,25 +1036,80 @@ function PharmMyPage() {
           </Card>
         </>
       )}
-      <Card className="border-red-100 bg-red-50">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-red-700">약사 회원 탈퇴</h2>
-            <p className="mt-2 text-sm text-red-600">
-              탈퇴 시 약사 프로필, 약국 정보 등 계정 관련 정보가 삭제되며 복구할 수 없습니다.
-            </p>
-          </div>
+      {/* ── 비밀번호 변경 모달 ── */}
+      {isPasswordModalOpen && (
+        <div className={modalOverlayClass} role="presentation">
+          <div role="dialog" aria-modal="true" className={`${modalPanelClass} max-w-md`}>
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">비밀번호 변경</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                현재 비밀번호를 확인한 후 새 비밀번호로 변경합니다.
+              </p>
+            </div>
 
-          <Button
-            type="button"
-            variant="danger"
-            onClick={handleWithdrawAccount}
-            disabled={withdrawAccountMutation.isPending}
-          >
-            {withdrawAccountMutation.isPending ? '탈퇴 처리 중...' : '약사 회원 탈퇴'}
-          </Button>
+            <div className="mt-6 space-y-4">
+              <PharmInput
+                label="현재 비밀번호"
+                type="password"
+                autoComplete="current-password"
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                errorMessage={hasTriedPasswordChange && !oldPassword ? '현재 비밀번호를 입력해주세요.' : undefined}
+                disabled={updatePasswordMutation.isPending}
+              />
+              <PharmInput
+                label="새 비밀번호"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                errorMessage={(hasTriedPasswordChange || newPassword.length > 0) ? getPasswordValidationMessage(newPassword) : undefined}
+                disabled={updatePasswordMutation.isPending}
+              />
+              <PharmInput
+                label="새 비밀번호 확인"
+                type="password"
+                autoComplete="new-password"
+                value={newPasswordConfirm}
+                onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                errorMessage={(hasTriedPasswordChange || newPasswordConfirm.length > 0) && newPassword !== newPasswordConfirm ? '새 비밀번호가 일치하지 않습니다.' : undefined}
+                disabled={updatePasswordMutation.isPending}
+              />
+            </div>
+
+            <div className="mt-6 flex items-center justify-between gap-2">
+              <Button
+                type="button"
+                variant="danger"
+                onClick={handleWithdrawAccount}
+                disabled={withdrawAccountMutation.isPending}
+              >
+                {withdrawAccountMutation.isPending ? '탈퇴 처리 중...' : '회원 탈퇴'}
+              </Button>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="border border-slate-200"
+                  onClick={handleClosePasswordModal}
+                  disabled={updatePasswordMutation.isPending}
+                >
+                  취소
+                </Button>
+                <Button
+                  type="button"
+                  variant="emerald"
+                  onClick={handleUpdatePassword}
+                  disabled={updatePasswordMutation.isPending}
+                >
+                  {updatePasswordMutation.isPending ? '변경 중...' : '비밀번호 변경'}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
-      </Card>
+      )}
     </div>
   );
 }

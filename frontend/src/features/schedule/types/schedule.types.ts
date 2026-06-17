@@ -164,6 +164,16 @@ export interface CreateMedicationScheduleRequest {
  * 최신 복약 시간 등록 request.
  * 예전 medicationScheduleId가 아니라 medicationScheduleMedicineId 기준.
  */
+export interface SpringPage<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  first: boolean;
+  last: boolean;
+}
+
 export interface CreateMedicationScheduleTimeRequest {
   medicationScheduleMedicineId: number;
   timing: MedicationTiming;

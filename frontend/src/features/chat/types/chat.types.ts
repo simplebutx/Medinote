@@ -1,5 +1,5 @@
 export type ChatbotSenderType = "USER" | "BOT";
-export type ChatbotAnswerType = "NORMAL" | "FALLBACK" | string;
+export type ChatbotAnswerType = "NORMAL" | "FALLBACK" | "CONSULT_RECOMMENDED" | string;
 
 export interface ChatbotRoom {
   roomId: number;
