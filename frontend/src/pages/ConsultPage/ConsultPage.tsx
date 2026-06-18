@@ -154,6 +154,43 @@ function getCautionName(caution: CautionItem): string {
   return caution.itemName ?? caution.ingredientName ?? '알 수 없음';
 }
 
+const DOSAGE_UNIT_LABEL: Record<string, string> = {
+  TABLET: '정', CAPSULE: '캡슐', PACK: '포', ML: 'ml', MG: 'mg', DROP: '방울', OTHER: '',
+};
+
+function formatDosageUnit(unit: string | null | undefined): string {
+  if (!unit) return '';
+  return DOSAGE_UNIT_LABEL[unit] ?? unit;
+}
+
+function getMedicationName(schedule: { hospitalName?: string | null; pharmacyName?: string | null; customMedicineName?: string | null; medicines?: { customMedicineName?: string | null }[] }): string {
+  if (schedule.hospitalName) return `${schedule.hospitalName} 처방`;
+  if (schedule.pharmacyName) return `${schedule.pharmacyName} 조제`;
+  const medicines = schedule.medicines ?? [];
+  if (medicines.length > 0) {
+    const firstName = medicines[0].customMedicineName ?? schedule.customMedicineName ?? '복약 정보';
+    return medicines.length === 1 ? firstName : `${firstName} 외${medicines.length - 1}`;
+  }
+  return schedule.customMedicineName ?? '복약 정보';
+}
+
+function getMedicationPeriod(schedule: { startDate?: string | null; endDate?: string | null }): string {
+  if (schedule.startDate && schedule.endDate) return `${schedule.startDate} ~ ${schedule.endDate}`;
+  if (schedule.startDate) return `${schedule.startDate} ~`;
+  return '-';
+}
+
+function isMedicationActive(schedule: { endDate?: string | null }): boolean {
+  const endDate = schedule.endDate;
+  if (!endDate) return true;
+  const end = new Date(endDate);
+  if (Number.isNaN(end.getTime())) return true;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  return end >= today;
+}
+
 function getPatientHealthBadges(patientInfo: {
   isPregnant?: boolean;
   isBreastfeeding?: boolean;
@@ -438,6 +475,12 @@ function ConsultPage() {
 
   const patientHealthBadges = getPatientHealthBadges(patientInfo);
 
+  const medicationSchedules = [...(patientInfo?.medicationSchedules ?? [])].sort(
+    (a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? '')
+  );
+  const activeMedications = medicationSchedules.filter(isMedicationActive);
+  const pastMedications   = medicationSchedules.filter((s) => !isMedicationActive(s));
+
   return (
     <div className="space-y-6">
       {isError && (
@@ -621,25 +664,51 @@ function ConsultPage() {
                 </div>
               </div>
 
-              <section>
+              {/* ── 환자 정보 띠 + 채팅창 + 답변 작성 (좁은 간격으로 묶음) ── */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/pharmacist/patients?roomId=${selectedRoom.roomId}`)}
+                  className="w-full rounded-2xl bg-slate-50 px-5 py-3 text-left transition hover:bg-emerald-50 hover:ring-1 hover:ring-emerald-200"
+                >
+                  {isPatientInfoLoading ? (
+                    <p className="text-sm text-slate-500">환자 정보를 불러오는 중입니다.</p>
+                  ) : isPatientInfoError ? (
+                    <p className="text-sm text-red-600">환자 정보를 불러오지 못했습니다.</p>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                      <span className="flex items-center gap-1 font-semibold text-slate-900">
+                        {getPatientDisplayName(patientInfo)}
+                        <span className="text-xs font-normal text-emerald-600">↗</span>
+                      </span>
+                      <span className="text-slate-500">{getGenderLabel(patientInfo?.gender)}</span>
+                      <span className="text-slate-500">
+                        {patientInfo?.birthDate ?? '-'}
+                        {(() => { const age = calcKoreanAge(patientInfo?.birthDate); return age != null ? ` (만 ${age}세)` : ''; })()}
+                      </span>
+                      {patientHealthBadges.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {patientHealthBadges.map((badge) => (
+                            <Badge key={badge} variant="red">{badge}</Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </button>
 
+                {/* ── 채팅창 ── */}
                 <div
                   ref={consultMessagesContainerRef}
-                  className="mt-2 h-96 overflow-y-auto rounded-2xl bg-slate-50 p-4"
+                  className="h-96 overflow-y-auto rounded-2xl bg-slate-50 p-4"
                 >
                   <div className="space-y-4">
                     {isMessagesLoading ? (
-                      <p className="text-sm text-slate-500">
-                        메시지를 불러오는 중입니다.
-                      </p>
+                      <p className="text-sm text-slate-500">메시지를 불러오는 중입니다.</p>
                     ) : isMessagesError ? (
-                      <p className="text-sm text-red-600">
-                        메시지를 불러오지 못했습니다.
-                      </p>
+                      <p className="text-sm text-red-600">메시지를 불러오지 못했습니다.</p>
                     ) : displayedMessages.length === 0 ? (
-                      <p className="text-sm text-slate-500">
-                        아직 표시할 메시지가 없습니다.
-                      </p>
+                      <p className="text-sm text-slate-500">아직 표시할 메시지가 없습니다.</p>
                     ) : (
                       displayedMessages.map((message, index) => {
                         const isPharmacist = message.senderType === 'PHARMACIST';
@@ -647,9 +716,7 @@ function ConsultPage() {
                           <div
                             key={
                               message.messageId ??
-                              `${message.roomId ?? selectedRoom?.roomId}-${message.senderId}-${
-                                message.createdAt ?? index
-                              }-${index}`
+                              `${message.roomId ?? selectedRoom?.roomId}-${message.senderId}-${message.createdAt ?? index}-${index}`
                             }
                             className={['flex flex-col', isPharmacist ? 'items-end' : 'items-start'].join(' ')}
                           >
@@ -666,96 +733,142 @@ function ConsultPage() {
                             ].join(' ')}>
                               {getConsultMessageContent(message)}
                             </div>
-                            <span className="mt-1 text-xs text-slate-400">
-                              {formatMessageTime(message.createdAt)}
-                            </span>
+                            <span className="mt-1 text-xs text-slate-400">{formatMessageTime(message.createdAt)}</span>
                           </div>
                         );
                       })
                     )}
                   </div>
                 </div>
-              </section>
 
-              <section className="grid gap-3 md:grid-cols-3">
-                {/* 환자 정보 — 클릭 시 환자 조회 페이지로 이동 */}
-                <button
-                  type="button"
-                  onClick={() => navigate(`/pharmacist/patients?roomId=${selectedRoom.roomId}`)}
-                  className="rounded-2xl bg-slate-50 p-4 text-left transition hover:bg-emerald-50 hover:ring-1 hover:ring-emerald-200"
-                >
-                  <h3 className="flex items-center gap-1 text-sm font-semibold text-slate-500">
-                    환자 정보
-                    <span className="text-xs text-emerald-600">↗</span>
-                  </h3>
+                {/* ── 답변 작성 ── */}
+                {isSelectedRoomClosed ? (
+                  <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+                    종료된 상담입니다. 메시지를 추가로 전송할 수 없습니다.
+                  </div>
+                ) : selectedRoom.status === 'PENDING' ? null : (
+                  <section>
+                    <textarea
+                      value={answerText}
+                      onChange={(event) => setAnswerText(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
+                        event.preventDefault();
+                        handleSubmitAnswer();
+                      }}
+                      placeholder="환자에게 전달할 상담 답변을 입력하세요."
+                      className="min-h-40 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    />
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleSubmitAnswer}
+                      disabled={!answerText.trim() || !isSelectedRoomMatched}
+                      className="rounded-xl bg-emerald-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      답변 전송
+                    </button>
+                  </div>
+                  </section>
+                )}
+              </div>
 
-                  {isPatientInfoLoading ? (
-                    <p className="mt-2 text-sm text-slate-500">불러오는 중...</p>
-                  ) : isPatientInfoError ? (
-                    <p className="mt-2 text-sm text-red-600">불러오지 못했습니다.</p>
+              {/* ── 알레르기/주의 성분 (단독 full-width) ── */}
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <h3 className="text-sm font-semibold text-slate-500">알레르기/주의 성분</h3>
+                <div className="mt-3">
+                  {!patientInfo?.medicationCautions || patientInfo.medicationCautions.length === 0 ? (
+                    <Badge variant="gray">해당 없음</Badge>
                   ) : (
-                    <div className="mt-2 space-y-2 text-sm text-slate-700">
-                      <p>이름: {getPatientDisplayName(patientInfo)}</p>
-                      <p>성별: {getGenderLabel(patientInfo?.gender)}</p>
-                      <p>생년월일: {patientInfo?.birthDate ?? '-'}{(() => { const age = calcKoreanAge(patientInfo?.birthDate); return age != null ? ` (만 ${age}세)` : ''; })()}</p>
+                    <div className="flex flex-wrap gap-x-6 gap-y-2 max-h-[160px] overflow-y-auto">
+                      {patientInfo.medicationCautions.map((caution) => (
+                        <div key={caution.id} className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold text-slate-800">{getCautionName(caution)}</span>
+                          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">
+                            {getCautionReasonLabel(caution.reason)}
+                          </span>
+                          {caution.memo && <span className="text-xs text-slate-400">{caution.memo}</span>}
+                        </div>
+                      ))}
                     </div>
                   )}
-                </button>
+                </div>
+              </div>
 
-                {/* 건강 정보 */}
+              {/* ── 현재 복약 중 | 복약 이력 ── */}
+              <section className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-2xl bg-slate-50 p-4">
-                  <h3 className="text-sm font-semibold text-slate-500">건강 정보</h3>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {patientHealthBadges.length === 0 ? (
-                      <Badge variant="gray">특이사항 없음</Badge>
+                  <h3 className="text-sm font-semibold text-slate-500">현재 복약 중</h3>
+                  <div className={['mt-3 space-y-2', activeMedications.length > 2 ? 'max-h-[260px] overflow-y-auto pr-1' : ''].join(' ')}>
+                    {activeMedications.length === 0 ? (
+                      <p className="text-sm text-slate-400">복약 중인 약이 없습니다.</p>
                     ) : (
-                      patientHealthBadges.map((badge) => (
-                        <Badge key={badge} variant="red">{badge}</Badge>
+                      activeMedications.map((schedule, i) => (
+                        <div key={i} className="rounded-xl bg-white border border-slate-200 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-slate-800">{getMedicationName(schedule)}</p>
+                            <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">복약 중</span>
+                          </div>
+                          {schedule.medicines && schedule.medicines.length > 0 && (
+                            <ul className="mt-1.5 space-y-0.5">
+                              {schedule.medicines.map((medicine, mi) => (
+                                <li key={mi} className="text-xs text-slate-600">
+                                  {medicine.customMedicineName ?? '-'}
+                                  {medicine.dosageAmount != null && (
+                                    <span className="ml-1 text-slate-400">{medicine.dosageAmount}{formatDosageUnit(medicine.dosageUnit)}</span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          <p className="mt-1.5 text-xs text-slate-400">복용 기간: {getMedicationPeriod(schedule)}</p>
+                        </div>
                       ))
                     )}
                   </div>
                 </div>
 
-                {/* 알레르기/주의 성분 */}
                 <div className="rounded-2xl bg-slate-50 p-4">
-                  <h3 className="text-sm font-semibold text-slate-500">알레르기/주의 성분</h3>
-                  <div className="mt-3">
-                    {!patientInfo?.medicationCautions || patientInfo.medicationCautions.length === 0 ? (
-                      <Badge variant="gray">해당 없음</Badge>
+                  <h3 className="text-sm font-semibold text-slate-500">복약 이력</h3>
+                  <div className={['mt-3 space-y-2', pastMedications.length > 2 ? 'max-h-[260px] overflow-y-auto pr-1' : ''].join(' ')}>
+                    {pastMedications.length === 0 ? (
+                      <p className="text-sm text-slate-400">복약 이력이 없습니다.</p>
                     ) : (
-                      <div className="max-h-[160px] overflow-y-auto divide-y divide-slate-200">
-                        {patientInfo.medicationCautions.map((caution) => (
-                          <div key={caution.id} className="py-2 first:pt-0 last:pb-0">
-                            <p className="text-xs font-semibold text-slate-800 leading-snug">{getCautionName(caution)}</p>
-                            <div className="mt-1 flex flex-wrap items-center gap-1">
-                              <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
-                                {getCautionReasonLabel(caution.reason)}
-                              </span>
-                              {caution.memo && (
-                                <span className="text-xs text-slate-400">{caution.memo}</span>
-                              )}
-                            </div>
+                      pastMedications.map((schedule, i) => (
+                        <div key={i} className="rounded-xl bg-white border border-slate-200 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-slate-800">{getMedicationName(schedule)}</p>
+                            <span className="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-500">완료</span>
                           </div>
-                        ))}
-                      </div>
+                          {schedule.medicines && schedule.medicines.length > 0 && (
+                            <ul className="mt-1.5 space-y-0.5">
+                              {schedule.medicines.map((medicine, mi) => (
+                                <li key={mi} className="text-xs text-slate-600">
+                                  {medicine.customMedicineName ?? '-'}
+                                  {medicine.dosageAmount != null && (
+                                    <span className="ml-1 text-slate-400">{medicine.dosageAmount}{formatDosageUnit(medicine.dosageUnit)}</span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          <p className="mt-1.5 text-xs text-slate-400">복용 기간: {getMedicationPeriod(schedule)}</p>
+                        </div>
+                      ))
                     )}
                   </div>
                 </div>
               </section>
 
+              {/* ── 상담 요약 / 사용자 평가 (종료 후) ── */}
               {isSelectedRoomClosed && (
                 <section className="grid gap-3 md:grid-cols-2">
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <h3 className="text-sm font-semibold text-slate-500">
-                      상담 요약
-                    </h3>
-
+                    <h3 className="text-sm font-semibold text-slate-500">상담 요약</h3>
                     <div className="mt-2 space-y-3">
                       <p className="whitespace-pre-line text-sm leading-6 text-slate-700">
-                        {selectedRoom.aiConsultationSummary ||
-                          '아직 생성된 상담 요약이 없습니다.'}
+                        {selectedRoom.aiConsultationSummary || '아직 생성된 상담 요약이 없습니다.'}
                       </p>
-
                       {!selectedRoom.aiConsultationSummary && (
                         <button
                           type="button"
@@ -763,72 +876,17 @@ function ConsultPage() {
                           disabled={generateConsultSummaryMutation.isPending}
                           className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {generateConsultSummaryMutation.isPending
-                            ? '요약 생성 중'
-                            : 'AI 상담 요약 생성'}
+                          {generateConsultSummaryMutation.isPending ? '요약 생성 중' : 'AI 상담 요약 생성'}
                         </button>
                       )}
                     </div>
                   </div>
-
                   <div className="rounded-2xl bg-slate-50 p-4">
-                    <h3 className="text-sm font-semibold text-slate-500">
-                      사용자 평가
-                    </h3>
-
-                    <p className="mt-2 text-sm font-bold text-yellow-500">
-                      {getRatingStars(selectedRoom.rating)}
-                    </p>
-
+                    <h3 className="text-sm font-semibold text-slate-500">사용자 평가</h3>
+                    <p className="mt-2 text-sm font-bold text-yellow-500">{getRatingStars(selectedRoom.rating)}</p>
                     <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">
                       {selectedRoom.feedbackComment || '아직 등록된 한줄평이 없습니다.'}
                     </p>
-                  </div>
-                </section>
-              )}
-
-              {isSelectedRoomClosed ? (
-                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
-                  종료된 상담입니다. 메시지를 추가로 전송할 수 없습니다.
-                </div>
-              ) : (
-                <section>
-                  <h3 className="text-sm font-semibold text-slate-500">
-                    답변 작성
-                  </h3>
-
-                  <textarea
-                    value={answerText}
-                    onChange={(event) => setAnswerText(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (
-                        event.key !== 'Enter' ||
-                        event.shiftKey ||
-                        event.nativeEvent.isComposing
-                      ) {
-                        return;
-                      }
-
-                      event.preventDefault();
-                      handleSubmitAnswer();
-                    }}
-                    placeholder="환자에게 전달할 상담 답변을 입력하세요."
-                    className="mt-2 min-h-40 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-                  />
-
-                  <div className="mt-3 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={handleSubmitAnswer}
-                      disabled={
-                        !answerText.trim() ||
-                        !isSelectedRoomMatched ||
-                        !isConsultSocketConnected
-                      }
-                      className="rounded-xl bg-emerald-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isConsultSocketConnected ? '답변 전송' : '연결 중'}
-                    </button>
                   </div>
                 </section>
               )}

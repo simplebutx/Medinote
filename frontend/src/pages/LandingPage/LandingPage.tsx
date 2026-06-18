@@ -261,7 +261,7 @@ function LandingPage() {
         <div className={`${containerClass} flex h-16 items-center justify-between`}>
           <Link
             to="/"
-            className="flex items-center gap-2 text-xl font-extrabold text-blue-600"
+            className="flex items-center gap-2 text-xl font-extrabold text-slate-900"
           >
             <img src="/medinote-logo.svg" alt="Medinote" className="h-8 w-8" />
             Medinote
