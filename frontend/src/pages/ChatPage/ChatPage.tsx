@@ -468,8 +468,7 @@ const messageNoticeClass =
   'rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm leading-6 text-slate-500 shadow-sm';
 const inputPanelClass =
   'shrink-0 border-t border-slate-200/80 bg-white/95 p-4';
-const textareaClass =
-  'mt-3 min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100';
+
 
 function getMessageAlignmentClass(sender: MessageSender) {
   if (sender === 'USER') {
@@ -1870,92 +1869,93 @@ function ChatPage() {
 
             {activeMode === 'pharmacist' && activeConsultRoom && isConsultRoomClosed && (
               <div className={inputPanelClass}>
-                <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4 shadow-sm">
-                  <p className="text-sm font-bold text-blue-800">
-                    AI 상담 요약
-                  </p>
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4 shadow-sm">
+                    <p className="text-sm font-bold text-blue-800">
+                      AI 상담 요약
+                    </p>
 
-                  {activeConsultSummary ? (
-                    <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-700">
-                      {activeConsultSummary}
-                    </p>
-                  ) : (
-                    <p className="mt-3 text-sm leading-6 text-blue-700">
-                      상담 요약이 아직 준비되지 않았습니다.
-                    </p>
+                    {activeConsultSummary ? (
+                      <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-700">
+                        {activeConsultSummary}
+                      </p>
+                    ) : (
+                      <p className="mt-3 text-sm leading-6 text-blue-700">
+                        상담 요약이 아직 준비되지 않았습니다.
+                      </p>
+                    )}
+                  </div>
+
+                  {shouldShowConsultFeedbackForm && (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 shadow-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-slate-700">상담은 어떠셨나요?</p>
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4, 5].map((rating) => (
+                            <button
+                              key={rating}
+                              type="button"
+                              onClick={() => setFeedbackRating(rating)}
+                              className={[
+                                'text-xl leading-none transition',
+                                feedbackRating >= rating ? 'text-amber-400' : 'text-slate-200 hover:text-amber-300',
+                              ].join(' ')}
+                            >
+                              ★
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={feedbackComment}
+                          onChange={(event) => setFeedbackComment(event.target.value)}
+                          placeholder="한줄평을 남겨주세요"
+                          className="h-9 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSubmitConsultFeedback}
+                          disabled={submitConsultFeedbackMutation.isPending}
+                          className="h-9 shrink-0 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {submitConsultFeedbackMutation.isPending ? '등록 중' : '등록'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {shouldShowSubmittedConsultFeedback && activeConsultRoom && (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 shadow-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-slate-700">내가 남긴 상담 평가</p>
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <span
+                              key={star}
+                              className={[
+                                'text-xl leading-none',
+                                (activeConsultRoom.rating ?? 0) >= star ? 'text-amber-400' : 'text-slate-200',
+                              ].join(' ')}
+                            >
+                              ★
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      {activeConsultRoom.feedbackComment && (
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                          {activeConsultRoom.feedbackComment}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
             )}
 
-            {shouldShowConsultFeedbackForm && activeConsultRoom && (
-              <div className={inputPanelClass}>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-sm">
-                  <p className="text-sm font-bold text-slate-900">
-                    상담은 어떠셨나요?
-                  </p>
-
-                  <div className="mt-3 flex gap-2">
-                    {[1, 2, 3, 4, 5].map((rating) => (
-                      <button
-                        key={rating}
-                        type="button"
-                        onClick={() => setFeedbackRating(rating)}
-                        className={[
-                          'rounded-full px-3 py-2 text-sm font-bold transition',
-                          feedbackRating >= rating
-                            ? 'bg-amber-400 text-white shadow-sm shadow-amber-400/20'
-                            : 'border border-slate-200 bg-white text-slate-400 hover:bg-slate-50',
-                        ].join(' ')}
-                      >
-                        ★
-                      </button>
-                    ))}
-                  </div>
-
-                  <textarea
-                    value={feedbackComment}
-                    onChange={(event) => setFeedbackComment(event.target.value)}
-                    placeholder="상담에 대한 한줄평을 남겨주세요."
-                    className={textareaClass}
-                  />
-
-                  <div className="mt-3 flex justify-end">
-                    <Button
-                      type="button"
-                      onClick={handleSubmitConsultFeedback}
-                      disabled={submitConsultFeedbackMutation.isPending}
-                    >
-                      {submitConsultFeedbackMutation.isPending
-                        ? '등록 중...'
-                        : '평가 등록'}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {shouldShowSubmittedConsultFeedback && activeConsultRoom && (
-              <div className={inputPanelClass}>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-sm">
-                  <p className="text-sm font-bold text-slate-900">
-                    내가 남긴 상담 평가
-                  </p>
-
-                  <p className="mt-2 text-sm text-amber-500">
-                    {'★'.repeat(activeConsultRoom.rating ?? 0)}
-                    <span className="text-slate-300">
-                      {'★'.repeat(5 - (activeConsultRoom.rating ?? 0))}
-                    </span>
-                  </p>
-
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    {activeConsultRoom.feedbackComment || '한줄평이 없습니다.'}
-                  </p>
-                </div>
-              </div>
-            )}
-
+            {!(activeMode === 'pharmacist' && isConsultRoomClosed) && (
             <div className={inputPanelClass}>
               <div className="relative">
                 <div className="flex w-full gap-2">
@@ -1976,7 +1976,7 @@ function ChatPage() {
 
                   <Button
                     type="button"
-                    className="w-24 shrink-0 rounded-xl"
+                    className="shrink-0 whitespace-nowrap rounded-xl"
                     onClick={handleSendMessage}
                     disabled={
                       sendChatbotMessageMutation.isPending ||
@@ -1985,16 +1985,13 @@ function ChatPage() {
                         (!activeConsultRoom ||
                           (!isConsultRoomMatched &&
                             !canSendPendingConsultMessage) ||
-                          isConsultRoomClosed ||
                           !isConsultSocketConnected))
                     }
                   >
                     {activeMode === 'pharmacist'
-                      ? isConsultRoomClosed
-                        ? '종료된 상담'
-                        : isConsultSocketConnected
-                          ? '전송'
-                          : '연결 중'
+                      ? isConsultSocketConnected
+                        ? '전송'
+                        : '연결 중'
                       : sendChatbotMessageMutation.isPending
                         ? '전송 중...'
                         : '전송'}
@@ -2048,6 +2045,7 @@ function ChatPage() {
                 )}
               </div>
             </div>
+            )}
           </div>
         </div>
       </Card>
