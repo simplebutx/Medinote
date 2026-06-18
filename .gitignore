@@ -12,6 +12,8 @@ smartpill/arduino_secrets.h
 # Local/generated comparison tools and presentation artifacts
 tools/
 outputs/
+/slide*-before.png
+/slide*-after*.png
 
 # Local OS files
 .DS_Store

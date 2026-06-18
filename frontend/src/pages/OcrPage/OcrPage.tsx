@@ -520,6 +520,8 @@ function OcrPage() {
 
       const medicineName =
         getTextByKeys(item, [
+          'matchedName',
+          'matched_name',
           'matchedDrugName',
           'matched_drug_name',
           'drugName',

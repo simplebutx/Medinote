@@ -5,6 +5,8 @@ import com.ibmteam02.backend_medication.ai.dto.AiOcrRequest;
 import com.ibmteam02.backend_medication.ai.dto.AiOcrResponse;
 import com.ibmteam02.backend_medication.global.exception.ForbiddenException;
 import com.ibmteam02.backend_medication.global.exception.ResourceNotFoundException;
+import com.ibmteam02.backend_medication.medicine.domain.MedicineInfo;
+import com.ibmteam02.backend_medication.medicine.repository.MedicineInfoRepository;
 import com.ibmteam02.backend_medication.prescription.cache.OcrResultCache;
 import com.ibmteam02.backend_medication.prescription.cache.OcrResultCacheRepository;
 import com.ibmteam02.backend_medication.prescription.config.S3StorageProperties;
@@ -29,6 +31,7 @@ public class PrescriptionOcrService {
     private final OcrResultCacheRepository ocrResultCacheRepository;
     private final AiOcrClient aiOcrClient;
     private final MedicineNameMatchService medicineMatchService;
+    private final MedicineInfoRepository medicineInfoRepository;
     private final ObjectMapper objectMapper;
     private final S3Client s3Client;
     private final S3StorageProperties s3StorageProperties;
@@ -104,9 +107,18 @@ public class PrescriptionOcrService {
                 String originalName = medicineObject.path("name").asText(null);
                 MedicineNameMatchService.MatchResult matchResult = medicineMatchService.matchNameWithCandidates(originalName);
                 String matchedName = matchResult.matchedName();
+                Long matchedMedicineId = matchedName != null
+                        ? medicineInfoRepository.findByItemName(matchedName)
+                        .map(MedicineInfo::getItemSeq)
+                        .orElse(null)
+                        : null;
 
                 medicineObject.put("originalName", originalName);
                 medicineObject.put("matchedName", matchedName != null ? matchedName : originalName);
+                if (matchedMedicineId != null) {
+                    medicineObject.put("medicineId", matchedMedicineId);
+                    medicineObject.put("itemSeq", matchedMedicineId);
+                }
                 medicineObject.put("matchScore", matchResult.score());
                 medicineObject.put("matchStatus", matchResult.status());
                 ArrayNode candidates = medicineObject.putArray("matchCandidates");
