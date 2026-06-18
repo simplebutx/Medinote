@@ -77,6 +77,8 @@ function UserAdditionalInfoStep({
   const [isBreastfeeding, setIsBreastfeeding] = useState(false);
   const [isSmoking, setIsSmoking] = useState(false);
   const [isDrinking, setIsDrinking] = useState(false);
+  const [isChild, setIsChild] = useState(false);
+  const [isElderly, setIsElderly] = useState(false);
 
   const [diseaseKeyword, setDiseaseKeyword] = useState("");
   const [isDiseaseSearchOpen, setIsDiseaseSearchOpen] = useState(false);
@@ -233,6 +235,8 @@ function UserAdditionalInfoStep({
         isBreastfeeding,
         isSmoking,
         isDrinking,
+        isChild,
+        isElderly,
         diseaseNames,
         cautions: pendingCautions.map(({ displayName: _d, ...req }) => req),
       },
@@ -314,6 +318,28 @@ function UserAdditionalInfoStep({
               ].join(" ")}
             >
               음주
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsChild((prev) => !prev)}
+              className={[
+                "rounded-xl border px-4 py-4 text-left text-sm font-semibold",
+                isChild ? choiceSelectedClass : choiceDefaultClass,
+              ].join(" ")}
+            >
+              소아
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsElderly((prev) => !prev)}
+              className={[
+                "rounded-xl border px-4 py-4 text-left text-sm font-semibold",
+                isElderly ? choiceSelectedClass : choiceDefaultClass,
+              ].join(" ")}
+            >
+              고령자
             </button>
           </div>
         </div>

@@ -355,7 +355,7 @@ function PatientPage() {
                               <div key={caution.id} className="py-2 first:pt-0 last:pb-0">
                                 <p className="text-xs font-semibold text-slate-800 leading-snug">{getCautionName(caution)}</p>
                                 <div className="mt-1 flex flex-wrap items-center gap-1">
-                                  <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                                  <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">
                                     {getCautionReasonLabel(caution.reason)}
                                   </span>
                                   {caution.memo && (
