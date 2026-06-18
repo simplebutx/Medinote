@@ -208,6 +208,85 @@ const pharmacyBusinessDays = [
   },
 ] as const;
 
+function PharmMedicationGuideAccordion() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-slate-50"
+      >
+        <span className="text-sm font-semibold text-slate-700">복약지도 안내 및 상담 범위</span>
+        <span className={['text-slate-400 transition-transform duration-200', open ? 'rotate-180' : ''].join(' ')}>
+          ▾
+        </span>
+      </button>
+
+      {open && (
+        <div className="border-t border-slate-100 px-5 pb-5 pt-4 text-sm leading-6 text-slate-600">
+          <p>
+            Medinote의 약사 상담은 약사법상 복약지도 범위를 기준으로 운영됩니다.
+          </p>
+          <p className="mt-3">
+            약사법 제2조 제12호에 따르면 복약지도는 의약품의 명칭, 용법·용량, 효능·효과, 저장 방법, 부작용, 상호작용이나 성상 등의 정보를 제공하는 것과, 일반의약품 판매 시 진단적 판단 없이 구매자가 필요한 의약품을 선택할 수 있도록 돕는 것을 의미합니다.
+          </p>
+          <p className="mt-3">
+            또한 약사법 제24조 제4항은 약사가 의약품을 조제하면 환자 또는 보호자에게 필요한 복약지도를 해야 한다고 규정하고 있습니다.
+          </p>
+          <p className="mt-3">
+            이에 따라 Medinote의 약사 상담은 다음 범위 안에서 제공됩니다.
+          </p>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl bg-emerald-50 p-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-emerald-700">상담 가능 영역</p>
+              <ul className="space-y-1 text-xs text-slate-700">
+                {[
+                  '의약품의 복용법, 용법·용량 안내',
+                  '효능·효과, 보관 방법, 부작용, 상호작용 안내',
+                  '일반의약품 선택 도움',
+                  '외용제 사용법 안내',
+                  '중복 성분 및 복용 누락 확인',
+                  '병원 방문이 필요한 상황에 대한 기준 안내',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-1.5">
+                    <span className="mt-0.5 shrink-0 text-emerald-500">✓</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-xl bg-red-50 p-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-red-600">제한되는 상담 영역</p>
+              <ul className="space-y-1 text-xs text-slate-700">
+                {[
+                  '질병명 확정 또는 진단',
+                  '전문의약품 추천',
+                  '처방약의 임의 변경, 중단, 증량, 감량 지시',
+                  '사진이나 증상만을 근거로 한 진단',
+                  '응급 상황에 대한 최종 판단',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-1.5">
+                    <span className="mt-0.5 shrink-0 text-red-400">✕</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <p className="mt-4 text-xs text-slate-400">
+            위 범위를 벗어나는 질문은 의료기관 방문 또는 의사 상담이 필요한 항목으로 안내됩니다.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 type PharmMyPageTab = 'profile' | 'license' | 'pharmacy';
 
 const pharmMyPageTabs: { label: string; value: PharmMyPageTab }[] = [
@@ -1034,6 +1113,9 @@ function PharmMyPage() {
               )}
             </div>
           </Card>
+
+          {/* ── 복약지도 안내 및 상담 범위 ── */}
+          <PharmMedicationGuideAccordion />
         </>
       )}
       {/* ── 비밀번호 변경 모달 ── */}
