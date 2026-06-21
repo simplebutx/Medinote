@@ -1,5 +1,7 @@
 env: load .env.local
 env: export MOBILE_EXPO_HOST MOBILE_API_HOST REACT_NATIVE_PACKAGER_HOSTNAME EXPO_PUBLIC_DEFAULT_API_HOST EXPO_PUBLIC_PRESIGNED_UPLOAD_URL_ENDPOINT
 Starting project at C:\dev\project\mobile-expo
-› Port 19000 is being used by another process
-› Skipping dev server
+Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Waiting on http://localhost:19000
+Logs for your project will appear below.

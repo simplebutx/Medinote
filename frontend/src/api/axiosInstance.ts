@@ -4,6 +4,10 @@ import { useUserStore } from "../store/useUserStore";
 const LOCAL_API_URL_PATTERN =
   /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\/?$/i;
 
+function isJwtLikeToken(token: string | null) {
+  return typeof token === "string" && token.split(".").length === 3;
+}
+
 function resolveApiBaseUrl(configuredUrl?: string) {
   const normalizedUrl = configuredUrl?.trim().replace(/\/$/, "") ?? "";
 
@@ -39,7 +43,7 @@ const createInstance = (baseURL: string) => {
   instance.interceptors.request.use((config) => {
     const accessToken = useUserStore.getState().accessToken;
 
-    if (accessToken) {
+    if (isJwtLikeToken(accessToken)) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
 

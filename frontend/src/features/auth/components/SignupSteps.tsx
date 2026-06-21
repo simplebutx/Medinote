@@ -12,7 +12,6 @@ import PharmacistAdditionalInfoStep from "./PharmacistAdditionalInfoStep";
 import { useState } from "react";
 import { Button, Card, Input, Badge } from "../../../components/ui";
 import type { UserRole } from "../../../types/common.types";
-import { useUserStore } from "../../../store/useUserStore";
 
 type Gender = "MALE" | "FEMALE";
 
@@ -61,7 +60,6 @@ function SignupSteps() {
   const [hasTriedNextStep, setHasTriedNextStep] = useState(false);
 
   const navigate = useNavigate();
-  const setLogin = useUserStore((state) => state.setLogin);
 
   const signupMutation = useSignup();
   const sendCodeMutation = useSendSmsVerificationCode();
@@ -78,22 +76,8 @@ function SignupSteps() {
     (hasTriedNextStep || password.length > 0) && Boolean(passwordValidationMessage);
 
   const handleCompleteSignup = () => {
-    setLogin({
-      accessToken: "mock-signup-access-token",
-      refreshToken: "mock-signup-refresh-token",
-      role,
-      userId: 1,
-      status: role === "PHARMACIST" ? "WAITING_APPROVAL" : null,
-    });
-
-    toast.success("회원가입이 완료되었습니다.");
-
-    if (role === "USER") {
-      navigate("/app/schedule");
-      return;
-    }
-
-    navigate("/pharmacist/dashboard");
+    toast.success("회원가입이 완료되었습니다. 로그인해주세요.");
+    navigate("/login", { replace: true });
   };
 
 

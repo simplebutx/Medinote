@@ -8,7 +8,7 @@
 #else
 #define SECRET_WIFI_SSID "YOUR_WIFI_SSID"
 #define SECRET_WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
-#define SECRET_SMARTPILL_TEST_URL "http://192.168.45.215:8081/api/smartpill/test/intake-events"
+#define SECRET_SMARTPILL_TEST_URL "http://192.168.45.56:8081/api/smartpill/test/intake-events"
 #define SECRET_SMARTPILL_DEVICE_ID "smartpill-prototype-1"
 #endif
 
@@ -354,35 +354,48 @@ void printSensorValues() {
 // =====================
 // OLED 화면 갱신
 // =====================
+// void refreshOled() {
+//   if (!oledReady) return;
+//   if (millis() - lastOledRefreshMs < OLED_INTERVAL_MS) return;
+
+//   lastOledRefreshMs = millis();
+
+//   char line[24];
+//   int targetIndex = sensorIndexForPort(TARGET_MUX_PORT);
+//   int targetDistance = targetIndex >= 0 ? latestDistances[targetIndex] : -1;
+//   bool targetReady = targetIndex >= 0 && sensorReady[targetIndex];
+//   bool pillPresent = isTargetPillPresent();
+
+//   oled.erase();
+
+//   snprintf(line, sizeof(line), "PORT %d", TARGET_MUX_PORT);
+//   oled.text(0, 0, line, 1);
+
+//   if (!targetReady) {
+//     oled.text(0, 16, "NO SENSOR", 1);
+//     oled.text(0, 32, "X", 2);
+//     oled.display();
+//     return;
+//   }
+
+//   snprintf(line, sizeof(line), "%d mm", targetDistance);
+//   oled.text(0, 16, line, 1);
+
+//   oled.text(0, 32, pillPresent ? "O" : "X", 2);
+
+//   oled.display();
+// }
+
 void refreshOled() {
   if (!oledReady) return;
   if (millis() - lastOledRefreshMs < OLED_INTERVAL_MS) return;
 
   lastOledRefreshMs = millis();
 
-  char line[24];
-  int targetIndex = sensorIndexForPort(TARGET_MUX_PORT);
-  int targetDistance = targetIndex >= 0 ? latestDistances[targetIndex] : -1;
-  bool targetReady = targetIndex >= 0 && sensorReady[targetIndex];
-  bool pillPresent = isTargetPillPresent();
-
   oled.erase();
-
-  snprintf(line, sizeof(line), "PORT %d", TARGET_MUX_PORT);
-  oled.text(0, 0, line, 1);
-
-  if (!targetReady) {
-    oled.text(0, 16, "NO SENSOR", 1);
-    oled.text(0, 32, "X", 2);
-    oled.display();
-    return;
-  }
-
-  snprintf(line, sizeof(line), "%d mm", targetDistance);
-  oled.text(0, 16, line, 1);
-
-  oled.text(0, 32, pillPresent ? "O" : "X", 2);
-
+  oled.text(0, 0, "MEDINOTE", 2);
+  oled.text(0, 24, "SMARTPILLCASE", 1);
+  oled.text(0, 38, "TEST", 1);
   oled.display();
 }
 

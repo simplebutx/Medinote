@@ -560,6 +560,11 @@ function OcrPage() {
         'count_per_day',
         'frequencyPerDay',
         'frequency_per_day',
+        'frequency',
+        'doseFrequency',
+        'dose_frequency',
+        'dailyFrequency',
+        'daily_frequency',
       ]);
 
       const itemText = Object.values(item)
