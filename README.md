@@ -7,7 +7,6 @@
 - 개발 기간: 2026.04 ~ 2026.06
 - 참여 인원: 3명
 - 담당 역할: 백엔드 / AI
-- GitHub: https://github.com/simplebutx/Medinote
 - 시연 영상: https://youtu.be/cauuHg6XwwI
 
 ---
