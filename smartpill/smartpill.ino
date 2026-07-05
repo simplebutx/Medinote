@@ -8,7 +8,7 @@
 #else
 #define SECRET_WIFI_SSID "YOUR_WIFI_SSID"
 #define SECRET_WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
-#define SECRET_SMARTPILL_TEST_URL "http://192.168.45.56:8081/api/smartpill/test/intake-events"
+#define SECRET_SMARTPILL_TEST_URL "http://192.168.45.207:8081/api/smartpill/test/intake-events"
 #define SECRET_SMARTPILL_DEVICE_ID "smartpill-prototype-1"
 #endif
 

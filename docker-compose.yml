@@ -1,20 +1,4 @@
 services:
-  mysql:
-    image: mysql:8.0.44
-    container_name: mymedi-mysql
-    environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-medic}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-root}
-    ports:
-      - "3307:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_PASSWORD:-root}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
   redis:
     image: redis:7-alpine
     container_name: mymedi-redis
@@ -46,103 +30,6 @@ services:
     volumes:
       - qdrant-data:/qdrant/storage
 
-  qdrant-seed:
-    profiles:
-      - seed
-    build:
-      context: ./ai-server
-    container_name: mymedi-qdrant-seed
-    working_dir: /app
-    environment:
-      LLM_API_KEY: ${LLM_API_KEY:-}
-      UPSTAGE_API_KEY: ${UPSTAGE_API_KEY:-}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-solar-embedding-1-large-passage}
-      EMBEDDING_QUERY_MODEL: ${EMBEDDING_QUERY_MODEL:-solar-embedding-1-large-query}
-      EMBEDDING_PASSAGE_MODEL: ${EMBEDDING_PASSAGE_MODEL:-solar-embedding-1-large-passage}
-      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-4096}
-      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
-      QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-medicine_docs}
-      QDRANT_SEED_CSV_PATH: ${QDRANT_SEED_CSV_PATH:-/app/app/data/medicine_info_0531.csv}
-      QDRANT_SEED_NAMES_FILE: ${QDRANT_SEED_NAMES_FILE:-/app/app/data/demo_medicine_names_20.txt}
-      QDRANT_SEED_SAMPLE_SIZE: ${QDRANT_SEED_SAMPLE_SIZE:-10}
-      QDRANT_SEED_RANDOM_SEED: ${QDRANT_SEED_RANDOM_SEED:-42}
-      QDRANT_SEED_SKIP_IF_NOT_EMPTY: ${QDRANT_SEED_SKIP_IF_NOT_EMPTY:-true}
-      QDRANT_SEED_CLEAR_COLLECTION: ${QDRANT_SEED_CLEAR_COLLECTION:-false}
-      QDRANT_SEED_WAIT_TIMEOUT_SECONDS: ${QDRANT_SEED_WAIT_TIMEOUT_SECONDS:-60}
-    command: ["python", "scripts/load_sample_pdf_docs.py"]
-    depends_on:
-      qdrant:
-        condition: service_started
-
-  qdrant-snapshot-export:
-    profiles:
-      - snapshot
-    image: curlimages/curl:8.10.1
-    container_name: mymedi-qdrant-snapshot-export
-    environment:
-      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
-      QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-medicine_docs}
-      QDRANT_SNAPSHOT_PATH: ${QDRANT_SNAPSHOT_PATH:-/qdrant-snapshots/medicine_docs.snapshot}
-    volumes:
-      - ./qdrant-snapshots:/qdrant-snapshots
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - >
-        set -eu;
-        qdrant_url="$${QDRANT_URL%/}";
-        snapshot_name="$$(curl -fsS -X POST "$$qdrant_url/collections/$$QDRANT_COLLECTION_NAME/snapshots?wait=true" | sed -n 's/.*"name":"\([^"]*\)".*/\1/p')";
-        test -n "$$snapshot_name";
-        mkdir -p "$$(dirname "$$QDRANT_SNAPSHOT_PATH")";
-        curl -fsS "$$qdrant_url/collections/$$QDRANT_COLLECTION_NAME/snapshots/$$snapshot_name" -o "$$QDRANT_SNAPSHOT_PATH";
-        echo "[done] Exported $$QDRANT_COLLECTION_NAME snapshot to $$QDRANT_SNAPSHOT_PATH"
-    depends_on:
-      qdrant:
-        condition: service_started
-
-  qdrant-snapshot-import:
-    profiles:
-      - snapshot
-    image: curlimages/curl:8.10.1
-    container_name: mymedi-qdrant-snapshot-import
-    environment:
-      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
-      QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-medicine_docs}
-      QDRANT_SNAPSHOT_PATH: ${QDRANT_SNAPSHOT_PATH:-/qdrant-snapshots/medicine_docs.snapshot}
-    volumes:
-      - ./qdrant-snapshots:/qdrant-snapshots
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - >
-        set -eu;
-        qdrant_url="$${QDRANT_URL%/}";
-        if [ ! -f "$$QDRANT_SNAPSHOT_PATH" ]; then
-          echo "[error] Snapshot file not found: $$QDRANT_SNAPSHOT_PATH" >&2;
-          exit 1;
-        fi;
-        echo "[info] Snapshot file:";
-        ls -lh "$$QDRANT_SNAPSHOT_PATH";
-        echo "[info] Removing existing $$QDRANT_COLLECTION_NAME collection if it exists";
-        curl -sS -X DELETE "$$qdrant_url/collections/$$QDRANT_COLLECTION_NAME?wait=true" -o /tmp/qdrant-delete-response.json -w "%{http_code}" > /tmp/qdrant-delete-code.txt;
-        delete_code="$$(cat /tmp/qdrant-delete-code.txt)";
-        if [ "$$delete_code" != "200" ] && [ "$$delete_code" != "404" ]; then
-          cat /tmp/qdrant-delete-response.json;
-          echo;
-          echo "[error] Failed to remove existing $$QDRANT_COLLECTION_NAME collection with HTTP $$delete_code" >&2;
-          exit 1;
-        fi;
-        response_path="/tmp/qdrant-snapshot-import-response.json";
-        http_code="$$(curl -sS -o "$$response_path" -w "%{http_code}" -X POST "$$qdrant_url/collections/$$QDRANT_COLLECTION_NAME/snapshots/upload?wait=true&priority=snapshot" -F "snapshot=@$$QDRANT_SNAPSHOT_PATH")";
-        cat "$$response_path";
-        echo;
-        if [ "$$http_code" -lt 200 ] || [ "$$http_code" -ge 300 ]; then
-          echo "[error] Qdrant snapshot import failed with HTTP $$http_code" >&2;
-          exit 1;
-        fi;
-        echo "[done] Imported $$QDRANT_SNAPSHOT_PATH into $$QDRANT_COLLECTION_NAME"
-    depends_on:
-      qdrant:
-        condition: service_started
-
   backend-auth:
     build:
       context: ./backend-auth
@@ -168,9 +55,9 @@ services:
       AWS_SECRET_KEY: ${AWS_SECRET_KEY:-}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
       AWS_REGION: ${AWS_REGION:-ap-northeast-2}
-      COOLSMS_API_KEY: ${COOLSMS_API_KEY}
-      COOLSMS_API_SECRET: ${COOLSMS_API_SECRET}
-      COOLSMS_FROM_NUMBER: ${COOLSMS_FROM_NUMBER}
+      COOLSMS_API_KEY: ${COOLSMS_API_KEY:-}
+      COOLSMS_API_SECRET: ${COOLSMS_API_SECRET:-}
+      COOLSMS_FROM_NUMBER: ${COOLSMS_FROM_NUMBER:-}
       GOOGLE_CLIENT_ID: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID:-local-google-client-id}
       GOOGLE_CLIENT_SECRET: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET:-local-google-client-secret}
       NAVER_CLIENT_ID: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_NAVER_CLIENT_ID:-local-naver-client-id}
@@ -296,21 +183,6 @@ services:
       qdrant:
         condition: service_started
 
-  api-gateway:
-    image: nginx:1.27-alpine
-    container_name: mymedi-api-gateway
-    volumes:
-      - ./infra/nginx/mobile-api-gateway.conf:/etc/nginx/conf.d/default.conf:ro
-    ports:
-      - "8090:80"
-    depends_on:
-      backend-auth:
-        condition: service_started
-      backend-medication:
-        condition: service_started
-      backend-consultation:
-        condition: service_started
-
   frontend-test:
     build:
       context: ./frontend-test
@@ -361,9 +233,7 @@ services:
       MOBILE_EXPO_HOST: ${MOBILE_EXPO_HOST:-}
       MOBILE_API_HOST: ${MOBILE_API_HOST:-}
       REACT_NATIVE_PACKAGER_HOSTNAME: ${MOBILE_EXPO_HOST:-}
-      EXPO_PUBLIC_DEFAULT_API_HOST: ${EXPO_PUBLIC_DEFAULT_API_HOST:-}
-      EXPO_PUBLIC_API_BASE_URL: ${EXPO_PUBLIC_API_BASE_URL:-}
-      EXPO_PUBLIC_PRESIGNED_UPLOAD_URL_ENDPOINT: ${EXPO_PUBLIC_PRESIGNED_UPLOAD_URL_ENDPOINT:-}
+      EXPO_PUBLIC_DEFAULT_API_HOST: ${EXPO_PUBLIC_DEFAULT_API_HOST:-${MOBILE_API_HOST:-}}
     command: ["sh", "-c", "npm run start:docker"]
     ports:
       - "19000:19000"
@@ -376,6 +246,5 @@ services:
         condition: service_started
 
 volumes:
-  mysql-data:
   redis-data:
   qdrant-data:

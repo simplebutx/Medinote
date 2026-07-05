@@ -34,7 +34,7 @@ public class SmartPillIntakeAutomationService {
 
     private static final ZoneId SCHEDULE_ZONE = ZoneId.of("Asia/Seoul");
     private static final long ACCEPT_BEFORE_MINUTES = 120;
-    private static final long ACCEPT_AFTER_MINUTES = 240;
+    private static final long ACCEPT_AFTER_MINUTES = 24 * 60;
     private static final int STABLE_SAMPLE_COUNT = 2;
 
     private final SmartPillSlotAssignmentRepository smartPillSlotAssignmentRepository;

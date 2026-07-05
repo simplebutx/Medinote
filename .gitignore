@@ -1,3 +1,4 @@
+.env
 .env.docker
 .env.docker.*
 mobile-expo/.env.local
@@ -25,3 +26,11 @@ test_db.sh
 # Smart pill 3D/CAD generated artifacts
 smart_pill_box*.stl
 smart_pill_box*.scad
+*.stl
+*.scad
+*.obj
+*.3mf
+*.step
+*.stp
+*.glb
+*.gltf

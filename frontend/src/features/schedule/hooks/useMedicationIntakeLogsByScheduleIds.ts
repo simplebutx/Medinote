@@ -8,5 +8,6 @@ export const useMedicationIntakeLogsByScheduleIds = (
     queryKey: ['medication-intake-logs', medicationScheduleIds],
     queryFn: () => getMedicationIntakeLogsByScheduleIds(medicationScheduleIds),
     enabled: medicationScheduleIds.length > 0,
+    refetchInterval: 2_000,
   });
 };

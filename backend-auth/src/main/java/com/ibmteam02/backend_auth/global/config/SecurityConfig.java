@@ -60,6 +60,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of(
+                "http://localhost:19006",
                 "http://localhost:5173",
                 "http://localhost:5174",
                 "https://d3s9d84ez4sxzx.cloudfront.net"
